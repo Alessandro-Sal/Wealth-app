@@ -74,3 +74,4 @@ In `Script_Portfolio.gs`, adjust the stock retention date. Positions closed *bef
 ```javascript
 // Stocks closed before this date will be hidden from the view
 const CUTOFF_DATE = new Date("2026-01-30");
+
