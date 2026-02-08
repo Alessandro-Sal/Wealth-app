@@ -1,0 +1,216 @@
+<script>
+/**
+ * ======================================================================================
+ * BLOCK 1: CORE, GLOBAL VARIABLES & UTILITIES
+ * Handles promises, state variables, formatting, and theme management.
+ * ======================================================================================
+ */
+
+/** * Promise Wrapper for Google Script Run.
+ * Converts the standard callback-based google.script.run into a modern Promise-based structure.
+ * 
+ */
+const run = (fnName, ...args) => {
+  return new Promise((resolve, reject) => {
+    google.script.run
+      .withSuccessHandler(resolve)
+      .withFailureHandler(error => {
+        console.error(`Server Error [${fnName}]:`, error);
+        reject(error);
+      })
+      [fnName](...args);
+  });
+};
+
+// --- Global Variables ---
+let currentPin = "";
+let geminiCurrentInput = "";
+let geminiSessionPin = ""; // State variable for AI Session
+let notesData = {};
+let tickersData = [];
+let loadedCharts = [];
+let myChart = null; // Chart instance variable
+let assetChart = null; // Chart instance variable for Assets
+let analyticsChartInstance = null; // Chart instance for Market Analytics
+let analyticsDataCache = null;
+let mapInstance = null;
+let mapMarkers = [];
+let expenseStackInstance = null;
+let incomeStackInstance = null;
+let pensionChartInstance = null;
+let tripChartInstance = null;
+let sankeyChartInstance = null;
+let currentPortfolioData = { stocks: [], etfs: [], crypto: [] };
+let chatHistory = [];
+let myWatchlistData = [];
+let currentCalDate = new Date(); 
+let allMarketEvents = [];
+let isFullDataLoaded = false;
+let marketInterval = null;
+
+// Categories configuration for Dropdowns
+// NOTE: Values kept in Italian to match Spreadsheet Data Validation
+const categories = {
+  'Expense': ['Alloggio', 'Free-Time', 'Trasporti', 'Alimentazione', 'Regali', 'Famiglia', 'Uscite', 'Necessità', 'Altro', 'Viaggi', 'Mamma Calabria'],
+  'Income': ['Stipendio', 'Famiglia', 'Parenti', 'Altro','Mamma Calabria'],
+  'Transfer': ['Trasferimenti'],
+  'Storno': ['Storno'],
+  'Investment': ['Azioni', 'Crypto']
+};
+
+// --- Immediate Execution Functions ---
+(function checkSession() {
+  // FORCE: Privacy Mode ALWAYS active on app launch.
+  document.body.classList.add('privacy-mode');
+  // Reveal App Container
+  setTimeout(() => {
+    document.getElementById('app-content').style.display = 'block';
+    if(typeof initApp === 'function') initApp();
+  }, 100);
+})();
+
+/**
+ * Sets the default date for investment inputs to Today.
+ */
+function setTodayDate() {
+  const el = document.getElementById('invDate');
+  if(el) el.valueAsDate = new Date();
+}
+
+// --- UI Utilities (Skeleton, Themes, Privacy) ---
+
+/**
+ * Renders a loading skeleton effect in a container.
+ * 
+ */
+function showSkeleton(containerId, count = 3, height = '40px', isCard = false) {
+  const cont = document.getElementById(containerId);
+  if (!cont) return;
+  let html = '';
+  let className = isCard ? 'skeleton skeleton-card' : 'skeleton';
+  for(let i=0; i<count; i++) {
+    html += `<div class="${className}" style="height:${height}"></div>`;
+  }
+  cont.innerHTML = html;
+}
+
+/**
+ * Toggles Dark/Light mode and updates meta tags.
+ */
+function toggleTheme() {
+  document.body.classList.toggle('dark-mode');
+  const isDark = document.body.classList.contains('dark-mode');
+  document.querySelectorAll('.theme-toggler').forEach(b => b.innerText = isDark ? '☀️' : '🌙');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  const metaThemeColor = document.getElementById('theme-color-meta');
+  if (metaThemeColor) {
+    metaThemeColor.setAttribute('content', isDark ? '#121212' : '#f2f2f7');
+  }
+}
+
+/**
+ * Toggles Privacy Mode (Blurring sensitive data).
+ * 
+ */
+function togglePrivacy() {
+  const isHidden = document.body.classList.contains('privacy-mode');
+  if (isHidden) {
+    // CASE 1: USER WANTS TO VIEW DATA (Open Pin Pad)
+    const lock = document.getElementById('lock-screen');
+    lock.style.display = 'flex';
+    setTimeout(() => lock.style.opacity = '1', 10);
+  } else {
+    // CASE 2: USER WANTS TO HIDE DATA (Lock Everything)
+    document.body.classList.add('privacy-mode');
+    updateAllCharts();
+    localStorage.removeItem('auth_expiry');
+    // 🔥 NEW: LOCK GEMINI AI AS WELL
+    geminiSessionPin = ""; 
+    updateGeminiLockIcon(false); 
+    console.log("Sync Lock: Privacy Active -> AI Locked");
+  }
+}
+
+// --- Input Helpers (+/- toggle and commas) ---
+
+/**
+ * Attaches validation listeners to inputs.
+ * Handles comma-to-dot conversion and input type adjustments.
+ * 
+ */
+function setupInputValidation() {
+  const inputs = document.querySelectorAll('input[type="number"], input.bank-in, #penAmount, #invCostEur, #invCostUsd, #invQty');
+  inputs.forEach(el => {
+    el.type = 'text';
+    el.inputMode = 'decimal';
+    const newEl = el.cloneNode(true);
+    el.parentNode.replaceChild(newEl, el);
+    
+    // Auto-replace comma with dot for calculation safety
+    newEl.addEventListener('input', function(e) {
+        let val = this.value;
+        if (val.includes(',')) {
+            let cursorPosition = this.selectionStart;
+            this.value = val.replace(/,/g, '.');
+            this.setSelectionRange(cursorPosition, cursorPosition);
+        }
+    });
+    
+    // Sync UI color based on positive/negative value
+    newEl.addEventListener('input', function() {
+         if(typeof syncIconColor === 'function') syncIconColor(this);
+    });
+  });
+}
+
+/**
+ * Toggles the sign (+/-) icon next to an input field.
+ * Also changes the text color to indicate expense (red) vs income (green).
+ */
+function toggleSignIcon(icon) {
+  const wrapper = icon.parentElement;
+  const input = wrapper.querySelector('input');
+  let val = parseFloat(input.value);
+  const isPlus = icon.classList.contains('sign-plus');
+  
+  if (isPlus) {
+    icon.classList.remove('sign-plus');
+    icon.classList.add('sign-minus');
+    setTimeout(() => icon.innerHTML = '&#8722;', 50); 
+    input.style.color = 'var(--danger)';
+    if (!isNaN(val) && val > 0) input.value = (val * -1).toFixed(2);
+  } else {
+    icon.classList.remove('sign-minus');
+    icon.classList.add('sign-plus');
+    setTimeout(() => icon.innerText = '+', 50);
+    input.style.color = 'var(--stocks-bg)';
+    if (!isNaN(val) && val < 0) input.value = Math.abs(val).toFixed(2);
+  }
+  if(navigator.vibrate) navigator.vibrate(20);
+}
+
+/**
+ * Synchronizes the input text color with the current value (+/-).
+ */
+function syncIconColor(input) {
+  const wrapper = input.parentElement;
+  const icon = wrapper.querySelector('.sign-toggle');
+  let val = parseFloat(input.value);
+  
+  if (val < 0) {
+    if (!icon.classList.contains('sign-minus')) {
+      icon.classList.remove('sign-plus');
+      icon.classList.add('sign-minus');
+      icon.innerHTML = '&#8722;';
+    }
+    input.style.color = 'var(--danger)';
+  } else {
+    if (!icon.classList.contains('sign-plus')) {
+      icon.classList.remove('sign-minus');
+      icon.classList.add('sign-plus');
+      icon.innerText = '+';
+    }
+    input.style.color = 'var(--stocks-bg)'; 
+  }
+}
+</script>

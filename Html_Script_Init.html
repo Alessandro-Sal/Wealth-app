@@ -1,0 +1,428 @@
+<script>
+/**
+ * ======================================================================================
+ * BLOCK 3: INITIALIZATION & DATA FETCHING
+ * App startup logic, caching strategy, and initial rendering of dashboard/charts.
+ * ======================================================================================
+ */
+
+/**
+ * Main Entry Point.
+ * 1. Checks LocalStorage for cached data (Fast Render).
+ * 2. Fetches fresh data from server (Network Update).
+ * 3. Handles Skeleton loading UI.
+ * 
+ */
+async function initApp() {
+  console.log("🚀 App Launch: Skeleton First...");
+  
+  // Theme Setup
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'dark') toggleTheme();
+  
+  // Utils Init
+  setTodayDate();
+  setupInputValidation();
+  fetchBalances();
+
+  const splash = document.getElementById('splash-screen');
+  const cachedFast = localStorage.getItem('cache_fast');
+  const cachedHeavy = localStorage.getItem('cache_heavy');
+
+  // Render Skeletons immediately
+  showSkeleton('budget-container', 4, '35px');
+  showSkeleton('history-container', 5, '50px');
+  showSkeleton('live-stocks', 3, '70px', true);
+
+  // --- STAGE 1: CACHE RENDER (Instant UI) ---
+  if (cachedFast) {
+      try { 
+          renderAllData(JSON.parse(cachedFast)); 
+          console.log("⚡ Cache Fast Rendered."); 
+      } catch (e) { console.error("Corrupt Fast Cache", e); }
+  }
+  if (cachedHeavy) {
+      try { 
+          renderAllData(JSON.parse(cachedHeavy)); 
+          console.log("⚡ Cache Heavy Rendered."); 
+      } catch (e) { console.error("Corrupt Heavy Cache", e); }
+  }
+
+  // Hide Splash Screen
+  if (splash) setTimeout(() => splash.classList.add('hidden'), 100);
+
+  const currentYear = new Date().getFullYear().toString();
+
+  try {
+      // --- STAGE 2: FAST DATA FETCH (Network) ---
+      const fastData = await run('loadFastStart', currentYear);
+      localStorage.setItem('cache_fast', JSON.stringify(fastData));
+      renderAllData(fastData);
+
+      // --- STAGE 3: HEAVY DATA FETCH (Lazy Load) ---
+      run('loadHeavyContent', currentYear).then(heavyData => {
+          console.log("📡 Portfolio Data Received.");
+          localStorage.setItem('cache_heavy', JSON.stringify(heavyData));
+          renderAllData(heavyData);
+
+          // Populate Autocomplete
+          if(heavyData.autocomplete) {
+              notesData = heavyData.autocomplete.notes;
+              tickersData = heavyData.autocomplete.tickers;
+          }
+          
+          isFullDataLoaded = true; 
+          console.log("🤖 Data Ready. Starting AI Analysis in background...");
+          
+          // Trigger Background Analysis
+          if (typeof forceReloadMarket === 'function') forceReloadMarket(); 
+          else loadMarketInsights();
+          
+          if (typeof forceReloadRisk === 'function') forceReloadRisk();
+      });
+
+      // Start Live Market Updates
+      fetchWatchlist(); 
+      setTimeout(() => startMarketPolling(), 5000);
+
+  } catch (err) {
+      console.error("Critical Init Error:", err);
+      if (!cachedFast) {
+          document.getElementById('budget-container').innerHTML = '<div style="text-align:center;color:red;padding:20px;">Connection Error.<br>Try again later.</div>';
+      }
+  }
+}
+
+/**
+ * Universal Data Renderer.
+ * Dispatches data chunks to specific UI update functions.
+ * Handles both partial updates (Fast) and full updates (Heavy).
+ * @param {Object} data - The data payload from server/cache.
+ */
+function renderAllData(data) {
+  console.log("📦 Rendering Partial:", Object.keys(data));
+  
+  if (data.years) {
+      const sel = document.getElementById('trendYear');
+      if (sel && sel.options.length <= 1) {
+          const current = sel.value || new Date().getFullYear().toString();
+          renderYearSelector(data.years, current);
+      }
+  }
+  
+  if (data.dashboard) updateDashboardDOM(data.dashboard);
+  if (data.historyNW) renderHistoricalNWDOM(data.historyNW);
+  if (data.watchlist) { myWatchlistData = data.watchlist; renderWatchlist(); }
+  if (data.portfolio) renderLivePortfolio(data.portfolio);
+  if (data.transactions) renderHistory(data.transactions);
+  
+  // FIRE Section
+  if (data.fire) {
+      if(document.getElementById('fire-pct')) document.getElementById('fire-pct').innerText = data.fire.pct + "%";
+      if(document.getElementById('fire-nw')) document.getElementById('fire-nw').innerText = "€ " + new Intl.NumberFormat('it-IT', {maximumFractionDigits:0}).format(data.fire.currentNW);
+      if(document.getElementById('fire-target')) document.getElementById('fire-target').innerText = "€ " + new Intl.NumberFormat('it-IT', {maximumFractionDigits:0}).format(data.fire.fireTarget);
+      setTimeout(() => { if(document.getElementById('fire-bar')) document.getElementById('fire-bar').style.width = data.fire.bar + "%"; }, 100);
+  }
+  
+  // Projection Card
+  if (data.projection) {
+      const elVal = document.getElementById('proj-val');
+      const elCurr = document.getElementById('proj-curr');
+      const elMsg = document.getElementById('proj-msg');
+      const pVal = new Intl.NumberFormat('it-IT').format(data.projection.projected);
+      const cVal = new Intl.NumberFormat('it-IT').format(data.projection.current);
+      
+      if(elVal) elVal.innerText = "€ " + pVal;
+      if(elCurr) elCurr.innerText = "€ " + cVal;
+      if(elMsg) elMsg.innerText = data.projection.message;
+      
+      // Dynamic Card Color based on projection
+      const card = elVal ? elVal.closest('.card') : null;
+      if (card) {
+          if (parseFloat(data.projection.projected) < 0) card.style.background = "linear-gradient(135deg, #3a1c1c 0%, #502c2c 100%)"; 
+          else card.style.background = "linear-gradient(135deg, #2c3e50 0%, #4b4b4d 100%)"; 
+      }
+  }
+  
+  // Runway Section
+  if (data.runway) {
+      const elVal = document.getElementById('runway-val');
+      if (elVal) {
+          elVal.innerText = data.runway.months;
+          const m = parseFloat(data.runway.months);
+          if (m < 6) elVal.style.color = 'var(--danger)';
+          else if (m < 12) elVal.style.color = 'var(--warning)';
+          else elVal.style.color = 'var(--success)';
+      }
+      const fmtAvg = new Intl.NumberFormat('it-IT').format(data.runway.avg);
+      if(document.getElementById('runway-avg')) document.getElementById('runway-avg').innerText = "€ " + fmtAvg;
+  }
+  
+  // Yearly Totals
+  if (data.yearlyTotals) {
+      const label = document.getElementById('yr-label');
+      const curYear = document.getElementById('trendYear') ? document.getElementById('trendYear').value : new Date().getFullYear();
+      if(label) label.innerText = curYear;
+      
+      const d = data.yearlyTotals;
+      if(document.getElementById('yr-inc')) document.getElementById('yr-inc').innerText = d.income;
+      if(document.getElementById('yr-exp')) document.getElementById('yr-exp').innerText = d.expense;
+      
+      const elSav = document.getElementById('yr-sav');
+      if(elSav) {
+          elSav.innerText = d.saving;
+          if (d.rawSaving >= 0) { elSav.style.color = 'var(--stocks-bg)'; if(d.rawSaving > 0) elSav.innerText = "+" + d.saving; }
+          else { elSav.style.color = 'var(--danger)'; }
+      }
+      
+      // Helper to render top categories list
+      const renderCatList = (containerId, list, color) => {
+          const cont = document.getElementById(containerId);
+          if(!cont) return;
+          if(!list || list.length === 0) { cont.innerHTML = '<div style="font-size:10px; color:#ddd; font-style:italic;">No data</div>'; return; }
+          const topList = list.slice(0, 5); 
+          let html = '';
+          topList.forEach(item => {
+              let valFmt = new Intl.NumberFormat('it-IT', { notation: "compact", compactDisplay: "short", maximumFractionDigits: 1 }).format(item.val);
+              html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; font-size:10px;">
+                  <span style="color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70px;">${item.cat}</span>
+                  <span class="sensitive" style="font-weight:700; color:${color};">€ ${valFmt}</span>
+              </div>`;
+          });
+          cont.innerHTML = html;
+      };
+      renderCatList('yr-cat-inc', d.incCats, '#34c759');
+      renderCatList('yr-cat-exp', d.expCats, '#ff3b30');
+  }
+  
+  // Budget Bars
+  if (data.budget) {
+      const cont = document.getElementById('budget-container');
+      if (data.budget.length === 0) {
+          cont.innerHTML = '<div style="text-align:center;color:var(--gray);">No expenses yet</div>';
+      } else {
+          let html = '';
+          data.budget.forEach(b => {
+              let colorClass = 'bg-green';
+              if (b.pct > 85) colorClass = 'bg-orange';
+              if (b.pct > 100) colorClass = 'bg-red';
+              let width = Math.min(b.pct, 100);
+              html += `<div class="budget-item">
+                  <div class="bg-head"><span>${b.category}</span><span class="bg-nums sensitive">${b.spent.toFixed(0)} / ${b.limit} €</span></div>
+                  <div class="budget-track"><div class="budget-bar ${colorClass}" style="width:${width}%"></div></div>
+              </div>`;
+          });
+          cont.innerHTML = html;
+      }
+  }
+  
+  if (data.pension) renderPensionChart(data.pension);
+  
+  // Monthly Savings Flow
+  if (data.savings) {
+      document.getElementById('flow-in').innerText = "€ " + data.savings.income;
+      document.getElementById('flow-out').innerText = "€ " + data.savings.expenses;
+      document.getElementById('flow-save').innerText = "€ " + data.savings.savings;
+      document.getElementById('flow-rate').innerText = "Rate: " + data.savings.rate + "%";
+      const elSave = document.getElementById('flow-save');
+      if(elSave) elSave.style.color = parseFloat(data.savings.savings) >= 0 ? 'var(--stocks-bg)' : 'var(--danger)';
+  }
+}
+
+/**
+ * Updates the Dashboard Summary DOM elements.
+ * 
+ */
+function updateDashboardDOM(d) {
+  if(!d) return;
+  
+  document.getElementById('liq-eur').innerText = d.liquidNetWorth || "--";
+  document.getElementById('liq-usd').innerText = d.liquidNetWorthUSD || "--";
+  document.getElementById('tot-eur').innerText = d.totalNetWorth || "--";
+  document.getElementById('tot-usd').innerText = d.totalNetWorthUSD || "--";
+  
+  if (d.summary) {
+      if(d.summary.stocks) { document.getElementById('sum-s-a').innerText = d.summary.stocks.amount; setP('sum-s-p', d.summary.stocks.percent); }
+      if(d.summary.cash) { document.getElementById('sum-c-a').innerText = d.summary.cash.amount; setP('sum-c-p', d.summary.cash.percent); }
+      if(document.getElementById('sum-ceq-a')) {
+          if (d.summary.cashEq) { document.getElementById('sum-ceq-a').innerText = d.summary.cashEq.amount; setP('sum-ceq-p', d.summary.cashEq.percent); }
+          else { document.getElementById('sum-ceq-a').innerText = "€ 0,00"; setP('sum-ceq-p', "0%"); }
+      }
+      if(d.summary.etfs) { document.getElementById('sum-e-a').innerText = d.summary.etfs.amount; setP('sum-e-p', d.summary.etfs.percent); }
+      if(d.summary.crypto) { document.getElementById('sum-y-a').innerText = d.summary.crypto.amount; setP('sum-y-p', d.summary.crypto.percent); }
+      if(d.summary.others) { document.getElementById('sum-o-a').innerText = d.summary.others.amount; setP('sum-o-p', d.summary.others.percent); }
+      if(typeof renderAssetChart === 'function') renderAssetChart(d.summary);
+  }
+  
+  // Render specific asset sections (Crypto, Stocks, ETFs)
+  const renderSection = (prefix, data) => {
+      if(!data) return;
+      document.getElementById(`${prefix}-det-main`).innerText = data.main.amount;
+      document.getElementById(`${prefix}-det-un-a`).innerText = data.unrealized.amount; 
+      setP(`${prefix}-det-un-p`, data.unrealized.percent);
+      document.getElementById(`${prefix}-det-re-a`).innerText = data.realized.amount; 
+      setP(`${prefix}-det-re-p`, data.realized.percent);
+      document.getElementById(`${prefix}-det-bal-a`).innerText = data.balance.amount; 
+      setP(`${prefix}-det-bal-p`, data.balance.percent);
+      if(document.getElementById(`${prefix}-det-inv`) && data.invested) 
+          document.getElementById(`${prefix}-det-inv`).innerText = data.invested.amount;
+  };
+
+  renderSection('y', d.cryptoSection);
+  renderSection('s', d.stocksSection);
+  renderSection('e', d.etfSection);
+}
+
+// --- Fetchers (Helpers) ---
+
+function fetchBudgets() {
+  showSkeleton('budget-container', 5, '30px');
+  google.script.run.withSuccessHandler(data => {
+      const cont = document.getElementById('budget-container');
+      if (data.length === 0) { cont.innerHTML = '<div style="text-align:center;color:var(--gray);">No expenses yet</div>'; return; }
+      let html = '';
+      data.forEach(b => {
+          let colorClass = 'bg-green';
+          if (b.pct > 85) colorClass = 'bg-orange';
+          if (b.pct > 100) colorClass = 'bg-red';
+          let width = Math.min(b.pct, 100);
+          html += `<div class="budget-item"><div class="bg-head"><span>${b.category}</span><span class="bg-nums sensitive">${b.spent.toFixed(0)} / ${b.limit} €</span></div><div class="budget-track"><div class="budget-bar ${colorClass}" style="width:${width}%"></div></div></div>`;
+      });
+      cont.innerHTML = html;
+  }).getBudgetStatus();
+}
+
+function fetchBalances() {
+  google.script.run.withSuccessHandler(data => {
+      if (data) {
+          document.getElementById('bal-col5').innerText = data.col5;
+          document.getElementById('bal-col6').innerText = data.col6;
+          document.getElementById('bal-col7').innerText = data.col7;
+          document.getElementById('bal-col8').innerText = data.col8;
+          document.getElementById('bal-col9').innerText = data.col9;
+          document.getElementById('bal-col10').innerText = data.col10;
+      }
+  }).getBankBalances();
+}
+
+function renderYearSelector(yearsList, selectedYear) {
+  const select = document.getElementById('trendYear');
+  if (!select || !yearsList) return;
+  select.innerHTML = "";
+  yearsList.forEach(y => {
+      let opt = document.createElement('option');
+      opt.value = y; 
+      opt.text = y;
+      if(String(y) === String(selectedYear)) opt.selected = true;
+      select.add(opt);
+  });
+}
+
+function hardResetApp() {
+  if(!confirm("Force reload all data from server?")) return;
+  const btn = event.target;
+  btn.innerText = "🧹 Cleaning...";
+  localStorage.clear();
+  google.script.run.withSuccessHandler(() => {
+      console.log("System Reset Complete.");
+      window.location.reload(); 
+  }).clearServerCache();
+}
+
+function setP(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerText = val;
+  el.style.color = (val && val.includes('-')) ? 'var(--danger)' : 'var(--stocks-bg)';
+}
+
+function fetchHistory() {
+  showSkeleton('history-container', 3, '50px');
+  google.script.run.withSuccessHandler(renderHistory).getLastTransactions();
+}
+
+function renderHistory(data) {
+  const container = document.getElementById('history-container');
+  if (!data || data.length === 0) { container.innerHTML = '<div style="text-align:center; padding:10px; color:var(--gray)">No recent transactions</div>'; return; }
+  let html = '';
+  data.forEach(tx => {
+      let colorClass = 'type-' + tx.type;
+      let displayAmt = tx.amount < 0 ? tx.amount.toFixed(2) : '+' + tx.amount.toFixed(2);
+      let noteHtml = '';
+      if (tx.details && tx.details !== "No Note" && tx.details !== "") {
+          noteHtml = `<div style="font-size:11px; color:#8e8e93; margin-bottom:2px; font-style:italic; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px;">${tx.details}</div>`;
+      }
+      html += `<div class="h-item"><div class="h-left"><span class="h-cat">${tx.category}</span>${noteHtml} <span class="h-date">${tx.date}</span></div><div class="h-right"><div class="h-amt ${colorClass} sensitive">€ ${displayAmt}</div><div style="display:flex; align-items:center; justify-content:flex-end;"><div class="h-type">${tx.type}</div><span class="h-del" onclick="deleteTx('Expenses Tracker 2026', ${tx.row})">🗑️</span></div></div></div>`;
+  });
+  container.innerHTML = html;
+}
+
+// --- Historical Data Rendering ---
+function renderHistoricalNWDOM(data) {
+  if (!data) return;
+  const fmtEur = (n) => "€ " + new Intl.NumberFormat('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+  const fmtUsd = (n) => "$ " + new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+  
+  const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.innerText = fmtEur(val); };
+  const setUsd = (id, val) => { const el = document.getElementById(id); if(el) el.innerText = fmtUsd(val); };
+  const setAlloc = (id, textPct) => { const el = document.getElementById(id); if(el) { el.innerText = textPct; el.style.color = 'var(--stocks-bg)'; } };
+  
+  const setTrend = (id, valStr) => {
+      const el = document.getElementById(id); if(!el) return;
+      el.innerText = valStr;
+      el.classList.remove('pos-change', 'neg-change');
+      if (String(valStr).includes('-')) { el.style.color = 'var(--danger)'; el.classList.add('neg-change'); }
+      else { el.style.color = 'var(--stocks-bg)'; el.classList.add('pos-change'); }
+  };
+  
+  setVal('tot-eur', data.liquid.val); setUsd('tot-usd', data.liquid.usd);
+  setVal('liq-eur', data.total.val); setUsd('liq-usd', data.total.usd);
+  
+  setVal('sum-s-a', data.summary.stocks.val); setAlloc('sum-s-p', data.summary.stocks.pct);
+  setVal('sum-e-a', data.summary.etfs.val); setAlloc('sum-e-p', data.summary.etfs.pct);
+  setVal('sum-y-a', data.summary.crypto.val); setAlloc('sum-y-p', data.summary.crypto.pct);
+  setVal('sum-o-a', data.summary.others.val); setAlloc('sum-o-p', data.summary.others.pct);
+  
+  if (!document.getElementById('sum-ceq-a')) {
+      setVal('sum-c-a', data.summary.cash.val + data.summary.cashEq.val);
+      setAlloc('sum-c-p', data.summary.cash.pct); 
+  } else {
+      setVal('sum-c-a', data.summary.cash.val); setAlloc('sum-c-p', data.summary.cash.pct);
+      setVal('sum-ceq-a', data.summary.cashEq.val); setAlloc('sum-ceq-p', data.summary.cashEq.pct);
+  }
+  
+  if(document.getElementById('sum-p-a')) {
+      setVal('sum-p-a', data.summary.pension.val); setAlloc('sum-p-p', data.summary.pension.pct);
+  }
+  
+  const fillCard = (prefix, d) => {
+      setVal(`${prefix}-det-main`, d.main);
+      setVal(`${prefix}-det-un-a`, d.unrVal); setTrend(`${prefix}-det-un-p`, d.unrPct);
+      setVal(`${prefix}-det-re-a`, d.realVal); setTrend(`${prefix}-det-re-p`, d.realPct);
+      setVal(`${prefix}-det-bal-a`, d.balVal); setTrend(`${prefix}-det-bal-p`, d.balPct);
+      if(document.getElementById(`${prefix}-det-inv`)) setVal(`${prefix}-det-inv`, d.invested);
+  };
+  
+  if (data.details) { 
+      fillCard('y', data.details.crypto); 
+      fillCard('s', data.details.stocks); 
+      fillCard('e', data.details.etfs); 
+  }
+  
+  // Re-draw chart with new data
+  const mockSummary = { 
+      stocks: { raw: data.summary.stocks.val }, 
+      cash: { raw: data.summary.cash.val }, 
+      etfs: { raw: data.summary.etfs.val }, 
+      crypto: { raw: data.summary.crypto.val }, 
+      others: { raw: data.summary.others.val }, 
+      cashEq: { raw: data.summary.cashEq.val }, 
+      pension: { raw: data.summary.pension.val } 
+  };
+  if(typeof renderAssetChart === 'function') renderAssetChart(mockSummary);
+}
+
+function fetchHistoricalNW(year) {
+  google.script.run.withSuccessHandler(renderHistoricalNWDOM).getHistoryNWData(year);
+}
+</script>

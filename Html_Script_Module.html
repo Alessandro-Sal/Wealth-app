@@ -1,0 +1,168 @@
+<script>
+/**
+ * ======================================================================================
+ * BLOCK 7: EXTRA MODULES (TRIPS & MAPS)
+ * Handles data fetching and rendering for the Travel Section (Trips).
+ * ======================================================================================
+ */
+
+/**
+ * Fetches trip data and geolocation for the selected year.
+ * Triggers rendering of the Trip Card List, Cost Chart, and Map.
+ */
+function fetchTrips(year) {
+  showSkeleton('trip-list-container', 2, '100px');
+  
+  // 1. Fetch Trip Data (List & Chart)
+  google.script.run.withSuccessHandler(trips => { 
+      renderTripChart(trips); 
+      renderTripList(trips); 
+  }).withFailureHandler(err => console.error("Trips Error:", err)).getTripData(year);
+  
+  // 2. Fetch Geodata (Map)
+  google.script.run.withSuccessHandler(mapData => { 
+      renderMap(mapData); 
+      // Force Map resize after rendering to fix Leaflet gray box issue
+      setTimeout(() => { 
+          if(mapInstance) mapInstance.invalidateSize(); 
+      }, 500); 
+  }).getTripsWithCoords(year);
+}
+
+/**
+ * Renders the Interactive Map using Leaflet.js.
+ * Displays markers for each visited city.
+ * 
+ */
+function renderMap(tripData) {
+  // Initialize Map if not already created
+  if (!mapInstance) {
+      mapInstance = L.map('map').setView([41.9028, 12.4964], 2); // Default View (Rome, Zoomed Out)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+          attribution: '© OpenStreetMap contributors' 
+      }).addTo(mapInstance);
+  }
+  
+  // Clear existing markers
+  mapMarkers.forEach(marker => mapInstance.removeLayer(marker)); 
+  mapMarkers = [];
+  
+  if (!tripData || tripData.length === 0) return;
+  
+  let group = new L.featureGroup();
+  
+  // Add new markers
+  tripData.forEach(t => {
+      let marker = L.marker([t.lat, t.lng]).addTo(mapInstance);
+      marker.bindPopup(`<b>${t.city}</b><br>${t.dest}<br>💰 Cost: ${t.total}`);
+      mapMarkers.push(marker); 
+      group.addLayer(marker);
+  });
+  
+  // Fit Bounds to show all markers
+  if (tripData.length > 0) { 
+      mapInstance.fitBounds(group.getBounds(), { padding: [50, 50] }); 
+  }
+}
+
+/**
+ * Renders the list of Trip Cards.
+ * 
+ */
+function renderTripList(trips) {
+  const container = document.getElementById('trip-list-container'); 
+  if (!container) return;
+  
+  if (!trips || trips.length === 0) { 
+      container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--gray); background:white; border-radius:12px;">No trips recorded for this year.</div>`; 
+      return; 
+  }
+  
+  let html = '';
+  trips.forEach(t => {
+      const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
+      
+      html += `<div class="card" style="margin-bottom:15px; border-left: 5px solid #5856d6; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 10px;">
+              <div>
+                  <div style="font-size:18px; font-weight:800; color:var(--text-main);">${t.city}</div>
+                  <div style="font-size:13px; color:var(--gray);">${t.dest}</div>
+                  <div style="font-size:11px; color:#5856d6; margin-top:4px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">📅 ${t.days} Days • 🏠 ${t.type}</div>
+              </div>
+              <div style="text-align:right;">
+                  <div style="font-size:20px; font-weight:900; color:#5856d6;">${fmt(t.total)}</div>
+                  <div style="font-size:10px; color:var(--gray); font-weight:bold; text-transform:uppercase;">Total</div>
+              </div>
+          </div>
+          <div style="display:flex; gap:5px; border-top:1px dashed #e5e5ea; padding-top:10px; margin-top:5px;">
+              <div style="flex:1; text-align:center; border-right:1px solid #f2f2f7;">
+                  <div style="font-size:18px; margin-bottom:2px;">✈️</div>
+                  <div style="font-size:9px; color:var(--gray); text-transform:uppercase; font-weight:600;">Transport</div>
+                  <div style="font-weight:700; font-size:13px; color:var(--text-main); margin-top:2px;">${fmt(t.transport)}</div>
+              </div>
+              <div style="flex:1; text-align:center; border-right:1px solid #f2f2f7;">
+                  <div style="font-size:18px; margin-bottom:2px;">🛏️</div>
+                  <div style="font-size:9px; color:var(--gray); text-transform:uppercase; font-weight:600;">Accom.</div>
+                  <div style="font-weight:700; font-size:13px; color:var(--text-main); margin-top:2px;">${fmt(t.accom)}</div>
+              </div>
+              <div style="flex:1; text-align:center;">
+                  <div style="font-size:18px; margin-bottom:2px;">🍕</div>
+                  <div style="font-size:9px; color:var(--gray); text-transform:uppercase; font-weight:600;">Extra</div>
+                  <div style="font-weight:700; font-size:13px; color:var(--text-main); margin-top:2px;">${fmt(t.other)}</div>
+              </div>
+          </div>
+      </div>`;
+  });
+  container.innerHTML = html;
+}
+
+/**
+ * Renders the Stacked Bar Chart for Trip Costs breakdown.
+ */
+function renderTripChart(trips) {
+  const canvas = document.getElementById('tripChart'); 
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  
+  if (tripChartInstance) { tripChartInstance.destroy(); }
+  
+  if (!trips || trips.length === 0) return;
+  
+  const labels = trips.map(t => t.city); 
+  const dTransport = trips.map(t => t.transport); 
+  const dAccom = trips.map(t => t.accom); 
+  const dOther = trips.map(t => t.other);
+  
+  tripChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+          labels: labels,
+          datasets: [ 
+              { label: 'Transport', data: dTransport, backgroundColor: '#5856d6', stack: 'Stack 0' }, 
+              { label: 'Accommodation', data: dAccom, backgroundColor: '#ff9500', stack: 'Stack 0' }, 
+              { label: 'Extra', data: dOther, backgroundColor: '#34c759', stack: 'Stack 0' } 
+          ]
+      },
+      options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+              tooltip: { 
+                  callbacks: { 
+                      label: function(context) { 
+                          let label = context.dataset.label || ''; 
+                          if (label) { label += ': '; } 
+                          if (context.parsed.y !== null) { label += context.parsed.y.toFixed(0) + '€'; } 
+                          return label; 
+                      } 
+                  } 
+              }
+          },
+          scales: { 
+              x: { grid: { display: false }, ticks: { font: { size: 10 } } }, 
+              y: { stacked: true, grid: { color: '#f2f2f7' }, ticks: { display: false } } 
+          }
+      }
+  });
+}
+</script>

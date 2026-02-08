@@ -1,0 +1,205 @@
+<style>
+   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+   
+   :root {
+   /* --- COLOR PALETTE (iOS 17 Inspired) --- */
+   --primary: #007aff;
+   --stocks-bg: #28a745;
+   --crypto-bg: #ffc107;
+   --invest-bg: #5856d6;
+   --market-bg: #ff2d55;
+   
+   /* Light Mode Defaults */
+   --bg: #f2f2f7;
+   --white: #ffffff;
+   --gray: #8e8e93;
+   --danger: #ff3b30;
+   --warning: #ff9500;
+   --success: #34c759;
+   --text-main: #000000;
+   
+   /* Form Elements */
+   --input-bg: #ffffff;
+   --input-border: #ddd;
+   --section-bg: #e5e5ea;
+   --row-border: #f2f2f7;
+   }
+
+   body {
+   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+   background-color: #f2f2f7;
+   color: var(--text-main);
+   margin: 0;
+   
+   /* Layout Handling for iPhone Notch/Home Bar */
+   padding-top: env(safe-area-inset-top); 
+   padding-bottom: calc(90px + env(safe-area-inset-bottom)); 
+   
+   transition: background 0.3s, color 0.3s;
+   }
+
+   /* Prevent elastic bounce effect on the body */
+   html, body {
+   overscroll-behavior-y: none; 
+   -webkit-overflow-scrolling: touch;
+   }
+
+   /* Re-enable bounce scrolling for specific scrollable containers */
+   .page, .sheet-modal, .search-res-cont, #chat-container {
+   overscroll-behavior-y: auto;
+   -webkit-overflow-scrolling: touch;
+   }
+
+   h1, h2, h3, h4, .total-amount, .card-title {
+   letter-spacing: -0.5px;
+   }
+
+   /* --- DARK MODE OVERRIDES --- */
+   body.dark-mode {
+   --bg: #121212;
+   --white: #1c1c1e;
+   --gray: #a1a1a6;
+   --text-main: #ffffff;
+   
+   --input-bg: #2c2c2e;
+   --input-border: #3a3a3c;
+   --section-bg: #2c2c2e;
+   --row-border: #38383a;
+   }
+
+   body.dark-mode .header-actions {
+   background: rgba(28, 28, 30, 0.85);
+   border: 1px solid rgba(255,255,255,0.1);
+   box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+   }
+
+   body.dark-mode .nav-bar {
+   background: rgba(28, 28, 30, 0.95);
+   border-top: 1px solid #38383a;
+   }
+
+   body.dark-mode .summary-title {
+   background: #3a3a3c;
+   color: #fff;
+   }
+
+   body.dark-mode h3, body.dark-mode label {
+   color: #fff;
+   }
+
+   body.dark-mode .bank-input-group {
+   background: #151516;
+   }
+
+   body.dark-mode .bank-in {
+   background: #2c2c2e;
+   color: #fff;
+   }
+
+   body.dark-mode .row {
+   border-bottom: 1px solid var(--row-border);
+   }
+
+   body.dark-mode .nav-btn {
+   color: #666;
+   }
+
+   body.dark-mode .nav-btn.active {
+   color: #0a84ff !important;
+   text-shadow: 0 0 10px rgba(10, 132, 255, 0.4);
+   }
+
+   body.dark-mode #lock-screen {
+   background: #121212;
+   }
+
+   body.dark-mode .pin-dot {
+   border-color: #555;
+   }
+
+   body.dark-mode .pin-btn {
+   background: #2c2c2e;
+   color: #fff;
+   }
+
+   body.dark-mode .mini-theme-btn {
+   border-color: #555;
+   color: #fff;
+   }
+
+   body.dark-mode .ticker-card {
+   background: #1c1c1e;
+   border-color: #38383a;
+   }
+
+   body.dark-mode .budget-track {
+   background: #2c2c2e;
+   }
+
+   body.dark-mode #search-sheet, 
+   body.dark-mode #subs-sheet, 
+   body.dark-mode #invest-search-sheet, 
+   body.dark-mode #calc-sheet {
+   background: #1c1c1e;
+   border-top: 1px solid #333;
+   }
+
+   body.dark-mode .search-res-item, body.dark-mode .sub-item {
+   border-bottom: 1px solid #38383a;
+   }
+
+   body.dark-mode .calc-display {
+   background: #2c2c2e;
+   color: #fff;
+   border-color: #333;
+   }
+
+   body.dark-mode .calc-btn {
+   background: #3a3a3c;
+   color: #fff;
+   }
+
+   body.dark-mode .calc-btn.op {
+   background: #ff9f0a;
+   color: #fff;
+   }
+
+   /* --- PRIVACY MODE (SENSITIVE DATA MASKING) --- */
+   /* Applies a blur filter to any element with the 'sensitive' class */
+   body.privacy-mode .sensitive {
+   color: inherit !important;
+   background: transparent !important;
+   filter: blur(6px);
+   user-select: none;
+   pointer-events: none;
+   opacity: 0.7;
+   transform: translate3d(0, 0, 0); /* Hardware acceleration hack */
+   display: inline-block;
+   }
+
+   body.privacy-mode .sensitive * {
+   text-shadow: none !important;
+   }
+
+   body.dark-mode.privacy-mode .sensitive {
+   background-color: transparent !important;
+   color: inherit !important;
+   }
+
+   /* Fade out charts slightly in privacy mode */
+   body.dark-mode.privacy-mode #expenseStackChart,
+   body.dark-mode.privacy-mode #incomeStackChart {
+   opacity: 0.4;
+   }
+
+   /* --- SCROLLBAR HIDING (Clean UI) --- */
+   /* Chrome/Safari/Webkit */
+   ::-webkit-scrollbar {
+       display: none;
+   }
+   /* Firefox/IE/Edge */
+   * {
+       -ms-overflow-style: none;
+       scrollbar-width: none;
+   }
+</style>

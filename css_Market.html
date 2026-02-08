@@ -1,0 +1,132 @@
+<style>
+   /* --- LIVE MARKET SCROLL --- */
+   /* Horizontal scrolling container for ticker cards. 
+      optimized for touch devices. */
+   .live-scroll { 
+       display: flex; 
+       overflow-x: auto; 
+       gap: 10px; 
+       padding-bottom: 10px; 
+       -webkit-overflow-scrolling: touch; 
+   }
+   /* Hide scrollbar for a cleaner mobile aesthetic */
+   .live-scroll::-webkit-scrollbar { display: none; }
+   
+   /* --- TICKER CARD --- */
+   /* Individual Asset Card styling (Stock/Crypto) */
+   .ticker-card { 
+       min-width: 130px; 
+       background: var(--white); 
+       border-radius: 12px; 
+       padding: 10px; 
+       border: 1px solid var(--row-border); 
+       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03); 
+       display: flex; 
+       flex-direction: column; 
+       justify-content: space-between; 
+   }
+   .tc-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+   .tc-symbol { font-weight: 800; font-size: 13px; color: var(--text-main); }
+   
+   /* Percentage Change Badge */
+   .tc-change { font-size: 11px; font-weight: bold; padding: 2px 5px; border-radius: 4px; }
+   .pos-change { background: rgba(40, 167, 69, 0.15); color: var(--stocks-bg); } /* Green */
+   .neg-change { background: rgba(255, 59, 48, 0.15); color: var(--danger); }    /* Red */
+   .neu-change { background: rgba(142, 142, 147, 0.15); color: var(--gray); }     /* Grey */
+   
+   .tc-val-big { font-size: 15px; font-weight: bold; color: var(--text-main); }
+   .tc-val-sub { font-size: 10px; color: var(--gray); margin-top: 2px; }
+   
+   /* --- BUDGET BAR --- */
+   /* Visual progress bar for expense limits */
+   .budget-item { margin-bottom: 10px; }
+   .bg-head { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+   .bg-nums { font-size: 11px; color: var(--gray); font-weight: normal; }
+   
+   .budget-track { width: 100%; height: 6px; background: #e5e5ea; border-radius: 3px; overflow: hidden; }
+   .budget-bar { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+   
+   /* Budget Status Colors */
+   .bg-green { background: var(--success); }
+   .bg-orange { background: var(--warning); }
+   .bg-red { background: var(--danger); }
+   
+   /* --- WATCHLIST STYLES --- */
+   /* Detailed statistics box inside the Watchlist Modal */
+   .wl-stat-box { 
+       background: var(--white, #ffffff); 
+       padding: 12px; 
+       border-radius: 12px; 
+       border: 1px solid rgba(0,0,0,0.1); 
+       display: flex; 
+       flex-direction: column; 
+       box-shadow: 0 2px 5px rgba(0,0,0,0.02); 
+   }
+   .wl-stat-box span { font-size: 10px; color: #888; text-transform: uppercase; margin-bottom: 4px; font-weight: 600; }
+   .wl-stat-box b { font-size: 15px; color: var(--text-main, #000); font-weight: 700; }
+   
+   /* Animated Delete Button */
+   .fancy-del-btn { 
+       width: 100%; 
+       padding: 16px; 
+       margin-top: 10px; 
+       border: none; 
+       border-radius: 20px; 
+       background: linear-gradient(135deg, #ff9a9e 0%, #ff5252 100%); 
+       color: white; 
+       font-weight: 800; 
+       font-size: 15px; 
+       cursor: pointer; 
+       box-shadow: 0 5px 15px rgba(255, 82, 82, 0.4); 
+       display: flex; 
+       align-items: center; 
+       justify-content: center; 
+       gap: 10px; 
+       transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); 
+   }
+   .fancy-del-btn:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 20px rgba(255, 82, 82, 0.6); }
+   .fancy-del-btn:active { transform: scale(0.95); box-shadow: 0 2px 10px rgba(255, 82, 82, 0.3); }
+   
+   /* Watchlist Grid Layout */
+   #wl-list { 
+       display: grid; 
+       grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); 
+       gap: 12px; 
+       padding: 10px; 
+       list-style: none; 
+       width: 100%; 
+       box-sizing: border-box; 
+   }
+   #watchlist-container { width: 100%; overflow-x: hidden; }
+
+   /* --- CALENDAR WIDGET --- */
+   /* Month View for Financial Events */
+   .calendar-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: #fff; border-bottom: 1px solid #f0f0f5; }
+   .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; padding: 10px; background: #fff; }
+   .calendar-day-name { text-align: center; font-size: 10px; font-weight: bold; color: #ccc; text-transform: uppercase; margin-bottom: 5px; }
+   
+   .calendar-day { 
+       aspect-ratio: 1; 
+       display: flex; 
+       flex-direction: column; 
+       align-items: center; 
+       justify-content: center; 
+       border-radius: 50%; 
+       font-size: 12px; 
+       font-weight: 500; 
+       cursor: pointer; 
+       position: relative; 
+       transition: all 0.2s; 
+   }
+   .calendar-day:hover { background-color: #f2f2f7; }
+   .calendar-day.selected { background-color: #007aff; color: white; font-weight: bold; }
+   .calendar-day.today { border: 1px solid #007aff; color: #007aff; }
+   
+   /* Event Dots (Portfolio vs Market) */
+   .event-dot-container { display: flex; gap: 2px; margin-top: 2px; }
+   .event-dot { width: 4px; height: 4px; border-radius: 50%; }
+   .dot-purple { background-color: #af52de; } /* Market Event */
+   .dot-blue { background-color: #007aff; }   /* Portfolio Event */
+   
+   .event-details-box { background: #f9f9f9; padding: 15px; border-radius: 12px; margin-top: 10px; min-height: 60px; }
+</style>

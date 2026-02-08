@@ -1,0 +1,151 @@
+<style>
+   /* --- SPLASH SCREEN --- */
+   /* Initial loading screen with logo pulse animation */
+   #splash-screen {
+   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+   background-color: #f2f2f7; z-index: 99999;
+   display: flex; align-items: center; justify-content: center;
+   transition: opacity 0.5s ease-out, visibility 0.5s;
+   }
+   .splash-content { display: flex; flex-direction: column; align-items: center; }
+   .splash-logo { width: 80px; height: 80px; margin-bottom: 15px; animation: pulseLogo 2s infinite ease-in-out; }
+   .splash-text { font-size: 22px; font-weight: 800; color: #000; letter-spacing: -0.5px; margin-bottom: 20px; }
+   .splash-spinner { width: 24px; height: 24px; border: 3px solid rgba(0,0,0,0.1); border-top-color: #007aff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+   #splash-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+   body.dark-mode #splash-screen { background-color: #121212; }
+   body.dark-mode .splash-text { color: #fff; }
+   body.dark-mode .splash-spinner { border-color: rgba(255,255,255,0.1); border-top-color: #0a84ff; }
+   @keyframes pulseLogo { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.8; } 100% { transform: scale(1); opacity: 1; } }
+   @keyframes spin { to { transform: rotate(360deg); } }
+
+   /* --- LOCK SCREEN & PIN PAD --- */
+   /* Fullscreen overlay for security PIN entry */
+   #lock-screen {
+   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+   background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+   z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center;
+   color: white; transition: opacity 0.3s;
+   }
+   .pin-title { margin-bottom: 30px; font-size: 16px; font-weight: 500; letter-spacing: 1px; opacity: 0.8; }
+   .pin-display { display: flex; gap: 20px; margin-bottom: 50px; }
+   .pin-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.3); transition: all 0.2s; background: transparent; }
+   .pin-dot.filled { background: white; border-color: white; box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
+   .pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px 35px; }
+   .pin-btn { width: 75px; height: 75px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.1); font-size: 28px; font-weight: 400; background: rgba(255, 255, 255, 0.1); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.1s, transform 0.1s; backdrop-filter: blur(5px); }
+   .pin-btn:active { background: rgba(255, 255, 255, 0.4); transform: scale(0.95); }
+   .shake { animation: shake 0.4s cubic-bezier(.36, .07, .19, .97) both; }
+   @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+
+   /* --- NAVIGATION BAR --- */
+   /* Bottom tab bar with safe-area support for iPhone X+ */
+   .nav-bar {
+   position: fixed; bottom: 0; width: 100%; height: 75px;
+   background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
+   display: flex; border-top: 1px solid #d1d1d6; z-index: 1000;
+   transition: background 0.3s; padding-bottom: 10px; box-sizing: border-box;
+   padding-bottom: env(safe-area-inset-bottom); /* Push up for Home Indicator */
+   height: calc(75px + env(safe-area-inset-bottom)); /* Adjust total height */
+   }
+   .nav-btn { flex: 1; text-align: center; padding: 10px 2px; font-size: 9px; color: var(--gray); font-weight: 500; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+   .nav-btn.active { color: #007aff !important; transform: scale(1.15); transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); font-weight: 700; text-shadow: 0 0 10px rgba(0, 122, 255, 0.3); }
+   .nav-btn i { display: block; font-size: 22px; margin-bottom: 3px; font-style: normal; }
+   
+   /* --- HEADER ACTIONS & PAGE STRUCTURE --- */
+   .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+   .page-header h3 { margin-top: 10px; padding-right: 140px; }
+   /* Floating action buttons in top-right */
+   .header-actions { position: fixed; top: 15px; right: 15px; z-index: 1100; display: flex; gap: 8px; padding: 6px 10px; border-radius: 30px; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.05); animation: fadeInDown 0.4s ease-out; transition: transform 0.3s ease, opacity 0.3s ease; }
+   .header-actions.nav-hidden { transform: translateY(-100px); opacity: 0; pointer-events: none; }
+   
+   /* --- FLOATING YEAR SELECTOR --- */
+   .floating-year-selector { position: fixed; top: 15px; left: 15px; z-index: 1100; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 6px 12px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.05); display: flex; align-items: center; gap: 5px; animation: fadeInDown 0.4s ease-out; transition: transform 0.3s ease, opacity 0.3s ease; }
+   .floating-year-selector.nav-hidden { transform: translateY(-100px); opacity: 0; pointer-events: none; }
+   .floating-year-selector select { border: none; background: transparent; font-weight: 800; font-size: 15px; margin: 0; padding: 0; width: auto; min-height: auto; color: inherit; cursor: pointer; outline: none; -webkit-appearance: none; appearance: none; text-align: center; }
+   body.dark-mode .floating-year-selector { background: rgba(28, 28, 30, 0.85); border: 1px solid rgba(255,255,255,0.1); color: white; }
+   @keyframes fadeInDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+   /* --- FORMS & INPUTS --- */
+   .page { display: none; padding: 15px; animation: fadeIn 0.3s; }
+   .active-page { display: block; }
+   form { background: var(--white); padding: 20px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); transition: background 0.3s; }
+   label { display: block; margin-top: 12px; font-size: 13px; font-weight: 600; color: var(--text-main); }
+   select, input { width: 100%; padding: 12px; margin-top: 8px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-main); border-radius: 10px; font-size: 16px; box-sizing: border-box; -webkit-appearance: none; appearance: none; min-height: 45px; font-family: inherit; }
+   .row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--row-border); }
+   
+   /* Special Input Wrapper for Bank Amounts with Sign Toggle */
+   .input-wrapper { position: relative; width: 140px; display: flex; align-items: center; }
+   .bank-in { width: 100%; padding-right: 45px !important; padding-left: 10px !important; text-align: right; border-radius: 12px; border: 1px solid var(--input-border); background: var(--input-bg); height: 42px; font-size: 16px; color: var(--text-main); transition: border-color 0.3s, color 0.3s; -moz-appearance: textfield; appearance: none; margin-top: 0; }
+   .sign-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; color: white; cursor: pointer; user-select: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: all 0.2s; z-index: 10; }
+   .sign-toggle:active { transform: translateY(-50%) scale(0.9); }
+   .sign-plus { background: linear-gradient(135deg, #34c759, #30b0c7); }
+   .sign-minus { background: linear-gradient(135deg, #ff3b30, #ff9500); }
+   
+   input:focus, select:focus, textarea:focus {
+   outline: none;
+   border-color: var(--primary);
+   box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.15); /* Soft Blue Glow */
+   background-color: var(--white);
+   }
+   
+   /* --- BANK ROW INFO --- */
+   .bank-info { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; }
+   .bank-balance { font-size: 11px; color: var(--primary); font-weight: 500; margin-top: 2px; opacity: 0.9; }
+
+   /* --- BUTTONS --- */
+   .btn-container { display: flex; gap: 10px; margin-top: 20px; }
+   .btn-save { flex: 2; padding: 16px; background: var(--stocks-bg); color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 18px; cursor: pointer; }
+   .btn-invest { background: linear-gradient(135deg, #5856d6 0%, #4644aa 100%); box-shadow: 0 8px 20px rgba(88, 86, 214, 0.3); }
+   .btn-invest:active { box-shadow: 0 4px 10px rgba(88, 86, 214, 0.2); }
+   .btn-reset { flex: 1; padding: 16px; background: var(--section-bg); color: var(--text-main); border: 1px solid rgba(0,0,0,0.05); border-radius: 12px; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s; }
+   .btn-reset:active { background: #d1d1d6; transform: scale(0.96); }
+   .btn-loading { opacity: 0.8; pointer-events: none; cursor: wait; }
+   .mini-theme-btn { background: transparent; border: 1px solid #ddd; border-radius: 50%; width: 36px; height: 36px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+   .mini-theme-btn:active { background: rgba(128, 128, 128, 0.2); transform: scale(0.9); }
+   
+   /* --- CARDS & LISTS --- */
+   .card { background: var(--white); border-radius: 0 0 12px 12px; padding: 10px 15px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); margin-bottom: 10px; transition: background 0.3s; }
+   .section-header { padding: 12px 15px; font-weight: bold; font-size: 16px; border-radius: 12px 12px 0 0; margin-top: 15px; }
+   .label { flex: 1; font-size: 14px; font-weight: 500; }
+   .amt { font-size: 14px; font-weight: 600; text-align: right; padding-right: 15px; }
+   .pct { font-size: 12px; width: 60px; text-align: right; font-weight: bold; }
+   
+   /* Header Colors */
+   .crypto-title { background: var(--crypto-bg); color: #000; }
+   .stocks-title { background: var(--stocks-bg); color: #fff; }
+   .summary-title { background: var(--section-bg); color: #333; }
+   .etf-title { background: #555; color: #fff; }
+   .market-title { background: var(--market-bg); color: #fff; }
+   
+   /* --- HISTORY LIST ITEM STYLES --- */
+   .history-list { margin-top: 20px; border-top: 1px solid var(--input-border); padding-top: 15px; }
+   .h-title { font-size: 14px; font-weight: bold; color: var(--gray); margin-bottom: 10px; text-transform: uppercase; }
+   .h-item { background: var(--white); padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+   .h-left { display: flex; flex-direction: column; }
+   .h-cat { font-weight: 600; font-size: 14px; }
+   .h-date { font-size: 11px; color: var(--gray); margin-top: 2px; }
+   .h-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
+   .h-amt { font-weight: bold; font-size: 14px; }
+   .h-type { font-size: 10px; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 2px; }
+   .h-del { margin-left: 10px; cursor: pointer; font-size: 14px; padding: 5px; opacity: 0.6; }
+   .h-del:hover { opacity: 1; transform: scale(1.2); }
+   .type-Expense { color: var(--danger); }
+   .type-Income { color: var(--stocks-bg); }
+   .type-Transfer { color: var(--primary); }
+   .type-Investment { color: var(--invest-bg); }
+
+   /* --- SKELETON LOADER & UTILS --- */
+   .skeleton { background: #e0e0e0; border-radius: 8px; width: 100%; margin-bottom: 10px; animation: shimmer 1.5s infinite linear; background: linear-gradient(to right, #eeeeee 8%, #dddddd 18%, #eeeeee 33%); background-size: 800px 100%; opacity: 0.6; }
+   .skeleton-card { min-width: 130px; height: 70px; border-radius: 12px; margin-right: 10px; display: inline-block; }
+   @keyframes shimmer { 0% { background-position: -800px 0; } 100% { background-position: 800px 0; } }
+   body.dark-mode .skeleton { background: #2c2c2e; background: linear-gradient(to right, #2c2c2e 8%, #3a3a3c 18%, #2c2c2e 33%); background-size: 800px 100%; }
+   
+   /* Offline Banner */
+   #offline-banner { position: fixed; top: -50px; left: 0; width: 100%; height: 40px; background: #ff3b30; color: white; text-align: center; line-height: 40px; font-weight: bold; font-size: 14px; z-index: 2000; transition: top 0.3s ease; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+   
+   /* Scroll to Top Button */
+   #btn-up { position: fixed; bottom: 90px; right: 20px; width: 45px; height: 45px; background: rgba(0,0,0,0.7); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity 0.3s, transform 0.2s; z-index: 890; backdrop-filter: blur(5px); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+   #btn-up.visible { opacity: 1; pointer-events: auto; }
+   #btn-up:active { transform: scale(0.9); }
+   
+   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>

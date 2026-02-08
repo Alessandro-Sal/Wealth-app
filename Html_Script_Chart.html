@@ -1,0 +1,325 @@
+<script>
+/**
+ * ======================================================================================
+ * BLOCK 4: CHARTS (CHART.JS RENDERERS)
+ * Handles all visualization: Financial Trends, Asset Allocation, Sankey Flow, Stacked Bars, Pension.
+ * ======================================================================================
+ */
+
+/**
+ * Renders the main Financial Trend Chart (Income vs Expense vs Savings).
+ * 
+ */
+function renderFinancialChart(year) {
+  if (!year) year = document.getElementById('trendYear').value;
+  const ctx = document.getElementById('expensesChart').getContext('2d');
+  
+  if (myChart) { myChart.destroy(); }
+  
+  google.script.run.withSuccessHandler(data => {
+      const colIncome = '#28a745'; 
+      const colExpense = '#ff3b30'; 
+      const colSavings = '#007aff';
+      
+      const avgs = data.averages || { income: 0, expense: 0, savings: 0 };
+      const fmt = (v) => "€ " + new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(v);
+      
+      myChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+              labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+              datasets: [
+                  { label: 'Income', data: data.income, backgroundColor: colIncome, borderRadius: 4, order: 2 },
+                  { label: 'Expense', data: data.expense, backgroundColor: colExpense, borderRadius: 4, order: 3 },
+                  { label: 'Savings', data: data.savings, type: 'line', borderColor: colSavings, borderWidth: 2, tension: 0.4, pointRadius: 0, hitRadius: 10, order: 1 }
+              ]
+          },
+          options: {
+              responsive: true, maintainAspectRatio: false,
+              layout: { padding: { top: 40, right: 10 } },
+              plugins: {
+                  legend: { position: 'bottom', labels: { boxWidth: 8, usePointStyle: true, font: { size: 11 }, padding: 15 } },
+                  tooltip: {
+                      mode: 'index', intersect: false, 
+                      backgroundColor: 'rgba(255, 255, 255, 0.9)', titleColor: '#000', bodyColor: '#000', borderColor: '#ddd', borderWidth: 1,
+                      callbacks: {
+                          label: function(context) {
+                              let label = context.dataset.label || '';
+                              if (label) label += ': ';
+                              // Privacy Masking
+                              if (document.body.classList.contains('privacy-mode')) return label + '****';
+                              if (context.parsed.y !== null) label += new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(context.parsed.y);
+                              return label;
+                          }
+                      }
+                  }
+              },
+              scales: {
+                  x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                  y: { grid: { color: '#f2f2f7', borderDash: [5, 5] }, border: { display: false }, ticks: { font: { size: 10 }, callback: (v) => (document.body.classList.contains('privacy-mode') ? '****' : new Intl.NumberFormat('it-IT', { notation: "compact" }).format(v)) } }
+              }
+          },
+          plugins: [{
+              id: 'avgLabels',
+              afterDraw: (chart) => {
+                  if (document.body.classList.contains('privacy-mode')) return;
+                  
+                  const ctx = chart.ctx; 
+                  const topY = 10; 
+                  let rightX = chart.chartArea.right;
+                  
+                  ctx.save(); 
+                  ctx.font = "600 10px Inter, sans-serif"; 
+                  ctx.textBaseline = "middle";
+                  
+                  const drawBadge = (label, value, color) => {
+                      const text = `${label}: ${fmt(value)}`; 
+                      const width = ctx.measureText(text).width + 16; 
+                      const height = 22; 
+                      const badgeX = rightX - width;
+                      
+                      ctx.fillStyle = color + '15'; 
+                      ctx.beginPath(); 
+                      ctx.roundRect(badgeX, topY, width, height, 6); 
+                      ctx.fill();
+                      
+                      ctx.strokeStyle = color + '40'; 
+                      ctx.lineWidth = 1; 
+                      ctx.stroke();
+                      
+                      ctx.fillStyle = color; 
+                      ctx.fillText(text, badgeX + 8, topY + height / 2 + 1);
+                      rightX -= (width + 6);
+                  };
+                  
+                  drawBadge('Sav', avgs.savings, colSavings); 
+                  drawBadge('Exp', avgs.expense, colExpense); 
+                  drawBadge('Inc', avgs.income, colIncome);
+                  ctx.restore();
+              }
+          }]
+      });
+  }).getMonthlyChartData(year);
+}
+
+/**
+ * Renders the Asset Allocation Doughnut Chart.
+ * 
+ */
+function renderAssetChart(summary) {
+  const canvas = document.getElementById('assetAllocationChart');
+  if (!canvas) return; 
+  
+  const ctx = canvas.getContext('2d');
+  if (assetChart) { assetChart.destroy(); }
+  
+  const s = summary || {};
+  const valStocks = s.stocks?.raw || 0; 
+  const valEtfs = s.etfs?.raw || 0; 
+  const valCrypto = s.crypto?.raw || 0; 
+  const valOthers = s.others?.raw || 0; 
+  const valPension = s.pension?.raw || 0;
+  const valCashEq = s.cashEq?.raw || 0; 
+  const valCash = s.cash?.raw || 0; 
+  const totalLiquid = valCashEq > 0 ? valCashEq : valCash;
+  
+  const labels = ['Stocks', 'Liquid', 'ETFs', 'Crypto', 'Others', 'Pension'];
+  const values = [valStocks, totalLiquid, valEtfs, valCrypto, valOthers, valPension];
+  
+  const totalCheck = values.reduce((a, b) => a + b, 0);
+  const finalValues = totalCheck > 0 ? values : [1]; 
+  const finalColors = totalCheck > 0 ? ['#28a745', '#007aff', '#555555', '#ffc107', '#ff2d55', '#fd7e14'] : ['#e5e5ea'];
+  
+  assetChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: { labels: labels, datasets: [{ data: finalValues, backgroundColor: finalColors, borderWidth: 0, hoverOffset: 4 }] },
+      options: {
+          responsive: true, maintainAspectRatio: false, cutout: '70%',
+          plugins: {
+              legend: { display: totalCheck > 0, position: 'bottom', labels: { boxWidth: 10, font: { size: 11 }, padding: 15 } },
+              tooltip: {
+                  enabled: totalCheck > 0,
+                  callbacks: {
+                      label: function(context) {
+                          let label = context.label || ''; if (label) label += ': ';
+                          let total = context.chart._metasets[context.datasetIndex].total; let val = context.raw;
+                          let percentage = total > 0 ? ((val / total) * 100).toFixed(2) + '%' : '0%';
+                          
+                          if (document.body.classList.contains('privacy-mode')) return `${label} **** (${percentage})`;
+                          if (context.raw !== null) label += new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(context.raw);
+                          return `${label} (${percentage})`;
+                      }
+                  }
+              }
+          }
+      }
+  });
+}
+
+/**
+ * Renders Stacked Bar Charts for Category Breakdown (Income/Expense).
+ */
+function renderStackedCharts(data) {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const categoryColors = { 'Stipendio': '#28a745', 'Family': '#34c759', 'Parenti': '#20c997', 'Entrate Varie': '#007aff', 'Alimentazione': '#ff9500', 'Alloggio': '#007aff', 'Trasporti': '#5856d6', 'Uscite': '#ff2d55', 'Free-Time': '#af52de', 'Necessità': '#ff3b30', 'Viaggi': '#00bcd4', 'Regali': '#ffc107', 'Famiglia': '#ffcc00', 'Varie': '#8e8e93', 'Mamma Calabria': '#fd7e14' };
+  const fallbackPalette = ['#32ade6', '#30b0c7', '#34c759', '#00c7be', '#5856d6', '#ff2d55', '#ff9500', '#ffcc00', '#a2845e', '#8e8e93'];
+  
+  const getCatColor = (cat, index) => { 
+      if (categoryColors[cat]) return categoryColors[cat]; 
+      let lower = cat.toLowerCase(); 
+      if (lower.includes('invest') || lower.includes('azioni')) return '#5856d6'; 
+      if (lower.includes('crypto')) return '#ffc107'; 
+      return fallbackPalette[index % fallbackPalette.length]; 
+  };
+  
+  const createChart = (ctxId, mapData, existingInstance, totalAvgValue, themeColor, specificAverages) => {
+      const ctx = document.getElementById(ctxId).getContext('2d');
+      if (existingInstance) existingInstance.destroy();
+      
+      const sortedCats = Object.keys(mapData).sort();
+      let datasets = [];
+      sortedCats.forEach((cat, i) => { datasets.push({ label: cat, data: mapData[cat], backgroundColor: getCatColor(cat, i), borderRadius: 2 }); });
+      
+      return new Chart(ctx, {
+          type: 'bar',
+          data: { labels: months, datasets: datasets },
+          options: {
+              responsive: true, maintainAspectRatio: false, layout: { padding: { top: 35 } },
+              scales: { 
+                  x: { stacked: true, grid: { display: false }, ticks: {font:{size:10}} }, 
+                  y: { stacked: true, border: { display: false }, grid: { color: '#f2f2f7' }, ticks: { font:{size:10}, callback: function(value) { if (document.body.classList.contains('privacy-mode')) return '****'; return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(value); } } } 
+              },
+              plugins: {
+                  legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 10 }, padding: 10, usePointStyle: true } },
+                  tooltip: { mode: 'nearest', intersect: true, backgroundColor: 'rgba(255, 255, 255, 0.95)', titleColor: '#000', bodyColor: '#333', borderColor: '#eee', borderWidth: 1, callbacks: { label: function(context) { let label = context.dataset.label || ''; if (document.body.classList.contains('privacy-mode')) return label + ': ****'; let currentVal = context.parsed.y; let valStr = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(currentVal); let avgStr = ""; if (specificAverages && specificAverages[label]) { let avgVal = specificAverages[label]; let avgFmt = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(avgVal); avgStr = ` (Ø ${avgFmt})`; } return `${label}: ${valStr}${avgStr}`; } } }
+              },
+              plugins: [{
+                  id: 'avgLabelSingle',
+                  afterDraw: (chart) => {
+                      if (document.body.classList.contains('privacy-mode') || !totalAvgValue) return;
+                      const ctx = chart.ctx; ctx.save(); ctx.font = "600 11px Inter, sans-serif";
+                      const text = "Ø Tot: € " + new Intl.NumberFormat('it-IT', {maximumFractionDigits: 0}).format(totalAvgValue);
+                      const metrics = ctx.measureText(text); const width = metrics.width + 20; const height = 24; const x = chart.chartArea.right - width; const y = 0;
+                      ctx.fillStyle = themeColor + '15'; ctx.beginPath(); ctx.roundRect(x, y, width, height, 8); ctx.fill();
+                      ctx.fillStyle = themeColor; ctx.textBaseline = 'middle'; ctx.fillText(text, x + 10, y + height/2 + 1); ctx.restore();
+                  }
+              }]
+          }
+      });
+  };
+  
+  const catAvgs = data.catAverages || { income: {}, expense: {} };
+  expenseStackInstance = createChart('expenseStackChart', data.expense, expenseStackInstance, data.avgExpense, '#ff3b30', catAvgs.expense);
+  incomeStackInstance = createChart('incomeStackChart', data.income, incomeStackInstance, data.avgIncome, '#28a745', catAvgs.income);
+}
+
+/**
+ * Renders the Pension Growth Chart (Cumulative vs Annual).
+ */
+function renderPensionChart(data) {
+  const ctx = document.getElementById('pensionChart').getContext('2d');
+  if (pensionChartInstance) pensionChartInstance.destroy();
+  
+  const currentYear = new Date().getFullYear();
+  const activeData = data.filter(d => { const y = parseInt(d.year); if (y <= currentYear) return true; return d.annual > 0; });
+  const labels = activeData.map(d => d.year);
+  const values = activeData.map(d => d.cumulative);
+  const annuals = activeData.map(d => d.annual);
+  
+  // Pension Details Logic
+  if (activeData.length > 0) {
+      const currentYearStr = new Date().getFullYear().toString();
+      let currentData = activeData.find(d => d.year === currentYearStr);
+      if (!currentData) currentData = activeData[activeData.length - 1];
+      
+      const currentAnnual = currentData.annual || 0; 
+      const currentCumul = currentData.cumulative || 0;
+      
+      document.getElementById('pension-total').innerText = "€ " + new Intl.NumberFormat('it-IT').format(currentCumul);
+      document.getElementById('pension-year').innerText = "+ € " + new Intl.NumberFormat('it-IT').format(currentAnnual);
+      
+      // Tax Deduction Logic
+      const TAX_LIMIT = 5164.57; 
+      let taxPct = Math.min((currentAnnual / TAX_LIMIT) * 100, 100); 
+      let taxRemaining = Math.max(TAX_LIMIT - currentAnnual, 0); 
+      let estimatedTaxBack = currentAnnual * 0.35;
+      
+      const elBar = document.getElementById('tax-bar');
+      if(elBar) { elBar.style.width = taxPct + "%"; elBar.style.background = taxPct >= 100 ? '#34c759' : '#ff9500'; }
+      
+      document.getElementById('tax-pct').innerText = taxPct.toFixed(1) + "%";
+      document.getElementById('tax-gap-val').innerHTML = `Gap: <span style="font-weight:normal">€ ${new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(taxRemaining)}</span> <span style="color:#34c759; font-weight:bold;">(Return: +€ ${estimatedTaxBack.toFixed(0)})</span>`;
+      
+      let divisor = 12; 
+      if (currentData.year === currentYearStr) { const now = new Date(); divisor = Math.max(now.getMonth() + 1, 1); }
+      let monthlyAvg = currentAnnual / divisor; 
+      document.getElementById('pension-avg').innerText = "€ " + monthlyAvg.toFixed(0);
+      
+      // Projection Logic
+      const rate = 0.04; const years = 10; 
+      let annualBase = currentAnnual; 
+      if (annualBase === 0 && activeData.length > 1) annualBase = activeData[activeData.length - 2].annual;
+      
+      let futureExisting = currentCumul * Math.pow(1 + rate, years); 
+      let futureContributions = annualBase * ((Math.pow(1 + rate, years) - 1) / rate); 
+      let projection = futureExisting + futureContributions; 
+      let monthlyPension = projection / (20 * 12);
+      
+      let projFormatted = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(projection); 
+      let monthlyFormatted = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(monthlyPension);
+      
+      document.getElementById('pension-proj').innerHTML = `€ ${projFormatted}<div style="font-size:9px; color:gray; margin-top:2px;">~ € ${monthlyFormatted}/month</div>`;
+  }
+  
+  pensionChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: { labels: labels, datasets: [ { label: 'Total', data: values, borderColor: '#4b4b4d', backgroundColor: 'rgba(75, 75, 77, 0.1)', borderWidth: 2, fill: true, tension: 0.4, yAxisID: 'y' }, { label: 'Deposit', data: annuals, type: 'bar', backgroundColor: '#34c759', borderWidth: 0, borderRadius: 4, yAxisID: 'y1' } ] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, y1: { display: false }, x: { grid: { display: false } } } }
+  });
+}
+
+/**
+ * Renders the Sankey Diagram (Flow of Money).
+ * 
+ */
+function renderSankeyChart(data) {
+  const ctx = document.getElementById('sankeyChart').getContext('2d');
+  if (sankeyChartInstance) sankeyChartInstance.destroy();
+  
+  const cIncome = '#34c759'; 
+  const cExpense = '#ff3b30'; 
+  const cSaving = '#007aff'; 
+  const cPool = '#8e8e93'; 
+  const isDark = document.body.classList.contains('dark-mode'); 
+  const txtColor = isDark ? 'white' : 'black';
+  
+  const sankeyData = [];
+  
+  // Income Flows
+  if (data.incCats) data.incCats.forEach(item => { 
+      if (item.val > 0) sankeyData.push({ from: item.cat, to: 'Wallet 💰', flow: item.val, colorMode: 'gradient', colorFrom: cIncome, colorTo: cPool }); 
+  });
+  
+  // Expense Flows
+  if (data.expCats) data.expCats.forEach(item => { 
+      if (item.val > 0) sankeyData.push({ from: 'Wallet 💰', to: item.cat, flow: item.val, colorMode: 'gradient', colorFrom: cPool, colorTo: cExpense }); 
+  });
+  
+  // Saving Flows
+  if (data.rawSaving > 0) sankeyData.push({ from: 'Wallet 💰', to: 'Savings 🐷', flow: data.rawSaving, colorMode: 'gradient', colorFrom: cPool, colorTo: cSaving });
+  
+  sankeyChartInstance = new Chart(ctx, {
+      type: 'sankey',
+      data: { datasets: [{ data: sankeyData, colorFrom: (c) => c.dataset.data[c.dataIndex].colorFrom, colorTo: (c) => c.dataset.data[c.dataIndex].colorTo, borderWidth: 0, labels: { color: txtColor, font: { size: 10, weight: 'bold' }, padding: 10 }, size: 'max', nodeWidth: 10 }] },
+      options: { responsive: true, maintainAspectRatio: false, layout: { padding: 10 }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => { const item = ctx.raw; if (document.body.classList.contains('privacy-mode')) return `${item.from} → ${item.to}: ****`; const val = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(item.flow); return `${item.from} → ${item.to}: ${val}`; } } } } }
+  });
+}
+
+/**
+ * Utility to force update all charts (e.g., when toggling privacy mode).
+ */
+function updateAllCharts() {
+  const allCharts = [myChart, assetChart, analyticsChartInstance, expenseStackInstance, incomeStackInstance, pensionChartInstance, tripChartInstance, sankeyChartInstance];
+  allCharts.forEach(chart => { if (chart) chart.update(); });
+}
+</script>

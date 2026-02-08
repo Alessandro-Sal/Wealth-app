@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+   <head>
+      <base target="_top">
+      
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+      <title>Wealth App</title>
+      
+      <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2830/2830305.png">
+      <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2830/2830305.png">
+      <link rel="shortcut icon" href="https://cdn-icons-png.flaticon.com/512/2830/2830305.png">
+      
+      <meta name="apple-mobile-web-app-capable" content="yes">
+      <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+      
+      <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+      <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+      
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+      
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+      
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey"></script> 
+      
+      <?!= include('css_Main'); ?>
+      <?!= include('css_Components'); ?>
+      <?!= include('css_Modals'); ?>
+      <?!= include('css_Market'); ?>
+   </head>
+   
+   <body>
+      <?!= include('Html_Body'); ?>
+      
+      <div id="app-container">
+         <h1>Wealth Manager - By Ale</h1>
+      </div>
+      
+      <?!= include('Html_Script'); ?>            <?!= include('Html_Script_Navigation'); ?> <?!= include('Html_Script_Init'); ?>       <?!= include('Html_Script_Chart'); ?>      <?!= include('Html_Script_Market'); ?>     <?!= include('Html_Script_Form'); ?>       <?!= include('Html_Script_AI'); ?>         <?!= include('Html_Script_Module'); ?>     </body>
+</html>

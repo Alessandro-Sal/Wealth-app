@@ -1,0 +1,611 @@
+<script>
+/**
+ * ======================================================================================
+ * BLOCK 8: AI, GEMINI & SMART FEATURES
+ * Handles Chat, Voice/Image Input, Market Insights AI, Stock Battle, and Risk Reports.
+ * ======================================================================================
+ */
+
+// --- Gemini Chat UI Management ---
+
+function openGeminiSheet() {
+  closeAllSheets();
+  const sheet = document.getElementById('gemini-sheet'); 
+  const backdrop = document.getElementById('common-backdrop');
+  sheet.classList.add('active'); 
+  backdrop.classList.add('active');
+  setTimeout(() => document.getElementById('geminiInput').focus(), 300);
+}
+
+function sendToGemini() {
+  const input = document.getElementById('geminiInput'); 
+  const chat = document.getElementById('chat-container'); 
+  const question = input.value.trim();
+  
+  if(!question) return;
+
+  // Append User Message
+  chat.innerHTML += `<div style="align-self:flex-end; background:#007aff; color:white; padding:10px 15px; border-radius: 15px 15px 0 15px; max-width:80%; font-size:14px; margin-bottom:10px;">${question}</div>`;
+  input.value = ""; 
+  chat.scrollTop = chat.scrollHeight;
+
+  // Add Loading Indicator
+  const loadingId = "load-" + new Date().getTime();
+  chat.innerHTML += `<div id="${loadingId}" style="align-self:flex-start; color:#888; font-size:12px; margin-left:10px; font-style:italic;">Analyzing...</div>`; 
+  chat.scrollTop = chat.scrollHeight;
+
+  // Call Server-Side Gemini Function
+  google.script.run.withSuccessHandler(response => {
+      const loader = document.getElementById(loadingId); 
+      if(loader) loader.remove();
+      
+      // Format Markdown-style bolding and newlines
+      let formatted = response.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
+      
+      chat.innerHTML += `<div style="align-self:flex-start; background:white; padding:10px 15px; border-radius: 0 15px 15px 15px; max-width:90%; box-shadow:0 2px 5px rgba(0,0,0,0.05); font-size:14px; line-height:1.5;">${formatted}</div>`; 
+      chat.scrollTop = chat.scrollHeight;
+      
+      // Update History Context
+      chatHistory.push({ role: "user", parts: [{ text: question }] }); 
+      chatHistory.push({ role: "model", parts: [{ text: response }] });
+      if (chatHistory.length > 10) chatHistory = chatHistory.slice(-10);
+
+  }).withFailureHandler(err => { 
+      const loader = document.getElementById(loadingId); 
+      if(loader) loader.innerText = "Error: " + err.message; 
+  }).askGemini(question, geminiSessionPin, JSON.stringify(chatHistory));
+}
+
+function fillGemini(text) {
+  const input = document.getElementById('geminiInput');
+  input.value = text;
+  sendToGemini(); 
+}
+
+// --- AI Security (PIN Lock) ---
+
+function openGeminiPinPad() {
+  if (geminiSessionPin !== "") { 
+      document.getElementById('gemini-confirm-overlay').classList.add('active'); 
+      return; 
+  }
+  geminiCurrentInput = ""; 
+  updateGeminiDots(); 
+  document.getElementById('gemini-pin-overlay').classList.add('active');
+}
+
+function closeGeminiPinPad() {
+  document.getElementById('gemini-pin-overlay').classList.remove('active'); 
+  geminiCurrentInput = "";
+}
+
+function closeGeminiConfirm() {
+  document.getElementById('gemini-confirm-overlay').classList.remove('active');
+}
+
+function confirmGeminiLock() {
+  geminiSessionPin = ""; 
+  updateGeminiLockIcon(false); 
+  resetGeminiChat();
+  
+  // If locking AI, also re-lock global privacy
+  if (!document.body.classList.contains('privacy-mode')) { 
+      document.body.classList.add('privacy-mode'); 
+      updateAllCharts(); 
+      localStorage.removeItem('auth_expiry'); 
+  }
+  closeGeminiConfirm();
+}
+
+function pressGeminiKey(num) {
+  if (geminiCurrentInput.length < 4) {
+      geminiCurrentInput += num; 
+      updateGeminiDots();
+      if (geminiCurrentInput.length === 4) { setTimeout(verifyGeminiPin, 300); }
+  }
+}
+
+function clearGeminiKey() {
+  geminiCurrentInput = geminiCurrentInput.slice(0, -1); 
+  updateGeminiDots();
+}
+
+function updateGeminiDots() {
+  const dots = document.querySelectorAll('#gemini-pin-overlay .gemini-dot');
+  dots.forEach((dot, idx) => { 
+      if (idx < geminiCurrentInput.length) dot.classList.add('filled'); 
+      else dot.classList.remove('filled'); 
+  });
+}
+
+function verifyGeminiPin() {
+  // Uses the main verifyUserPin function server-side
+  google.script.run.withSuccessHandler(isValid => {
+      if (isValid) {
+          geminiSessionPin = geminiCurrentInput;
+          updateGeminiLockIcon(true);
+          closeGeminiPinPad();
+          resetGeminiChat();
+          
+          // Unlock Global Privacy when AI is unlocked
+          document.body.classList.remove('privacy-mode');
+          updateAllCharts();
+          
+          // Set session expiry (15 mins)
+          const expiry = new Date().getTime() + (15 * 60 * 1000);
+          localStorage.setItem('auth_expiry', expiry);
+          console.log("Sync Unlock: AI -> Main Activated");
+          
+          const msg = document.getElementById('ai-status-msg'); 
+          if (msg) msg.innerHTML = "Owner Mode: <b>UNLOCKED</b> ✅";
+      } else {
+          const dotsContainer = document.getElementById('geminiDotsBox'); 
+          dotsContainer.classList.add('gemini-shake');
+          setTimeout(() => { 
+              dotsContainer.classList.remove('gemini-shake'); 
+              geminiCurrentInput = ""; 
+              updateGeminiDots(); 
+          }, 400);
+      }
+  }).verifyUserPin(geminiCurrentInput);
+}
+
+function updateGeminiLockIcon(isUnlocked) {
+  const btn = document.getElementById('aiLockBtn'); 
+  if(btn) btn.innerHTML = isUnlocked ? "🔓" : "🔒";
+}
+
+function resetGeminiChat() {
+  const chat = document.getElementById('chat-container'); 
+  chat.innerHTML = "";
+  
+  if (geminiSessionPin !== "") {
+      chat.innerHTML = `<div class="ai-msg" style="align-self:flex-start; background:#eef2ff; color:#333; padding:10px 15px; border-radius: 0 15px 15px 15px; max-width:80%; box-shadow:0 2px 5px rgba(0,0,0,0.05); font-size:14px;"><span style="color:#4f46e5; font-weight:bold;">Owner Mode Active ✅</span><br>I have full access to your data. What shall we analyze?</div>`;
+  } else {
+      chat.innerHTML = `<div class="ai-msg" style="align-self:flex-start; background:white; padding:10px 15px; border-radius: 0 15px 15px 15px; max-width:80%; box-shadow:0 2px 5px rgba(0,0,0,0.05); font-size:14px;"><span id="ai-status-msg">Privacy Mode: <b>ACTIVE</b> 🔒</span><br><span style="font-size:12px; color:#666;">History cleared. Unlock for personal data.</span></div>`;
+  }
+}
+
+// --- Smart Input (Voice & Image) ---
+
+function startVoiceInput() {
+  if (!('webkitSpeechRecognition' in window)) { 
+      Swal.fire({icon:'error', text:'Browser not supported for voice input.'}); 
+      return; 
+  }
+  const recognition = new webkitSpeechRecognition(); 
+  recognition.lang = 'it-IT'; // Keep Italian for input recognition
+  recognition.interimResults = false; 
+  recognition.maxAlternatives = 1;
+  
+  const btn = document.querySelector('button[onclick="startVoiceInput()"]'); 
+  const oldText = btn.innerText; 
+  btn.innerText = "👂"; 
+  btn.style.backgroundColor = "#ffebeb";
+  
+  recognition.start();
+  
+  recognition.onresult = (event) => { 
+      const speechResult = event.results[0][0].transcript; 
+      console.log("Voice detected:", speechResult); 
+      processSmartInput(speechResult, 'voice'); 
+  };
+  
+  recognition.onend = () => { 
+      btn.innerText = oldText; 
+      btn.style.backgroundColor = "transparent"; 
+  };
+  
+  recognition.onerror = (event) => { 
+      console.error(event.error); 
+      btn.innerText = oldText; 
+      btn.style.backgroundColor = "transparent"; 
+      Swal.fire({icon:'error', title:'Voice Error', text: event.error}); 
+  };
+}
+
+function handleImageInput(inputElement) {
+  const file = inputElement.files[0]; 
+  if (!file) return;
+  
+  Swal.fire({ 
+      title: 'Scanning Receipt...', 
+      text: 'Gemini is reading the image 📸', 
+      didOpen: () => Swal.showLoading(), 
+      allowOutsideClick: false 
+  });
+  
+  const reader = new FileReader(); 
+  reader.readAsDataURL(file);
+  reader.onload = (e) => { 
+      const base64Raw = e.target.result; 
+      const base64Clean = base64Raw.split(',')[1]; 
+      processSmartInput(base64Clean, 'image'); 
+  };
+}
+
+function processSmartInput(data, mode) {
+  if(mode === 'voice') { 
+      Swal.fire({ 
+          title: 'AI Processing...', 
+          text: 'Analyzing speech input 🧠', 
+          didOpen: () => Swal.showLoading(), 
+          allowOutsideClick: false 
+      }); 
+  }
+  
+  google.script.run.withSuccessHandler(result => {
+      Swal.close();
+      if (result.error) { 
+          Swal.fire({icon:'error', title:'AI Error', text: result.error}); 
+          return; 
+      }
+      
+      // Auto-fill form
+      const typeSelect = document.getElementById('tType'); 
+      typeSelect.value = result.type === 'Income' ? 'Income' : 'Expense'; 
+      handleTypeChange();
+      
+      setTimeout(() => { 
+          const catSelect = document.getElementById('tCat'); 
+          let found = false; 
+          for (let i = 0; i < catSelect.options.length; i++) { 
+              if (catSelect.options[i].value === result.category) { 
+                  catSelect.selectedIndex = i; 
+                  found = true; 
+                  break; 
+              } 
+          } 
+          if(!found) catSelect.value = "Altro"; 
+      }, 100);
+      
+      document.querySelectorAll('.bank-in').forEach(el => el.value = "");
+      const defBank = document.querySelector('.bank-in[data-col="5"]') || document.querySelector('.bank-in'); 
+      if(defBank) { 
+          defBank.value = result.amount; 
+          syncIconColor(defBank); 
+      }
+      
+      document.getElementById('tDet').value = result.desc;
+      
+      const feedbackIcon = mode === 'voice' ? '🎙️' : '📸'; 
+      Swal.fire({ 
+          icon: 'success', 
+          title: `${feedbackIcon} Data Extracted`, 
+          text: `Detected: ${result.desc} - €${result.amount}`, 
+          timer: 2000, 
+          showConfirmButton: false 
+      });
+  }).withFailureHandler(err => { 
+      Swal.fire({icon:'error', title:'Server Error', text: err.message}); 
+  }).parseExpenseAI(data, mode);
+}
+
+// --- Market Insights AI & Calendar ---
+
+function loadMarketInsights() {
+  const briefingEl = document.getElementById('insight-briefing'); 
+  const valEl = document.getElementById('bench-me-val');
+  
+  if (briefingEl) briefingEl.innerText = "AI Market Analysis in progress..."; 
+  if (valEl) valEl.innerText = "--%";
+  
+  google.script.run.withSuccessHandler(renderMarketInsights).withFailureHandler(err => { 
+      console.error("Market Insights Error:", err); 
+      if (briefingEl) briefingEl.innerText = "Unable to load analysis."; 
+  }).getMarketInsightsData();
+}
+
+function renderMarketInsights(data) {
+  if (!data) return;
+  
+  // Render Benchmark Bars
+  const container = document.getElementById('benchmark-container');
+  if (container) {
+      const items = [ 
+          { label: 'ME', val: data.me, color: '#007aff' }, 
+          { label: 'SPX', val: data.spx, color: '#8e8e93' }, 
+          { label: 'DOW', val: data.dow, color: '#8e8e93' }, 
+          { label: 'NDX', val: data.nasdaq, color: '#8e8e93' }, 
+          { label: 'RUT', val: data.russell, color: '#8e8e93' }, 
+          { label: 'VIX', val: data.vix, color: '#af52de' }, 
+          { label: 'US10Y', val: data.us10y, color: '#ff9500' } 
+      ];
+      let html = '';
+      items.forEach(item => { 
+          let val = parseFloat(String(item.val).replace(',', '.')); 
+          if (isNaN(val)) val = 0; 
+          let displayVal = (val > 0 ? "+" : "") + val.toFixed(2) + "%"; 
+          let barColor = val >= 0 ? '#34c759' : '#ff3b30'; 
+          let safeVal = Math.max(-2, Math.min(2, val)); 
+          let widthPct = (Math.abs(safeVal) / 2) * 50; 
+          let barStyle = val >= 0 ? `left: 50%; width: ${widthPct}%; background: #34c759;` : `left: auto; right: 50%; width: ${widthPct}%; background: #ff3b30;`; 
+          html += `<div style="display:flex; align-items:center; margin-bottom:6px; height: 18px;"><div style="width:35px; font-size:10px; font-weight:800; color:${item.color};">${item.label}</div><div style="flex:1; height:6px; background:#f2f2f7; border-radius:3px; overflow:hidden; position:relative; margin: 0 8px;"><div style="height:100%; position:absolute; border-radius:2px; ${barStyle}"></div></div><div style="width:50px; text-align:right; font-size:11px; font-weight:bold; color:${barColor};">${displayVal}</div></div>`; 
+      });
+      container.innerHTML = html;
+  }
+  
+  // Render AI Text Analysis
+  if (data.analysis) {
+      const macroEl = document.getElementById('macro-text'); 
+      if(macroEl && data.analysis.macro) { 
+          macroEl.style.textAlign = "justify"; 
+          macroEl.style.fontSize = "12px"; 
+          macroEl.innerHTML = data.analysis.macro; 
+      }
+      const portEl = document.getElementById('portfolio-text'); 
+      if(portEl && data.analysis.portfolio) { 
+          portEl.style.textAlign = "justify"; 
+          portEl.style.fontSize = "12px"; 
+          portEl.innerHTML = data.analysis.portfolio; 
+      }
+  }
+  
+  // Render Sentiment Badge
+  if (data.sentiment) { 
+      const badge = document.getElementById('sentiment-badge'); 
+      if(badge) { 
+          const score = data.sentiment.score; 
+          badge.innerText = `${data.sentiment.label} (${score}/10)`; 
+          if (score <= 3) { badge.style.background = '#ffebeb'; badge.style.color = '#ff3b30'; } 
+          else if (score >= 7) { badge.style.background = '#e6fffa'; badge.style.color = '#34c759'; } 
+          else { badge.style.background = '#f2f2f7'; badge.style.color = '#8e8e93'; } 
+      } 
+  }
+  
+  // Collect Events for Calendar
+  allMarketEvents = [];
+  if (data.market_events && Array.isArray(data.market_events)) { 
+      data.market_events.forEach(ev => { allMarketEvents.push({ ...ev, type: 'market' }); }); 
+  }
+  if (data.portfolio_events && Array.isArray(data.portfolio_events)) { 
+      data.portfolio_events.forEach(ev => { allMarketEvents.push({ ...ev, type: 'portfolio' }); }); 
+  }
+  renderCalendarWidget();
+}
+
+function renderCalendarWidget() {
+  const grid = document.getElementById('calendar-grid'); 
+  const header = document.getElementById('cal-month-year'); 
+  if (!grid || !header) return;
+  
+  grid.innerHTML = ''; 
+  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S']; // English Initials (Mon-Sun)
+  days.forEach(d => { grid.innerHTML += `<div class="calendar-day-name">${d}</div>`; });
+  
+  const year = currentCalDate.getFullYear(); 
+  const month = currentCalDate.getMonth();
+  const monthName = currentCalDate.toLocaleString('en-US', { month: 'long', year: 'numeric' }); 
+  header.innerText = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+  
+  const firstDayOfMonth = new Date(year, month, 1).getDay(); 
+  const startDayIndex = (firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1); 
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  
+  for (let i = 0; i < startDayIndex; i++) { grid.innerHTML += `<div></div>`; }
+  
+  for (let day = 1; day <= daysInMonth; day++) {
+      const checkDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const daysEvents = allMarketEvents.filter(e => e.date === checkDate);
+      
+      let dotsHtml = ''; 
+      if (daysEvents.length > 0) { 
+          dotsHtml = '<div class="event-dot-container">'; 
+          daysEvents.forEach(ev => { 
+              const dotClass = ev.type === 'portfolio' ? 'dot-blue' : 'dot-purple'; 
+              dotsHtml += `<div class="event-dot ${dotClass}"></div>`; 
+          }); 
+          dotsHtml += '</div>'; 
+      }
+      
+      const todayStr = new Date().toISOString().split('T')[0]; 
+      const isToday = (checkDate === todayStr) ? 'today' : '';
+      const dayDiv = document.createElement('div'); 
+      dayDiv.className = `calendar-day ${isToday}`; 
+      dayDiv.innerHTML = `<span>${day}</span>${dotsHtml}`; 
+      dayDiv.onclick = () => selectDate(day, month, year, dayDiv);
+      grid.appendChild(dayDiv);
+  }
+}
+
+function selectDate(day, month, year, element) {
+  document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('selected')); 
+  element.classList.add('selected');
+  
+  const checkDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const events = allMarketEvents.filter(e => e.date === checkDate);
+  const detailsBox = document.getElementById('calendar-details');
+  
+  if (events.length === 0) { 
+      detailsBox.innerHTML = `<div style="text-align:center; color:#999; font-size:11px; padding:10px;">No events on ${day}/${month+1}.</div>`; 
+      return; 
+  }
+  
+  let html = `<div style="font-size:10px; font-weight:bold; color:#555; margin-bottom:10px; text-transform:uppercase;">Events for ${day} ${currentCalDate.toLocaleString('en-US', { month: 'long' })}:</div>`;
+  events.forEach(ev => { 
+      const color = ev.type === 'portfolio' ? '#007aff' : '#af52de'; 
+      const label = ev.type === 'portfolio' ? 'PORTFOLIO' : 'MARKET'; 
+      const bg = ev.type === 'portfolio' ? '#f0f7ff' : '#fcf0ff'; 
+      html += `<div style="background:${bg}; border-left:3px solid ${color}; padding:8px; border-radius:6px; margin-bottom:6px;"><div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-weight:bold; color:#333; font-size:12px;">${ev.ticker}</span><span style="font-size:9px; font-weight:bold; color:${color}; border:1px solid ${color}; padding:1px 4px; border-radius:4px;">${label}</span></div><div style="font-size:11px; color:#555; margin-top:3px; line-height:1.2;">${ev.event}</div></div>`; 
+  });
+  detailsBox.innerHTML = html;
+}
+
+function changeMonth(delta) { 
+  currentCalDate.setMonth(currentCalDate.getMonth() + delta); 
+  renderCalendarWidget(); 
+}
+
+function forceReloadMarket() {
+  const btn = document.getElementById('btn-refresh-market'); 
+  if(btn) { btn.innerText = "⏳"; btn.style.pointerEvents = "none"; }
+  
+  const briefingEl = document.getElementById('macro-text'); 
+  const portEl = document.getElementById('portfolio-text');
+  if(briefingEl) briefingEl.innerHTML = '<span style="color:#888; font-style:italic;">Re-analyzing data...</span>'; 
+  if(portEl) portEl.innerHTML = '...';
+  
+  google.script.run.withSuccessHandler(data => { 
+      renderMarketInsights(data); 
+      if(btn) { btn.innerText = "🔄"; btn.style.pointerEvents = "auto"; } 
+      if(typeof Swal !== 'undefined') { 
+          const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000}); 
+          Toast.fire({icon: 'success', title: 'Market AI Updated'}); 
+      } 
+  }).withFailureHandler(err => { 
+      console.error(err); 
+      if(btn) { btn.innerText = "⚠️"; btn.style.pointerEvents = "auto"; } 
+  }).getMarketInsightsData();
+}
+
+// --- Risk Report ---
+
+function openRiskSheet() {
+  const data = window.currentRiskData; 
+  if (!data) return;
+  
+  document.getElementById('risk-dial').innerText = data.riskScore + "/100";
+  let col = '#34c759'; 
+  if(data.riskScore > 50) col = '#ff9500'; 
+  if(data.riskScore > 75) col = '#ff3b30'; 
+  document.getElementById('risk-dial').style.color = col;
+  
+  if (data.stressTest) { 
+      document.getElementById('st-market').innerText = data.stressTest.marketCrash || "N/A"; 
+      document.getElementById('st-crypto').innerText = data.stressTest.cryptoWinter || "N/A"; 
+  }
+  document.getElementById('risk-conc').innerText = data.concentration || "No concentration data.";
+  
+  const list = document.getElementById('risk-sugg'); 
+  list.innerHTML = "";
+  if (data.suggestions && Array.isArray(data.suggestions)) { 
+      data.suggestions.forEach(s => { list.innerHTML += `<li style="margin-bottom:8px;">${s}</li>`; }); 
+  }
+  
+  closeAllSheets(); 
+  document.getElementById('risk-sheet').classList.add('active'); 
+  document.getElementById('common-backdrop').classList.add('active');
+}
+
+function forceReloadRisk() {
+  const btn = document.getElementById('btn-refresh-risk'); 
+  if(btn) { btn.innerText = "⏳"; btn.style.pointerEvents = "none"; }
+  
+  document.getElementById('risk-comment').innerText = "Recalculating risks..."; 
+  document.getElementById('risk-score').style.opacity = "0.3";
+  
+  google.script.run.withSuccessHandler(analysis => {
+      const card = document.getElementById('risk-card'); 
+      const data = analysis || { riskLevel: "N/A", riskScore: 0, summary: "Data unavailable" };
+      
+      document.getElementById('risk-level').innerText = "Risk: " + data.riskLevel; 
+      document.getElementById('risk-score').innerText = data.riskScore + "/100"; 
+      document.getElementById('risk-score').style.opacity = "1"; 
+      document.getElementById('risk-comment').innerText = data.summary;
+      
+      let score = parseInt(data.riskScore); 
+      let col = '#34c759'; 
+      if(score > 30) col = '#ffcc00'; 
+      if(score > 50) col = '#ff9500'; 
+      if(score > 70) col = '#ff3b30';
+      
+      if(card) card.style.borderLeftColor = col; 
+      document.getElementById('risk-score').style.color = col;
+      
+      window.currentRiskData = data; 
+      if(btn) { btn.innerText = "🔄"; btn.style.pointerEvents = "auto"; }
+  }).withFailureHandler(err => { 
+      console.error(err); 
+      document.getElementById('risk-comment').innerText = "Update Error."; 
+      if(btn) { btn.innerText = "⚠️"; btn.style.pointerEvents = "auto"; } 
+  }).getPortfolioRiskAnalysis();
+}
+
+// --- Stock Battle ---
+
+function startBattle() {
+  const tA = document.getElementById('battle-ticker-a').value.trim(); 
+  const tB = document.getElementById('battle-ticker-b').value.trim();
+  
+  if (!tA || !tB) { alert("Enter two companies to start the battle!"); return; }
+  
+  const resDiv = document.getElementById('battle-result'); 
+  resDiv.style.display = 'block'; 
+  resDiv.style.borderColor = '#e5e5ea';
+  
+  const winEl = document.getElementById('battle-winner'); 
+  winEl.innerText = "CALCULATING..."; 
+  winEl.style.color = "#ccc";
+  
+  document.getElementById('battle-reason').innerText = "AI Analyst is studying balance sheets, competitors, and market cap...";
+  document.getElementById('score-bar-a').style.width = '0%'; 
+  document.getElementById('score-bar-b').style.width = '0%'; 
+  document.getElementById('list-a').innerHTML = ''; 
+  document.getElementById('list-b').innerHTML = '';
+  
+  google.script.run.withSuccessHandler(renderBattleResult).runStockBattle(tA, tB);
+}
+
+function renderBattleResult(data) {
+  const tA = data.resolved_ticker_a || "A"; 
+  const tB = data.resolved_ticker_b || "B";
+  
+  const winEl = document.getElementById('battle-winner'); 
+  winEl.innerText = data.winner; 
+  winEl.style.color = '#ff9500';
+  
+  document.getElementById('score-a-label').innerText = tA; 
+  document.getElementById('score-b-label').innerText = tB;
+  document.getElementById('score-val-a').innerText = data.scoreA; 
+  document.getElementById('score-val-b').innerText = data.scoreB;
+  
+  document.getElementById('title-list-a').innerText = `Why ${tA}?`; 
+  document.getElementById('title-list-b').innerText = `Why ${tB}?`;
+  
+  const fillList = (ulId, items) => { 
+      const ul = document.getElementById(ulId); 
+      ul.innerHTML = ''; 
+      if (items && items.length > 0) { 
+          items.forEach(item => { ul.innerHTML += `<li style="margin-bottom:4px;">${item}</li>`; }); 
+      } else { 
+          ul.innerHTML = '<li>No relevant data</li>'; 
+      } 
+  };
+  fillList('list-a', data.strengths_a); 
+  fillList('list-b', data.strengths_b);
+  
+  document.getElementById('battle-reason').innerHTML = data.verdict;
+  
+  setTimeout(() => { 
+      document.getElementById('score-bar-a').style.width = data.scoreA + '%'; 
+      document.getElementById('score-bar-b').style.width = data.scoreB + '%'; 
+  }, 100);
+}
+
+// --- Passive Income (Dividends) ---
+
+function loadDividends() {
+  document.getElementById('div-list').innerHTML = '<div class="skeleton" style="height:40px; margin-bottom:10px;"></div><div class="skeleton" style="height:40px;"></div>';
+  google.script.run.withSuccessHandler(renderDividends).fetchDividendData();
+}
+
+function renderDividends(data) {
+  const totalEl = document.getElementById('div-total'); 
+  const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+  if (totalEl) totalEl.innerText = fmt.format(data.totalYearly);
+  
+  const listEl = document.getElementById('div-list');
+  if (!data.items || data.items.length === 0) { 
+      listEl.innerHTML = '<div style="text-align:center; color:#999; font-size:12px;">No dividends detected in portfolio.</div>'; 
+      return; 
+  }
+  
+  let html = '';
+  data.items.forEach(item => {
+      let valFmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(item.estAmount);
+      html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid #f2f2f7;"><div style="display:flex; align-items:center;"><div style="background:#f2f2f7; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:10px; color:#555; margin-right:10px;">${item.ticker.substring(0,3)}</div><div><div style="font-weight:bold; font-size:13px;">${item.ticker}</div><div style="font-size:10px; color:var(--gray);">Yield: <span style="color:#34c759; font-weight:700;">${item.yieldPct}%</span></div></div></div><div style="text-align:right;"><div class="sensitive" style="font-weight:800; font-size:13px; color:var(--text-main);">${valFmt}</div><div style="font-size:9px; color:#007aff; background:#e6f2ff; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:2px;">Next: ${item.nextMonth}</div></div></div>`;
+  });
+  html += '<div style="text-align:center; font-size:9px; color:#ccc; margin-top:10px;">AI estimated data. Always check ex-dividend dates.</div>';
+  listEl.innerHTML = html;
+}
+</script>

@@ -1,0 +1,286 @@
+<script>
+/**
+ * ======================================================================================
+ * BLOCK 2: NAVIGATION, PIN LOCK & UI HANDLERS
+ * Handles Tab Switching, Pull-to-Refresh, PIN Pad logic, and Modal interactions.
+ * ======================================================================================
+ */
+
+/**
+ * Main Tab Switcher.
+ * Manages visibility of pages and triggers specific data fetches per tab.
+ * 
+ */
+function changeTab(tab) {
+  stopMarketPolling(); // Save resources when leaving Market tab
+  
+  // UI Updates
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  
+  const page = document.getElementById('p-' + tab);
+  if(page) page.classList.add('active-page');
+  
+  const btn = document.getElementById('btn-' + tab);
+  if(btn) btn.classList.add('active');
+  
+  // Haptic Feedback
+  if(navigator.vibrate) navigator.vibrate(10);
+  
+  window.scrollTo({top: 0, behavior: 'auto'});
+  
+  // Specific Actions per Tab
+  if (tab === 'recap') {
+      fetchDashboard(); 
+      setTimeout(() => {
+          if (typeof updateAllCharts === 'function') updateAllCharts(); 
+      }, 50);
+  }
+  if (tab === 'market') {
+      fetchLivePortfolio(); 
+      fetchAnalyticsData(); 
+      fetchWatchlist(); 
+      startMarketPolling(); 
+      checkMarketStatus(); 
+  }
+  if (tab === 'invest') {
+      fetchInvestHistory();
+  }
+}
+
+/**
+ * Closes all active modal sheets.
+ */
+function closeAllSheets() {
+  const sheets = ['calc-sheet', 'search-sheet', 'invest-search-sheet', 'subs-sheet', 'gemini-sheet', 'risk-sheet'];
+  sheets.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('active');
+  });
+  const backdrop = document.getElementById('common-backdrop');
+  if (backdrop) backdrop.classList.remove('active');
+}
+
+// --- PIN Management (Main App Lock) ---
+
+/**
+ * Adds a digit to the PIN entry.
+ * Triggers verification when 4 digits are entered.
+ */
+function addPin(num) {
+  if (navigator.vibrate) navigator.vibrate(15);
+  if (currentPin.length < 4) {
+    currentPin += num;
+    updatePinDots();
+    if (currentPin.length === 4) setTimeout(checkPin, 100); 
+  }
+}
+
+function clearPin() {
+  if (navigator.vibrate) navigator.vibrate(15);
+  currentPin = "";
+  updatePinDots();
+}
+
+function updatePinDots() {
+  for (let i = 1; i <= 4; i++) {
+    let dot = document.getElementById('d' + i);
+    if (i <= currentPin.length) dot.classList.add('filled');
+    else dot.classList.remove('filled');
+  }
+}
+
+/**
+ * Aborts PIN entry and keeps the app in Privacy Mode.
+ */
+function abortPin() {
+  if (navigator.vibrate) navigator.vibrate(20);
+  const lock = document.getElementById('lock-screen');
+  lock.style.opacity = '0';
+  setTimeout(() => {
+      lock.style.display = 'none';
+      clearPin();
+      // Ensure Privacy Mode remains active if aborted
+      if (!document.body.classList.contains('privacy-mode')) {
+          document.body.classList.add('privacy-mode');
+      }
+  }, 300);
+}
+
+/**
+ * Verifies the PIN against the server.
+ * 
+ */
+function checkPin() {
+  const title = document.getElementById('pinTitle');
+  const originalTitle = title.innerText;
+  title.innerText = "Verifying...";
+  
+  google.script.run
+    .withSuccessHandler(isValid => {
+        if (isValid) {
+            // Success: Set Session Expiry (15 mins)
+            const expiry = new Date().getTime() + (15 * 60 * 1000);
+            localStorage.setItem('auth_expiry', expiry);
+            
+            // Hide Lock Screen & Unlock UI
+            const lock = document.getElementById('lock-screen');
+            lock.style.opacity = '0';
+            setTimeout(() => {
+                lock.style.display = 'none';
+                document.body.classList.remove('privacy-mode');
+                updateAllCharts();
+                updateGeminiLockIcon(true);
+                resetGeminiChat();
+                clearPin();
+                title.innerText = originalTitle;
+            }, 300);
+        } else {
+            // Failure: Shake Animation & Feedback
+            if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+            const dots = document.querySelector('.pin-display');
+            title.innerText = "Error";
+            title.style.color = "#ff3b30";
+            dots.classList.add('shake');
+            setTimeout(() => {
+                dots.classList.remove('shake');
+                clearPin();
+                title.innerText = "Enter Passcode";
+                title.style.color = "white";
+            }, 500);
+        }
+    })
+    .withFailureHandler(err => {
+        alert("Connection error during verification.");
+        clearPin();
+        title.innerText = "Enter Passcode";
+    })
+    .verifyUserPin(currentPin);
+}
+
+// --- Pull to Refresh Logic ---
+
+let touchStartY = 0;
+let ptrThreshold = 150; 
+const ptrElement = document.createElement('div');
+ptrElement.id = 'ptr-indicator';
+ptrElement.style.cssText = `position: fixed; top: -60px; left: 0; width: 100%; height: 60px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #007aff; font-size: 24px; z-index: 999; transition: top 0.3s ease; background: rgba(255,255,255,0.8); backdrop-filter: blur(5px);`;
+ptrElement.innerHTML = '⬇️ Pull'; 
+document.body.appendChild(ptrElement);
+
+window.addEventListener('touchstart', e => { 
+    if (window.scrollY === 0) touchStartY = e.touches[0].clientY; 
+}, {passive: true});
+
+window.addEventListener('touchmove', e => {
+  const touchY = e.touches[0].clientY;
+  const pullDistance = touchY - touchStartY;
+  
+  if (window.scrollY === 0 && pullDistance > 0) {
+    if (pullDistance < ptrThreshold) {
+       ptrElement.style.top = (pullDistance / 2.5 - 60) + 'px';
+       ptrElement.innerHTML = '⬇️ Pull';
+       ptrElement.style.opacity = '0.5';
+    } else {
+       ptrElement.style.top = '0px'; 
+       ptrElement.innerHTML = '🚀 Release!';
+       ptrElement.style.opacity = '1';
+    }
+  }
+}, {passive: true});
+
+window.addEventListener('touchend', e => {
+  const touchEndY = e.changedTouches[0].clientY;
+  if (window.scrollY === 0 && (touchEndY - touchStartY) > ptrThreshold) {
+    performRefresh();
+  } else {
+    ptrElement.style.top = '-60px';
+  }
+  touchStartY = 0;
+});
+
+/**
+ * Triggers a global data refresh.
+ * Updates dashboard, charts, history, and markets.
+ */
+function performRefresh() {
+  if(navigator.vibrate) navigator.vibrate(50);
+  ptrElement.innerHTML = '<div class="skeleton" style="width:30px; height:30px; border-radius:50%; margin:0;"></div>'; 
+  console.log("Refreshing Data...");
+  
+  let year = document.getElementById('trendYear') ? document.getElementById('trendYear').value : 2026;
+  
+  fetchDashboard();
+  fetchHistory();
+  fetchInvestHistory();
+  fetchBudgets();
+  fetchLivePortfolio();
+  fetchProjection(year);
+  fetchFireProgress(year);
+  fetchYearlyTotals(year);
+  
+  setTimeout(() => {
+    ptrElement.style.top = '-60px';
+    setTimeout(() => ptrElement.innerHTML = '⬇️ Pull', 300);
+  }, 1500);
+}
+
+// --- Connectivity & Scroll Helpers ---
+
+// Offline Banner
+const offlineDiv = document.createElement('div');
+offlineDiv.id = 'offline-banner';
+offlineDiv.innerText = '⚠️ No Connection';
+document.body.appendChild(offlineDiv);
+
+function updateOnlineStatus() {
+  if (navigator.onLine) {
+    offlineDiv.style.top = '-50px'; 
+    offlineDiv.style.background = '#34c759'; 
+    offlineDiv.innerText = 'Connection Restored';
+    setTimeout(() => { 
+        offlineDiv.style.background = '#ff3b30'; 
+        offlineDiv.innerText = '⚠️ No Connection'; 
+    }, 2000);
+  } else {
+    offlineDiv.style.top = '0'; 
+  }
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
+// Scroll to Top Button
+const btnUp = document.createElement('div');
+btnUp.id = 'btn-up';
+btnUp.innerHTML = '⬆️';
+btnUp.onclick = () => window.scrollTo({top: 0, behavior: 'smooth'});
+document.body.appendChild(btnUp);
+
+window.addEventListener('scroll', () => {
+  const allHeaders = document.querySelectorAll('.header-actions');
+  
+  // Hide header actions on scroll for cleaner UI
+  allHeaders.forEach(header => {
+    if (window.scrollY > 50) header.classList.add('nav-hidden');
+    else header.classList.remove('nav-hidden');
+  });
+  
+  // Show "Back to Top" button
+  if (btnUp) {
+    if (window.scrollY > 300) btnUp.classList.add('visible');
+    else btnUp.classList.remove('visible');
+  }
+}, {passive: true});
+
+// Keyboard Support for PIN Entry (Desktop Mode)
+document.addEventListener('keydown', function(e) {
+  const lockScreen = document.getElementById('lock-screen');
+  const style = window.getComputedStyle(lockScreen);
+  
+  if (style.display === 'none' || style.opacity === '0') return;
+  
+  if (e.key >= '0' && e.key <= '9') addPin(parseInt(e.key));
+  if (e.key === 'Backspace') clearPin();
+});
+</script>

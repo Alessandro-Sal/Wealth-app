@@ -1,0 +1,1494 @@
+<body class="privacy-mode">
+   <div id="splash-screen">
+      <div class="splash-content">
+         <img src="https://cdn-icons-png.flaticon.com/512/2953/2953363.png" class="splash-logo">
+         <div class="splash-text">Wealth App</div>
+         <div class="splash-spinner"></div>
+      </div>
+   </div>
+   
+   <div id="lock-screen">
+      <div class="pin-title" id="pinTitle">Enter Passcode</div>
+      <div class="pin-display">
+         <div class="pin-dot" id="d1"></div>
+         <div class="pin-dot" id="d2"></div>
+         <div class="pin-dot" id="d3"></div>
+         <div class="pin-dot" id="d4"></div>
+      </div>
+      <div class="pin-pad">
+         <button class="pin-btn" onclick="addPin(1)">1</button>
+         <button class="pin-btn" onclick="addPin(2)">2</button>
+         <button class="pin-btn" onclick="addPin(3)">3</button>
+         <button class="pin-btn" onclick="addPin(4)">4</button>
+         <button class="pin-btn" onclick="addPin(5)">5</button>
+         <button class="pin-btn" onclick="addPin(6)">6</button>
+         <button class="pin-btn" onclick="addPin(7)">7</button>
+         <button class="pin-btn" onclick="addPin(8)">8</button>
+         <button class="pin-btn" onclick="addPin(9)">9</button>
+         <button class="pin-btn" style="background:transparent; border:none; font-size:24px;" onclick="abortPin()">✕</button>
+         <button class="pin-btn" onclick="addPin(0)">0</button>
+         <button class="pin-btn" style="background:transparent; border:none; font-size:22px;" onclick="clearPin()">⌫</button>
+      </div>
+   </div>
+
+   <div id="common-backdrop" onclick="closeAllSheets()"></div>
+
+   <div id="calc-sheet" class="sheet-modal">
+      <div class="sheet-header">
+         <div style="display:flex; background:#e5e5ea; border-radius:8px; padding:2px; width:100%; max-width:340px; overflow-x:auto;">
+            <div id="tab-btn-c" onclick="switchCalcTab('calc')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; background:white; color:black; transition:0.2s;">CALC</div>
+            <div id="tab-btn-f" onclick="switchCalcTab('fx')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">FX 💱</div>
+            <div id="tab-btn-r" onclick="switchCalcTab('roi')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">ROI 🚀</div>
+            <div id="tab-btn-l" onclick="switchCalcTab('loan')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">LOAN 🏠</div>
+            <div id="tab-btn-t" onclick="switchCalcTab('tax')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">TAX 🏛️</div>
+            <div id="tab-btn-i" onclick="switchCalcTab('inf')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">INF 📉</div>
+            <div id="tab-btn-fire" onclick="switchCalcTab('fire')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">FIRE 🔥</div>
+         </div>
+         <button class="sheet-close" onclick="closeAllSheets()">Done</button>
+      </div>
+      
+      <div id="view-calc" style="display:block;">
+         <div class="calc-display" id="cDisp">0</div>
+         <div class="calc-grid">
+            <button class="calc-btn clear" onclick="cClear()">C</button>
+            <button class="calc-btn op" onclick="cOp('/')">÷</button>
+            <button class="calc-btn op" onclick="cOp('*')">×</button>
+            <button class="calc-btn op" onclick="cBack()">⌫</button>
+            <button class="calc-btn" onclick="cNum(7)">7</button>
+            <button class="calc-btn" onclick="cNum(8)">8</button>
+            <button class="calc-btn" onclick="cNum(9)">9</button>
+            <button class="calc-btn op" onclick="cOp('-')">-</button>
+            <button class="calc-btn" onclick="cNum(4)">4</button>
+            <button class="calc-btn" onclick="cNum(5)">5</button>
+            <button class="calc-btn" onclick="cNum(6)">6</button>
+            <button class="calc-btn op" onclick="cOp('+')">+</button>
+            <button class="calc-btn" onclick="cNum(1)">1</button>
+            <button class="calc-btn" onclick="cNum(2)">2</button>
+            <button class="calc-btn" onclick="cNum(3)">3</button>
+            <button class="calc-btn op" style="grid-row: span 2; background:var(--stocks-bg);" onclick="cCalc()">=</button>
+            <button class="calc-btn" style="grid-column: span 2;" onclick="cNum(0)">0</button>
+            <button class="calc-btn" onclick="cNum('.')">.</button>
+         </div>
+      </div>
+
+      <div id="view-fx" style="display:none; padding-top:10px;">
+         <div style="background:var(--white); border:1px solid #ddd; border-radius:12px; padding:15px; margin-bottom:15px;">
+            <label style="margin-top:0">Amount</label>
+            <input type="number" inputmode="decimal" id="fxAmount" placeholder="100" style="font-size:20px; font-weight:bold;">
+            <div style="display:flex; gap:10px; margin-top:10px;">
+               <div style="flex:1;">
+                  <label>From</label>
+                  <select id="fxFrom">
+                     <option value="USD" selected>🇺🇸 USD</option>
+                     <option value="EUR">🇪🇺 EUR</option>
+                     <option value="GBP">🇬🇧 GBP</option>
+                     <option value="CHF">🇨🇭 CHF</option>
+                     <option value="BTC">₿ BTC</option>
+                     <option value="ETH">💎 ETH</option>
+                  </select>
+               </div>
+               <div style="display:flex; align-items:flex-end; padding-bottom:10px; font-size:20px;">➔</div>
+               <div style="flex:1;">
+                  <label>To</label>
+                  <select id="fxTo">
+                     <option value="EUR" selected>🇪🇺 EUR</option>
+                     <option value="USD">🇺🇸 USD</option>
+                     <option value="GBP">🇬🇧 GBP</option>
+                     <option value="BTC">₿ BTC</option>
+                  </select>
+               </div>
+            </div>
+         </div>
+         <button onclick="doConversion()" style="width:100%; padding:15px; background:var(--invest-bg); color:white; border:none; border-radius:12px; font-weight:bold; font-size:18px;">CONVERT</button>
+         <div id="fxResult" style="text-align:center; margin-top:20px; font-size:24px; font-weight:bold; color:var(--text-main); min-height:40px;"></div>
+      </div>
+
+      <div id="view-roi" style="display:none; padding-top:10px;">
+         <div style="background:var(--white); border:1px solid #ddd; border-radius:12px; padding:15px; margin-bottom:15px;">
+            <div style="display:flex; gap:10px;">
+               <div style="flex:1;">
+                  <label style="margin-top:0">Initial Cap (€)</label>
+                  <input type="number" inputmode="decimal" id="roiInit" placeholder="10000">
+               </div>
+               <div style="flex:1;">
+                  <label style="margin-top:0">Monthly Add (€)</label>
+                  <input type="number" inputmode="decimal" id="roiMonth" placeholder="500">
+               </div>
+            </div>
+            <div style="display:flex; gap:10px;">
+               <div style="flex:1;">
+                  <label>Return (%)</label>
+                  <input type="number" inputmode="decimal" id="roiRate" placeholder="7" value="8">
+               </div>
+               <div style="flex:1;">
+                  <label>Years</label>
+                  <input type="number" inputmode="decimal" id="roiYears" placeholder="10" value="10">
+               </div>
+            </div>
+         </div>
+         <button onclick="calcCompound()" style="width:100%; padding:15px; background:var(--stocks-bg); color:white; border:none; border-radius:12px; font-weight:bold; font-size:18px;">PROJECT WEALTH</button>
+         <div id="roiResult" style="margin-top:20px; text-align:center; display:none;">
+            <div style="font-size:12px; color:var(--gray);">Future Value</div>
+            <div id="roiTotal" style="font-size:32px; font-weight:800; color:var(--stocks-bg);">€ 0</div>
+            <div style="font-size:12px; color:var(--gray); margin-top:5px;">Total Interest Earned</div>
+            <div id="roiInterest" style="font-size:16px; font-weight:bold; color:var(--primary);">+ € 0</div>
+         </div>
+      </div>
+
+      <div id="view-loan" style="display:none; padding-top:10px;">
+         <div style="background:var(--white); border:1px solid #ddd; border-radius:12px; padding:15px; margin-bottom:15px;">
+            <label style="margin-top:0">Loan Amount (€)</label>
+            <input type="number" inputmode="decimal" id="loanAmount" placeholder="150000" style="font-size:20px; font-weight:bold;">
+            <div style="display:flex; gap:10px; margin-top:10px;">
+               <div style="flex:1;">
+                  <label>Interest (%)</label>
+                  <input type="number" inputmode="decimal" id="loanRate" placeholder="3.5" value="3.5">
+               </div>
+               <div style="flex:1;">
+                  <label>Years</label>
+                  <input type="number" inputmode="decimal" id="loanYears" placeholder="20" value="20">
+               </div>
+            </div>
+         </div>
+         <button onclick="calcLoan()" style="width:100%; padding:15px; background:var(--danger); color:white; border:none; border-radius:12px; font-weight:bold; font-size:18px;">CALCULATE PAYMENT</button>
+         <div id="loanResult" style="margin-top:20px; text-align:center; display:none;">
+            <div style="font-size:12px; color:var(--gray);">Monthly Payment</div>
+            <div id="loanMonthly" style="font-size:32px; font-weight:800; color:var(--text-main);">€ 0</div>
+            <div style="font-size:12px; color:var(--gray); margin-top:5px;">Total Interest Paid</div>
+            <div id="loanInterest" style="font-size:16px; font-weight:bold; color:var(--danger);">€ 0</div>
+         </div>
+      </div>
+
+      <div id="view-tax" style="display:none; padding-top:10px;">
+         <div style="background:var(--white); border:1px solid #ddd; border-radius:12px; padding:15px; margin-bottom:15px;">
+            <label style="margin-top:0">Gross Profit (€)</label>
+            <input type="number" inputmode="decimal" id="taxGross" placeholder="1000" style="font-size:20px; font-weight:bold;">
+            <label>Rate (%)</label>
+            <div style="display:flex; gap:10px;">
+               <button onclick="document.getElementById('taxRate').value=26" style="flex:1; padding:10px; border-radius:8px; border:1px solid #ddd; background:#f9f9f9; cursor:pointer;">26% (Standard)</button>
+               <button onclick="document.getElementById('taxRate').value=12.5" style="flex:1; padding:10px; border-radius:8px; border:1px solid #ddd; background:#f9f9f9; cursor:pointer;">12.5% (Bond)</button>
+            </div>
+            <input type="number" inputmode="decimal" id="taxRate" value="26" style="margin-top:5px;">
+         </div>
+         <button onclick="calcTax()" style="width:100%; padding:15px; background:#333; color:white; border:none; border-radius:12px; font-weight:bold; font-size:18px;">CALCULATE NET</button>
+         <div id="taxResult" style="margin-top:20px; text-align:center; display:none;">
+            <div style="font-size:12px; color:var(--gray);">Net Profit</div>
+            <div id="taxNet" style="font-size:32px; font-weight:800; color:var(--success);">€ 0</div>
+            <div style="font-size:12px; color:var(--gray); margin-top:5px;">Taxes Due</div>
+            <div id="taxPaid" style="font-size:16px; font-weight:bold; color:var(--danger);">€ 0</div>
+         </div>
+      </div>
+
+      <div id="view-inf" style="display:none; padding-top:10px;">
+         <div style="background:var(--white); border:1px solid #ddd; border-radius:12px; padding:15px; margin-bottom:15px;">
+            <label style="margin-top:0">Current Capital (€)</label>
+            <input type="number" inputmode="decimal" id="infAmount" placeholder="10000" style="font-size:20px; font-weight:bold;">
+            <div style="display:flex; gap:10px;">
+               <div style="flex:1;">
+                  <label>Inflation (%)</label>
+                  <input type="number" inputmode="decimal" id="infRate" placeholder="3" value="3">
+               </div>
+               <div style="flex:1;">
+                  <label>Years</label>
+                  <input type="number" inputmode="decimal" id="infYears" placeholder="10" value="10">
+               </div>
+            </div>
+         </div>
+         <button onclick="calcInflation()" style="width:100%; padding:15px; background:#555; color:white; border:none; border-radius:12px; font-weight:bold; font-size:18px;">CALCULATE FUTURE</button>
+         <div id="infResult" style="margin-top:20px; text-align:center; display:none;">
+            <div style="font-size:12px; color:var(--gray);">Future Real Value</div>
+            <div id="infVal" style="font-size:32px; font-weight:800; color:var(--text-main);">€ 0</div>
+            <div style="font-size:12px; color:var(--gray); margin-top:5px;">Purchasing Power Loss</div>
+            <div id="infLoss" style="font-size:16px; font-weight:bold; color:var(--danger);">- € 0</div>
+         </div>
+      </div>
+
+      <div id="view-fire" style="display:none; padding-top:10px;">
+         <div style="background:var(--white); border:1px solid #ddd; border-radius:12px; padding:15px; margin-bottom:15px;">
+            <label style="margin-top:0">Desired Monthly Expenses (€)</label>
+            <input type="number" inputmode="decimal" id="fireSpend" placeholder="2000" style="font-size:20px; font-weight:bold;">
+            <label>Safe Withdrawal Rate (%)</label>
+            <div style="display:flex; gap:10px;">
+               <input type="number" inputmode="decimal" id="fireRate" value="4" placeholder="4" style="font-weight:bold;">
+               <div style="display:flex; align-items:center; font-size:10px; color:var(--gray); flex:2;">
+                  *Standard rule: 4% (25x annual expenses)
+               </div>
+            </div>
+         </div>
+         <button onclick="calcFire()" style="width:100%; padding:15px; background:var(--warning); color:white; border:none; border-radius:12px; font-weight:bold; font-size:18px;">CALCULATE FIRE NUMBER</button>
+         <div id="fireResult" style="margin-top:20px; text-align:center; display:none;">
+            <div style="font-size:12px; color:var(--gray);">Required Capital (Invested)</div>
+            <div id="fireVal" style="font-size:32px; font-weight:800; color:var(--warning);">€ 0</div>
+            <div style="font-size:12px; color:var(--gray); margin-top:5px;">To live off interest forever</div>
+         </div>
+      </div>
+   </div>
+
+   <div id="subs-sheet" class="sheet-modal">
+      <div class="sheet-header">
+         <span style="font-size:12px; font-weight:bold; color:var(--gray); letter-spacing:1px;">FIXED EXPENSES</span>
+         <button class="sheet-close" onclick="closeAllSheets()">Cancel</button>
+      </div>
+      <div style="padding: 15px 0;">
+         <label style="margin-top:0;">Select the fixed expense to add:</label>
+         <select id="subsDropdown" style="font-size:18px; padding:15px; margin-top:10px;">
+            <option value="">Loading...</option>
+         </select>
+      </div>
+      <button onclick="sendSingleSub()" style="margin-top:15px; padding:15px; background:var(--primary); color:white; border:none; border-radius:12px; font-weight:bold; font-size:16px; width:100%;">
+      ADD FIXED EXPENSE
+      </button>
+   </div>
+
+   <div id="search-sheet" class="sheet-modal">
+      <div class="sheet-header">
+         <span style="font-size:12px; font-weight:bold; color:var(--gray); letter-spacing:1px;">HISTORY SEARCH</span>
+         <button class="sheet-close" onclick="closeAllSheets()">Close</button>
+      </div>
+      <div style="display:flex; gap:10px;">
+         <input type="text" id="searchQuery" placeholder="Search note..." style="margin-top:0;">
+         <button onclick="performSearch()" style="background:var(--primary); color:white; border:none; border-radius:10px; font-weight:bold; width:80px;">GO</button>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:10px;">
+         <select id="searchMonth" style="margin-top:0; flex:1;" onchange="performSearch()">
+            <option value="">All Months</option>
+            <option value="0">January</option>
+            <option value="1">February</option>
+            <option value="2">March</option>
+            <option value="3">April</option>
+            <option value="4">May</option>
+            <option value="5">June</option>
+            <option value="6">July</option>
+            <option value="7">August</option>
+            <option value="8">September</option>
+            <option value="9">October</option>
+            <option value="10">November</option>
+            <option value="11">December</option>
+         </select>
+         <select id="searchYear" style="margin-top:0; flex:1;" onchange="performSearch()">
+            <option value="">Loading...</option>
+         </select>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:10px;">
+         <select id="searchType" style="margin-top:0; flex:1;" onchange="updateSearchCats(); performSearch();">
+            <option value="">All Types</option>
+            <option value="Income">Income 🟢</option>
+            <option value="Expense">Expense 🔴</option>
+            <option value="Investment">Investment 🟣</option>
+            <option value="Transfer">Transfer 🔵</option>
+         </select>
+         <select id="searchCat" style="margin-top:0; flex:1;" onchange="performSearch()">
+            <option value="">All Categories</option>
+         </select>
+      </div>
+      <div id="searchResults" class="search-res-cont">
+         <div style="text-align:center; color:var(--gray); margin-top:20px;">Use filters to search</div>
+      </div>
+   </div>
+
+   <div id="invest-search-sheet" class="sheet-modal">
+      <div class="sheet-header">
+         <span style="font-size:12px; font-weight:bold; color:var(--invest-bg); letter-spacing:1px;">INVESTMENT HISTORY</span>
+         <button class="sheet-close" onclick="closeAllSheets()">Close</button>
+      </div>
+      <div style="display:flex; gap:10px;">
+         <input type="text" id="invSearchQuery" placeholder="Ticker (e.g. AAPL, BTC)..." style="margin-top:0; text-transform:uppercase;">
+         <button onclick="performInvestSearch()" style="background:var(--invest-bg); color:white; border:none; border-radius:10px; font-weight:bold; width:80px;">GO</button>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:10px;">
+         <select id="invSearchType" style="margin-top:0; flex:1;" onchange="performInvestSearch()">
+            <option value="">All Assets</option>
+            <option value="Stocks">Stocks / ETF</option>
+            <option value="Crypto">Crypto</option>
+         </select>
+         <select id="invSearchYear" style="margin-top:0; flex:1;" onchange="performInvestSearch()">
+            <option value="">Loading...</option>
+         </select>
+      </div>
+      <div id="invSearchResults" class="search-res-cont">
+         <div style="text-align:center; color:var(--gray); margin-top:20px;">Search your portfolio history</div>
+      </div>
+   </div>
+
+   <div id="gemini-sheet" class="sheet-modal" style="height: 80vh;">
+      <div class="sheet-header" style="display:flex; justify-content:space-between; align-items:center;">
+         <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:12px; font-weight:bold; color:#764ba2;">✨ AI ASSISTANT</span>
+            <button id="aiLockBtn" onclick="openGeminiPinPad()" style="background:rgba(118, 75, 162, 0.1); border:none; border-radius:12px; padding:6px 10px; cursor:pointer; font-size:14px; line-height:1; transition:0.2s;">
+            🔒
+            </button>
+            <button onclick="resetGeminiChat()" title="New Chat" style="background:rgba(118, 75, 162, 0.1); border:none; border-radius:12px; padding:6px 10px; cursor:pointer; font-size:14px; line-height:1; transition:0.2s;">
+            🧹
+            </button>
+         </div>
+         <button class="sheet-close" onclick="document.getElementById('gemini-sheet').classList.remove('active'); document.getElementById('common-backdrop').classList.remove('active');">Close</button>
+      </div>
+      <div id="chat-container" style="flex:1; overflow-y:auto; padding:10px; background:#f9f9f9; border-radius:12px; margin-bottom:10px; border:1px solid #eee; display:flex; flex-direction:column; gap:10px;">
+         <div class="ai-msg" style="align-self:flex-start; background:white; padding:10px 15px; border-radius: 0 15px 15px 15px; max-width:80%; box-shadow:0 2px 5px rgba(0,0,0,0.05); font-size:14px;">
+            <span id="ai-status-msg">Privacy Mode: <b>ACTIVE</b> 🔒</span><br>
+            <span style="font-size:12px; color:#666;">Unlock the padlock above for personal data.</span>
+         </div>
+      </div>
+      <div class="ai-chips-container">
+         <button class="ai-chip" onclick="fillGemini('Come sta andando il mio mese finanziario?')">📊 Month</button>
+         <button class="ai-chip" onclick="fillGemini('Quali sono le mie ultime spese?')">💸 Expenses</button>
+         <button class="ai-chip" onclick="fillGemini('Come sta andando il portafoglio stocks?')">📈 Stocks</button>
+         <button class="ai-chip" onclick="fillGemini('A quanto ammonta il patrimonio?')">💰 Net Worth</button>
+         <button class="ai-chip magic" onclick="fillGemini('Analisi completa finanze')">✨ Report</button>
+         <button class="ai-chip budget" onclick="fillGemini('Come va il budget?')">📉 Budget</button>
+         <button class="ai-chip crypto" onclick="fillGemini('Situazione Crypto?')">₿ Crypto</button>
+         <button class="ai-chip fire" onclick="fillGemini('Status FIRE?')">🔥 FIRE</button>
+         <button class="ai-chip subs" onclick="fillGemini('Quale spese fisse ho?')">🔄 Subs</button>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:auto;">
+         <input type="text" id="geminiInput" placeholder="Ask..." style="margin-top:0; border:1px solid #ddd;">
+         <button onclick="sendToGemini()" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; border:none; border-radius:12px; width:50px; font-size:20px;">➤</button>
+      </div>
+   </div>
+
+   <div id="risk-sheet" class="sheet-modal" style="height: 85vh; background: #fbfbfd; display: flex; flex-direction: column;">
+      <div class="sheet-header" style="flex-shrink: 0;">
+         <span style="font-size:12px; font-weight:bold; color:#ff3b30; letter-spacing:1px;">⚠️ RISK REPORT</span>
+         <button class="sheet-close" onclick="closeAllSheets()">Close</button>
+      </div>
+      <div style="flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 15px 40px 15px;">
+         <div style="text-align:center; margin-bottom:20px; margin-top:10px;">
+            <div id="risk-dial" style="font-size:40px; font-weight:900; color:#333;">--/100</div>
+            <div id="risk-dial-label" style="font-size:12px; font-weight:bold; text-transform:uppercase; color:#888;">Risk Score</div>
+         </div>
+         <div class="card" style="background:white; border-left:4px solid #ff9500; margin-bottom:15px; padding:15px;">
+            <div style="font-size:11px; font-weight:700; color:#888; margin-bottom:10px; text-transform:uppercase;">🌪️ Stress Test (Simulation)</div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+               <span>📉 Market Crash (-20%)</span>
+               <span id="st-market" style="font-weight:bold; color:#ff3b30;">--%</span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+               <span>❄️ Crypto Winter (-50%)</span>
+               <span id="st-crypto" style="font-weight:bold; color:#5856d6;">--%</span>
+            </div>
+         </div>
+         <div class="card" style="background:white; margin-bottom:15px; padding:15px;">
+            <div style="font-size:11px; font-weight:700; color:#888; margin-bottom:5px; text-transform:uppercase;">🔍 Concentration Analysis</div>
+            <div id="risk-conc" style="font-size:14px; line-height:1.5; color:#333;">Loading...</div>
+         </div>
+         <div class="card" style="background:white; border-left:4px solid #34c759; padding:15px;">
+            <div style="font-size:11px; font-weight:700; color:#888; margin-bottom:5px; text-transform:uppercase;">💡 AI Suggestions</div>
+            <ul id="risk-sugg" style="padding-left:20px; margin:0; font-size:14px; line-height:1.6; color:#333;">
+               <li>Analyzing...</li>
+            </ul>
+         </div>
+         <div style="height: 50px;"></div>
+      </div>
+   </div>
+
+   <div id="app-content" style="display:none;">
+      
+      <div id="p-add" class="page active-page">
+         <form id="txForm">
+            <div class="page-header">
+               <h3 style="margin:0">New Movement</h3>
+               <div class="header-actions">
+                  <button type="button" class="mini-theme-btn" onclick="startVoiceInput()" style="color:#007aff; border-color:#007aff;">🎙️</button>
+                  <button type="button" class="mini-theme-btn" onclick="document.getElementById('camInput').click()" style="color:#007aff; border-color:#007aff;">📸</button>
+                  <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;" onchange="handleImageInput(this)">
+                  <button type="button" class="mini-theme-btn" onclick="openSubs()">🔄</button>
+                  <button type="button" class="mini-theme-btn" onclick="togglePrivacy()">👁️</button>
+                  <button type="button" class="mini-theme-btn" onclick="openGeminiSheet()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border:none; color:white;">✨</button>
+               </div>
+            </div>
+            <label>Type</label>
+            <select id="tType" onchange="handleTypeChange()">
+               <option value="">Choose Type...</option>
+               <option value="Income">🟢 Income</option>
+               <option value="Expense">🔴 Expense</option>
+               <option value="Transfer">🔵 Transfer</option>
+               <option value="Storno">⚪ Refund/Reversal</option>
+               <option value="Investment">🟠 Investment</option>
+               <option value="Pension">🐢 Pension</option>
+            </select>
+            <div id="pension-inputs" style="display:none; background:#f0f0f5; padding:15px; border-radius:12px; margin-top:15px; border:1px solid #d1d1d6;">
+               <div style="font-size:12px; color:#555; margin-bottom:10px; font-weight:bold;">PENSION FUND DETAILS</div>
+               <div style="display:flex; gap:10px;">
+                  <div style="flex:1;">
+                     <label style="margin-top:0">Ref. year</label>
+                     <select id="penYear" style="background:white; font-weight:bold;">
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
+                        <option value="2027">2027</option>
+                     </select>
+                  </div>
+                  <div style="flex:1;">
+                     <label style="margin-top:0">Ref. month</label>
+                     <select id="penMonth" style="background:white;">
+                        <option value="0">January</option>
+                        <option value="1">February</option>
+                        <option value="2">March</option>
+                        <option value="3">April</option>
+                        <option value="4">May</option>
+                        <option value="5">June</option>
+                        <option value="6">July</option>
+                        <option value="7">August</option>
+                        <option value="8">September</option>
+                        <option value="9">October</option>
+                        <option value="10">November</option>
+                        <option value="11">December</option>
+                     </select>
+                  </div>
+               </div>
+               <label>Amount accrued (€)</label>
+               <input type="number" inputmode="decimal" id="penAmount" step="0.01" placeholder="Ex. 120.50" style="font-size:24px; font-weight:bold; color:#2c3e50;">
+            </div>
+            <div id="standard-inputs">
+               <label>Category</label>
+               <select id="tCat" onchange="updateNoteSuggestions()"></select>
+               <label>Note</label>
+               <input type="text" id="tDet" placeholder="Note" list="noteList" autocapitalize="sentences" autocomplete="off">
+               <datalist id="noteList"></datalist>
+               <div class="bank-input-group">
+                  <label style="margin:0 0 10px 0; font-size:12px; color:var(--gray); font-weight:bold;">Bank Amounts (+ or -)</label>
+                  <div class="row">
+                     <div class="bank-info"><span>Intesa SP</span><span id="bal-col5" class="bank-balance sensitive">--</span></div>
+                     <div class="input-wrapper">
+                        <input type="number" inputmode="decimal" step="0.01" class="bank-in" data-col="5" placeholder="0.00" oninput="syncIconColor(this)">
+                        <div class="sign-toggle sign-plus" onclick="toggleSignIcon(this)">+</div>
+                     </div>
+                  </div>
+                  <div class="row">
+                     <div class="bank-info"><span>N26</span><span id="bal-col6" class="bank-balance sensitive">--</span></div>
+                     <div class="input-wrapper">
+                        <input type="number" inputmode="decimal" step="0.01" class="bank-in" data-col="6" placeholder="0.00" oninput="syncIconColor(this)">
+                        <div class="sign-toggle sign-plus" onclick="toggleSignIcon(this)">+</div>
+                     </div>
+                  </div>
+                  <div class="row">
+                     <div class="bank-info"><span>Wallet</span><span id="bal-col7" class="bank-balance sensitive">--</span></div>
+                     <div class="input-wrapper">
+                        <input type="number" inputmode="decimal" step="0.01" class="bank-in" data-col="7" placeholder="0.00" oninput="syncIconColor(this)">
+                        <div class="sign-toggle sign-plus" onclick="toggleSignIcon(this)">+</div>
+                     </div>
+                  </div>
+                  <div class="row">
+                     <div class="bank-info"><span>Buddy</span><span id="bal-col8" class="bank-balance sensitive">--</span></div>
+                     <div class="input-wrapper">
+                        <input type="number" inputmode="decimal" step="0.01" class="bank-in" data-col="8" placeholder="0.00" oninput="syncIconColor(this)">
+                        <div class="sign-toggle sign-plus" onclick="toggleSignIcon(this)">+</div>
+                     </div>
+                  </div>
+                  <div class="row">
+                     <div class="bank-info"><span>Revolut</span><span id="bal-col9" class="bank-balance sensitive">--</span></div>
+                     <div class="input-wrapper">
+                        <input type="number" inputmode="decimal" step="0.01" class="bank-in" data-col="9" placeholder="0.00" oninput="syncIconColor(this)">
+                        <div class="sign-toggle sign-plus" onclick="toggleSignIcon(this)">+</div>
+                     </div>
+                  </div>
+                  <div class="row">
+                     <div class="bank-info"><span>Food</span><span id="bal-col10" class="bank-balance sensitive">--</span></div>
+                     <div class="input-wrapper">
+                        <input type="number" inputmode="decimal" step="0.01" class="bank-in" data-col="10" placeholder="0.00" oninput="syncIconColor(this)">
+                        <div class="sign-toggle sign-plus" onclick="toggleSignIcon(this)">+</div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+            <div id="f-stat" style="text-align:center; margin-top:20px; font-weight:bold; color: var(--primary); font-size: 14px;"></div>
+            <div class="btn-container">
+               <button type="button" class="btn-reset" onclick="resetForm()">RESET</button>
+               <button type="button" class="btn-save" onclick="sendTransaction()">SAVE</button>
+            </div>
+            <div class="card" style="margin-top:15px; padding:15px 15px 5px 15px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+               <div id="budget-container">
+                  <div style="text-align:center; color:var(--gray); font-size:12px; padding:10px;">Loading Budgets...</div>
+               </div>
+            </div>
+            <div class="history-list">
+               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                  <div class="h-title" style="margin-bottom:0;">Last Transactions</div>
+                  <button type="button" onclick="openSearch()" style="background:none; border:none; color:var(--primary); font-weight:bold; font-size:12px; cursor:pointer;">SEE ALL ➜</button>
+               </div>
+               <div id="history-container">
+                  <div style="text-align:center; color:var(--gray); font-size:12px;">Loading...</div>
+               </div>
+            </div>
+         </form>
+      </div>
+
+      <div id="p-invest" class="page">
+         <form id="invForm">
+            <div class="page-header">
+               <h3 style="margin:0; color:var(--invest-bg);">New Investment</h3>
+               <div class="header-actions">
+                  <button type="button" class="mini-theme-btn" onclick="openInvestSearch()">🔍</button>
+                  <button type="button" class="mini-theme-btn" onclick="togglePrivacy()">👁️</button>
+                  <button type="button" class="mini-theme-btn theme-toggler" onclick="toggleTheme()">🌙</button>
+                  <button type="button" class="mini-theme-btn" onclick="openGeminiSheet()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border:none; color:white;">✨</button>
+               </div>
+            </div>
+            <label>Asset Class</label>
+            <select id="invType">
+               <option value="Stocks">Stocks 🏢</option>
+               <option value="ETF">ETF (Indices) 🌐</option>
+               <option value="Crypto">Crypto ₿</option>
+            </select>
+            <label>Date</label>
+            <input type="date" id="invDate">
+            <label>Ticker</label>
+            <input type="text" id="invTicker" placeholder="e.g. AAPL" style="text-transform:uppercase;" list="tickerList">
+            <datalist id="tickerList"></datalist>
+            <label>Action</label>
+            <select id="invAction">
+               <option value="Buy">Buy</option>
+               <option value="Sell">Sell</option>
+               <option value="Dividend">Dividend</option>
+               <option value="Withdrawal">Withdrawal</option>
+               <option value="Deposit">Deposit</option>
+            </select>
+            <div id="bank-select-container" style="display:none; margin-top:10px; background: #f0f0f5; padding:10px; border-radius:8px;">
+               <label style="margin-top:0; color:var(--primary);">Deposit to Bank:</label>
+               <select id="invBankCol" style="background:white; font-weight:bold;">
+                  <option value="">-- Select Bank --</option>
+                  <option value="5">Intesa SP</option>
+                  <option value="6">N26</option>
+                  <option value="7">Wallet</option>
+                  <option value="8">Buddy</option>
+                  <option value="9">Revolut</option>
+               </select>
+               <label style="margin-top:0; color:var(--gray);">Withdrawal Note:</label>
+               <input type="text" id="invWithdrawalNote" placeholder="Additional details..." style="background:white;">
+            </div>
+            <div style="display:flex; gap:10px;">
+               <div style="flex:1">
+                  <label>Quantity</label>
+                  <input type="number" inputmode="decimal" step="0.00000001" id="invQty" placeholder="0.00">
+               </div>
+               <div style="flex:1">
+                  <label>Total EUR</label>
+                  <input type="number" inputmode="decimal" step="0.01" id="invCostEur" placeholder="€ Total">
+               </div>
+            </div>
+            <p style="font-size:11px; color:var(--gray); margin-top:5px; margin-bottom:0;">*Unit Price calculated automatically.</p>
+            <label>Total USD (or Foreign)</label>
+            <input type="number" inputmode="decimal" step="0.01" id="invCostUsd" placeholder="$ Total">
+            <div class="btn-container">
+               <button type="button" class="btn-reset" onclick="document.getElementById('invForm').reset(); setTodayDate();">RESET</button>
+               <button type="button" class="btn-save btn-invest" onclick="sendInvestment()">SAVE INVEST</button>
+            </div>
+            <div id="inv-stat" style="text-align:center; margin-top:15px; font-weight:bold; color: var(--invest-bg); font-size: 14px;"></div>
+            <div style="margin-top:20px; border-top:1px dashed #ddd; padding-top:15px;">
+               <label style="margin-top:0; font-size:11px; color:var(--invest-bg);">⚡ DCA Simulator (Pre-Buy)</label>
+               <div style="display:flex; gap:5px;">
+                  <input type="number" inputmode="decimal" id="dcaCurQty" placeholder="Old Qty" style="font-size:13px;">
+                  <input type="number" inputmode="decimal" id="dcaCurAvg" placeholder="Old Avg Price" style="font-size:13px;">
+               </div>
+               <div style="display:flex; gap:5px;">
+                  <input type="number" inputmode="decimal" id="dcaNewQty" placeholder="New Qty" style="font-size:13px;">
+                  <input type="number" inputmode="decimal" id="dcaNewPrice" placeholder="New Price" style="font-size:13px;">
+               </div>
+               <button type="button" onclick="calcDCA()" style="width:100%; padding:8px; margin-top:5px; background:#f2f2f7; color:#000; border-radius:8px; border:1px solid #ddd; cursor:pointer;">Calculate New Avg Price</button>
+               <div id="dcaResult" style="text-align:center; font-weight:bold; margin-top:5px; font-size:14px;"></div>
+            </div>
+            <div style="margin-top:15px; border-top:1px dashed #ddd; padding-top:15px;">
+               <label style="margin-top:0; font-size:11px; color:var(--danger);">🚑 Break-Even Calc (Recovery)</label>
+               <div style="display:flex; gap:5px;">
+                  <input type="number" inputmode="decimal" id="beBuyPrice" placeholder="Buy Price (e.g. 100)" style="font-size:13px;">
+                  <input type="number" inputmode="decimal" id="beCurPrice" placeholder="Current Price (e.g. 80)" style="font-size:13px;">
+               </div>
+               <button type="button" onclick="calcBreakEven()" style="width:100%; padding:8px; margin-top:5px; background:#fff0f0; color:var(--danger); border-radius:8px; border:1px solid #ffcccc; font-weight:bold; cursor:pointer;">Calculate Recovery</button>
+               <div id="beResult" style="text-align:center; margin-top:5px; font-size:13px; min-height:18px;"></div>
+            </div>
+            <div style="margin-top:15px; border-top:1px dashed #ddd; padding-top:15px;">
+               <label style="margin-top:0; font-size:11px; color:var(--primary);">🎯 Strategy Planner (Take Profit / Stop Loss)</label>
+               <div style="display:flex; gap:5px;">
+                  <input type="number" inputmode="decimal" id="stratEntry" placeholder="Entry Price (e.g. 50)" style="font-size:13px;">
+                  <input type="number" inputmode="decimal" id="stratTp" placeholder="Target % (e.g. 20)" style="font-size:13px;">
+                  <input type="number" inputmode="decimal" id="stratSl" placeholder="Stop % (e.g. 5)" style="font-size:13px;">
+               </div>
+               <button type="button" onclick="calcStrategy()" style="width:100%; padding:8px; margin-top:5px; background:#eef4ff; color:var(--primary); border-radius:8px; border:1px solid #cce0ff; font-weight:bold; cursor:pointer;">Calculate Strategy</button>
+               <div id="stratResult" style="margin-top:8px; font-size:13px; display:none; background:var(--white); padding:10px; border-radius:8px; border:1px solid #eee;">
+                  <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                     <span>Sell for Profit:</span>
+                     <span id="resTp" style="font-weight:800; color:var(--stocks-bg);">--</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between;">
+                     <span>Stop Loss:</span>
+                     <span id="resSl" style="font-weight:800; color:var(--danger);">--</span>
+                  </div>
+               </div>
+            </div>
+            <div class="history-list" style="margin-top: 30px;">
+               <div class="h-title" style="color: var(--stocks-bg); border-bottom: 1px solid #ddd; padding-bottom:5px; margin-bottom:10px;">Stocks History</div>
+               <div id="hist-stocks">
+                  <div style="text-align:center; color:var(--gray); font-size:12px;">Loading Stocks...</div>
+               </div>
+               <div class="h-title" style="color: var(--crypto-bg); border-bottom: 1px solid #ddd; padding-bottom:5px; margin-bottom:10px; margin-top:20px;">Crypto History</div>
+               <div id="hist-crypto">
+                  <div style="text-align:center; color:var(--gray); font-size:12px;">Loading Crypto...</div>
+               </div>
+            </div>
+         </form>
+      </div>
+
+      <div id="p-market" class="page">
+         <div class="page-header">
+            <div>
+               <h3 style="margin:0; line-height: 1.1;">Market Data</h3>
+               <div id="market-status" style="font-size:11px; font-weight:600; color:var(--gray); margin-top:2px; display:flex; align-items:center; gap:4px;">
+                  Checking status...
+               </div>
+            </div>
+            <div class="header-actions">
+               <button type="button" class="mini-theme-btn" onclick="togglePrivacy()">👁️</button>
+               <button type="button" class="mini-theme-btn theme-toggler" onclick="toggleTheme()">🌙</button>
+               <button type="button" class="mini-theme-btn" onclick="openGeminiSheet()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border:none; color:white;">✨</button>
+            </div>
+         </div>
+         <div class="card" style="padding:0; overflow:hidden; height:44px; margin-bottom:15px;">
+            <div class="tradingview-widget-container">
+               <div class="tradingview-widget-container__widget"></div>
+               <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+                  {
+                    "symbols": [
+                      { "proName": "FOREXCOM:SPXUSD", "title": "S&P 500" },
+                      { "proName": "FOREXCOM:NSXUSD", "title": "US 100" },
+                      { "proName": "FX_IDC:EURUSD", "title": "EUR/USD" },
+                      { "proName": "BITSTAMP:BTCUSD", "title": "Bitcoin" },
+                      { "proName": "BITSTAMP:ETHUSD", "title": "Ethereum" }
+                    ],
+                    "showSymbolLogo": true,
+                    "colorTheme": "light",
+                    "isTransparent": true,
+                    "displayMode": "regular",
+                    "locale": "en"
+                  }
+               </script>
+            </div>
+         </div>
+         <div class="section-header" style="background:#5856d6; color:white; margin-top:15px; padding: 10px 15px; border-radius: 12px 12px 0 0; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:bold;">My Watchlist</span>
+            <span onclick="toggleWatchlistInput()" style="font-size:24px; cursor:pointer; padding: 0 15px; font-weight:bold; color: #ffffff !important; user-select: none;">
+            +
+            </span>
+         </div>
+         <div id="wl-add-box" style="display:none; background:white; padding:15px; border-bottom:1px solid #eee;">
+            <div style="display:flex; gap:10px;">
+               <input type="text" id="wlTickerInput" placeholder="Ticker (e.g. NVDA)..." style="flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; text-transform:uppercase;">
+               <button onclick="sendAddToWatchlist()" style="background:var(--stocks-bg); color:white; border:none; border-radius:8px; font-weight:bold; padding:0 20px;">ADD</button>
+            </div>
+         </div>
+         <div class="card" style="padding:0; min-height:50px; border-radius: 0 0 12px 12px; margin-top:0;">
+            <div id="watchlist-container">
+               <div style="padding:20px; text-align:center; color:var(--gray); font-size:12px;">Loading watchlist...</div>
+            </div>
+         </div>
+         <div class="section-header stocks-title" style="margin-top: 5px; border-radius: 12px 12px 0 0;">
+            My Portfolio Live
+         </div>
+         <div class="card" style="border-radius: 0 0 12px 12px; background: var(--white); box-shadow: 0 4px 12px rgba(0,0,0,0.05); padding: 15px; margin-bottom: 20px;">
+            <div id="live-day-change" style="margin-bottom: 15px;"></div>
+            <div style="margin-bottom: 15px;">
+               <div style="font-size:11px; font-weight:bold; color:var(--gray); margin: 0 0 8px 5px;">STOCKS (24h %)</div>
+               <div id="live-stocks" class="live-scroll">
+                  <div style="padding:10px; color:var(--gray); font-size:12px;">Tap 'Market' tab to refresh...</div>
+               </div>
+            </div>
+            <div style="margin-bottom: 15px;">
+               <div style="font-size:11px; font-weight:bold; color:var(--gray); margin: 0 0 8px 5px;">ETFs (24h %)</div>
+               <div id="live-etfs" class="live-scroll">
+                  <div style="padding:10px; color:var(--gray); font-size:12px;">Tap 'Market' tab to refresh...</div>
+               </div>
+            </div>
+            <div>
+               <div style="font-size:11px; font-weight:bold; color:var(--gray); margin: 0 0 8px 5px;">CRYPTO (Live Price)</div>
+               <div id="live-crypto" class="live-scroll">
+                  <div style="padding:10px; color:var(--gray); font-size:12px;">Tap 'Market' tab to refresh...</div>
+               </div>
+            </div>
+         </div>
+         <div class="section-header market-title" style="background: linear-gradient(135deg, #1e1e1e 0%, #3a3a3c 100%); display:flex; justify-content:space-between; align-items:center;">
+            <span>⚡ Market Pulse</span>
+            <span id="btn-refresh-market" onclick="forceReloadMarket()" style="font-size:16px; cursor:pointer; padding: 0 10px;">🔄</span>
+         </div>
+         <div class="card" style="padding:15px; background:var(--white); margin-bottom:20px;">
+            <div style="margin-bottom:20px;">
+               <div style="font-size:11px; font-weight:700; color:var(--gray); text-transform:uppercase; margin-bottom:10px;">
+                  🏆 Daily Benchmark
+               </div>
+               <div id="benchmark-container">
+                  <div style="font-size:11px; color:#ccc; text-align:center; padding:10px;">Loading indices...</div>
+               </div>
+            </div>
+            <div style="border-top:1px dashed #e5e5ea; margin:15px 0;"></div>
+            <div style="margin-bottom:20px;">
+               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                  <div style="font-size:11px; font-weight:700; color:var(--stocks-bg); text-transform:uppercase;">
+                     🤖 Analyst Insight
+                  </div>
+                  <div id="sentiment-badge" style="font-size:10px; font-weight:bold; padding:2px 8px; border-radius:10px; background:#eee; color:#555;">
+                     Neutral (5/10)
+                  </div>
+               </div>
+               <div style="background:#f0f4f8; border-left:3px solid #007aff; padding:10px; border-radius:0 8px 8px 0; margin-bottom:10px;">
+                  <div style="font-size:10px; font-weight:700; color:#007aff; margin-bottom:4px;">🌍 MACRO SCENARIO</div>
+                  <div id="macro-text" style="font-size:12px; line-height:1.4; color:#333;">
+                     Analysis in progress...
+                  </div>
+               </div>
+               <div style="background:#fff7ed; border-left:3px solid #ff9500; padding:10px; border-radius:0 8px 8px 0;">
+                  <div style="font-size:10px; font-weight:700; color:#ff9500; margin-bottom:4px;">👤 PORTFOLIO IMPACT</div>
+                  <div id="portfolio-text" class="sensitive" style="font-size:12px; line-height:1.4; color:#333;">
+                     Comparing data...
+                  </div>
+               </div>
+            </div>
+            <div style="border-top:1px dashed #e5e5ea; margin:20px 0;"></div>
+            <div class="section-header" style="background: #f2f2f7; color: #333; padding: 8px 12px; border-radius: 8px 8px 0 0; font-weight: bold; font-size: 11px; text-transform: uppercase; display:flex; justify-content:space-between; align-items:center;">
+               <span>🗓️ Financial Outlook</span>
+               <span style="font-size:9px; color:#8e8e93; font-weight:normal;">Tap day for details</span>
+            </div>
+            <div style="background:white; border-radius: 0 0 12px 12px; border:1px solid #f2f2f7; border-top:none; overflow:hidden;">
+               <div class="calendar-header">
+                  <button onclick="changeMonth(-1)" style="border:none; background:none; cursor:pointer; font-size:16px; color:#007aff; padding:0 10px;">◀</button>
+                  <div id="cal-month-year" style="font-weight:900; font-size:14px; color:#333; text-transform:capitalize;">Loading...</div>
+                  <button onclick="changeMonth(1)" style="border:none; background:none; cursor:pointer; font-size:16px; color:#007aff; padding:0 10px;">▶</button>
+               </div>
+               <div class="calendar-grid" id="calendar-grid">
+                  <div style="grid-column: span 7; text-align:center; padding:20px; color:#ccc; font-size:11px;">Loading events...</div>
+               </div>
+            </div>
+            <div id="calendar-details" class="event-details-box">
+               <div style="text-align:center; color:#999; font-size:11px; padding:5px;">
+                  Select a marked day to see events.
+               </div>
+            </div>
+         </div>
+         <div class="section-header" style="background: linear-gradient(135deg, #34c759 0%, #30b350 100%); margin-top:20px; display:flex; justify-content:space-between; align-items:center;">
+            <span>💸 Passive Income</span>
+            <span onclick="loadDividends()" style="cursor:pointer;">🔄</span>
+         </div>
+         <div class="card" style="padding:15px; background:var(--white);">
+            <div style="text-align:center; margin-bottom:20px;">
+               <div style="font-size:10px; color:var(--gray); text-transform:uppercase; letter-spacing:1px;">Est. Annual Income</div>
+               <div id="div-total" class="sensitive" style="font-size:28px; font-weight:900; color:#34c759; margin-top:5px;">--</div>
+               <div style="font-size:10px; color:#8e8e93;">(Estimated on current Yield)</div>
+            </div>
+            <div id="div-list">
+               <div style="font-size:11px; color:#ccc; text-align:center;">Tap 🔄 to calculate income...</div>
+            </div>
+         </div>
+         <div class="section-header" style="background: linear-gradient(135deg, #ff3b30 0%, #ff9500 100%); margin-top:20px; display:flex; justify-content:space-between; align-items:center;">
+            <span>⚔️ Stock Battle AI</span>
+         </div>
+         <div class="card" style="padding:15px; background:var(--white); text-align:center;">
+            <div style="font-size:11px; color:var(--gray); margin-bottom:15px;">Compare two companies (e.g. Apple vs Microsoft) and find the best opportunity today.</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+               <div style="width:40%;">
+                  <input id="battle-ticker-a" type="text" placeholder="e.g. Ferrari" style="width:100%; font-weight:bold; text-align:center; padding:8px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+               </div>
+               <div style="font-weight:900; font-size:18px; color:#ccc;">VS</div>
+               <div style="width:40%;">
+                  <input id="battle-ticker-b" type="text" placeholder="e.g. Tesla" style="width:100%; font-weight:bold; text-align:center; padding:8px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+               </div>
+            </div>
+            <button onclick="startBattle()" style="width:100%; background:var(--text-main); color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; font-size:14px; cursor:pointer; margin-bottom:15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            🔥 FIGHT! 🔥
+            </button>
+            <div id="battle-result" style="display:none; background:#fff; padding:0; border-radius:12px; border: 2px solid #e5e5ea; margin-top:15px; overflow:hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+               <div style="background:#f9f9f9; padding:15px; text-align:center; border-bottom:1px solid #eee;">
+                  <div style="font-size:10px; text-transform:uppercase; color:var(--gray); font-weight:bold; letter-spacing:1px;">WINNER IS</div>
+                  <div id="battle-winner" style="font-size:28px; font-weight:900; color:#007aff; margin-top:5px;">--</div>
+               </div>
+               <div style="padding:15px;">
+                  <div style="display:flex; align-items:center; margin-bottom:8px; font-size:11px; font-weight:bold;">
+                     <div id="score-a-label" style="width:40px;">A</div>
+                     <div style="flex:1; height:8px; background:#f0f0f5; margin:0 8px; border-radius:4px; overflow:hidden;">
+                        <div id="score-bar-a" style="height:100%; width:0%; background:#ff3b30; transition: width 1s ease;"></div>
+                     </div>
+                     <div id="score-val-a">0</div>
+                  </div>
+                  <div style="display:flex; align-items:center; margin-bottom:20px; font-size:11px; font-weight:bold;">
+                     <div id="score-b-label" style="width:40px;">B</div>
+                     <div style="flex:1; height:8px; background:#f0f0f5; margin:0 8px; border-radius:4px; overflow:hidden;">
+                        <div id="score-bar-b" style="height:100%; width:0%; background:#007aff; transition: width 1s ease;"></div>
+                     </div>
+                     <div id="score-val-b">0</div>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; gap:10px; margin-bottom:20px;">
+                     <div style="flex:1; background:#fff5f5; padding:10px; border-radius:8px; font-size:10px;">
+                        <div id="title-list-a" style="font-weight:bold; color:#ff3b30; margin-bottom:5px;">--</div>
+                        <ul id="list-a" style="margin:0; padding-left:15px; color:#555; text-align:left;"></ul>
+                     </div>
+                     <div style="flex:1; background:#f0f7ff; padding:10px; border-radius:8px; font-size:10px;">
+                        <div id="title-list-b" style="font-weight:bold; color:#007aff; margin-bottom:5px;">--</div>
+                        <ul id="list-b" style="margin:0; padding-left:15px; color:#555; text-align:left;"></ul>
+                     </div>
+                  </div>
+                  <div>
+                     <div style="font-size:10px; text-transform:uppercase; color:var(--gray); font-weight:bold; margin-bottom:5px;">📊 ANALYST VERDICT</div>
+                     <div id="battle-reason" style="font-size:12px; line-height:1.5; color:#333; text-align:justify; border-left:3px solid #34c759; padding-left:10px;">
+                        Analysis in progress...
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+         <div class="section-header market-title">Analytics</div>
+         <div class="card" style="padding:15px; min-height:360px;">
+            <div style="display:flex; gap:10px; margin-bottom:15px;">
+               <div style="flex:1;">
+                  <label style="margin-top:0; font-size:10px; text-transform:uppercase; color:var(--gray);">Asset Class</label>
+                  <select id="assetSelect" onchange="updateAnalyticsChart()" style="font-weight:bold; width:100%;">
+                     <option value="combined" selected>Stocks + ETFs</option>
+                     <option value="stocks">Stocks Only</option>
+                     <option value="etfs">ETFs Only</option>
+                     <option value="crypto">Crypto</option>
+                  </select>
+               </div>
+               <div style="flex:1;">
+                  <label style="margin-top:0; font-size:10px; text-transform:uppercase; color:var(--gray);">Chart Type</label>
+                  <select id="chartSelect" onchange="updateAnalyticsChart()" style="font-weight:bold; width:100%;">
+                     <optgroup label="📊 Portfolio Structure">
+                        <option value="breakdown" selected>🍰 Current Value (€)</option>
+                        <option value="invested">📉 Invested Capital (€)</option>
+                        <option value="winloss">🟢🔴 Win/Loss Count</option>
+                     </optgroup>
+                     <optgroup label="💰 Profitability (Unrealized)">
+                        <option value="performance">🚀 Performance (Unrealized)</option>
+                     </optgroup>
+                     <optgroup label="✅ Realized & History">
+                        <option value="realized_excl">📉 Realized (Trading Only)</option>
+                        <option value="realized_incl">💵 Realized + Divs (Cash)</option>
+                        <option value="total_gain">🏆 Total Gain (All Time)</option>
+                        <option value="div_single">💸 Single Dividends (€)</option>
+                     </optgroup>
+                     <optgroup label="🌍 Allocation">
+                        <option value="sector">🏭 Sector</option>
+                        <option value="industry">🏗️ Industry</option>
+                        <option value="country">🌍 Country</option>
+                     </optgroup>
+                  </select>
+               </div>
+            </div>
+            <div id="chartContainer" style="position: relative; height:250px; width:100%; display:flex; align-items:center; justify-content:center;">
+               <canvas id="analyticsChart"></canvas>
+            </div>
+         </div>
+         <div class="section-header stocks-title" style="background:#2c3e50; color:#fff;">S&P 500 Map</div>
+         <div class="card" style="padding:0; height: 300px; overflow:hidden;">
+            <div class="tradingview-widget-container">
+               <div class="tradingview-widget-container__widget"></div>
+               <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-stock-heatmap.js" async>
+                  {
+                    "exchanges": [],
+                    "dataSource": "SPX500",
+                    "grouping": "sector",
+                    "blockSize": "market_cap_basic",
+                    "blockColor": "change",
+                    "locale": "en",
+                    "symbolUrl": "",
+                    "colorTheme": "light",
+                    "hasTopBar": false,
+                    "isTransparent": true,
+                    "width": "100%",
+                    "height": "100%"
+                  }
+               </script>
+            </div>
+         </div>
+         <div class="section-header stocks-title" style="background:#555;">Currencies</div>
+         <div class="card" style="padding:0; height: 180px; overflow:hidden;">
+            <div class="tradingview-widget-container">
+               <div class="tradingview-widget-container__widget"></div>
+               <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-forex-cross-rates.js" async>
+                  {
+                    "width": "100%",
+                    "height": "100%",
+                    "currencies": [ "EUR", "USD", "GBP", "CHF", "JPY" ],
+                    "isTransparent": true,
+                    "colorTheme": "light",
+                    "locale": "en"
+                  }
+               </script>
+            </div>
+         </div>
+         <div class="section-header stocks-title" style="background:#8e44ad;">Hard Assets & Rates</div>
+         <div class="card" style="padding:0; height: 250px; overflow:hidden;">
+            <div class="tradingview-widget-container">
+               <div class="tradingview-widget-container__widget"></div>
+               <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js" async>
+                  {
+                    "colorTheme": "light",
+                    "dateRange": "12M",
+                    "showChart": false,
+                    "locale": "en",
+                    "largeChartUrl": "",
+                    "isTransparent": true,
+                    "showSymbolLogo": true,
+                    "showFloatingTooltip": false,
+                    "width": "100%",
+                    "height": "100%",
+                    "tabs": [
+                      {
+                        "title": "Commodities",
+                        "symbols": [
+                          { "s": "TVC:GOLD", "d": "Gold" },
+                          { "s": "TVC:SILVER", "d": "Silver" },
+                          { "s": "TVC:USOIL", "d": "Crude Oil" }
+                        ]
+                      },
+                      {
+                        "title": "Bonds",
+                        "symbols": [
+                          { "s": "TVC:US10Y", "d": "US 10Y Yield" },
+                          { "s": "TVC:US02Y", "d": "US 2Y Yield" },
+                          { "s": "TVC:EU10Y", "d": "EU 10Y Yield" }
+                        ]
+                      }
+                    ]
+                  }
+               </script>
+            </div>
+         </div>
+         <div class="section-header market-title" style="background:#000; color:#fff;">Breaking News</div>
+         <div class="card" style="padding:0; height: 400px; overflow:hidden;">
+            <div class="tradingview-widget-container">
+               <div class="tradingview-widget-container__widget"></div>
+               <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-timeline.js" async>
+                  {
+                    "feedMode": "all_symbols",
+                    "colorTheme": "light",
+                    "isTransparent": true,
+                    "displayMode": "regular",
+                    "width": "100%",
+                    "height": "100%",
+                    "locale": "en"
+                  }
+               </script>
+            </div>
+         </div>
+         <div class="section-header market-title" style="background:#5856d6;">Macro Calendar</div>
+         <div class="card" style="padding:0; height: 300px; overflow:hidden;">
+            <div class="tradingview-widget-container">
+               <div class="tradingview-widget-container__widget"></div>
+               <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-events.js" async>
+                  {
+                    "colorTheme": "light",
+                    "isTransparent": true,
+                    "width": "100%",
+                    "height": "100%",
+                    "locale": "en",
+                    "importanceFilter": "0,1",
+                    "countryFilter": "us,eu,it"
+                  }
+               </script>
+            </div>
+         </div>
+         <div class="section-header crypto-title" style="background: linear-gradient(90deg, #ffc107 50%, #8e8e93 50%); color: #000;">
+            <span style="display:inline-block; width:48%; text-align:center;">CRYPTO</span>
+            <span style="display:inline-block; width:48%; text-align:center; color:white;">STOCKS (VIX)</span>
+         </div>
+         <div class="card" style="padding: 15px 10px; margin-bottom: 30px;">
+            <div style="display:flex; gap:10px; align-items: stretch; height: 160px;">
+               <div style="flex: 1; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                  <img src="https://alternative.me/crypto/fear-and-greed-index.png" 
+                     alt="Crypto Sentiment" 
+                     style="height: 100%; max-width: 100%; object-fit: contain; border-radius: 10px;">
+               </div>
+               <div style="flex: 1; overflow:hidden; border-radius:10px; border:1px solid var(--row-border); position:relative;">
+                  <div class="tradingview-widget-container" style="height:100%; width:100%;">
+                     <div class="tradingview-widget-container__widget" style="height:100%; width:100%;"></div>
+                     <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
+                        {
+                          "interval": "1D",
+                          "width": "100%",
+                          "isTransparent": true,
+                          "height": "100%",
+                          "symbol": "CBOE:VIX",
+                          "showIntervalTabs": false,
+                          "displayMode": "single",
+                          "locale": "en",
+                          "colorTheme": "light"
+                        }
+                     </script>
+                  </div>
+               </div>
+            </div>
+            <div style="font-size:10px; color:var(--gray); margin-top:10px; text-align:center; font-style:italic;">
+               *Note: VIX on “Buy” = High Volatility (Fear in the markets).
+            </div>
+         </div>
+      </div>
+
+      <div id="p-recap" class="page">
+         <div class="floating-year-selector">
+            <span style="font-size:16px;">🗓️</span>
+            <select id="trendYear" onchange="renderFinancialChart(this.value); fetchTrips(this.value);fetchCategoryBreakdown(this.value);fetchProjection(this.value);fetchFireProgress(this.value);fetchRunway(this.value);fetchYearlyTotals(this.value);fetchHistoricalNW(this.value);">
+               <option value="2026" selected>2026</option>
+            </select>
+         </div>
+         <div class="page-header">
+            <h3 style="margin:0; padding-top: 5px; margin-left: 90px;"></h3>
+            <div class="header-actions">
+               <button type="button" class="mini-theme-btn" onclick="togglePrivacy()">👁️</button>
+               <button type="button" class="mini-theme-btn theme-toggler" onclick="toggleTheme()">🌙</button>
+               <button type="button" class="mini-theme-btn" onclick="openGeminiSheet()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border:none; color:white;">✨</button>
+            </div>
+         </div>
+         <div style="background: linear-gradient(135deg, #FF9500 0%, #FF2D55 100%); border-radius: 22px; padding: 25px 20px; color: white; box-shadow: 0 15px 35px rgba(255, 45, 85, 0.35); margin-bottom: 25px; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+            <div style="position: absolute; top: -30px; right: -30px; width: 180px; height: 180px; background: rgba(255,255,255,0.15); border-radius: 50%; filter: blur(20px);"></div>
+            <div style="position: absolute; bottom: -40px; left: -20px; width: 140px; height: 140px; background: rgba(0,0,0,0.1); border-radius: 50%; filter: blur(30px);"></div>
+            <div style="position: relative; z-index: 1;">
+               <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8;">LIQUID NW</span>
+                  <span style="font-size: 16px;">💧</span>
+               </div>
+               <div class="sensitive" style="margin-top: 5px;">
+                  <div id="tot-eur" style="font-size: 24px; font-weight: 800; letter-spacing: -1px; line-height: 1.1;">€ --</div>
+                  <div style="font-size: 13px; font-weight: 500; opacity: 0.9; margin-top: 2px;">≈ <span id="tot-usd">$ --</span> (USD)</div>
+               </div>
+            </div>
+            <div style="height: 1px; background: rgba(255,255,255,0.25); margin-bottom: 15px;"></div>
+            <div style="position: relative; z-index: 1;">
+               <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8;">TOTAL NW</span>
+                  <span style="font-size: 14px;">💎</span>
+               </div>
+               <div class="sensitive" style="margin-top: 5px; display: flex; align-items: baseline; gap: 8px;">
+                  <span id="liq-eur" style="font-size: 22px; font-weight: 700;">€ --</span>
+                  <span style="font-size: 13px; font-weight: 500; opacity: 0.9;">/ <span id="liq-usd">$ --</span></span>
+               </div>
+            </div>
+         </div>
+         <div class="card" style="margin-top: 20px; border:none; background: #fff;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+               <div style="display:flex; align-items:center; gap:5px;">
+                  <span style="font-size:12px; font-weight:800; color:var(--text-main); text-transform:uppercase;">
+                  🚀 Road to Freedom
+                  </span>
+                  <span onclick="showFireInfo()" style="cursor:pointer; font-size:14px; color:var(--primary);">ⓘ</span>
+               </div>
+               <div style="font-size:14px; font-weight:900; color:var(--primary);" id="fire-pct">--%</div>
+            </div>
+            <div style="height: 12px; width: 100%; background: #e5e5ea; border-radius: 6px; overflow: hidden; position: relative;">
+               <div id="fire-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #007aff, #5ac8fa); border-radius: 6px; transition: width 1.5s ease-in-out;"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:10px; color:var(--gray);">
+               <div>
+                  <div style="margin-bottom:2px;">Current Net Worth</div>
+                  <div id="fire-nw" class="sensitive" style="font-weight:700; color:var(--text-main);">€ --</div>
+               </div>
+               <div style="text-align:right;">
+                  <div style="margin-bottom:2px;">Target (FIRE)</div>
+                  <div id="fire-target" class="sensitive" style="font-weight:700; color:var(--text-main);">€ --</div>
+               </div>
+            </div>
+         </div>
+         <div class="card" style="padding: 20px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background: white; margin-bottom: 20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+               <div style="font-size:11px; font-weight:700; color:var(--gray); text-transform:uppercase; letter-spacing:1px;">Current Month Flow</div>
+               <div id="flow-rate" class="sensitive" style="font-size:12px; font-weight:700; color:white; background: linear-gradient(135deg, #007aff 0%, #5856d6 100%); padding: 4px 10px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,122,255,0.3);">--%</div>
+            </div>
+            <div style="text-align:center; margin-bottom: 20px;">
+               <div style="font-size:12px; color:var(--gray); margin-bottom:4px;">Net savings</div>
+               <div id="flow-save" class="sensitive" style="font-size:24px; font-weight:800; color:var(--text-main); letter-spacing:-1px;">€ --</div>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+               <div style="background: rgba(52, 199, 89, 0.08); border-radius: 12px; padding: 12px; display:flex; align-items:center; gap: 10px;">
+                  <div style="background:white; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 5px rgba(0,0,0,0.05);"><span style="font-size:16px;">⬇️</span></div>
+                  <div>
+                     <div style="font-size:10px; font-weight:600; color:var(--success); text-transform:uppercase;">Income</div>
+                     <div id="flow-in" class="sensitive" style="font-size:15px; font-weight:700; color:var(--text-main);">€ --</div>
+                  </div>
+               </div>
+               <div style="background: rgba(255, 59, 48, 0.08); border-radius: 12px; padding: 12px; display:flex; align-items:center; gap: 10px;">
+                  <div style="background:white; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 5px rgba(0,0,0,0.05);"><span style="font-size:16px;">⬆️</span></div>
+                  <div>
+                     <div style="font-size:10px; font-weight:600; color:var(--danger); text-transform:uppercase;">Expenses</div>
+                     <div id="flow-out" class="sensitive" style="font-size:15px; font-weight:700; color:var(--text-main);">€ --</div>
+                  </div>
+               </div>
+            </div>
+         </div>
+         <div class="section-header summary-title">Summary</div>
+         <div class="card">
+            <div class="row"><span class="label">Stocks</span><span id="sum-s-a" class="amt sensitive">--</span><span id="sum-s-p" class="pct">--</span></div>
+            <div class="row"><span class="label">Cash</span><span id="sum-c-a" class="amt sensitive">--</span><span id="sum-c-p" class="pct">--</span></div>
+            <div class="row"><span class="label" style="font-size:12px;">Cash Eq.</span><span id="sum-ceq-a" class="amt sensitive">--</span><span id="sum-ceq-p" class="pct">--</span></div>
+            <div class="row"><span class="label">ETFs</span><span id="sum-e-a" class="amt sensitive">--</span><span id="sum-e-p" class="pct">--</span></div>
+            <div class="row"><span class="label">Crypto</span><span id="sum-y-a" class="amt sensitive">--</span><span id="sum-y-p" class="pct">--</span></div>
+            <div class="row"><span class="label">Others</span><span id="sum-o-a" class="amt sensitive">--</span><span id="sum-o-p" class="pct">--</span></div>
+            <div class="row"><span class="label">Pension</span><span id="sum-p-a" class="amt sensitive">--</span><span id="sum-p-p" class="pct">--</span></div>
+         </div>
+         <div class="card" id="risk-card" style="margin-top:20px; border-left: 5px solid #8e8e93;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+               <div style="font-size:12px; font-weight:bold; color:var(--gray); text-transform:uppercase;">
+                  🤖 AI Risk Assessment
+               </div>
+               <div id="btn-refresh-risk" onclick="forceReloadRisk()" style="cursor:pointer; font-size:14px; opacity:0.7;">
+                  🔄
+               </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+               <div>
+                  <div id="risk-level" class="sensitive" style="font-size:18px; font-weight:800; opacity:0.6;">
+                     Analysis in progress...
+                  </div>
+                  <div id="risk-comment" class="sensitive" style="font-size:12px; color:var(--text-main); margin-top:5px; line-height:1.4;">
+                     Please wait...
+                  </div>
+               </div>
+               <div id="risk-score" class="sensitive" style="font-size:24px; font-weight:900; opacity:0.1;">
+                  --
+               </div>
+            </div>
+            <div id="risk-tip" class="sensitive" style="margin-top:10px; padding-top:10px; border-top:1px dashed #eee; font-size:11px; font-style:italic; color:#007aff;">
+               Loading data...
+            </div>
+         </div>
+         <div class="card" style="padding:15px; min-height:300px;">
+            <div style="font-size:12px; font-weight:bold; color:var(--gray); margin-bottom:15px;">ASSET ALLOCATION</div>
+            <div style="position: relative; height:250px; width:100%">
+               <canvas id="assetAllocationChart"></canvas>
+            </div>
+         </div>
+         <div class="section-header crypto-title">Crypto</div>
+         <div class="card">
+            <div class="row" style="background:rgba(255,253,231, 0.2);"><span class="label">Value</span><span id="y-det-main" class="amt sensitive">--</span><span class="pct">--</span></div>
+            <div class="row"><span class="label">Unrealized</span><span id="y-det-un-a" class="amt sensitive">--</span><span id="y-det-un-p" class="pct">--</span></div>
+            <div class="row"><span class="label">Realized</span><span id="y-det-re-a" class="amt sensitive">--</span><span id="y-det-re-p" class="pct">--</span></div>
+            <div class="row" style="font-weight:bold;"><span class="label">Balance</span><span id="y-det-bal-a" class="amt sensitive">--</span><span id="y-det-bal-p" class="pct">--</span></div>
+            <div class="row" style="border-top:1px dashed #eee; margin-top:5px; padding-top:5px;"><span class="label">Invested</span><span id="y-det-inv" class="amt sensitive" style="color:var(--text-main)">--</span><span class="pct"></span></div>
+         </div>
+         <div class="section-header stocks-title">Stocks</div>
+         <div class="card">
+            <div class="row" style="background:rgba(241,248,233, 0.2);"><span class="label">Value</span><span id="s-det-main" class="amt sensitive">--</span><span class="pct">--</span></div>
+            <div class="row"><span class="label">Unrealized</span><span id="s-det-un-a" class="amt sensitive">--</span><span id="s-det-un-p" class="pct">--</span></div>
+            <div class="row"><span class="label">Realized</span><span id="s-det-re-a" class="amt sensitive">--</span><span id="s-det-re-p" class="pct">--</span></div>
+            <div class="row" style="font-weight:bold;"><span class="label">Balance</span><span id="s-det-bal-a" class="amt sensitive">--</span><span id="s-det-bal-p" class="pct">--</span></div>
+            <div class="row" style="border-top:1px dashed #eee; margin-top:5px; padding-top:5px;"><span class="label">Invested</span><span id="s-det-inv" class="amt sensitive" style="color:var(--text-main)">--</span><span class="pct"></span></div>
+         </div>
+         <div class="section-header etf-title">ETFs</div>
+         <div class="card">
+            <div class="row"><span class="label">Value</span><span id="e-det-main" class="amt sensitive">--</span><span class="pct">--</span></div>
+            <div class="row"><span class="label">Unrealized</span><span id="e-det-un-a" class="amt sensitive">--</span><span id="e-det-un-p" class="pct">--</span></div>
+            <div class="row"><span class="label">Realized</span><span id="e-det-re-a" class="amt sensitive">--</span><span id="e-det-re-p" class="pct">--</span></div>
+            <div class="row" style="font-weight:bold;"><span class="label">Balance</span><span id="e-det-bal-a" class="amt sensitive">--</span><span id="e-det-bal-p" class="pct">--</span></div>
+            <div class="row" style="border-top:1px dashed #eee; margin-top:5px; padding-top:5px;"><span class="label">Invested</span><span id="e-det-inv" class="amt sensitive" style="color:var(--text-main)">--</span><span class="pct"></span></div>
+         </div>
+         <div class="card" style="padding:15px; min-height:250px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+               <div style="font-size:12px; font-weight:bold; color:var(--gray);">FINANCIAL TREND</div>
+            </div>
+            <div class="card" style="margin-top: 20px; background: linear-gradient(135deg, #2c3e50 0%, #4b4b4d 100%); color: white; border:none;">
+               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                     <div style="font-size:12px; font-weight:700; opacity:0.9; letter-spacing:1px;">
+                        🔮 YEAR PROJECTION
+                     </div>
+                     <div onclick="showProjectionInfo()" style="cursor:pointer; font-size:14px; opacity:0.7;">ⓘ</div>
+                  </div>
+                  <div style="font-size:10px; background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:10px;" id="proj-msg">
+                     --
+                  </div>
+               </div>
+               <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+                  <div>
+                     <div style="font-size:11px; opacity:0.7; margin-bottom:2px;">Estimated Savings</div>
+                     <div id="proj-val" class="sensitive" style="font-size:32px; font-weight:800; text-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+                        € --
+                     </div>
+                  </div>
+                  <div style="text-align:right;">
+                     <div style="font-size:10px; opacity:0.7;">Current (YTD)</div>
+                     <div id="proj-curr" class="sensitive" style="font-weight:600; font-size:14px;">€ --</div>
+                  </div>
+               </div>
+            </div>
+            <div class="card" style="margin-bottom: 20px; border-left: 5px solid #ffcc00; background: #fff;">
+               <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                     <div style="display:flex; align-items:center; gap:5px; margin-bottom:5px;">
+                        <span style="font-size:11px; font-weight:700; color:var(--gray); text-transform:uppercase; letter-spacing:0.5px;">
+                        📉 Financial Runway
+                        </span>
+                        <span onclick="showRunwayInfo()" style="cursor:pointer; font-size:14px; color:var(--primary); opacity:0.8;">ⓘ</span>
+                     </div>
+                     <div style="display:flex; align-items:baseline; gap:5px;">
+                        <span id="runway-val" class="sensitive" style="font-size:26px; font-weight:800; color:var(--text-main);">--</span>
+                        <span style="font-size:14px; font-weight:500; color:var(--gray);">months</span>
+                     </div>
+                     <div style="font-size:11px; color:var(--gray); margin-top:2px;">
+                        Avg. Burn: <span id="runway-avg" class="sensitive" style="font-weight:700; color:var(--danger);">€ --</span> / month
+                     </div>
+                  </div>
+                  <div style="text-align:right;">
+                     <div style="font-size:32px;">🏝️</div>
+                     <div style="font-size:9px; color:var(--gray); margin-top:5px;">Survival Mode</div>
+                  </div>
+               </div>
+            </div>
+            <div style="position: relative; height:220px; width:100%">
+               <canvas id="expensesChart"></canvas>
+            </div>
+         </div>
+         <div class="card" style="padding:15px; min-height:300px; margin-top:20px;">
+            <div style="font-size:12px; font-weight:bold; color:var(--gray); margin-bottom:15px; text-transform:uppercase;">
+               💸 Money Flow (Sankey)
+            </div>
+            <div style="position: relative; height:250px; width:100%">
+               <canvas id="sankeyChart"></canvas>
+            </div>
+            <div style="font-size:10px; color:var(--gray); text-align:center; margin-top:10px;">
+               Left: Income • Right: Expenses & Savings
+            </div>
+         </div>
+         <div id="year-recap-card" style="background:var(--white); border-radius:16px; padding:15px; margin: 10px 5px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+            <div style="font-size:12px; color:var(--gray); font-weight:700; text-transform:uppercase; margin-bottom:10px; text-align:center;">
+               Yearly Overview <span id="yr-label"></span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+               <div style="text-align:center; flex:1;">
+                  <div style="font-size:10px; color:var(--gray);">Income</div>
+                  <div id="yr-inc" class="sensitive" style="font-size:15px; font-weight:800; color:#34c759; margin-top:2px;">...</div>
+               </div>
+               <div style="width:1px; height:30px; background:#f2f2f7;"></div>
+               <div style="text-align:center; flex:1;">
+                  <div style="font-size:10px; color:var(--gray);">Expense</div>
+                  <div id="yr-exp" class="sensitive" style="font-size:15px; font-weight:800; color:#ff3b30; margin-top:2px;">...</div>
+               </div>
+               <div style="width:1px; height:30px; background:#f2f2f7;"></div>
+               <div style="text-align:center; flex:1;">
+                  <div style="font-size:10px; color:var(--gray);">Net Saving</div>
+                  <div id="yr-sav" class="sensitive" style="font-size:15px; font-weight:800; color:var(--text-main); margin-top:2px;">...</div>
+               </div>
+            </div>
+            <div style="border-top: 1px dashed #e5e5ea; padding-top: 10px;">
+               <div style="display:flex; gap: 15px;">
+                  <div style="flex:1;">
+                     <div style="font-size:9px; font-weight:700; color:#34c759; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Top Income</div>
+                     <div id="yr-cat-inc">
+                        <div style="font-size:10px; color:#ccc;">...</div>
+                     </div>
+                  </div>
+                  <div style="flex:1;">
+                     <div style="font-size:9px; font-weight:700; color:#ff3b30; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Top Expense</div>
+                     <div id="yr-cat-exp">
+                        <div style="font-size:10px; color:#ccc;">...</div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+         <div class="section-header" style="background:#ff3b30; color:white; margin-top:20px;">Monthly Expenditures by Category</div>
+         <div class="card" style="padding:15px; min-height:250px;">
+            <div style="position: relative; height:250px; width:100%">
+               <canvas id="expenseStackChart"></canvas>
+            </div>
+         </div>
+         <div class="section-header" style="background:#28a745; color:white; margin-top:20px;">Monthly Revenue by Category</div>
+         <div class="card" style="padding:15px; min-height:250px;">
+            <div style="position: relative; height:250px; width:100%">
+               <canvas id="incomeStackChart"></canvas>
+            </div>
+         </div>
+         <div class="section-header" style="background:#00bcd4; color:white; margin-top:20px;">Travels & Trips</div>
+         <div class="card" style="padding:15px; min-height:250px;">
+            <div style="font-size:12px; font-weight:bold; color:var(--gray); margin-bottom:15px;">COST BREAKDOWN PER TRIP</div>
+            <div style="position: relative; height:200px; width:100%">
+               <canvas id="tripChart"></canvas>
+            </div>
+         </div>
+         <div class="section-header" style="background:#5856d6; color:white; margin-top:20px;">Travel Map 🌍</div>
+         <div class="card" style="padding:0; overflow:hidden; min-height:300px;">
+            <div id="map" style="height: 300px; width: 100%;"></div>
+         </div>
+         <div id="trip-list-container" style="padding-bottom:20px; margin-top: 20px;">
+            <div style="text-align:center; color:var(--gray); font-size:12px;">Loading Trips...</div>
+         </div>
+         <div class="section-header" style="background: linear-gradient(135deg, #4b4b4d 0%, #2c2c2e 100%); color:white; margin-top:20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            Pension Fund🐢
+         </div>
+         <div class="card" style="padding: 20px; min-height: 280px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 20px;">
+               <div>
+                  <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--gray); margin-bottom:4px;">Cumulative amount</div>
+                  <div id="pension-total" style="font-size:24px; font-weight:800; color:#2c3e50; letter-spacing:-0.5px;">€ --</div>
+               </div>
+               <div style="text-align:right;">
+                  <div style="font-size:10px; color:var(--gray); margin-bottom:4px;">Poured 2026</div>
+                  <div id="pension-year" style="font-size:16px; font-weight:700; color:var(--success); background: rgba(52, 199, 89, 0.1); padding: 4px 8px; border-radius: 8px;">
+                     + € --
+                  </div>
+               </div>
+            </div>
+            <div style="position: relative; height:180px; width:100%; margin-bottom: 25px;">
+               <canvas id="pensionChart"></canvas>
+            </div>
+            <div style="background: #fbfbfd; border-radius: 16px; padding: 15px; border: 1px solid #f2f2f7;">
+               <div style="margin-bottom: 20px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                     <span style="font-size:12px; font-weight:700; color:#4b4b4d;">🎯 Objective Deductibility</span>
+                     <span id="tax-gap-val" style="font-size:11px; font-weight:600; color:var(--gray);">Remaining: € --</span>
+                  </div>
+                  <div style="height: 10px; background: #e5e5ea; border-radius: 10px; overflow: hidden; position: relative;">
+                     <div id="tax-bar" style="width: 0%; background: linear-gradient(90deg, #ff9500 0%, #ffcc00 100%); height: 100%; border-radius: 10px; transition: width 1s ease;"></div>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; margin-top: 5px;">
+                     <span style="font-size:10px; color:var(--gray);">0€</span>
+                     <span style="font-size:10px; color:#4b4b4d; font-weight:bold;">5.164€</span>
+                  </div>
+                  <div style="text-align:center; margin-top:-15px;">
+                     <span style="font-size:10px; background:white; padding: 2px 6px; border-radius:10px; border:1px solid #eee; color:var(--gray);">
+                     Saturated: <strong id="tax-pct" style="color:#4b4b4d;">0%</strong>
+                     </span>
+                  </div>
+               </div>
+               <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                  <div style="background: white; padding: 12px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.02); text-align: center;">
+                     <div style="font-size:20px; margin-bottom:5px;">📊</div>
+                     <div style="font-size:10px; font-weight:600; color:var(--gray); text-transform:uppercase;">Monthly Average</div>
+                     <div id="pension-avg" style="font-size:15px; font-weight:800; color:var(--primary); margin-top:2px;">€ 0</div>
+                  </div>
+                  <div style="background: white; padding: 12px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.02); text-align: center;">
+                     <div style="font-size:20px; margin-bottom:5px;">🔮</div>
+                     <div style="font-size:10px; font-weight:600; color:var(--gray); text-transform:uppercase;">In 10 Years</div>
+                     <div id="pension-proj" style="font-size:15px; font-weight:800; color:var(--stocks-bg); margin-top:2px;">€ 0</div>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
+
+      <div class="nav-bar">
+         <div class="nav-btn active" id="btn-add" onclick="changeTab('add')"><i>✏️</i>Exp</div>
+         <div class="nav-btn" id="btn-invest" onclick="changeTab('invest')"><i>📈</i>Invest</div>
+         <div class="nav-btn" id="btn-market" onclick="changeTab('market')"><i>📊</i>Market</div>
+         <div class="nav-btn" onclick="toggleCalc()" style="color: var(--invest-bg);"><i>🧮</i>Calc</div>
+         <div class="nav-btn" id="btn-recap" onclick="changeTab('recap')"><i>📑</i>Recap</div>
+      </div>
+   </div>
+
+   <div id="wl-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; align-items:flex-end; justify-content:center; backdrop-filter: blur(2px);">
+      <div style="background-color:var(--card-bg, #ffffff); width:100%; max-width:600px; border-radius:24px 24px 0 0; padding:25px; box-shadow:0 -10px 40px rgba(0,0,0,0.3); animation: slideUp 0.3s ease-out; max-height:85vh; overflow-y:auto; position:relative;">
+         <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:25px;">
+            <div>
+               <div id="wl-mod-ticker" style="background:#007aff; color:white; padding:4px 10px; border-radius:6px; font-size:13px; font-weight:800; display:inline-block; margin-bottom:8px; letter-spacing:0.5px;">--</div>
+               <div id="wl-mod-name" style="font-size:24px; font-weight:900; line-height:1.1; color:var(--text-main, #000);">--</div>
+            </div>
+            <div onclick="closeWlModal()" style="background:#f2f2f7; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:bold; color:#333; font-size:18px;">✕</div>
+         </div>
+         <div style="background:var(--bg-color, #f5f5f7); padding:20px; border-radius:16px; margin-bottom:25px; display:flex; justify-content:space-between; align-items:center; border:1px solid rgba(0,0,0,0.05);">
+            <div>
+               <div style="font-size:11px; color:#888; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Current Price</div>
+               <div id="wl-mod-price-main" style="font-size:28px; font-weight:800; color:var(--text-main, #000); letter-spacing:-0.5px;">--</div>
+            </div>
+            <div style="text-align:right;">
+               <div id="wl-mod-lbl-conv"style="font-size:11px; color:#888; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Converted</div>
+               <div id="wl-mod-price-conv" style="font-size:18px; font-weight:600; color:#555;">--</div>
+            </div>
+         </div>
+         <div id="wl-chart-wrapper" style="height:250px; margin-bottom:20px; border-radius:16px; overflow:hidden; border:1px solid rgba(0,0,0,0.05);">
+         </div>
+         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-bottom:15px;">
+            <div class="wl-stat-box"><span>P/E</span><b id="wl-mod-pe">--</b></div>
+            <div class="wl-stat-box"><span>EPS</span><b id="wl-mod-eps">--</b></div>
+            <div class="wl-stat-box"><span>Beta</span><b id="wl-mod-beta">--</b></div>
+            <div class="wl-stat-box"><span>Day High</span><b id="wl-mod-dh">--</b></div>
+            <div class="wl-stat-box"><span>Day Low</span><b id="wl-mod-dl">--</b></div>
+            <div class="wl-stat-box"><span>Mkt Cap</span><b id="wl-mod-mkt" style="font-size:11px;">--</b></div>
+            <div class="wl-stat-box"><span>52w High</span><b id="wl-mod-52h">--</b></div>
+            <div class="wl-stat-box"><span>52w Low</span><b id="wl-mod-52l">--</b></div>
+            <div class="wl-stat-box"><span>Volume</span><b id="wl-mod-vol" style="font-size:11px;">--</b></div>
+         </div>
+         <div style="background:var(--white); padding:15px; border-radius:12px; margin-bottom:10px; border:1px solid rgba(0,0,0,0.05);">
+            <div style="font-size:11px; font-weight:700; color:#888; text-transform:uppercase; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:5px;">Company Profile</div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+               <span style="font-size:12px; color:#555;">Sector:</span>
+               <span id="wl-mod-sector" style="font-weight:700; font-size:12px;">--</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+               <span style="font-size:12px; color:#555;">Industry:</span>
+               <span id="wl-mod-ind" style="font-weight:700; font-size:12px; text-align:right; max-width:60%;">--</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+               <span style="font-size:12px; color:#555;">Country:</span>
+               <span id="wl-mod-ctry" style="font-weight:700; font-size:12px;">--</span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+               <span style="font-size:12px; color:#555;">Currency:</span>
+               <span id="wl-mod-curr" style="font-weight:700; font-size:12px;">--</span>
+            </div>
+         </div>
+         <div id="wl-range-container" style="margin-top:15px; margin-bottom:20px; display:none;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:#888; margin-bottom:5px;">
+               <span>52w Low</span>
+               <span style="font-weight:600; color:var(--text-main);">Annual Range</span>
+               <span>52w High</span>
+            </div>
+            <div style="position:relative; height:6px; background:#e5e5ea; border-radius:10px; width:100%;">
+               <div id="wl-range-dot" style="
+                  position:absolute; top:-4px; left:0%; width:14px; height:14px; background:#007AFF; border:2px solid #fff; border-radius:50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transform: translateX(-50%); transition: left 0.5s ease-out;
+                  "></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:10px; color:#555; margin-top:4px;">
+               <span id="wl-range-min">--</span>
+               <span id="wl-range-max">--</span>
+            </div>
+         </div>
+         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:30px;">
+            <a id="wl-link-site" href="#" target="_blank" style="text-decoration:none; background:#007aff; color:white; padding:14px; border-radius:12px; text-align:center; font-weight:700; font-size:14px; box-shadow:0 4px 10px rgba(0,122,255,0.2);">
+            🌐 Official Website
+            </a>
+            <a id="wl-link-google" href="#" target="_blank" style="text-decoration:none; background:#2c2c2e; color:white; padding:14px; border-radius:12px; text-align:center; font-weight:700; font-size:14px; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
+            📈 Google Finance
+            </a>
+         </div>
+         <button id="wl-btn-del" class="fancy-del-btn">
+         <span style="font-size:18px;">🗑️</span>
+         <span>Delete</span>
+         </button>
+         <div style="height:40px;"></div>
+      </div>
+   </div>
+
+   <div id="gemini-pin-overlay">
+      <div class="gemini-pin-title">Enter Gemini PIN</div>
+      <div class="gemini-dots-container" id="geminiDotsBox">
+         <div class="gemini-dot"></div>
+         <div class="gemini-dot"></div>
+         <div class="gemini-dot"></div>
+         <div class="gemini-dot"></div>
+      </div>
+      <div class="gemini-pad-grid">
+         <div class="gemini-key" onclick="pressGeminiKey('1')">1</div>
+         <div class="gemini-key" onclick="pressGeminiKey('2')">2</div>
+         <div class="gemini-key" onclick="pressGeminiKey('3')">3</div>
+         <div class="gemini-key" onclick="pressGeminiKey('4')">4</div>
+         <div class="gemini-key" onclick="pressGeminiKey('5')">5</div>
+         <div class="gemini-key" onclick="pressGeminiKey('6')">6</div>
+         <div class="gemini-key" onclick="pressGeminiKey('7')">7</div>
+         <div class="gemini-key" onclick="pressGeminiKey('8')">8</div>
+         <div class="gemini-key" onclick="pressGeminiKey('9')">9</div>
+         <div class="gemini-key action-btn cancel" onclick="closeGeminiPinPad()">Cancel</div>
+         <div class="gemini-key" onclick="pressGeminiKey('0')">0</div>
+         <div class="gemini-key action-btn clear" onclick="clearGeminiKey()">⌫</div>
+      </div>
+   </div>
+
+   <div id="gemini-confirm-overlay">
+      <div class="gemini-confirm-card">
+         <span class="gemini-confirm-icon">🔒</span>
+         <div class="gemini-confirm-title">Lock Access?</div>
+         <div class="gemini-confirm-desc">Your financial data will be hidden and the PIN will be required to view it again.</div>
+         <div class="gemini-confirm-actions">
+            <button class="gemini-btn cancel" onclick="closeGeminiConfirm()">Cancel</button>
+            <button class="gemini-btn lock" onclick="confirmGeminiLock()">Lock</button>
+         </div>
+      </div>
+   </div>
+
+   <div style="text-align:center; margin: 30px 0 50px 0; opacity: 0.3;">
+      <span style="font-size:10px; color:var(--gray); cursor:pointer;" onclick="hardResetApp()">
+      Version 1.0 • 🔄 Reset Cache
+      </span>
+   </div>
+</body>

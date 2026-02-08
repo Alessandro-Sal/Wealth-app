@@ -1,0 +1,756 @@
+<script>
+/**
+ * ======================================================================================
+ * BLOCK 6: INPUTS, FORMS, SUBSCRIPTIONS & CALCULATORS
+ * Handles transaction submission, form logic, and financial tools.
+ * ======================================================================================
+ */
+
+// --- Form Logic ---
+
+/**
+ * Handles changes in the Transaction Type dropdown.
+ * Switches between standard inputs and pension inputs.
+ * 
+ */
+function handleTypeChange() {
+  const type = document.getElementById('tType').value;
+  const standardDiv = document.getElementById('standard-inputs');
+  const pensionDiv = document.getElementById('pension-inputs');
+  const btn = document.querySelector('.btn-save'); 
+  
+  if (type === 'Pension') {
+      standardDiv.style.display = 'none'; 
+      pensionDiv.style.display = 'block'; 
+      if(btn) btn.innerHTML = "💾 SAVE PENSION";
+      
+      // Auto-set previous month
+      const now = new Date(); 
+      now.setMonth(now.getMonth() - 1);
+      document.getElementById('penMonth').value = now.getMonth();
+      const yearSelect = document.getElementById('penYear'); 
+      if(yearSelect) yearSelect.value = now.getFullYear(); 
+  } else {
+      standardDiv.style.display = 'block'; 
+      pensionDiv.style.display = 'none'; 
+      if(btn) btn.innerHTML = "SAVE";
+      loadCategories(); 
+  }
+}
+
+function loadCategories() {
+  const type = document.getElementById('tType').value;
+  const select = document.getElementById('tCat');
+  
+  select.innerHTML = '';
+  let defaultOpt = document.createElement('option'); 
+  defaultOpt.value = ""; 
+  defaultOpt.text = "-- Select Category --"; 
+  select.add(defaultOpt);
+  
+  if (categories[type]) {
+      categories[type].forEach(c => { 
+          let o = document.createElement('option'); 
+          o.value = o.text = c; 
+          select.add(o); 
+      });
+  }
+  updateNoteSuggestions();
+}
+
+function updateNoteSuggestions() {
+  const cat = document.getElementById('tCat').value;
+  const nList = document.getElementById('noteList');
+  nList.innerHTML = '';
+  
+  if (notesData[cat]) { 
+      notesData[cat].forEach(n => { 
+          let opt = document.createElement('option'); 
+          opt.value = n; 
+          nList.appendChild(opt); 
+      }); 
+  }
+}
+
+function resetForm() {
+  document.getElementById('txForm').reset();
+  document.getElementById('tCat').innerHTML = '';
+  document.getElementById('f-stat').innerText = '';
+}
+
+/**
+ * Submits the transaction form.
+ * Handles validation, UI feedback (haptic/loading), and server communication.
+ */
+function sendTransaction() {
+  if (navigator.vibrate) navigator.vibrate(50);
+  
+  const type = document.getElementById('tType').value;
+  
+  // Pension Logic Branch
+  if (type === 'Pension') {
+      const pYear = document.getElementById('penYear').value; 
+      const pMonth = document.getElementById('penMonth').value; 
+      const pAmt = parseFloat(document.getElementById('penAmount').value); 
+      const btn = document.querySelector('.btn-save');
+      
+      if (isNaN(pAmt) || pAmt === 0) { 
+          Swal.fire({ icon: 'warning', title: 'Amount?', text: 'Enter the accrued amount.' }); 
+          return; 
+      }
+      
+      const originalText = btn.innerText; 
+      btn.innerText = "⏳ SAVING..."; 
+      btn.classList.add('btn-loading');
+      
+      google.script.run.withSuccessHandler(res => { 
+          btn.innerText = originalText; 
+          btn.classList.remove('btn-loading'); 
+          Swal.fire({ icon: 'success', title: 'Done!', text: res, showConfirmButton: false, timer: 1500 }); 
+          document.getElementById('penAmount').value = ""; 
+          fetchPensionData(); 
+      }).withFailureHandler(err => { 
+          btn.innerText = originalText; 
+          btn.classList.remove('btn-loading'); 
+          Swal.fire({ icon: 'error', title: 'Error', text: err.message }); 
+      }).addPensionTransaction({ year: pYear, month: pMonth, amount: pAmt });
+      return; 
+  }
+  
+  // Standard Transaction Logic
+  const category = document.getElementById('tCat').value;
+  const details = document.getElementById('tDet').value;
+  const btn = document.querySelector('.btn-save:not(.btn-invest)'); 
+  
+  if (!type || type === "") { 
+      Swal.fire({ icon: 'error', title: 'Oops...', text: 'Select a Type!', timer: 2000, showConfirmButton: false }); 
+      return; 
+  }
+  if (!category || category === "") { 
+      Swal.fire({ icon: 'warning', title: 'Missing Category', text: 'Please select a category.', timer: 2000, showConfirmButton: false }); 
+      return; 
+  }
+  
+  let amounts = {}; 
+  let hasValue = false;
+  document.querySelectorAll('.bank-in').forEach(i => { 
+      let v = parseFloat(i.value); 
+      if (!isNaN(v) && v !== 0) { 
+          amounts[i.getAttribute('data-col')] = v; 
+          hasValue = true; 
+      } 
+  });
+  
+  if (!hasValue) { 
+      Swal.fire({ icon: 'info', title: 'Amount?', text: 'Enter at least one amount.', timer: 2000, showConfirmButton: false }); 
+      return; 
+  }
+  
+  const originalText = btn.innerText; 
+  btn.innerText = "⏳ SAVING..."; 
+  btn.classList.add('btn-loading');
+  
+  google.script.run.withSuccessHandler(m => { 
+      btn.innerText = originalText; 
+      btn.classList.remove('btn-loading'); 
+      Swal.fire({ icon: 'success', title: 'Saved!', text: details || 'Transaction recorded', showConfirmButton: false, timer: 1500 }); 
+      fetchHistory(); 
+      fetchBalances(); 
+      fetchBudgets(); 
+      setTimeout(resetForm, 500); 
+  }).withFailureHandler(err => { 
+      btn.innerText = originalText; 
+      btn.classList.remove('btn-loading'); 
+      Swal.fire({ icon: 'error', title: 'Error', text: err.message }); 
+  }).addTransaction({ type, category, details: details || "No Note", amounts });
+}
+
+function deleteTx(sheet, row) {
+  if (navigator.vibrate) navigator.vibrate(50);
+  const isDark = document.body.classList.contains('dark-mode');
+  
+  Swal.fire({ 
+      title: 'Delete?', 
+      text: "This action is irreversible.", 
+      icon: 'warning', 
+      showCancelButton: true, 
+      confirmButtonColor: '#ff3b30', 
+      cancelButtonColor: '#8e8e93', 
+      confirmButtonText: 'Yes, delete', 
+      cancelButtonText: 'Cancel', 
+      background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000', iconColor: '#ff3b30' 
+  }).then((result) => {
+      if (result.isConfirmed) {
+          Swal.fire({ title: 'Deleting...', timerProgressBar: true, didOpen: () => { Swal.showLoading() }, background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000' });
+          google.script.run.withSuccessHandler(res => { 
+              Swal.fire({ icon: 'success', title: 'Deleted!', showConfirmButton: false, timer: 1000, background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000' }); 
+              fetchHistory(); 
+              fetchInvestHistory(); 
+              fetchBalances(); 
+          }).withFailureHandler(err => { 
+              Swal.fire({ icon: 'error', title: 'Error', text: err.message }); 
+          }).deleteRow(sheet, row);
+      }
+  });
+}
+
+function sendInvestment() {
+  if (navigator.vibrate) navigator.vibrate(50);
+  const btn = document.querySelector('.btn-invest');
+  const action = document.getElementById('invAction').value; 
+  const bankCol = document.getElementById('invBankCol').value; 
+  const withdrawalNote = document.getElementById('invWithdrawalNote').value;
+  
+  if (action === 'Withdrawal' && bankCol === "") { 
+      Swal.fire({ icon: 'warning', title: 'Missing Bank', text: 'Select where to credit the withdrawal.' }); 
+      return; 
+  }
+  
+  const data = { 
+      type: document.getElementById('invType').value, 
+      date: document.getElementById('invDate').value, 
+      ticker: document.getElementById('invTicker').value, 
+      action: action, 
+      qty: document.getElementById('invQty').value, 
+      costEur: document.getElementById('invCostEur').value, 
+      costUsd: document.getElementById('invCostUsd').value, 
+      bankCol: bankCol, 
+      note: withdrawalNote 
+  };
+  
+  if (!data.date || !data.ticker || !data.qty || !data.costEur) { 
+      Swal.fire({ icon: 'warning', title: 'Missing Data', text: 'Fill in Date, Ticker, Qty, and Cost EUR', timer: 2500 }); 
+      return; 
+  }
+  
+  const originalText = btn.innerText; 
+  btn.innerText = "🚀 PROCESSING..."; 
+  btn.classList.add('btn-loading');
+  
+  google.script.run.withSuccessHandler(m => { 
+      btn.innerText = originalText; 
+      btn.classList.remove('btn-loading'); 
+      Swal.fire({ icon: 'success', title: 'Saved!', text: m, showConfirmButton: false, timer: 1500 }); 
+      fetchInvestHistory(); 
+      if(action === 'Withdrawal') fetchBalances(); 
+      setTimeout(() => { 
+          document.getElementById('invForm').reset(); 
+          document.getElementById('bank-select-container').style.display = 'none'; 
+          document.getElementById('invBankCol').value = ""; 
+          document.getElementById('invWithdrawalNote').value = ""; 
+          setTodayDate(); 
+      }, 1000); 
+  }).withFailureHandler(err => { 
+      btn.innerText = originalText; 
+      btn.classList.remove('btn-loading'); 
+      Swal.fire({ icon: 'error', title: 'Server Error', text: err.message }); 
+  }).addInvestTransaction(data);
+}
+
+// Add Listener for Investment Action Change
+document.addEventListener('DOMContentLoaded', function() {
+  const actionSelect = document.getElementById('invAction'); 
+  const bankDiv = document.getElementById('bank-select-container');
+  if(actionSelect) { 
+      actionSelect.addEventListener('change', function() { 
+          if(this.value === 'Withdrawal') { 
+              bankDiv.style.display = 'block'; 
+          } else { 
+              bankDiv.style.display = 'none'; 
+              document.getElementById('invBankCol').value = ""; 
+          } 
+      }); 
+  }
+});
+
+// --- Transaction Search ---
+
+function openSearch() {
+  const sheet = document.getElementById('search-sheet'); 
+  const backdrop = document.getElementById('common-backdrop');
+  document.getElementById('searchQuery').value = ''; 
+  document.getElementById('searchType').value = ''; 
+  updateSearchCats();
+  document.getElementById('searchResults').innerHTML = '<div style="text-align:center; color:var(--gray); margin-top:20px;">Enter text to search</div>';
+  
+  closeAllSheets(); 
+  sheet.classList.add('active'); 
+  backdrop.classList.add('active');
+  
+  // Lazy load years if needed
+  const yearSelect = document.getElementById('searchYear');
+  if (yearSelect.options.length <= 1) { 
+      google.script.run.withSuccessHandler(years => { 
+          yearSelect.innerHTML = '<option value="">All Years</option>'; 
+          years.forEach(y => { 
+              let opt = document.createElement('option'); 
+              opt.value = y; 
+              opt.text = y; 
+              yearSelect.add(opt); 
+          }); 
+      }).getExpenseSheetYears(); 
+  }
+}
+
+function updateSearchCats() {
+  const type = document.getElementById('searchType').value; 
+  const catSelect = document.getElementById('searchCat'); 
+  catSelect.innerHTML = '<option value="">All Categories</option>';
+  
+  const addOpts = (list) => list.forEach(c => { 
+      let opt = document.createElement('option'); 
+      opt.value = c; 
+      opt.text = c; 
+      catSelect.add(opt); 
+  });
+  
+  if (type && categories[type]) { 
+      addOpts(categories[type]); 
+  } else if (!type) { 
+      for (const t in categories) { addOpts(categories[t]); } 
+  }
+}
+
+function performSearch() {
+  const query = document.getElementById('searchQuery').value; 
+  const type = document.getElementById('searchType').value; 
+  const cat = document.getElementById('searchCat').value; 
+  const month = document.getElementById('searchMonth').value; 
+  const year = document.getElementById('searchYear').value;
+  
+  const resCont = document.getElementById('searchResults'); 
+  resCont.innerHTML = '<div style="text-align:center; color:var(--gray); margin-top:20px;">Loading...</div>';
+  
+  google.script.run.withSuccessHandler(results => {
+      if (results.length === 0) { 
+          resCont.innerHTML = '<div style="text-align:center; color:var(--gray); margin-top:20px;">No results found</div>'; 
+          return; 
+      }
+      
+      let html = '';
+      results.forEach(r => {
+          let colorStyle = 'var(--text-main)'; 
+          if (r.type === 'Expense') colorStyle = 'var(--danger)'; 
+          else if (r.type === 'Income') colorStyle = 'var(--stocks-bg)'; 
+          else if (r.type === 'Investment') colorStyle = 'var(--invest-bg)'; 
+          else if (r.type === 'Transfer') colorStyle = 'var(--primary)';
+          
+          html += `<div class="search-res-item"><div class="sr-left"><span class="sr-cat">${r.category} <span style="font-weight:normal; font-size:11px;">(${r.type})</span></span><span class="sr-note">${r.details}</span><span class="sr-date">${r.date}</span></div><div class="sr-amt sensitive" style="color:${colorStyle}">${parseFloat(r.amount).toFixed(2)} €</div></div>`;
+      });
+      resCont.innerHTML = html;
+  }).searchTransactions(query, type, cat, month, year);
+}
+
+// --- Subscriptions ---
+
+function openSubs() {
+  const sheet = document.getElementById('subs-sheet'); 
+  const backdrop = document.getElementById('common-backdrop');
+  closeAllSheets(); 
+  google.script.run.withSuccessHandler(renderSubsList).getSubsList();
+  sheet.classList.add('active'); 
+  backdrop.classList.add('active');
+}
+
+function renderSubsList(data) {
+  const select = document.getElementById('subsDropdown'); 
+  select.innerHTML = '<option value="">-- Select Subscription --</option>';
+  
+  if (!data || data.length === 0) { 
+      let opt = document.createElement('option'); 
+      opt.text = "No subscriptions configured"; 
+      select.add(opt); 
+      return; 
+  }
+  
+  data.forEach(sub => { 
+      let opt = document.createElement('option'); 
+      opt.value = sub.id; 
+      let displayAmount = (sub.isSplit && sub.splits) ? sub.splits.reduce((sum, item) => sum + item.amt, 0) : sub.amt; 
+      opt.text = `${sub.note} - € ${displayAmount.toFixed(2)}`; 
+      select.add(opt); 
+  });
+}
+
+function sendSingleSub() {
+  const select = document.getElementById('subsDropdown'); 
+  const selectedId = select.value;
+  
+  if (!selectedId || selectedId === "") { 
+      Swal.fire({ icon: 'info', text: 'Select a subscription from the list.', confirmButtonColor: '#007aff' }); 
+      return; 
+  }
+  
+  const text = select.options[select.selectedIndex].text; 
+  const isDark = document.body.classList.contains('dark-mode');
+  closeAllSheets(); 
+  
+  Swal.fire({ 
+      title: 'Add Expense?', 
+      text: text, 
+      icon: 'question', 
+      showCancelButton: true, 
+      confirmButtonColor: '#007aff', 
+      cancelButtonColor: '#8e8e93', 
+      confirmButtonText: 'Confirm', 
+      cancelButtonText: 'Cancel', 
+      background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000' 
+  }).then((result) => {
+      if (result.isConfirmed) {
+          const status = document.getElementById('f-stat'); 
+          status.innerText = "⏳ Adding Subscription...";
+          
+          google.script.run.withSuccessHandler(m => { 
+              status.innerText = ""; 
+              Swal.fire({ icon: 'success', title: 'Done!', text: 'Subscription added.', showConfirmButton: false, timer: 1500 }); 
+              fetchHistory(); 
+              fetchBalances(); 
+              fetchBudgets(); 
+          }).withFailureHandler(e => { 
+              Swal.fire({ icon: 'error', title: 'Error', text: e.message }); 
+              status.innerText = ""; 
+          }).addSelectedSubs([parseInt(selectedId, 10)]);
+      }
+  });
+}
+
+// --- Calculators (Tab Calc) ---
+
+let calcExpr = "";
+function toggleCalc() { 
+  const sheet = document.getElementById('calc-sheet'); 
+  const backdrop = document.getElementById('common-backdrop'); 
+  document.getElementById('search-sheet').classList.remove('active'); 
+  document.getElementById('invest-search-sheet').classList.remove('active'); 
+  document.getElementById('subs-sheet').classList.remove('active'); 
+  sheet.classList.toggle('active'); 
+  backdrop.classList.toggle('active', sheet.classList.contains('active')); 
+}
+
+function cNum(n) { calcExpr += n; updateCDisp(); }
+function cOp(op) { calcExpr += op; updateCDisp(); }
+function cClear() { calcExpr = ""; updateCDisp(); }
+function cBack() { calcExpr = calcExpr.slice(0, -1); updateCDisp(); }
+function cCalc() { try { calcExpr = eval(calcExpr).toString(); } catch (e) { calcExpr = "Error"; } updateCDisp(); }
+function updateCDisp() { document.getElementById('cDisp').innerText = calcExpr || "0"; }
+
+function switchCalcTab(mode) {
+  ['view-calc', 'view-fx', 'view-roi', 'view-loan', 'view-tax', 'view-inf', 'view-fire'].forEach(id => { 
+      const el = document.getElementById(id); 
+      if (el) el.style.display = 'none'; 
+  });
+  
+  ['tab-btn-c', 'tab-btn-f', 'tab-btn-r', 'tab-btn-l', 'tab-btn-t', 'tab-btn-i', 'tab-btn-fire'].forEach(id => { 
+      const btn = document.getElementById(id); 
+      if (btn) { btn.style.background = 'transparent'; btn.style.color = '#8e8e93'; } 
+  });
+  
+  let suffix = 'c'; 
+  if (mode === 'fx') suffix = 'f'; 
+  else if (mode === 'roi') suffix = 'r'; 
+  else if (mode === 'loan') suffix = 'l'; 
+  else if (mode === 'tax') suffix = 't'; 
+  else if (mode === 'inf') suffix = 'i'; 
+  else if (mode === 'fire') suffix = 'fire';
+  
+  const activeBtn = document.getElementById('tab-btn-' + suffix); 
+  if (activeBtn) { activeBtn.style.background = 'white'; activeBtn.style.color = 'black'; }
+  
+  const activeView = document.getElementById('view-' + mode); 
+  if (activeView) activeView.style.display = 'block';
+}
+
+function calcLoan() {
+  let P = parseFloat(document.getElementById('loanAmount').value) || 0; 
+  let r = (parseFloat(document.getElementById('loanRate').value) || 0) / 100 / 12; 
+  let n = (parseFloat(document.getElementById('loanYears').value) || 0) * 12;
+  
+  if (P === 0 || n === 0) return;
+  
+  let monthlyPayment = (r === 0) ? P / n : P * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1); 
+  let totalPaid = monthlyPayment * n; 
+  let totalInterest = totalPaid - P;
+  
+  const fmt = (num) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(num);
+  
+  document.getElementById('loanMonthly').innerText = fmt(monthlyPayment); 
+  document.getElementById('loanInterest').innerText = fmt(totalInterest); 
+  document.getElementById('loanResult').style.display = 'block';
+}
+
+function calcCompound() {
+  let P = parseFloat(document.getElementById('roiInit').value) || 0; 
+  let PMT = parseFloat(document.getElementById('roiMonth').value) || 0; 
+  let r = (parseFloat(document.getElementById('roiRate').value) || 0) / 100; 
+  let t = parseFloat(document.getElementById('roiYears').value) || 0; 
+  let n = 12;
+  
+  let total = P * Math.pow(1 + r / n, n * t) + (PMT * (Math.pow(1 + r / n, n * t) - 1)) / (r / n); 
+  let totalInvested = P + (PMT * 12 * t); 
+  let interest = total - totalInvested;
+  
+  const fmt = (num) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(num);
+  
+  document.getElementById('roiTotal').innerText = fmt(total); 
+  document.getElementById('roiInterest').innerText = "+ " + fmt(interest); 
+  document.getElementById('roiResult').style.display = 'block';
+}
+
+function calcTax() {
+  let gross = parseFloat(document.getElementById('taxGross').value) || 0; 
+  let rate = parseFloat(document.getElementById('taxRate').value) || 0;
+  let tax = gross * (rate / 100); 
+  let net = gross - tax;
+  
+  document.getElementById('taxNet').innerText = "€ " + net.toFixed(2); 
+  document.getElementById('taxPaid').innerText = "- € " + tax.toFixed(2); 
+  document.getElementById('taxResult').style.display = 'block';
+}
+
+function calcDCA() {
+  let oQ = parseFloat(document.getElementById('dcaCurQty').value) || 0; 
+  let oP = parseFloat(document.getElementById('dcaCurAvg').value) || 0; 
+  let nQ = parseFloat(document.getElementById('dcaNewQty').value) || 0; 
+  let nP = parseFloat(document.getElementById('dcaNewPrice').value) || 0;
+  
+  if ((oQ + nQ) === 0) return;
+  
+  let totalSpent = (oQ * oP) + (nQ * nP); 
+  let totalQty = oQ + nQ; 
+  let newAvg = totalSpent / totalQty;
+  
+  document.getElementById('dcaResult').innerText = "New Avg Price: " + newAvg.toFixed(2); 
+  document.getElementById('dcaResult').style.color = (newAvg < oP) ? 'var(--success)' : 'var(--warning)';
+}
+
+function calcBreakEven() {
+  let buy = parseFloat(document.getElementById('beBuyPrice').value) || 0; 
+  let cur = parseFloat(document.getElementById('beCurPrice').value) || 0;
+  
+  if (buy === 0 || cur === 0) return;
+  
+  let lossPct = ((cur - buy) / buy) * 100; 
+  let requiredGain = ((buy - cur) / cur) * 100; 
+  let resDiv = document.getElementById('beResult');
+  
+  if (cur >= buy) { 
+      resDiv.innerHTML = `<span style="color:var(--stocks-bg)">You are up +${lossPct.toFixed(2)}%!</span>`; 
+  } else { 
+      resDiv.innerHTML = `Loss: <span style="font-weight:bold">${lossPct.toFixed(2)}%</span> <br> Needs <span style="font-weight:bold; font-size:16px;">+${requiredGain.toFixed(2)}%</span> to recover.`; 
+  }
+}
+
+function calcInflation() {
+  let amt = parseFloat(document.getElementById('infAmount').value) || 0; 
+  let rate = parseFloat(document.getElementById('infRate').value) || 0; 
+  let years = parseFloat(document.getElementById('infYears').value) || 0;
+  
+  let futureVal = amt / Math.pow(1 + (rate / 100), years); 
+  let loss = amt - futureVal;
+  
+  const fmt = (num) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(num);
+  
+  document.getElementById('infVal').innerText = fmt(futureVal); 
+  document.getElementById('infLoss').innerText = "- " + fmt(loss); 
+  document.getElementById('infResult').style.display = 'block';
+}
+
+function calcStrategy() {
+  let entry = parseFloat(document.getElementById('stratEntry').value) || 0; 
+  let tpPct = parseFloat(document.getElementById('stratTp').value) || 0; 
+  let slPct = parseFloat(document.getElementById('stratSl').value) || 0;
+  
+  if (entry === 0) return;
+  
+  let tpPrice = entry * (1 + (tpPct / 100)); 
+  let slPrice = entry * (1 - (slPct / 100));
+  
+  document.getElementById('resTp').innerText = tpPrice.toFixed(2); 
+  document.getElementById('resSl').innerText = slPrice.toFixed(2); 
+  document.getElementById('stratResult').style.display = 'block';
+}
+
+function calcFire() {
+  let monthly = parseFloat(document.getElementById('fireSpend').value) || 0; 
+  let rate = parseFloat(document.getElementById('fireRate').value) || 4;
+  
+  if (monthly === 0 || rate === 0) return;
+  
+  let yearly = monthly * 12; 
+  let fireNumber = yearly / (rate / 100);
+  
+  const fmt = (num) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(num);
+  
+  document.getElementById('fireVal').innerText = fmt(fireNumber); 
+  document.getElementById('fireResult').style.display = 'block';
+}
+
+function doConversion() {
+  const amt = parseFloat(document.getElementById('fxAmount').value); 
+  const from = document.getElementById('fxFrom').value; 
+  const to = document.getElementById('fxTo').value; 
+  const resDiv = document.getElementById('fxResult');
+  
+  if (isNaN(amt) || amt === 0) { resDiv.innerText = "Enter Amount"; return; }
+  
+  resDiv.innerHTML = '<span style="color:var(--gray); font-size:16px;">Calculating...</span>';
+  
+  google.script.run.withSuccessHandler(result => {
+      if (String(result).includes("Err")) { 
+          resDiv.style.color = 'var(--danger)'; 
+          resDiv.innerText = "API Error"; 
+      } else { 
+          resDiv.style.color = 'var(--text-main)'; 
+          let symbol = to === 'EUR' ? '€' : (to === 'USD' ? '$' : to); 
+          resDiv.innerText = `${symbol} ${result}`; 
+      }
+  }).getConversionRate(amt, from, to);
+}
+
+// --- Projections, Runway, FIRE (Fetchers) ---
+
+function showRunwayInfo() {
+  const isDark = document.body.classList.contains('dark-mode');
+  Swal.fire({ 
+      title: 'Financial Runway', 
+      html: `<div style="text-align:left; font-size:14px; line-height:1.6;"><p>Shows how long you can maintain your lifestyle without new income.</p><hr style="border:0; border-top:1px solid #ddd; margin:10px 0;"><strong>🧮 Formula:</strong><div style="background:${isDark ? '#2c2c2e' : '#f2f2f7'}; padding:10px; border-radius:8px; margin:5px 0; text-align:center; font-family:monospace; font-weight:bold;">Total Liquid Cash / Avg Monthly Expense</div></div>`, 
+      icon: 'info', 
+      confirmButtonText: 'Got it', 
+      confirmButtonColor: '#007aff'
+  });
+}
+
+function fetchRunway(year) {
+  document.getElementById('runway-val').innerText = "--";
+  google.script.run.withSuccessHandler(data => {
+      const elVal = document.getElementById('runway-val'); 
+      elVal.innerText = data.months;
+      
+      const m = parseFloat(data.months); 
+      if (m < 6) elVal.style.color = 'var(--danger)'; 
+      else if (m < 12) elVal.style.color = 'var(--warning)'; 
+      else elVal.style.color = 'var(--success)';
+      
+      const fmtAvg = new Intl.NumberFormat('en-US').format(data.avg); 
+      document.getElementById('runway-avg').innerText = "€ " + fmtAvg;
+  }).getRunwayData(year);
+}
+
+function fetchProjection(year) {
+  const elVal = document.getElementById('proj-val'); 
+  const elCurr = document.getElementById('proj-curr'); 
+  const elMsg = document.getElementById('proj-msg'); 
+  if(elVal) elVal.style.opacity = '0.5';
+  
+  google.script.run.withSuccessHandler(data => {
+      if(elVal) elVal.style.opacity = '1';
+      
+      if (data.projected === "0" && data.current === "0") { 
+          if(elMsg) elMsg.innerText = "No data..."; 
+          if(elVal) elVal.innerText = "€ --"; 
+          if(elCurr) elCurr.innerText = "€ --"; 
+          return; 
+      }
+      
+      const pVal = new Intl.NumberFormat('en-US').format(data.projected); 
+      const cVal = new Intl.NumberFormat('en-US').format(data.current);
+      
+      if(elVal) elVal.innerText = "€ " + pVal; 
+      if(elCurr) elCurr.innerText = "€ " + cVal; 
+      if(elMsg) elMsg.innerText = data.message;
+      
+      const card = elVal ? elVal.closest('.card') : null; 
+      if (card) { 
+          if (parseFloat(data.projected) < 0) { 
+              card.style.background = "linear-gradient(135deg, #3a1c1c 0%, #502c2c 100%)"; 
+          } else { 
+              card.style.background = "linear-gradient(135deg, #2c3e50 0%, #4b4b4d 100%)"; 
+          } 
+      }
+  }).getYearlyProjection(year);
+}
+
+function showProjectionInfo() {
+  const isDark = document.body.classList.contains('dark-mode');
+  Swal.fire({ 
+      title: 'Year Projection 🔮', 
+      html: `<div style="text-align:left; font-size:14px; line-height:1.6;"><p>Mathematical estimate of end-of-year savings based on current pace.</p><hr style="border:0; border-top:1px solid #ddd; margin:10px 0;"><strong>🧮 Formula:</strong><div style="background:${isDark ? '#2c2c2e' : '#f2f2f7'}; padding:10px; border-radius:8px; margin:5px 0; text-align:center; font-family:monospace; font-weight:bold; font-size:12px;">Current + (Avg Monthly × Remaining Months)</div></div>`, 
+      icon: 'info', 
+      confirmButtonText: 'Clear', 
+      confirmButtonColor: '#4b4b4d' 
+  });
+}
+
+function fetchFireProgress(year) {
+  google.script.run.withSuccessHandler(data => {
+      if(document.getElementById('fire-pct')) document.getElementById('fire-pct').innerText = data.pct + "%";
+      if(document.getElementById('fire-nw')) document.getElementById('fire-nw').innerText = "€ " + new Intl.NumberFormat('en-US', {maximumFractionDigits:0}).format(data.currentNW);
+      if(document.getElementById('fire-target')) document.getElementById('fire-target').innerText = "€ " + new Intl.NumberFormat('en-US', {maximumFractionDigits:0}).format(data.fireTarget);
+      
+      setTimeout(() => { 
+          if(document.getElementById('fire-bar')) document.getElementById('fire-bar').style.width = data.bar + "%"; 
+      }, 100);
+  }).getFireProgress(year);
+}
+
+function showFireInfo() {
+  const isDark = document.body.classList.contains('dark-mode');
+  Swal.fire({ 
+      title: 'Road to Freedom 🚀', 
+      html: `<div style="text-align:left; font-size:14px; line-height:1.6;"><p>Indicates proximity to Financial Independence (FIRE).</p><hr style="border:0; border-top:1px solid #ddd; margin:10px 0;"><strong>The 4% Rule:</strong><p style="font-size:12px; color:${isDark ? '#ccc' : '#666'}">To never work again, you need a capital of <b>25x</b> your annual expenses.</p><div style="background:${isDark ? '#2c2c2e' : '#f2f2f7'}; padding:10px; border-radius:8px; margin:10px 0; font-family:monospace; font-weight:bold; font-size:11px; text-align:center;">Target = Annual Exp × 25</div></div>`, 
+      icon: 'question', 
+      confirmButtonText: 'Let\'s go!', 
+      confirmButtonColor: '#007aff' 
+  });
+}
+
+function fetchYearlyTotals(year) {
+  const label = document.getElementById('yr-label'); 
+  if (label) label.innerText = year;
+  
+  google.script.run.withSuccessHandler(data => {
+      if (!data) return;
+      const elInc = document.getElementById('yr-inc'); if (elInc) elInc.innerText = data.income;
+      const elExp = document.getElementById('yr-exp'); if (elExp) elExp.innerText = data.expense;
+      const elSav = document.getElementById('yr-sav'); 
+      if (elSav) { 
+          elSav.innerText = data.saving; 
+          if (data.rawSaving >= 0) { 
+              elSav.style.color = 'var(--stocks-bg)'; 
+              if (data.rawSaving > 0) elSav.innerText = "+" + data.saving; 
+          } else { 
+              elSav.style.color = 'var(--danger)'; 
+          } 
+      }
+      
+      const renderCatList = (containerId, list, color) => {
+          const cont = document.getElementById(containerId); 
+          if (!cont) return;
+          if (!list || list.length === 0) { 
+              cont.innerHTML = '<div style="font-size:10px; color:#ddd; font-style:italic;">No data</div>'; 
+              return; 
+          }
+          const topList = list.slice(0, 5); 
+          let html = '';
+          topList.forEach(item => { 
+              let valFmt = new Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short", maximumFractionDigits: 1 }).format(item.val); 
+              html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; font-size:10px;"><span style="color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70px;">${item.cat}</span><span class="sensitive" style="font-weight:700; color:${color};">€ ${valFmt}</span></div>`; 
+          });
+          cont.innerHTML = html;
+      };
+      
+      renderCatList('yr-cat-inc', data.incCats, '#34c759'); 
+      renderCatList('yr-cat-exp', data.expCats, '#ff3b30');
+      
+      if (typeof renderSankeyChart === 'function') { renderSankeyChart(data); }
+  }).getYearlyTotals(year);
+}
+
+function fetchPensionData() {
+  google.script.run.withSuccessHandler(renderPensionChart).getPensionData();
+}
+
+function fetchCategoryBreakdown(year) {
+  google.script.run.withSuccessHandler(renderStackedCharts).getMonthlyCategoryBreakdown(year);
+}
+</script>
