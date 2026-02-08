@@ -17,7 +17,7 @@ function _getSubsData() {
     { id: 2, cat: 'Necessità', note: 'iCloud', amt: 2.99, bankCol: 9 }, 
     { id: 3, cat: 'Necessità', note: 'Phone Top-up', amt: 9.99, bankCol: 6 },  
     { id: 4, cat: 'Free-Time', note: 'Spotify', amt: 6.49, bankCol: 6 },
-    { id: 5, cat: 'Altro', note: 'Corso Data Analyst', amt: 600.00, bankCol: 5 },
+    { id: 5, cat: 'Altro', note: 'Corso Data Analytics', amt: 600.00, bankCol: 5 },
     { id: 6, cat: 'Altro', note: 'Corso Inglese', amt: 165.00, bankCol: 5 }
   ];
 }
