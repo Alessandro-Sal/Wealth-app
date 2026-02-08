@@ -46,36 +46,6 @@ An advanced, mobile-first Single Page Application (SPA) built on **Google Apps S
   - [SweetAlert2](https://sweetalert2.github.io/) (Modals & Alerts)
   - [Google Gemini API](https://deepmind.google/technologies/gemini/) (AI)
 
-## 📂 Project Structure
-
-Ensure your Apps Script project files match this structure:
-
-### Backend (.gs)
-| File | Description |
-| :--- | :--- |
-| `Code.gs` | Main server-side logic (doGet, API router). |
-| `Script_Portfolio.gs` | Core Engine: FIFO calculations, Fiscal logic, Derivatives, and Crypto. |
-| `Script_Backup.gs` | Automation: Nightly backups to Drive and monthly data freeze. |
-| `Script_DebugAI.gs` | Utility: API connection testing and Gemini model listing. |
-
-### Frontend (.html)
-| File | Description |
-| :--- | :--- |
-| `index.html` | Main application entry point. |
-| **Styles (CSS)** | |
-| `css_Main.html` | Core styles, color variables, Dark Mode, and Privacy Mode. |
-| `css_Components.html` | UI Elements: Buttons, Inputs, PIN Pad, Splash Screen. |
-| `css_Market.html` | Financial Widgets: Ticker scroll, Watchlist grid, Budget bars. |
-| `css_Modals.html` | Styles for Bottom Sheets, AI Overlays, and Calculators. |
-| **Logic (JS)** | |
-| `Html_Script_Init.html` | App startup logic, Caching (Fast/Heavy load), and Skeleton UI. |
-| `Html_Script_Navigation.html` | Tab routing, PIN management, Pull-to-refresh, and UX handlers. |
-| `Html_Script_Chart.html` | Renderers for Chart.js (Financial charts and Sankey). |
-| `Html_Script_Market.html` | Watchlist logic, Live Portfolio updates, and TradingView widgets. |
-| `Html_Script_Form.html` | Transaction forms, validation, and financial calculators. |
-| `Html_Script_AI.html` | Gemini Chat logic, Voice/Image input, and AI security. |
-| `Html_Script_Module.html` | Extra modules: Travel and Maps (Leaflet). |
-
 ## 🚀 Installation & Setup
 
 1.  **Create a Google Sheet:**
