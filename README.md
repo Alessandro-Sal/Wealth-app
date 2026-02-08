@@ -70,8 +70,19 @@ An advanced, mobile-first Single Page Application (SPA) built on **Google Apps S
 ## ⚙️ Configuration Snippets
 
 ### Privacy & Cut-off Dates
-In `Script_Portfolio.gs`, adjust the stock retention date. Positions closed *before* this date will be hidden to keep the UI clean:
-```javascript
-// Stocks closed before this date will be hidden from the view
+In `Sheets_Trading.gs`, adjust the stock retention date. Positions closed *before* this date will be hidden to keep the UI clean:
 const CUTOFF_DATE = new Date("2026-01-30");
 
+### 🤖 AI Model Configuration
+To ensure the AI features work correctly, verify the model name in your AI script:
+const MODEL_NAME = "gemini-1.5-flash"; // Or "gemini-pro"
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read the [contribution guidelines](CONTRIBUTING.md) first.
+
+# 📄 License
+
+Distributed under the MIT License. See `LICENSE.md` for more information.
+
+> **⚠️ Disclaimer:** This tool is for **informational purposes only**. Always verify tax calculations with a professional accountant. The authors are not responsible for financial losses or fiscal errors.
