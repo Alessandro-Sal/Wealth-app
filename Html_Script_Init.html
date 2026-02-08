@@ -275,6 +275,52 @@ function updateDashboardDOM(d) {
 
 // --- Fetchers (Helpers) ---
 
+function fetchDashboard() {
+  const cached = localStorage.getItem('dashboard_cache');
+  if (cached) {
+      try { updateDashboardDOM(JSON.parse(cached)); } catch(e) { console.log("Errore lettura cache", e); }
+  }
+  fetchBudgets();
+  google.script.run.withSuccessHandler(d => {
+      localStorage.setItem('dashboard_cache', JSON.stringify(d));
+      updateDashboardDOM(d);
+  }).getDashboardData();
+  
+  let yearBox = document.getElementById('trendYear');
+  let year = yearBox ? yearBox.value : 2026;
+  renderFinancialChart(year);
+  fetchTrips(year);
+  fetchCategoryBreakdown(year);
+  fetchRunway(year);
+  fetchYearlyTotals(year);
+  google.script.run.withSuccessHandler(f => {
+      document.getElementById('flow-in').innerText = "€ " + f.income;
+      document.getElementById('flow-out').innerText = "€ " + f.expenses;
+      document.getElementById('flow-save').innerText = "€ " + f.savings;
+      document.getElementById('flow-rate').innerText = "Rate: " + f.rate + "%";
+      document.getElementById('flow-save').style.color = parseFloat(f.savings) >= 0 ? 'var(--stocks-bg)' : 'var(--danger)';
+  }).getMonthlySavings();
+  google.script.run.withSuccessHandler(analysis => {
+      const card = document.getElementById('risk-card');
+      if(!card) return;
+      card.style.display = 'block';
+      const data = analysis || { riskLevel: "N/A", riskScore: 0, summary: "Dati non disponibili" };
+      document.getElementById('risk-level').innerText = "Rischio: " + data.riskLevel;
+      document.getElementById('risk-score').innerText = data.riskScore + "/100";
+      document.getElementById('risk-comment').innerText = data.summary;
+      let score = parseInt(data.riskScore);
+      let col = '#34c759'; 
+      if(score > 30) col = '#ffcc00';
+      if(score > 50) col = '#ff9500'; 
+      if(score > 70) col = '#ff3b30'; 
+      card.style.borderLeftColor = col;
+      document.getElementById('risk-score').style.color = col;
+      const tipEl = document.getElementById('risk-tip');
+      if(tipEl) tipEl.innerHTML = `<span style="font-weight:bold; cursor:pointer;" onclick="openRiskSheet()">👉 Tocca per Stress Test & Report Completo</span>`;
+      window.currentRiskData = data; 
+  }).getPortfolioRiskAnalysis();
+}
+
 function fetchBudgets() {
   showSkeleton('budget-container', 5, '30px');
   google.script.run.withSuccessHandler(data => {
