@@ -41,7 +41,7 @@ function addSelectedSubs(selectedIds) {
   const idsNumbers = selectedIds.map(id => Number(id));
   const subsToAdd = allSubs.filter(sub => idsNumbers.includes(sub.id));
 
-  if (subsToAdd.length === 0) return "No transaction selected.";
+  if (subsToAdd.length === 0) return "No expenses selected.";
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   // Target Sheet: Expenses Tracker 2026
