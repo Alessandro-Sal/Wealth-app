@@ -134,7 +134,7 @@ function getPortfolioRiskAnalysis() {
       "suggestions": ["Practical advice 1", "Practical advice 2", "Practical advice 3"]
     }
     
-    Be brutal and honest. Output Language: Italian.
+    Be brutal and honest.
   `;
 
   const API_KEY = GEMINI_API_KEY; 
@@ -684,4 +684,183 @@ function runStockBattle(inputA, inputB) {
   }
 
   return result;
+}
+
+/**
+ * Advanced Asset Analysis Module (Investor AI).
+ * Automatically detects if the input is a Stock or Crypto and applies the specific
+ * institutional-grade framework provided by the user.
+ * * @param {string} inputName - The name or ticker of the asset (e.g., "NVDA", "Ethereum").
+ * @return {string} The formatted HTML/Markdown analysis.
+ */
+function analyzeAsset(inputName) {
+  const API_KEY = GEMINI_API_KEY; // Assicurati che questa variabile globale sia accessibile
+  
+  // Model Sequence (Priority to 2.0 Flash for speed/quality balance)
+  const MODELS = [
+    "gemini-2.0-flash", 
+    "gemini-1.5-flash", 
+    "gemini-flash-latest"
+  ];
+
+  // --- 1. SYSTEM PROMPTS (Come da tua richiesta) ---
+
+  const INVESTOR_PROMPT_STOCK = `
+ROLE: You are an Elite Global Macro Strategist & Senior Equity Research Analyst. 
+You combine the fundamental depth of Warren Buffett with the risk management of a Hedge Fund Manager.
+
+OBJECTIVE: Provide a professional investment analysis for the company: "${inputName}".
+OUTPUT LANGUAGE: Italian (Strictly).
+TONE: Professional, Direct, Educational, Data-Driven.
+
+*** FORMATTING & UX RULES (CRITICAL) ***
+1. **Use Markdown:** Use **Bold** for key numbers and headers. Use Tables for data comparison.
+2. **Educational Overlay:** Whenever you mention a complex metric (e.g., ROIC, Z-Score, SBC), you MUST provide a micro-explanation in parentheses explaining WHY it matters.
+   - *Example:* "ROIC: 15% (Creating Value: Returns exceed cost of capital)."
+   - *Example:* "Altman Z-Score: 1.2 (Distress Zone: High bankruptcy risk)."
+3. **Structure:** Break the text into short paragraphs and bullet points. No walls of text.
+
+--- ANALYSIS FRAMEWORK (CHAIN OF THOUGHT) ---
+
+PHASE 1: 🚨 EXECUTIVE SUMMARY & CONTEXT
+- **Thesis:** The "Elevator Pitch" in 2 sentences.
+- **Macro Overlay:** Briefly mention if the current macro environment (Rates, Inflation) helps or hurts this specific stock.
+
+PHASE 2: 🏥 FINANCIAL HEALTH & FORENSIC SCORECARD
+*Create a Markdown Table with these columns: Metric | Value | Rating (Good/Bad) | Context/Explanation*
+- **Piotroski F-Score (0-9):** Operational Efficiency.
+- **Altman Z-Score:** Bankruptcy Risk.
+- **Beneish M-Score:** Earnings Manipulation Check.
+- **SBC % of Revenue:** Stock-Based Compensation (Dilution risk).
+- **ROIC vs WACC:** Is the company creating value (ROIC > WACC) or destroying it?
+
+PHASE 3: 🕵️ DEEP DIVE (THE "SILENT KILLERS")
+- **Quality of Earnings:** Compare GAAP Net Income vs Non-GAAP. Is the difference massive? Explain if it's a "red flag".
+- **Concentration Risk:** Does >10% of revenue come from ONE client? (Single Point of Failure).
+- **Moat Analysis:** Is the competitive advantage durable? (Network Effect, Switching Costs).
+
+PHASE 4: 🔮 VALUATION & SCENARIOS (12-MONTH VIEW)
+- **Variant Perception:** What does the Market think vs. What do WE think? Where is the "Alpha"?
+- **Scenario Table:** Create a table with 3 rows:
+  1. **🐻 BEAR Case (20% Prob):** Recession/Execution Failure -> Price Target?
+  2. **⚖️ BASE Case (50% Prob):** Consensus -> Price Target?
+  3. **🐂 BULL Case (30% Prob):** Blue Sky Execution -> Price Target?
+  *Calculate the Probability Weighted Expected Return.*
+
+PHASE 5: 🛡️ RISK MANAGEMENT & ACTION PLAN
+- **The "Pre-Mortem" (Inversion):** Assume it's 2026 and the stock is down 60%. Write the "Autopsy": Why did it die?
+- **Technical Check:** Where are the Support/Resistance levels? Is it overbought (RSI > 70)?
+- **Final Verdict:**
+  - **RATING:** [STRONG BUY / BUY / HOLD / SELL / AVOID]
+  - **ACTION:** Entry Price Range & Stop Loss Level (Crucial).
+  - **POSITION SIZING:** Suggest % allocation based on Kelly Criterion (assume medium risk tolerance).
+  - **"Change My Mind" Triggers:** 3 objective signals that would force us to sell.
+`;
+
+  const INVESTOR_PROMPT_CRYPTO = `
+ROLE: You are an Elite Crypto Researcher & Tokenomics Expert.
+OBJECTIVE: Provide a deep-dive analysis for the crypto project: "${inputName}".
+OUTPUT LANGUAGE: Italian (Strictly).
+
+*** FORMATTING RULES ***
+Use Markdown, Bold for keys, and keep it highly readable.
+
+--- CRYPTO ANALYSIS FRAMEWORK ---
+
+PHASE 1: 🪙 IDENTITY & FOUNDATIONS
+- **What is it?** Technology, Layer (L1/L2), Consensus mechanism.
+- **Real World Application:** Does it solve a real problem?
+- **VC & Founders:** Who is behind it? (Doxxed? VC Backed? Community led?).
+- **Cycles:** Calculate price targets based on: 4-Year Cycle, 320-Day Cycle, 80-Day Cycle.
+
+PHASE 2: 🧪 FORENSIC CHECK (6 KEY QUESTIONS)
+1. Utility: Does the token make sense or is it just governance/memecoin?
+2. Value Creation: How does it redefine the space vs Banks/TradFi?
+3. Disruption: Which industry is it disrupting?
+4. Team Track Record: Have they built successful tech before?
+5. Polish: Is the website/docs professional?
+6. Whitepaper: Innovative or copy-paste?
+
+PHASE 3: 🌊 ECOSYSTEM & NARRATIVE
+- **Narrative Fit:** Is it part of a hot trend (Restaking, RWA, AI, DePIN) for the next 6-12 months?
+- **Adoption Curve:** Are we early or is it priced in?
+- **Correlation:** How does it move vs ETH/BTC?
+
+PHASE 4: ⛓️ ON-CHAIN HEALTH & TOKENOMICS
+- **TVL Trend:** Last 90 days direction.
+- **Unlocks:** Are there vesting cliffs coming? (Inflation risk).
+- **Revenue:** Is the protocol generating REAL yield?
+- **Moat:** Can it be forked easily? (e.g. Uniswap vs Sushi).
+
+PHASE 5: 🗳️ GOVERNANCE & EXIT STRATEGY
+- **Governance:** Who holds the power (DAO vs Insiders)?
+- **Community:** Sentiment on Twitter/Discord.
+- **Exit Strategy:**
+  - "Fully Valued" Price Target?
+  - Portfolio Fit: Is it a core hold or a cycle trade?
+  - Action Plan: Entry Zone & Profit Taking Levels.
+
+BONUS: Staking/Yield opportunities for this specific token.
+`;
+
+  // --- 2. ROUTER PROMPT (Detect Type) ---
+  // We ask Gemini to classify the input first to choose the right framework.
+  const ROUTER_PROMPT = `
+    Classify the financial asset "${inputName}".
+    Return ONLY one word: "STOCK" or "CRYPTO".
+    If unsure or it's a commodity/ETF, treat as "STOCK".
+    If it's Bitcoin, Ethereum, Solana, or any token, treat as "CRYPTO".
+  `;
+
+  // --- 3. EXECUTION ---
+  
+  // Step A: Determine Type
+  let assetType = "STOCK"; // Default
+  try {
+    const routerPayload = { contents: [{ parts: [{ text: ROUTER_PROMPT }] }] };
+    const routerRes = UrlFetchApp.fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
+      { method: "post", contentType: "application/json", payload: JSON.stringify(routerPayload), muteHttpExceptions: true }
+    );
+    if(routerRes.getResponseCode() === 200) {
+      const typeText = JSON.parse(routerRes.getContentText()).candidates[0].content.parts[0].text.trim().toUpperCase();
+      if(typeText.includes("CRYPTO")) assetType = "CRYPTO";
+    }
+  } catch(e) {
+    console.warn("Router failed, defaulting to STOCK. Error: " + e);
+  }
+
+  // Step B: Select Prompt based on Type
+  const finalPrompt = (assetType === "CRYPTO") ? INVESTOR_PROMPT_CRYPTO : INVESTOR_PROMPT_STOCK;
+
+  // Step C: Generate Analysis (Loop through models for robustness)
+  for (let m = 0; m < MODELS.length; m++) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[m]}:generateContent?key=${API_KEY}`;
+      const payload = { 
+        contents: [{ parts: [{ text: finalPrompt }] }],
+        generationConfig: {
+            temperature: 0.7, // Creative but analytical
+            maxOutputTokens: 8000 // Long form content
+        }
+      };
+      
+      const response = UrlFetchApp.fetch(url, {
+        method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true
+      });
+
+      if (response.getResponseCode() === 200) {
+        let text = JSON.parse(response.getContentText()).candidates[0].content.parts[0].text;
+        
+        // Convert Markdown to simple HTML for better display in your web app if needed, 
+        // or return Markdown if your frontend handles it. 
+        // Here we return raw Markdown/Text which is standard for LLM responses.
+        return text; 
+      }
+    } catch (e) {
+      console.error(`Analysis Model ${MODELS[m]} failed: ${e}`);
+    }
+  }
+
+  return "⚠️ Error: AI models are currently overloaded. Please try again shortly.";
 }

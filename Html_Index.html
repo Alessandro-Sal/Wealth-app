@@ -23,6 +23,7 @@
       
       <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
       <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey"></script> 
+      <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
       
       <?!= include('css_Main'); ?>
       <?!= include('css_Components'); ?>
@@ -33,9 +34,29 @@
    <body>
       <?!= include('Html_Body'); ?>
       
-      <div id="app-container">
-         <h1>Wealth Manager - By Ale</h1>
+      <style>
+         .footer-credits {
+            text-align: center;         /* Centrato */
+            padding: 30px 10px 40px 10px; /* Spazio sopra e sotto per non stare appiccicato */
+            
+            /* Colore e Font */
+            color: #b0b0b0;             /* Grigio chiaro (NON NERO) */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 12px;            /* Piccolo */
+            font-weight: 400;           /* Leggero */
+            letter-spacing: 1px;        /* Lettere un po' spaziate per eleganza */
+            
+            opacity: 0.6;               /* Trasparenza per renderlo "poco visibile" */
+            transition: opacity 0.3s;   /* Animazione se ci passi sopra */
+         }
+
+         .footer-credits:hover {
+            opacity: 1;                 /* Diventa più visibile se ci passi il mouse */
+         }
+      </style>
+
+      <div class="footer-credits">
+         Wealth Manager &bull; made by Ale
       </div>
-      
       <?!= include('Html_Script'); ?>            <?!= include('Html_Script_Navigation'); ?> <?!= include('Html_Script_Init'); ?>       <?!= include('Html_Script_Chart'); ?>      <?!= include('Html_Script_Market'); ?>     <?!= include('Html_Script_Form'); ?>       <?!= include('Html_Script_AI'); ?>         <?!= include('Html_Script_Module'); ?>     </body>
 </html>
