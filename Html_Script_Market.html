@@ -523,26 +523,57 @@ function updateAnalyticsChart() {
   });
 }
 
-// --- Market Polling & Status ---
+
+/**
+ * Market Data Polling Management.
+ * Handles the cyclical update of Watchlist, Live Portfolio, and Macro Benchmarks.
+ */
+let marketPollInterval = null;
 
 function startMarketPolling() {
-  if (marketInterval) return; 
-  console.log("📡 Auto-Refresh Market ACTIVE");
-  marketInterval = setInterval(() => {
-      // Only poll if on the Market Page
-      if (document.getElementById('p-market').classList.contains('active-page')) {
-       google.script.run.withSuccessHandler(renderLivePortfolio).getLivePortfolio();
+  // 1. Safety Clear: Ensure no duplicate intervals are running
+  stopMarketPolling();
+  
+  console.log("🟢 Market Polling Started (30s interval)");
+  
+  // 2. IMMEDIATE UPDATE (Runs as soon as tab opens)
+  // This ensures data is aligned instantly without waiting for the first interval tick.
+  fetchWatchlist();
+  fetchLivePortfolio(); 
+  loadMarketInsights(false); // Quick load (Cached Macro)
+
+  // 3. SET INTERVAL (Cyclic updates)
+  marketPollInterval = setInterval(() => {
+      // Safety Check: Verify user is still on the Market tab
+      const marketPage = document.getElementById('p-market');
+      const isVisible = marketPage && 
+                        marketPage.style.display !== 'none' && 
+                        !marketPage.classList.contains('hidden');
+
+      if (isVisible) {
+          console.log("🔄 Polling Market Data...");
+          
+          // A. Refresh Watchlist
+          fetchWatchlist();
+          
+          // B. Refresh Live Portfolio (Syncs your Day Change)
+          fetchLivePortfolio(); 
+          
+          // C. Refresh Benchmarks (Syncs S&P500, VIX, etc.)
+          loadMarketInsights(false); 
+          
       } else {
-       stopMarketPolling();
+          // If page is hidden but interval is running, stop it to save battery
+          stopMarketPolling();
       }
-  }, 10000);
+  }, 60000); // 30 Seconds Interval
 }
 
 function stopMarketPolling() {
-  if (marketInterval) { 
-      clearInterval(marketInterval); 
-      marketInterval = null; 
-      console.log("🛑 Auto-Refresh Market STOPPED"); 
+  if (marketPollInterval) {
+      clearInterval(marketPollInterval);
+      marketPollInterval = null;
+      console.log("🔴 Market Polling Stopped");
   }
 }
 

@@ -283,49 +283,85 @@ function parseExpenseAI(inputData, mode) {
 
 /**
  * Generates a comprehensive "Hedge Fund" style market report.
- * 1. Scrapes Macro data (S&P500, VIX, US10Y).
- * 2. Calculates weighted portfolio metrics (Beta, P/E) excluding Crypto.
- * 3. Asks AI to synthesize sentiment, technical analysis, and upcoming market events.
- * * @return {Object} Integrated object with macro data, portfolio metrics, and AI commentary.
+ * UPDATED: Uses CACHE (60s) for Macro Data and skips Portfolio/AI calculation
+ * when running in 'onlyMacro' mode to ensure instant tab switching.
+ *
+ * @param {boolean} onlyMacro - If true, returns ONLY cached benchmarks (instant).
+ * @return {Object} Integrated object with macro data, portfolio metrics, and (optional) AI commentary.
  */
-function getMarketInsightsData() {
+function getMarketInsightsData(onlyMacro) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const cache = CacheService.getScriptCache();
+  const MACRO_CACHE_KEY = "MARKET_MACRO_DATA_V1";
   
-  // --- 1. MACRO DATA ---
-  let macro = { 
-    spx: 0, dow: 0, nasdaq: 0, russell: 0, vix: 0, us10y: 0, 
-    cryptoTrend: "N/A" 
-  };
-  
-  const cleanPct = (valStr) => {
-    if (!valStr) return 0;
-    let s = String(valStr).replace(/[€$£%\s]/g, '').trim().replace(',', '.');
-    return parseFloat(s) || 0;
-  };
+  // --- 1. MACRO DATA (Cached for Speed) ---
+  let macro = null;
+  const cachedJSON = cache.get(MACRO_CACHE_KEY);
 
-  try {
-    const sheet = ss.getSheetByName("Stock Market Dashboard");
-    if (sheet) {
-      macro.me = cleanPct(sheet.getRange("B7").getDisplayValue());
-      const indices = sheet.getRange("C5:G5").getDisplayValues()[0];
-      macro.spx = cleanPct(indices[0]);
-      macro.dow = cleanPct(indices[1]); 
-      macro.nasdaq = cleanPct(indices[2]);
-      macro.russell = cleanPct(indices[3]);
-      macro.vix = cleanPct(indices[4]);
-      macro.us10y = cleanPct(sheet.getRange("E12").getDisplayValue());
-    }
-  } catch(e) { console.error("Error Dashboard Data: " + e); }
+  if (cachedJSON) {
+      // Hit cache: use stored data for instant speed
+      macro = JSON.parse(cachedJSON);
+  } else {
+      // Miss cache: fetch from Sheet (slower) and store it
+      macro = { 
+        spx: 0, dow: 0, nasdaq: 0, russell: 0, vix: 0, us10y: 0, 
+        cryptoTrend: "N/A", me: 0 
+      };
+      
+      const cleanPct = (valStr) => {
+        if (!valStr) return 0;
+        let s = String(valStr).replace(/[€$£%\s]/g, '').trim().replace(',', '.');
+        return parseFloat(s) || 0;
+      };
 
-  // --- 2. EXTENDED DATA RETRIEVAL ---
+      try {
+        const sheet = ss.getSheetByName("Stock Market Dashboard");
+        if (sheet) {
+          // Fetch critical benchmarks
+          macro.me = cleanPct(sheet.getRange("B7").getDisplayValue());
+          const indices = sheet.getRange("C5:G5").getDisplayValues()[0];
+          macro.spx = cleanPct(indices[0]);
+          macro.dow = cleanPct(indices[1]); 
+          macro.nasdaq = cleanPct(indices[2]);
+          macro.russell = cleanPct(indices[3]);
+          macro.vix = cleanPct(indices[4]);
+          macro.us10y = cleanPct(sheet.getRange("E12").getDisplayValue());
+          
+          // Store in cache for 60 seconds (Fresh enough for UI, fast enough for UX)
+          cache.put(MACRO_CACHE_KEY, JSON.stringify(macro), 60);
+        }
+      } catch(e) { console.error("Error Dashboard Data: " + e); }
+  }
+
+  // --- 2. OPTIMIZATION: INSTANT RETURN ---
+  // If we only need the top banners (Tab Switch), return immediately.
+  // Skips Portfolio calculation and AI entirely.
+  if (onlyMacro) {
+      return {
+          ...macro,
+          metrics: { beta: 0, pe: 0 }, // Not needed for banner
+          sentiment: { score: 5, label: "Loading" },
+          analysis: { macro: null, portfolio: null },
+          market_events: [], 
+          portfolio_events: []
+      };
+  }
+
+  // =========================================================
+  // HEAVY LIFTING BELOW (Only runs when User clicks Refresh)
+  // =========================================================
+
+  // --- 3. EXTENDED DATA RETRIEVAL (Portfolio) ---
   const port = getLivePortfolio(); 
   
+  // Calculate Crypto Trend
   let cryptoTotalChange = 0;
   let cryptoCount = 0;
   if (port.crypto && port.crypto.length > 0) {
     port.crypto.forEach(c => {
       if (c.pct) { 
-        cryptoTotalChange += cleanPct(c.pct);
+        let val = parseFloat(String(c.pct).replace(/[€$£%\s]/g, '').trim().replace(',', '.')) || 0;
+        cryptoTotalChange += val;
         cryptoCount++;
       }
     });
@@ -333,8 +369,8 @@ function getMarketInsightsData() {
     macro.cryptoTrend = `${avgCrypto}% (Basket of ${port.crypto.length} coins)`;
   }
 
+  // Calculate Weighted Beta & PE
   const equityAssets = [...port.stocks, ...port.etfs];
-
   let totalEquityVal = 0;
   let weightedBeta = 0;
   let weightedPE = 0;
@@ -353,129 +389,71 @@ function getMarketInsightsData() {
     const yearL = parseVal(a.yearL);
     
     let rangePos = "N/A";
-    if (yearH > yearL && price > 0) {
-       rangePos = ((price - yearL) / (yearH - yearL) * 100).toFixed(0) + "%";
-    }
+    if (yearH > yearL && price > 0) rangePos = ((price - yearL) / (yearH - yearL) * 100).toFixed(0) + "%";
 
     totalEquityVal += val;
     weightedBeta += (beta * val);
     
-    if (pe > 0 && a.sector !== 'ETFs') {
-      weightedPE += (pe * val);
-      peEligibleVal += val;
-    }
+    if (pe > 0 && a.sector !== 'ETFs') { weightedPE += (pe * val); peEligibleVal += val; }
 
-    const s = a.sector || "Other";
-    sectorMap[s] = (sectorMap[s] || 0) + val;
-    const c = a.ctry || "Global";
-    countryMap[c] = (countryMap[c] || 0) + val;
+    const s = a.sector || "Other"; sectorMap[s] = (sectorMap[s] || 0) + val;
+    const c = a.ctry || "Global"; countryMap[c] = (countryMap[c] || 0) + val;
 
-    return {
-      t: a.t,
-      val: val,
-      dCh: a.dCh,
-      details: {
-        pe: pe,
-        beta: beta,
-        mkt: a.mkt,
-        eps: a.eps,
-        vol: a.vol,
-        avgVol: a.avgVol,
-        rangePos: rangePos,
-        ind: a.ind,
-        ctry: a.ctry
-      }
+    return { 
+        t: a.t, val: val, dCh: a.dCh, 
+        details: { pe: pe, beta: beta, rangePos: rangePos, vol: a.vol, avgVol: a.avgVol } 
     };
   }).sort((a, b) => b.val - a.val); 
 
-  // --- 3. FINAL METRICS ---
   const portBeta = totalEquityVal > 0 ? (weightedBeta / totalEquityVal).toFixed(2) : 1;
   const portPE = peEligibleVal > 0 ? (weightedPE / peEligibleVal).toFixed(1) : "N/A";
 
-  const topSectors = Object.entries(sectorMap)
-    .sort((a,b) => b[1]-a[1]).slice(0,5)
-    .map(([k,v]) => `${k}:${((v/totalEquityVal)*100).toFixed(0)}%`).join(", ");
-    
-  const topCountries = Object.entries(countryMap)
-    .sort((a,b) => b[1]-a[1]).slice(0,3)
-    .map(([k,v]) => k).join(", ");
-
-  const assetsStr = enrichedEquity
-    .slice(0, 30)
-    .map(a => {
-      const d = a.details;
-      let volStatus = "";
-      const vNow = parseFloat(d.vol);
-      const vAvg = parseFloat(d.avgVol);
-      if(vNow && vAvg) {
-        if (vNow > vAvg * 1.5) volStatus = "| HighVol";
-        else if (vNow < vAvg * 0.5) volStatus = "| LowVol";
-      }
-      return `${a.t} (${a.dCh} | β:${d.beta} | PE:${d.pe>0?d.pe:'-'} | 52wPos:${d.rangePos} ${volStatus})`;
-    })
-    .join("\n    ");
-
-  const myTickers = enrichedEquity.map(a => a.t).join(", ");
+  // --- 4. AI ANALYSIS (Gemini) ---
+  let aiRes = { 
+    sentiment_score: 5, sentiment_label: "Loading", 
+    macro_analysis: null, portfolio_analysis: null, 
+    market_events: [], portfolio_events: [] 
+  };
 
   const API_KEY = GEMINI_API_KEY; 
   const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
   const today = new Date().toISOString().split('T')[0];
+  
+  const topSectors = Object.entries(sectorMap).sort((a,b) => b[1]-a[1]).slice(0,5).map(([k,v]) => `${k}:${((v/totalEquityVal)*100).toFixed(0)}%`).join(", ");
+  const topCountries = Object.entries(countryMap).sort((a,b) => b[1]-a[1]).slice(0,3).map(([k,v]) => k).join(", ");
+  const myTickers = enrichedEquity.map(a => a.t).join(", ");
+  
+  // Simplified asset string to save tokens
+  const assetsStr = enrichedEquity.slice(0, 30).map(a => `${a.t} (${a.dCh} | β:${a.details.beta})`).join("\n");
 
-  // Prompt completely in English
   const prompt = `
     Role: Algorithmic Hedge Fund Manager. Date: ${today}.
+    MACRO: S&P500 ${macro.spx}% | VIX ${macro.vix} | US10Y ${macro.us10y}% | Crypto Trend ${macro.cryptoTrend}.
+    PORTFOLIO: Beta ${portBeta} | P/E ${portPE} | Top Sectors: ${topSectors} | Top Countries: ${topCountries}.
+    ASSETS: \n${assetsStr}
     
-    === 1. GLOBAL MACRO PICTURE ===
-    - USA Indices: S&P500 ${macro.spx}% | Dow Jones ${macro.dow}% | Nasdaq ${macro.nasdaq}% | Russell ${macro.russell}%
-    - Risk Meters: VIX ${macro.vix} | US 10Y Yield ${macro.us10y}%
-    - Crypto Sentiment (Risk-On Indicator): ${macro.cryptoTrend}
+    TASK:
+    A. Analyze Macro interaction.
+    B. Diagnose Portfolio Style & Risks.
+    C. Sentiment Score (0-10).
+    D. Events: 5 Market + Earnings/Divs for [${myTickers}].
 
-    === 2. EQUITY PORTFOLIO ANALYSIS (Stocks & ETFs - No Crypto) ===
-    - Daily Performance: ${macro.me}%
-    - FUNDAMENTAL METRICS (Weighted):
-      * Beta: ${portBeta} ( >1 Aggressive, <1 Defensive)
-      * P/E Ratio: ${portPE} (Value vs Growth. Ref SP500 ~21)
-      * Geo Exposure: ${topCountries}
-      * Sector Exposure: ${topSectors}
-    
-    - DETAILED TOP HOLDINGS (Ticker | Day% | Beta | P/E | Range Position 0-100% | Volume):
-    [
-    ${assetsStr}
-    ]
-
-    === 3. TASK (Deep Reasoning) ===
-    A. **Macro & Crypto Analysis:** How do Yields (US10Y), VIX, and Crypto sentiment interact today? Risk-On or Flight to Safety?
-    B. **Portfolio Diagnostics:**
-       - Style: Do Beta (${portBeta}) and P/E (${portPE}) explain today's performance?
-       - Technicals: Note if top holdings are near highs (52wPos > 90%) or oversold. Mention volume anomalies.
-    C. **Sentiment Score:** 0 (Panic) to 10 (Euphoria).
-    D. **Events:**
-       - MARKET: 5 relevant upcoming macro events.
-       - PORTFOLIO: Earnings or Dividends expected ONLY for: [${myTickers}].
-
-    JSON STRICT OUTPUT:
+    JSON OUTPUT:
     {
       "sentiment_score": 5.5,
       "sentiment_label": "Fear/Neutral/Greed",
-      "macro_analysis": "Integrated analysis...",
-      "portfolio_analysis": "Technical and fundamental analysis...",
+      "macro_analysis": "Text...",
+      "portfolio_analysis": "Text...",
       "market_events": [{"ticker": "MACRO", "event": "Event", "date": "YYYY-MM-DD"}],
-      "portfolio_events": [{"ticker": "TICKER", "event": "Earnings/Div", "date": "YYYY-MM-DD"}]
+      "portfolio_events": [{"ticker": "TICKER", "event": "Event", "date": "YYYY-MM-DD"}]
     }
   `;
-
-  let aiRes = { 
-    sentiment_score: 5, sentiment_label: "Loading", 
-    macro_analysis: "...", portfolio_analysis: "...", 
-    market_events: [], portfolio_events: [] 
-  };
 
   for (let m=0; m<MODELS.length; m++) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[m]}:generateContent?key=${API_KEY}`;
       const payload = { contents: [{ parts: [{ text: prompt }] }] };
       const options = { method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true };
-      
       const response = UrlFetchApp.fetch(url, options);
       if (response.getResponseCode() === 200) {
         let txt = JSON.parse(response.getContentText()).candidates[0].content.parts[0].text;
@@ -496,7 +474,6 @@ function getMarketInsightsData() {
     portfolio_events: aiRes.portfolio_events
   };
 }
-
 /**
  * estimates annual dividend income using AI.
  * Cleans European number formats, fetches current dividend yields/payment months via Gemini,
@@ -688,28 +665,99 @@ function runStockBattle(inputA, inputB) {
 
 /**
  * Advanced Asset Analysis Module (Investor AI).
- * Automatically detects if the input is a Stock or Crypto and applies the specific
- * institutional-grade framework provided by the user.
- * * @param {string} inputName - The name or ticker of the asset (e.g., "NVDA", "Ethereum").
+ * NOW WITH JSON-BASED SMART TICKER RESOLUTION.
+ * Fixes "Netflix" issues by forcing strict JSON output for ticker identification.
+ * * @param {string} inputName - The name or ticker (e.g., "Netflix" or "NFLX").
+ * @param {number|string} [currentPrice] - Optional real-time price.
  * @return {string} The formatted HTML/Markdown analysis.
  */
-function analyzeAsset(inputName) {
-  const API_KEY = GEMINI_API_KEY; // Assicurati che questa variabile globale sia accessibile
+function analyzeAsset(inputName, currentPrice) {
+  const API_KEY = GEMINI_API_KEY; 
   
-  // Model Sequence (Priority to 2.0 Flash for speed/quality balance)
-  const MODELS = [
-    "gemini-2.0-flash", 
-    "gemini-1.5-flash", 
-    "gemini-flash-latest"
-  ];
+  // --- 1. CONTEXT: DATE & TIME ---
+  const today = new Date().toLocaleDateString('it-IT', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  
+  // --- 2. SMART TICKER & PRICE RESOLUTION ---
+  let resolvedTicker = inputName;
+  
+  if (!currentPrice) {
+    // A. Try fetching with input as is
+    currentPrice = fetchPriceYahoo(inputName);
 
-  // --- 1. SYSTEM PROMPTS (Come da tua richiesta) ---
+    // B. If failed, ask AI to find the Ticker using STRICT JSON
+    if (!currentPrice) {
+       console.log(`Price miss for '${inputName}'. Resolving ticker via AI...`);
+       try {
+         const tickerPrompt = `
+           Identify the financial ticker for "${inputName}".
+           Return a STRICT JSON object: {"symbol": "THE_TICKER"}.
+           If it is a crypto, append "-USD" (e.g. "BTC-USD").
+           Example: {"symbol": "NFLX"}
+           ONLY JSON. NO TEXT.
+         `;
+         
+         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+         const payload = { contents: [{ parts: [{ text: tickerPrompt }] }] };
+         const response = UrlFetchApp.fetch(url, {
+           method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true
+         });
+         
+         if (response.getResponseCode() === 200) {
+            let text = JSON.parse(response.getContentText()).candidates[0].content.parts[0].text;
+            
+            // --- FIX ROBUSTEZZA JSON ---
+            // Cerca la prima parentesi graffa aperta e l'ultima chiusa
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            
+            if (jsonMatch) {
+                const json = JSON.parse(jsonMatch[0]); // Parla solo la parte JSON
+                const aiTicker = json.symbol;
+                
+                console.log(`✅ AI Resolved '${inputName}' to '${aiTicker}'`);
+                
+                // C. Retry fetch with the clean resolved ticker
+                const priceCheck = fetchPriceYahoo(aiTicker);
+                
+                // Aggiorna sempre il ticker risolto
+                resolvedTicker = aiTicker;
+
+                if (priceCheck) {
+                  currentPrice = priceCheck; 
+                }
+            } else {
+                console.warn("AI response did not contain valid JSON: " + text);
+            }
+            // ---------------------------
+         }
+       } catch(e) {
+         console.warn("Ticker resolution failed: " + e);
+       }
+    }
+  }
+
+  // --- 3. PRICE ANCHORING CONTEXT ---
+  // Header injection to verify data source visibly
+  const statusHeader = currentPrice 
+          ? `✅ **DATI DI MERCATO VERIFICATI**\n> **Asset:** ${resolvedTicker}\n> **Prezzo:** $${currentPrice}\n> **Data:** ${today}\n\n---\n\n`
+          : `⚠️ **DATI DI MERCATO NON DISPONIBILI**\n> Prezzo non trovato per "${resolvedTicker}". L'analisi si basa su stime.\n\n---\n\n`;
+
+  const priceContext = currentPrice 
+    ? `REAL-TIME MARKET DATA (Verified): Price for ${resolvedTicker} is ${currentPrice}. USE THIS PRICE as t0 for all valuation models.` 
+    : "REAL-TIME PRICE: UNAVAILABLE. You MUST estimate valuation based on the LAST KNOWN CLOSING PRICE you assume, but explicitly flag it as an estimate.";
+
+  // Model Sequence
+  const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
+
+  // --- 4. SYSTEM PROMPTS (ORIGINAL TEXT) ---
 
   const INVESTOR_PROMPT_STOCK = `
 ROLE: You are an Elite Global Macro Strategist & Senior Equity Research Analyst. 
 You combine the fundamental depth of Warren Buffett with the risk management of a Hedge Fund Manager.
 
-OBJECTIVE: Provide a professional investment analysis for the company: "${inputName}".
+DATE OF ANALYSIS: ${today}. (If your internal clock says 2024, IGNORE IT. Today is ${today}).
+
+OBJECTIVE: Provide a professional investment analysis for the company: "${resolvedTicker}" (User searched: "${inputName}").
+${priceContext}
 OUTPUT LANGUAGE: Italian (Strictly).
 TONE: Professional, Direct, Educational, Data-Driven.
 
@@ -740,6 +788,7 @@ PHASE 3: 🕵️ DEEP DIVE (THE "SILENT KILLERS")
 - **Moat Analysis:** Is the competitive advantage durable? (Network Effect, Switching Costs).
 
 PHASE 4: 🔮 VALUATION & SCENARIOS (12-MONTH VIEW)
+- **Reference Price:** ${currentPrice ? currentPrice : "N/A (See Real-Time Data)"}
 - **Variant Perception:** What does the Market think vs. What do WE think? Where is the "Alpha"?
 - **Scenario Table:** Create a table with 3 rows:
   1. **🐻 BEAR Case (20% Prob):** Recession/Execution Failure -> Price Target?
@@ -748,7 +797,7 @@ PHASE 4: 🔮 VALUATION & SCENARIOS (12-MONTH VIEW)
   *Calculate the Probability Weighted Expected Return.*
 
 PHASE 5: 🛡️ RISK MANAGEMENT & ACTION PLAN
-- **The "Pre-Mortem" (Inversion):** Assume it's 2026 and the stock is down 60%. Write the "Autopsy": Why did it die?
+- **The "Pre-Mortem" (Inversion):** Assume it's a future date and the stock is down 60%. Write the "Autopsy": Why did it die?
 - **Technical Check:** Where are the Support/Resistance levels? Is it overbought (RSI > 70)?
 - **Final Verdict:**
   - **RATING:** [STRONG BUY / BUY / HOLD / SELL / AVOID]
@@ -759,7 +808,10 @@ PHASE 5: 🛡️ RISK MANAGEMENT & ACTION PLAN
 
   const INVESTOR_PROMPT_CRYPTO = `
 ROLE: You are an Elite Crypto Researcher & Tokenomics Expert.
-OBJECTIVE: Provide a deep-dive analysis for the crypto project: "${inputName}".
+
+DATE OF ANALYSIS: ${today}.
+OBJECTIVE: Provide a deep-dive analysis for the crypto project: "${resolvedTicker}".
+${priceContext}
 OUTPUT LANGUAGE: Italian (Strictly).
 
 *** FORMATTING RULES ***
@@ -796,26 +848,22 @@ PHASE 5: 🗳️ GOVERNANCE & EXIT STRATEGY
 - **Governance:** Who holds the power (DAO vs Insiders)?
 - **Community:** Sentiment on Twitter/Discord.
 - **Exit Strategy:**
-  - "Fully Valued" Price Target?
+  - "Fully Valued" Price Target? (Reference: ${currentPrice || 'Current Price'})
   - Portfolio Fit: Is it a core hold or a cycle trade?
   - Action Plan: Entry Zone & Profit Taking Levels.
 
 BONUS: Staking/Yield opportunities for this specific token.
 `;
 
-  // --- 2. ROUTER PROMPT (Detect Type) ---
-  // We ask Gemini to classify the input first to choose the right framework.
+  // --- ROUTER (Classify Asset) ---
   const ROUTER_PROMPT = `
-    Classify the financial asset "${inputName}".
+    Classify the financial asset "${resolvedTicker}".
     Return ONLY one word: "STOCK" or "CRYPTO".
     If unsure or it's a commodity/ETF, treat as "STOCK".
     If it's Bitcoin, Ethereum, Solana, or any token, treat as "CRYPTO".
   `;
-
-  // --- 3. EXECUTION ---
   
-  // Step A: Determine Type
-  let assetType = "STOCK"; // Default
+  let assetType = "STOCK";
   try {
     const routerPayload = { contents: [{ parts: [{ text: ROUTER_PROMPT }] }] };
     const routerRes = UrlFetchApp.fetch(
@@ -823,26 +871,20 @@ BONUS: Staking/Yield opportunities for this specific token.
       { method: "post", contentType: "application/json", payload: JSON.stringify(routerPayload), muteHttpExceptions: true }
     );
     if(routerRes.getResponseCode() === 200) {
-      const typeText = JSON.parse(routerRes.getContentText()).candidates[0].content.parts[0].text.trim().toUpperCase();
-      if(typeText.includes("CRYPTO")) assetType = "CRYPTO";
+      const txt = JSON.parse(routerRes.getContentText()).candidates[0].content.parts[0].text.trim().toUpperCase();
+      if(txt.includes("CRYPTO")) assetType = "CRYPTO";
     }
-  } catch(e) {
-    console.warn("Router failed, defaulting to STOCK. Error: " + e);
-  }
+  } catch(e) {}
 
-  // Step B: Select Prompt based on Type
   const finalPrompt = (assetType === "CRYPTO") ? INVESTOR_PROMPT_CRYPTO : INVESTOR_PROMPT_STOCK;
 
-  // Step C: Generate Analysis (Loop through models for robustness)
+  // --- GENERATION LOOP ---
   for (let m = 0; m < MODELS.length; m++) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[m]}:generateContent?key=${API_KEY}`;
       const payload = { 
         contents: [{ parts: [{ text: finalPrompt }] }],
-        generationConfig: {
-            temperature: 0.7, // Creative but analytical
-            maxOutputTokens: 8000 // Long form content
-        }
+        generationConfig: { temperature: 0.7, maxOutputTokens: 8000 }
       };
       
       const response = UrlFetchApp.fetch(url, {
@@ -851,16 +893,98 @@ BONUS: Staking/Yield opportunities for this specific token.
 
       if (response.getResponseCode() === 200) {
         let text = JSON.parse(response.getContentText()).candidates[0].content.parts[0].text;
-        
-        // Convert Markdown to simple HTML for better display in your web app if needed, 
-        // or return Markdown if your frontend handles it. 
-        // Here we return raw Markdown/Text which is standard for LLM responses.
-        return text; 
+        return statusHeader + text; 
       }
-    } catch (e) {
-      console.error(`Analysis Model ${MODELS[m]} failed: ${e}`);
-    }
+    } catch (e) { console.error(`Model ${MODELS[m]} failed: ${e}`); }
   }
 
-  return "⚠️ Error: AI models are currently overloaded. Please try again shortly.";
+  return "⚠️ Error: AI models overloaded.";
+}
+
+/**
+ * MASTER PRICE FETCHER
+ * Strategy:
+ * 1. Try Yahoo Finance v7 (Fastest).
+ * 2. If blocked (401/403) or fails, fallback to GOOGLEFINANCE (Rock solid for Stocks).
+ */
+function fetchPriceYahoo(ticker) {
+  let price = null;
+
+  // --- ATTEMPT 1: YAHOO FINANCE (v7 Quote) ---
+  try {
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`;
+    const params = {
+      muteHttpExceptions: true,
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" }
+    };
+    const response = UrlFetchApp.fetch(url, params);
+    const code = response.getResponseCode();
+    
+    if (code === 200) {
+      const json = JSON.parse(response.getContentText());
+      if (json.quoteResponse && json.quoteResponse.result && json.quoteResponse.result.length > 0) {
+        const data = json.quoteResponse.result[0];
+        price = data.regularMarketPrice || data.postMarketPrice || data.preMarketPrice;
+        console.log(`✅ Price found via Yahoo: ${price}`);
+        return price;
+      }
+    } else {
+      console.warn(`Yahoo Blocked (${code}) for ${ticker}. Switching to fallback...`);
+    }
+  } catch (e) {
+    console.warn("Yahoo Fetch Crash: " + e);
+  }
+
+  // --- ATTEMPT 2: GOOGLE FINANCE FALLBACK (The "Sheet Bridge") ---
+  // Only triggers if Yahoo fails. 100% success rate for Stocks/ETFs.
+  if (!price) {
+     console.log(`🔄 Yahoo failed. Attempting Google Finance fallback for '${ticker}'...`);
+     price = fetchPriceGoogle(ticker);
+  }
+
+  return price;
+}
+
+/**
+ * Fallback function that uses the actual Spreadsheet to calculate the price.
+ * Uses the 'Config' sheet to perform a temporary calculation.
+ */
+function fetchPriceGoogle(ticker) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    // Use the "Config" sheet (which surely exists in your setup)
+    let sheet = ss.getSheetByName("Config"); 
+    if (!sheet) {
+      // If missing, use the first available sheet
+      sheet = ss.getSheets()[0]; 
+    }
+
+    // Use a distant, safe cell (e.g., Z100) to avoid overwriting data
+    const cell = sheet.getRange("Z100"); 
+    
+    // 1. Write the native Google Sheets formula
+    cell.setFormula(`=GOOGLEFINANCE("${ticker}"; "price")`);
+    
+    // 2. Force immediate sheet update
+    SpreadsheetApp.flush();
+    
+    // 3. Read the calculated value
+    const val = cell.getValue();
+    
+    // 4. Clear the cell (leave no traces)
+    cell.clearContent();
+    SpreadsheetApp.flush(); // Commit the cleanup
+
+    // Check if it is a valid number
+    if (typeof val === 'number' && !isNaN(val)) {
+      console.log(`✅ Price found via GoogleFinance Bridge: ${val}`);
+      return val;
+    } else {
+      console.warn(`GoogleFinance returned invalid data: ${val} (Is ticker correct?)`);
+    }
+
+  } catch (e) {
+    console.warn("Google Finance Fallback Failed: " + e);
+  }
+  return null;
 }

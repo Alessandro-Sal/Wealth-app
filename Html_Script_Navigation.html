@@ -12,9 +12,10 @@
  * 
  */
 function changeTab(tab) {
-  stopMarketPolling(); // Save resources when leaving Market tab
+  // 1. Stop background processes from previous tab immediately
+  stopMarketPolling(); 
   
-  // UI Updates
+  // 2. UI Updates (Tabs & Buttons)
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   
@@ -24,25 +25,28 @@ function changeTab(tab) {
   const btn = document.getElementById('btn-' + tab);
   if(btn) btn.classList.add('active');
   
-  // Haptic Feedback
+  // 3. Haptic Feedback
   if(navigator.vibrate) navigator.vibrate(10);
   
+  // 4. Scroll to top
   window.scrollTo({top: 0, behavior: 'auto'});
   
-  // Specific Actions per Tab
+  // 5. Specific Actions per Tab
   if (tab === 'recap') {
       fetchDashboard(); 
       setTimeout(() => {
           if (typeof updateAllCharts === 'function') updateAllCharts(); 
       }, 50);
   }
+  
   if (tab === 'market') {
-      fetchLivePortfolio(); 
-      fetchAnalyticsData(); 
-      fetchWatchlist(); 
+      // ✅ OPTIMIZATION: Only call startMarketPolling().
+      // It handles the "Immediate Fetch" internally, preventing double calls/race conditions.
       startMarketPolling(); 
+      
       checkMarketStatus(); 
   }
+  
   if (tab === 'invest') {
       fetchInvestHistory();
   }

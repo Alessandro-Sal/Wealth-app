@@ -283,23 +283,40 @@ function processSmartInput(data, mode) {
 
 // --- Market Insights AI & Calendar ---
 
-function loadMarketInsights() {
+/**
+ * Loads Market Insights.
+ * UPDATED: Accetta 'isFullAnalysis' per decidere se chiamare l'AI.
+ * @param {boolean} isFullAnalysis - Se true, esegue l'analisi AI. Se false (default), scarica solo i benchmark.
+ */
+function loadMarketInsights(isFullAnalysis = false) {
   const briefingEl = document.getElementById('insight-briefing'); 
   const valEl = document.getElementById('bench-me-val');
   
-  if (briefingEl) briefingEl.innerText = "AI Market Analysis in progress..."; 
-  if (valEl) valEl.innerText = "--%";
+  // Se stiamo richiedendo l'analisi COMPLETA (click utente), mostriamo feedback di caricamento
+  if (isFullAnalysis) {
+      if (briefingEl) briefingEl.innerText = "AI Market Analysis in progress...";
+      
+      const macroEl = document.getElementById('macro-text');
+      if(macroEl) macroEl.innerHTML = '<span style="color:#007aff; font-style:italic;">Analysing market data... 🧠</span>';
+      
+      const portEl = document.getElementById('portfolio-text');
+      if(portEl) portEl.innerHTML = '<span style="color:#007aff; font-style:italic;">Comparing assets... 📊</span>';
+  } else {
+      // Caricamento silenzioso solo dati (all'avvio)
+      if (briefingEl) briefingEl.innerText = "Updating Market Data...";
+  }
   
+  // Chiama il server: se isFullAnalysis è true, 'onlyMacro' deve essere false (quindi passiamo la negazione)
   google.script.run.withSuccessHandler(renderMarketInsights).withFailureHandler(err => { 
       console.error("Market Insights Error:", err); 
       if (briefingEl) briefingEl.innerText = "Unable to load analysis."; 
-  }).getMarketInsightsData();
+  }).getMarketInsightsData(!isFullAnalysis);
 }
 
 function renderMarketInsights(data) {
   if (!data) return;
   
-  // Render Benchmark Bars
+  // --- 1. BENCHMARK BARS (Sempre renderizzati) ---
   const container = document.getElementById('benchmark-container');
   if (container) {
       const items = [ 
@@ -325,10 +342,12 @@ function renderMarketInsights(data) {
       container.innerHTML = html;
   }
   
-  // Render AI Text Analysis
-  if (data.analysis) {
+  // --- 2. AI TEXT ANALYSIS (Solo se i dati esistono) ---
+  // IMPORTANTE: Controlliamo se 'macro' esiste. Se è null (modalità solo dati), NON sovrascriviamo l'HTML,
+  // lasciando visibile il messaggio "Clicca per generare".
+  if (data.analysis && data.analysis.macro) {
       const macroEl = document.getElementById('macro-text'); 
-      if(macroEl && data.analysis.macro) { 
+      if(macroEl) { 
           macroEl.style.textAlign = "justify"; 
           macroEl.style.fontSize = "12px"; 
           macroEl.innerHTML = data.analysis.macro; 
@@ -341,8 +360,8 @@ function renderMarketInsights(data) {
       }
   }
   
-  // Render Sentiment Badge
-  if (data.sentiment) { 
+  // --- 3. SENTIMENT BADGE (Solo se valido) ---
+  if (data.sentiment && data.sentiment.label !== "Loading") { 
       const badge = document.getElementById('sentiment-badge'); 
       if(badge) { 
           const score = data.sentiment.score; 
@@ -353,15 +372,23 @@ function renderMarketInsights(data) {
       } 
   }
   
-  // Collect Events for Calendar
+  // --- 4. CALENDAR EVENTS ---
+  // Aggiorniamo il calendario solo se ci sono eventi, altrimenti (modalità solo dati) lasciamo stare o resetta se necessario.
   allMarketEvents = [];
-  if (data.market_events && Array.isArray(data.market_events)) { 
+  let hasNewEvents = false;
+
+  if (data.market_events && Array.isArray(data.market_events) && data.market_events.length > 0) { 
       data.market_events.forEach(ev => { allMarketEvents.push({ ...ev, type: 'market' }); }); 
+      hasNewEvents = true;
   }
-  if (data.portfolio_events && Array.isArray(data.portfolio_events)) { 
+  if (data.portfolio_events && Array.isArray(data.portfolio_events) && data.portfolio_events.length > 0) { 
       data.portfolio_events.forEach(ev => { allMarketEvents.push({ ...ev, type: 'portfolio' }); }); 
+      hasNewEvents = true;
   }
-  renderCalendarWidget();
+  
+  if (hasNewEvents) {
+      renderCalendarWidget();
+  }
 }
 
 function renderCalendarWidget() {

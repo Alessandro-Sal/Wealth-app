@@ -65,22 +65,27 @@ async function initApp() {
           localStorage.setItem('cache_heavy', JSON.stringify(heavyData));
           renderAllData(heavyData);
 
-          // Populate Autocomplete
           if(heavyData.autocomplete) {
               notesData = heavyData.autocomplete.notes;
               tickersData = heavyData.autocomplete.tickers;
           }
           
           isFullDataLoaded = true; 
-          console.log("🤖 Data Ready. Starting AI Analysis in background...");
+          console.log("🤖 Data Ready.");
           
-          // Trigger Background Analysis
-          if (typeof forceReloadMarket === 'function') forceReloadMarket(); 
-          else loadMarketInsights();
+          // --- MODIFICATION: PARTIAL LOAD ON INIT ---
+          // Loads only Benchmarks (Macro data) immediately. 
+          // AI Analysis is skipped until user clicks "Refresh".
+          // --- MODIFICATION: AI DISABLED ON STARTUP ---
+          // AI functions now only start on user request (button click)
+          // if (typeof forceReloadMarket === 'function') forceReloadMarket(); 
+          // else loadMarketInsights();
           
-          if (typeof forceReloadRisk === 'function') forceReloadRisk();
+          // if (typeof forceReloadRisk === 'function') forceReloadRisk();
+          loadMarketInsights(false); 
+          
       });
-
+          
       // Start Live Market Updates
       fetchWatchlist(); 
       setTimeout(() => startMarketPolling(), 5000);
@@ -300,7 +305,7 @@ function fetchDashboard() {
       document.getElementById('flow-rate').innerText = "Rate: " + f.rate + "%";
       document.getElementById('flow-save').style.color = parseFloat(f.savings) >= 0 ? 'var(--stocks-bg)' : 'var(--danger)';
   }).getMonthlySavings();
-  google.script.run.withSuccessHandler(analysis => {
+  /*google.script.run.withSuccessHandler(analysis => {
       const card = document.getElementById('risk-card');
       if(!card) return;
       card.style.display = 'block';
@@ -318,7 +323,7 @@ function fetchDashboard() {
       const tipEl = document.getElementById('risk-tip');
       if(tipEl) tipEl.innerHTML = `<span style="font-weight:bold; cursor:pointer;" onclick="openRiskSheet()">👉 Tocca per Stress Test & Report Completo</span>`;
       window.currentRiskData = data; 
-  }).getPortfolioRiskAnalysis();
+  }).getPortfolioRiskAnalysis();*/
 }
 
 function fetchBudgets() {
