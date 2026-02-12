@@ -255,6 +255,15 @@ function openWlModal(index) {
   setText('wl-mod-52l', item.yearL);
   
   if(typeof renderChartWidget === 'function') renderChartWidget(item.ticker);
+        const siteLink = document.getElementById('wl-link-site');
+        const googleLink = document.getElementById('wl-link-google');
+          
+          if (siteLink) {
+          siteLink.href = 'https://www.google.com/search?q=' + encodeURIComponent((item.name || item.ticker) + ' IR');
+          }
+          if (googleLink) {
+          googleLink.href = 'https://www.google.com/finance?q=' + encodeURIComponent(item.ticker);
+          }
   
   // 52-Week Range Bar
   const rangeContainer = document.getElementById('wl-range-container');
@@ -331,6 +340,12 @@ function openPortfolioModal(type, index) {
       setText('wl-mod-ind', item.ind); 
       setText('wl-mod-ctry', item.ctry); 
       setText('wl-mod-curr', item.curr);
+
+       const linkSite = document.getElementById('wl-link-site');
+          if(linkSite) linkSite.href = 'https://www.google.com/search?q=' + encodeURIComponent(fullName + ' IR');
+          
+          const linkGoogle = document.getElementById('wl-link-google');
+          if(linkGoogle) linkGoogle.href = 'https://www.google.com/finance?q=' + item.t;
       
       if(typeof renderChartWidget === 'function') renderChartWidget(item.t);
       

@@ -539,6 +539,13 @@ function forceReloadRisk() {
       if(card) card.style.borderLeftColor = col; 
       document.getElementById('risk-score').style.color = col;
       
+      // *** FIX: UPDATE CLICKABLE LINK TO OPEN MODAL ***
+      const tipEl = document.getElementById('risk-tip');
+      if(tipEl) {
+          tipEl.innerHTML = `<span style="font-weight:bold; cursor:pointer;" onclick="openRiskSheet()">👉 Tap for Stress Test & Full Report</span>`;
+      }
+      // ************************************************************
+
       window.currentRiskData = data; 
       if(btn) { btn.innerText = "🔄"; btn.style.pointerEvents = "auto"; }
   }).withFailureHandler(err => { 

@@ -446,7 +446,7 @@
                <input type="text" id="tDet" placeholder="Note" list="noteList" autocapitalize="sentences" autocomplete="off">
                <datalist id="noteList"></datalist>
                <div class="bank-input-group">
-                  <label style="margin:0 0 10px 0; font-size:12px; color:var(--gray); font-weight:bold;">Bank Amounts (+ or -)</label>
+                  <label style="margin:25px 0 2px 0; font-size:12px; color:var(--gray); font-weight:bold;">Bank Amounts (+ or -)</label>
                   <div class="row">
                      <div class="bank-info"><span>Intesa SP</span><span id="bal-col5" class="bank-balance sensitive">--</span></div>
                      <div class="input-wrapper">
@@ -659,7 +659,7 @@
                     "isTransparent": true,
                     "displayMode": "regular",
                     "locale": "en"
-                  }
+                  };
                </script>
             </div>
          </div>
@@ -746,9 +746,9 @@
                <span style="font-size:9px; color:#8e8e93; font-weight:normal;">Tap day for details</span>
             </div>
             <div style="background:white; border-radius: 0 0 12px 12px; border:1px solid #f2f2f7; border-top:none; overflow:hidden;">
-               <div class="calendar-header">
+               <div class="calendar-header" style="display:flex; justify-content:space-between; align-items:center;">
                   <button onclick="changeMonth(-1)" style="border:none; background:none; cursor:pointer; font-size:16px; color:#007aff; padding:0 10px;">◀</button>
-                  <div id="cal-month-year" style="font-weight:900; font-size:14px; color:#333; text-transform:capitalize;">Click 🔄 above to generate data calendar</div>
+                  <div id="cal-month-year" style="flex:1; text-align:center; font-weight:800; font-size:12px; color:#333; line-height:1.2;">Tap 🔄 to load calendar</div>
                   <button onclick="changeMonth(1)" style="border:none; background:none; cursor:pointer; font-size:16px; color:#007aff; padding:0 10px;">▶</button>
                </div>
                <div class="calendar-grid" id="calendar-grid">
