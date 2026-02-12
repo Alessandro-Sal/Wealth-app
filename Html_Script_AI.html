@@ -374,19 +374,22 @@ function renderMarketInsights(data) {
   
   // --- 4. CALENDAR EVENTS ---
   // Aggiorniamo il calendario solo se ci sono eventi, altrimenti (modalità solo dati) lasciamo stare o resetta se necessario.
-  allMarketEvents = [];
-  let hasNewEvents = false;
-
-  if (data.market_events && Array.isArray(data.market_events) && data.market_events.length > 0) { 
-      data.market_events.forEach(ev => { allMarketEvents.push({ ...ev, type: 'market' }); }); 
-      hasNewEvents = true;
-  }
-  if (data.portfolio_events && Array.isArray(data.portfolio_events) && data.portfolio_events.length > 0) { 
-      data.portfolio_events.forEach(ev => { allMarketEvents.push({ ...ev, type: 'portfolio' }); }); 
-      hasNewEvents = true;
-  }
   
-  if (hasNewEvents) {
+  const newMarketEvents = data.market_events && data.market_events.length > 0;
+  const newPortfolioEvents = data.portfolio_events && data.portfolio_events.length > 0;
+
+  // Entriamo nel blocco di aggiornamento SOLO se c'è almeno un evento nuovo da mostrare
+  if (newMarketEvents || newPortfolioEvents) {
+      allMarketEvents = []; // ORA è sicuro resettare: abbiamo nuovi dati da scrivere
+      
+      if (newMarketEvents) { 
+          data.market_events.forEach(ev => { allMarketEvents.push({ ...ev, type: 'market' }); }); 
+      }
+      if (newPortfolioEvents) { 
+          data.portfolio_events.forEach(ev => { allMarketEvents.push({ ...ev, type: 'portfolio' }); }); 
+      }
+      
+      // Ridisegna il calendario con i nuovi puntini
       renderCalendarWidget();
   }
 }

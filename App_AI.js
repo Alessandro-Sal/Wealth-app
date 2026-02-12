@@ -283,31 +283,27 @@ function parseExpenseAI(inputData, mode) {
 
 /**
  * Generates a comprehensive "Hedge Fund" style market report.
- * UPDATED: Uses CACHE (60s) for Macro Data and skips Portfolio/AI calculation
- * when running in 'onlyMacro' mode to ensure instant tab switching.
+ * UPDATED: Uses PERSISTENT CACHE for AI Insights + DEEP DIVE 10-DAY PROMPT.
  *
- * @param {boolean} onlyMacro - If true, returns ONLY cached benchmarks (instant).
- * @return {Object} Integrated object with macro data, portfolio metrics, and (optional) AI commentary.
+ * @param {boolean} onlyMacro - If true, returns cached benchmarks + cached AI data (instant).
+ * @return {Object} Integrated object with macro data, portfolio metrics, and AI commentary.
  */
 function getMarketInsightsData(onlyMacro) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const cache = CacheService.getScriptCache();
-  const MACRO_CACHE_KEY = "MARKET_MACRO_DATA_V1";
   
-  // --- 1. MACRO DATA (Cached for Speed) ---
+  // Keys for Memory
+  const MACRO_CACHE_KEY = "MARKET_MACRO_DATA_V1";
+  const AI_CACHE_KEY = "MARKET_AI_INSIGHTS_PERSIST_V1"; 
+  
+  // --- 1. MACRO DATA (Prezzi e Indici) ---
   let macro = null;
   const cachedJSON = cache.get(MACRO_CACHE_KEY);
 
   if (cachedJSON) {
-      // Hit cache: use stored data for instant speed
       macro = JSON.parse(cachedJSON);
   } else {
-      // Miss cache: fetch from Sheet (slower) and store it
-      macro = { 
-        spx: 0, dow: 0, nasdaq: 0, russell: 0, vix: 0, us10y: 0, 
-        cryptoTrend: "N/A", me: 0 
-      };
-      
+      macro = { spx: 0, dow: 0, nasdaq: 0, russell: 0, vix: 0, us10y: 0, cryptoTrend: "N/A", me: 0 };
       const cleanPct = (valStr) => {
         if (!valStr) return 0;
         let s = String(valStr).replace(/[€$£%\s]/g, '').trim().replace(',', '.');
@@ -317,7 +313,6 @@ function getMarketInsightsData(onlyMacro) {
       try {
         const sheet = ss.getSheetByName("Stock Market Dashboard");
         if (sheet) {
-          // Fetch critical benchmarks
           macro.me = cleanPct(sheet.getRange("B7").getDisplayValue());
           const indices = sheet.getRange("C5:G5").getDisplayValues()[0];
           macro.spx = cleanPct(indices[0]);
@@ -326,57 +321,55 @@ function getMarketInsightsData(onlyMacro) {
           macro.russell = cleanPct(indices[3]);
           macro.vix = cleanPct(indices[4]);
           macro.us10y = cleanPct(sheet.getRange("E12").getDisplayValue());
-          
-          // Store in cache for 60 seconds (Fresh enough for UI, fast enough for UX)
           cache.put(MACRO_CACHE_KEY, JSON.stringify(macro), 60);
         }
       } catch(e) { console.error("Error Dashboard Data: " + e); }
   }
 
-  // --- 2. OPTIMIZATION: INSTANT RETURN ---
-  // If we only need the top banners (Tab Switch), return immediately.
-  // Skips Portfolio calculation and AI entirely.
+  // --- RECUPERO MEMORIA AI (Cache) ---
+  let cachedAiRaw = cache.get(AI_CACHE_KEY);
+  let aiData = cachedAiRaw ? JSON.parse(cachedAiRaw) : {
+      sentiment: { score: 5, label: "Neutral" },
+      analysis: { macro: "Click refresh to analyze.", portfolio: "..." },
+      market_events: [],
+      portfolio_events: []
+  };
+
+  // --- 2. OPTIMIZATION: INSTANT RETURN (Polling) ---
   if (onlyMacro) {
       return {
           ...macro,
-          metrics: { beta: 0, pe: 0 }, // Not needed for banner
-          sentiment: { score: 5, label: "Loading" },
-          analysis: { macro: null, portfolio: null },
-          market_events: [], 
-          portfolio_events: []
+          metrics: { beta: 0, pe: 0 }, 
+          sentiment: aiData.sentiment,
+          analysis: aiData.analysis,
+          market_events: aiData.market_events,
+          portfolio_events: aiData.portfolio_events
       };
   }
 
   // =========================================================
-  // HEAVY LIFTING BELOW (Only runs when User clicks Refresh)
+  // HEAVY LIFTING (Solo su richiesta utente "Full Analysis")
   // =========================================================
 
-  // --- 3. EXTENDED DATA RETRIEVAL (Portfolio) ---
+  // --- 3. PORTFOLIO METRICS ---
   const port = getLivePortfolio(); 
   
-  // Calculate Crypto Trend
-  let cryptoTotalChange = 0;
-  let cryptoCount = 0;
+  // Crypto Trend
+  let cryptoTotalChange = 0; let cryptoCount = 0;
   if (port.crypto && port.crypto.length > 0) {
     port.crypto.forEach(c => {
       if (c.pct) { 
         let val = parseFloat(String(c.pct).replace(/[€$£%\s]/g, '').trim().replace(',', '.')) || 0;
-        cryptoTotalChange += val;
-        cryptoCount++;
+        cryptoTotalChange += val; cryptoCount++;
       }
     });
-    const avgCrypto = cryptoCount > 0 ? (cryptoTotalChange / cryptoCount).toFixed(2) : "0";
-    macro.cryptoTrend = `${avgCrypto}% (Basket of ${port.crypto.length} coins)`;
+    macro.cryptoTrend = (cryptoCount > 0 ? (cryptoTotalChange / cryptoCount).toFixed(2) : "0") + "%";
   }
 
-  // Calculate Weighted Beta & PE
+  // Equity Metrics
   const equityAssets = [...port.stocks, ...port.etfs];
-  let totalEquityVal = 0;
-  let weightedBeta = 0;
-  let weightedPE = 0;
-  let peEligibleVal = 0;
-  let sectorMap = {};
-  let countryMap = {};
+  let totalEquityVal = 0; let weightedBeta = 0; let weightedPE = 0; let peEligibleVal = 0;
+  let sectorMap = {}; let countryMap = {};
 
   const parseVal = (v) => parseFloat(String(v).replace(/[^\d.-]/g, '').replace(',', '.')) || 0;
 
@@ -384,33 +377,20 @@ function getMarketInsightsData(onlyMacro) {
     const val = parseVal(a.val);
     const beta = parseFloat(a.beta) || 1; 
     const pe = parseFloat(a.pe) || 0;
-    const price = parseVal(a.price);
-    const yearH = parseVal(a.yearH);
-    const yearL = parseVal(a.yearL);
-    
-    let rangePos = "N/A";
-    if (yearH > yearL && price > 0) rangePos = ((price - yearL) / (yearH - yearL) * 100).toFixed(0) + "%";
-
     totalEquityVal += val;
     weightedBeta += (beta * val);
-    
     if (pe > 0 && a.sector !== 'ETFs') { weightedPE += (pe * val); peEligibleVal += val; }
-
     const s = a.sector || "Other"; sectorMap[s] = (sectorMap[s] || 0) + val;
     const c = a.ctry || "Global"; countryMap[c] = (countryMap[c] || 0) + val;
-
-    return { 
-        t: a.t, val: val, dCh: a.dCh, 
-        details: { pe: pe, beta: beta, rangePos: rangePos, vol: a.vol, avgVol: a.avgVol } 
-    };
+    return { t: a.t, val: val, dCh: a.dCh, details: { beta: beta } };
   }).sort((a, b) => b.val - a.val); 
 
   const portBeta = totalEquityVal > 0 ? (weightedBeta / totalEquityVal).toFixed(2) : 1;
   const portPE = peEligibleVal > 0 ? (weightedPE / peEligibleVal).toFixed(1) : "N/A";
 
-  // --- 4. AI ANALYSIS (Gemini) ---
+  // --- 4. AI GENERATION (Gemini) ---
   let aiRes = { 
-    sentiment_score: 5, sentiment_label: "Loading", 
+    sentiment_score: 5, sentiment_label: "Neutral", 
     macro_analysis: null, portfolio_analysis: null, 
     market_events: [], portfolio_events: [] 
   };
@@ -419,33 +399,55 @@ function getMarketInsightsData(onlyMacro) {
   const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
   const today = new Date().toISOString().split('T')[0];
   
-  const topSectors = Object.entries(sectorMap).sort((a,b) => b[1]-a[1]).slice(0,5).map(([k,v]) => `${k}:${((v/totalEquityVal)*100).toFixed(0)}%`).join(", ");
+  const topSectors = Object.entries(sectorMap).sort((a,b) => b[1]-a[1]).slice(0,5).map(([k,v]) => k).join(", ");
   const topCountries = Object.entries(countryMap).sort((a,b) => b[1]-a[1]).slice(0,3).map(([k,v]) => k).join(", ");
   const myTickers = enrichedEquity.map(a => a.t).join(", ");
-  
-  // Simplified asset string to save tokens
-  const assetsStr = enrichedEquity.slice(0, 30).map(a => `${a.t} (${a.dCh} | β:${a.details.beta})`).join("\n");
+  const assetsStr = enrichedEquity.slice(0, 30).map(a => `${a.t} (${a.dCh})`).join("\n");
 
   const prompt = `
-    Role: Algorithmic Hedge Fund Manager. Date: ${today}.
+    Role: Institutional Hedge Fund Manager & Senior Macro Strategist.
+    Date: ${today}.
+    
+    CONTEXT DATA:
     MACRO: S&P500 ${macro.spx}% | VIX ${macro.vix} | US10Y ${macro.us10y}% | Crypto Trend ${macro.cryptoTrend}.
     PORTFOLIO: Beta ${portBeta} | P/E ${portPE} | Top Sectors: ${topSectors} | Top Countries: ${topCountries}.
     ASSETS: \n${assetsStr}
     
-    TASK:
-    A. Analyze Macro interaction.
-    B. Diagnose Portfolio Style & Risks.
-    C. Sentiment Score (0-10).
-    D. Events: 5 Market + Earnings/Divs for [${myTickers}].
+    MISSION:
+    Perform a "Deep Dive" risk & opportunity analysis. Be extremely specific, critical, and forward-looking.
+    
+    TASK LIST:
+    
+    A. MACRO SYNTHESIS (The "Why"):
+    Analyze how Rates, Inflation, and Geopolitics are impacting the market RIGHT NOW. Don't be generic. Connect dots.
+    
+    B. PORTFOLIO DIAGNOSIS:
+     ruthless review of my allocation. Am I too exposed to Tech? Too defensive? What is my biggest blind spot?
+    
+    C. SENTIMENT SCORE (0-10):
+    Based on VIX, Crypto Trend, and Macro. (0=Extreme Fear, 10=Extreme Greed).
+    
+    D. EVENTS & CATALYSTS (Next 10 Days - STRICT & COMPREHENSIVE):
+    I need EVERY significant event that could move my money in the next 10-15 days.
+    
+    1. MACRO EVENTS: List ALL critical economic data (CPI, PPI, Jobs, GDP), Central Bank meetings (Fed, ECB), or Geopolitical deadlines.
+    2. PORTFOLIO EVENTS: List ALL Earnings, Dividends, Product Launches, or Governance votes specifically for [${myTickers}].
+    
+    *** CRITICAL INSTRUCTION FOR "event" FIELD ***
+    Do NOT just list the name (e.g. "Apple Earnings").
+    You MUST provide the "Analytic Context" and "Impact Prediction".
+    - BAD: "US CPI Release"
+    - GOOD: "US CPI: Critical for Fed Pivot. If >3.2%, expect Tech sell-off. High Volatility expected."
+    - GOOD: "NVDA Earnings: Focus on Data Center guidance. +/- 8% implied move."
 
-    JSON OUTPUT:
+    JSON OUTPUT FORMAT:
     {
       "sentiment_score": 5.5,
       "sentiment_label": "Fear/Neutral/Greed",
-      "macro_analysis": "Text...",
-      "portfolio_analysis": "Text...",
-      "market_events": [{"ticker": "MACRO", "event": "Event", "date": "YYYY-MM-DD"}],
-      "portfolio_events": [{"ticker": "TICKER", "event": "Event", "date": "YYYY-MM-DD"}]
+      "macro_analysis": "Deep institutional commentary here...",
+      "portfolio_analysis": "Specific, actionable portfolio advice here...",
+      "market_events": [{"ticker": "MACRO", "event": "Event Name: Context & Impact Prediction", "date": "YYYY-MM-DD"}],
+      "portfolio_events": [{"ticker": "TICKER", "event": "Event Name: Context & Impact Prediction", "date": "YYYY-MM-DD"}]
     }
   `;
 
@@ -455,6 +457,7 @@ function getMarketInsightsData(onlyMacro) {
       const payload = { contents: [{ parts: [{ text: prompt }] }] };
       const options = { method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true };
       const response = UrlFetchApp.fetch(url, options);
+      
       if (response.getResponseCode() === 200) {
         let txt = JSON.parse(response.getContentText()).candidates[0].content.parts[0].text;
         txt = txt.replace(/```json/g, "").replace(/```/g, "").trim();
@@ -465,13 +468,23 @@ function getMarketInsightsData(onlyMacro) {
     } catch(err) { console.warn("AI Err: " + err); }
   }
 
-  return {
-    ...macro,
-    metrics: { beta: portBeta, pe: portPE },
+  // --- Cache ---
+  const finalResult = {
     sentiment: { score: aiRes.sentiment_score, label: aiRes.sentiment_label },
     analysis: { macro: aiRes.macro_analysis, portfolio: aiRes.portfolio_analysis },
     market_events: aiRes.market_events,
     portfolio_events: aiRes.portfolio_events
+  };
+
+  // 6 hours cache if we got events, otherwise we keep the old one until we have new insights (avoid overwriting good data with empty events)
+  if (aiRes.market_events.length > 0 || aiRes.portfolio_events.length > 0) {
+      cache.put(AI_CACHE_KEY, JSON.stringify(finalResult), 21600);
+  }
+
+  return {
+    ...macro,
+    metrics: { beta: portBeta, pe: portPE },
+    ...finalResult
   };
 }
 /**
@@ -520,14 +533,35 @@ function fetchDividendData() {
   
   // English Prompt
   const prompt = `
-    I have these assets: [${assetString}].
+    Role: Algorithmic Hedge Fund Manager. Date: ${today}.
+    MACRO: S&P500 ${macro.spx}% | VIX ${macro.vix} | US10Y ${macro.us10y}% | Crypto Trend ${macro.cryptoTrend}.
+    PORTFOLIO: Beta ${portBeta} | P/E ${portPE} | Top Sectors: ${topSectors} | Top Countries: ${topCountries}.
+    ASSETS: \n${assetsStr}
     
-    For each one, estimate for TODAY:
-    1. The current annual "Dividend Yield" in % (e.g., 0.03 for 3%). If no dividend, 0.
-    2. The expected month for the NEXT payment (e.g., "Mar", "Apr").
+    TASK:
+    A. Analyze Macro interaction (Rates, Inflation, Geopolitics).
+    B. Diagnose Portfolio Style & Risks.
+    C. Sentiment Score (0-10) based on VIX and Momentum.
     
-    Reply ONLY with a JSON Array:
-    [{"t": "TICKER", "y": 0.034, "m": "Mar"}]
+    D. DEEP DIVE EVENTS & CATALYSTS (Next 30 Days):
+    Identify 5 CRITICAL Global Market Events (Fed, ECB, CPI, Jobs) + Specific Earnings/Divs for my assets: [${myTickers}].
+    
+    CRITICAL INSTRUCTION FOR "event" FIELD:
+    Do NOT just list the name. You MUST include the "Why it matters" and "Expected Impact".
+    - BAD: "Apple Earnings"
+    - GOOD: "Apple Earnings: Focus on China sales decline. If miss, expect -5% drop. High Volatility."
+    - BAD: "US CPI"
+    - GOOD: "US CPI Data: Crucial for Fed Pivot. If >3.2%, Tech stocks will suffer. Watch 10Y Yield."
+
+    JSON OUTPUT:
+    {
+      "sentiment_score": 5.5,
+      "sentiment_label": "Fear/Neutral/Greed",
+      "macro_analysis": "Detailed view on how macro factors (Rates/War/Oil) are impacting the market NOW. Be specific.",
+      "portfolio_analysis": "Specific feedback on my allocation. Am I too exposed to Tech? Too defensive? Give actionable advice.",
+      "market_events": [{"ticker": "MACRO", "event": "Event Name: Analytic Context & Impact Prediction", "date": "YYYY-MM-DD"}],
+      "portfolio_events": [{"ticker": "TICKER", "event": "Event Name: Analytic Context & Impact Prediction", "date": "YYYY-MM-DD"}]
+    }
   `;
 
   let aiData = [];
