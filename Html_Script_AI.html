@@ -466,26 +466,72 @@ function changeMonth(delta) {
   renderCalendarWidget(); 
 }
 
+// Funzione per il refresh del mercato (Pulsante "Refresh Market")
 function forceReloadMarket() {
   const btn = document.getElementById('btn-refresh-market'); 
   if(btn) { btn.innerText = "⏳"; btn.style.pointerEvents = "none"; }
   
   const briefingEl = document.getElementById('macro-text'); 
   const portEl = document.getElementById('portfolio-text');
-  if(briefingEl) briefingEl.innerHTML = '<span style="color:#888; font-style:italic;">Re-analyzing data...</span>'; 
+  
+  // Feedback visivo immediato
+  if(briefingEl) briefingEl.innerHTML = '<span style="color:#888; font-style:italic;">Analysing market scenarios... 🧠</span>'; 
   if(portEl) portEl.innerHTML = '...';
   
+  // FIX: Passiamo 'false' (onlyMacro = false) per dire al server "Voglio l'analisi AI completa ORA"
   google.script.run.withSuccessHandler(data => { 
       renderMarketInsights(data); 
       if(btn) { btn.innerText = "🔄"; btn.style.pointerEvents = "auto"; } 
       if(typeof Swal !== 'undefined') { 
           const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000}); 
-          Toast.fire({icon: 'success', title: 'Market AI Updated'}); 
+          Toast.fire({icon: 'success', title: 'AI Market Insight Updated'}); 
       } 
   }).withFailureHandler(err => { 
       console.error(err); 
       if(btn) { btn.innerText = "⚠️"; btn.style.pointerEvents = "auto"; } 
-  }).getMarketInsightsData();
+  }).getMarketInsightsData(false); // <--- IMPORTANTE: false = FULL REFRESH
+}
+
+// Funzione per il refresh del rischio (Pulsante "Refresh Risk")
+function forceReloadRisk() {
+  const btn = document.getElementById('btn-refresh-risk'); 
+  if(btn) { btn.innerText = "⏳"; btn.style.pointerEvents = "none"; }
+  
+  document.getElementById('risk-comment').innerText = "Running Stress Test (Live)..."; 
+  document.getElementById('risk-score').style.opacity = "0.3";
+  
+  // FIX: Passiamo 'true' (forceRefresh = true) per ignorare la cache e ricalcolare
+  google.script.run.withSuccessHandler(analysis => {
+      // ... (Resto della funzione invariato) ...
+      const card = document.getElementById('risk-card'); 
+      const data = analysis || { riskLevel: "N/A", riskScore: 0, summary: "Data unavailable" };
+      
+      document.getElementById('risk-level').innerText = "Risk: " + data.riskLevel; 
+      document.getElementById('risk-score').innerText = data.riskScore + "/100"; 
+      document.getElementById('risk-score').style.opacity = "1"; 
+      document.getElementById('risk-comment').innerText = data.summary;
+      
+      let score = parseInt(data.riskScore); 
+      let col = '#34c759'; 
+      if(score > 30) col = '#ffcc00'; 
+      if(score > 50) col = '#ff9500'; 
+      if(score > 70) col = '#ff3b30';
+      
+      if(card) card.style.borderLeftColor = col; 
+      document.getElementById('risk-score').style.color = col;
+      
+      const tipEl = document.getElementById('risk-tip');
+      if(tipEl) {
+          tipEl.innerHTML = `<span style="font-weight:bold; cursor:pointer;" onclick="openRiskSheet()">👉 Tap for Stress Test & Full Report</span>`;
+      }
+
+      window.currentRiskData = data; 
+      if(btn) { btn.innerText = "🔄"; btn.style.pointerEvents = "auto"; }
+  }).withFailureHandler(err => { 
+      console.error(err); 
+      document.getElementById('risk-comment').innerText = "Update Error."; 
+      if(btn) { btn.innerText = "⚠️"; btn.style.pointerEvents = "auto"; } 
+  }).getPortfolioRiskAnalysis(true); // <--- IMPORTANTE: true = FORCE REFRESH
 }
 
 // --- Risk Report ---
@@ -515,47 +561,6 @@ function openRiskSheet() {
   closeAllSheets(); 
   document.getElementById('risk-sheet').classList.add('active'); 
   document.getElementById('common-backdrop').classList.add('active');
-}
-
-function forceReloadRisk() {
-  const btn = document.getElementById('btn-refresh-risk'); 
-  if(btn) { btn.innerText = "⏳"; btn.style.pointerEvents = "none"; }
-  
-  document.getElementById('risk-comment').innerText = "Recalculating risks..."; 
-  document.getElementById('risk-score').style.opacity = "0.3";
-  
-  google.script.run.withSuccessHandler(analysis => {
-      const card = document.getElementById('risk-card'); 
-      const data = analysis || { riskLevel: "N/A", riskScore: 0, summary: "Data unavailable" };
-      
-      document.getElementById('risk-level').innerText = "Risk: " + data.riskLevel; 
-      document.getElementById('risk-score').innerText = data.riskScore + "/100"; 
-      document.getElementById('risk-score').style.opacity = "1"; 
-      document.getElementById('risk-comment').innerText = data.summary;
-      
-      let score = parseInt(data.riskScore); 
-      let col = '#34c759'; 
-      if(score > 30) col = '#ffcc00'; 
-      if(score > 50) col = '#ff9500'; 
-      if(score > 70) col = '#ff3b30';
-      
-      if(card) card.style.borderLeftColor = col; 
-      document.getElementById('risk-score').style.color = col;
-      
-      // *** FIX: UPDATE CLICKABLE LINK TO OPEN MODAL ***
-      const tipEl = document.getElementById('risk-tip');
-      if(tipEl) {
-          tipEl.innerHTML = `<span style="font-weight:bold; cursor:pointer;" onclick="openRiskSheet()">👉 Tap for Stress Test & Full Report</span>`;
-      }
-      // ************************************************************
-
-      window.currentRiskData = data; 
-      if(btn) { btn.innerText = "🔄"; btn.style.pointerEvents = "auto"; }
-  }).withFailureHandler(err => { 
-      console.error(err); 
-      document.getElementById('risk-comment').innerText = "Update Error."; 
-      if(btn) { btn.innerText = "⚠️"; btn.style.pointerEvents = "auto"; } 
-  }).getPortfolioRiskAnalysis();
 }
 
 // --- Stock Battle ---
