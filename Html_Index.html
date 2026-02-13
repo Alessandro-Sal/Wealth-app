@@ -57,5 +57,54 @@
       <div class="footer-credits">
          Wealth Manager &bull; made by Ale
       </div>
-      <?!= include('Html_Script'); ?>            <?!= include('Html_Script_Navigation'); ?> <?!= include('Html_Script_Init'); ?>       <?!= include('Html_Script_Chart'); ?>      <?!= include('Html_Script_Market'); ?>     <?!= include('Html_Script_Form'); ?>       <?!= include('Html_Script_AI'); ?>         <?!= include('Html_Script_Module'); ?>     </body>
+      <?!= include('Html_Script'); ?>            <?!= include('Html_Script_Navigation'); ?> <?!= include('Html_Script_Init'); ?>       <?!= include('Html_Script_Chart'); ?>      <?!= include('Html_Script_Market'); ?>     <?!= include('Html_Script_Form'); ?>       <?!= include('Html_Script_AI'); ?>         <?!= include('Html_Script_Module'); ?>     
+<div id="google_translate_element" style="display:none;"></div>
+
+<script type="text/javascript">
+function googleTranslateElementInit() {
+  new google.translate.TranslateElement({
+    pageLanguage: 'en',
+    includedLanguages: 'it,en', // Includiamo anche EN per poter tornare indietro
+    autoDisplay: false
+    // NOTA: Abbiamo rimosso 'layout' per avere la select standard HTML gestibile via JS
+  }, 'google_translate_element');
+}
+</script>
+<script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+<script>
+function toggleLanguage() {
+  // Cerca il menu a tendina "invisibile" generato da Google
+  var select = document.querySelector("select.goog-te-combo");
+  
+  if (select) {
+      // Logica: Se non è italiano, metti italiano. Se è italiano, torna all'inglese.
+      if (select.value !== 'it') {
+          select.value = 'it';
+      } else {
+          select.value = 'en';
+      }
+      
+      // Simula l'evento di cambio manuale per attivare Google Translate
+      select.dispatchEvent(new Event('change'));
+  } else {
+      console.log("Traduttore non ancora caricato.");
+  }
+}
+</script>
+
+<style>
+    /* Nasconde la barra superiore di Google se appare */
+    .goog-te-banner-frame { display: none !important; }
+    body { top: 0px !important; }
+    
+    /* Nasconde tooltip, highlight e il widget stesso */
+    #google_translate_element { display: none !important; }
+    .goog-tooltip { display: none !important; }
+    .goog-text-highlight { background-color: transparent !important; border: none !important; box-shadow: none !important; }
+    
+    /* Previene lo spostamento del body */
+    body { position: static !important; min-height: 100% !important; top: 0px !important; }
+</style>
+   </body>
 </html>

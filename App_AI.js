@@ -620,7 +620,7 @@ function getPortfolioRiskAnalysis(forceRefresh) {
     3. STRESS TEST SIMULATION:
        - Calculate expected drawdown based on the weight of High-Beta assets (Crypto/Tech) vs Low-Beta (Cash/Bonds).
 
-    OUTPUT FORMAT: STRICT JSON (No Markdown). Language: Italian.
+    OUTPUT FORMAT: STRICT JSON (No Markdown).
 
     JSON STRUCTURE:
     {
