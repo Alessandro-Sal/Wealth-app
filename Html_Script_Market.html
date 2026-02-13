@@ -337,6 +337,28 @@ function openWlModal(index) {
   modal.style.display = 'flex';
 }
 
+/**
+ * Closes the portfolio modal and opens the investment search interface
+ * pre-filled with the specific ticker to show transaction history.
+ * @param {string} ticker - The asset ticker symbol.
+ */
+function searchTickerHistory(ticker) {
+    closeWlModal(); // Close current modal
+    openInvestSearch(); // Open the search/history view
+    
+    // Wait for the view to initialize, then search
+    setTimeout(() => {
+        const input = document.getElementById('invSearchQuery');
+        if(input) {
+            input.value = ticker;
+            // Trigger the search function if it exists
+            if(typeof performInvestSearch === 'function') {
+                performInvestSearch(); 
+            }
+        }
+    }, 300);
+}
+
 function openPortfolioModal(type, index) {
   try {
       const item = currentPortfolioData[type][index]; 
@@ -344,9 +366,9 @@ function openPortfolioModal(type, index) {
       
       const modal = document.getElementById('wl-modal');
       const delBtn = document.getElementById('wl-btn-del'); 
-      if(delBtn) delBtn.style.display = 'none'; 
+      if(delBtn) delBtn.style.display = 'none'; // Hide delete button for portfolio items
       
-      // LOGIC: Hide element if value is empty, "-", or "0"
+      // LOGIC: Hide element if value is empty, "-", or "0" to keep UI clean
       const setText = (id, txt) => { 
           const el = document.getElementById(id); 
           if(!el) return;
@@ -364,6 +386,7 @@ function openPortfolioModal(type, index) {
       const fullName = item.name && item.name !== "#N/A" ? item.name : item.t; 
       if(tickerEl) tickerEl.innerHTML = item.t + '<br><span style="font-size:14px; font-weight:normal; opacity:0.8;">' + fullName + '</span>';
       
+      // Determine Currency Symbol
       let symbol = "€"; 
       let currCode = item.curr ? String(item.curr).trim().toUpperCase() : ""; 
       if (currCode === "USD" || currCode === "US DOLLAR") symbol = "$"; 
@@ -384,19 +407,22 @@ function openPortfolioModal(type, index) {
           valContainer.style.color = "var(--text-main)"; 
       }
 
-      // --- NEW DESIGN SECTION: ADVANCED PORTFOLIO STATS ---
+      // --- ADVANCED PORTFOLIO STATS SECTION ---
+      // Check if container exists, otherwise create it dynamically
       let statsContainer = document.getElementById('portfolio-advanced-stats');
       if (!statsContainer) {
           statsContainer = document.createElement('div');
           statsContainer.id = 'portfolio-advanced-stats';
           statsContainer.style.marginTop = "20px";
           statsContainer.style.marginBottom = "20px";
+          // Insert after the value container
           if (valContainer && valContainer.parentNode) {
               valContainer.parentNode.parentNode.insertBefore(statsContainer, valContainer.parentNode.nextSibling);
           }
       }
 
       if (statsContainer) {
+          // Helper: Color logic (Green for positive, Red for negative)
           const fmtCol = (val) => {
              if(!val) return 'color:var(--text-main);';
              if(String(val).includes('-')) return 'color:var(--danger, #ff3b30);';
@@ -405,13 +431,36 @@ function openPortfolioModal(type, index) {
           
           const hasData = (v) => (v && v !== "" && v !== "0" && v !== "-" && v !== "€ 0,00");
 
-          // STYLES
+          // --- YIELD ON COST CALCULATION ---
+          // Calculates the return on original investment based on dividends
+          let divYieldOnCost = null;
+          if (hasData(item.div) && hasData(item.avgPrice) && hasData(item.qty)) {
+              // Smart parser for both comma and dot decimals
+              let smartParse = (v) => {
+                  let s = String(v).replace(/[^0-9.,-]/g, '');
+                  if (s.indexOf(',') > -1 && s.indexOf('.') > -1) s = s.replace(/\./g, '').replace(',', '.');
+                  else if (s.indexOf(',') > -1) s = s.replace(',', '.');
+                  return parseFloat(s) || 0;
+              };
+
+              let cDiv = smartParse(item.div);
+              let cAvg = smartParse(item.avgPrice);
+              let cQty = smartParse(item.qty);
+              let totalInvested = cAvg * cQty;
+
+              if (totalInvested > 0 && cDiv > 0) {
+                  divYieldOnCost = ((cDiv / totalInvested) * 100).toFixed(2) + "%";
+              }
+          }
+          // ---------------------------------
+
+          // IN-LINE CSS STYLES
           const rowStyle = "display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.05);";
           const labelStyle = "font-size: 13px; color: var(--gray, #888); font-weight: 500;";
           const valStyle = "font-size: 14px; font-weight: 700; font-family: var(--font-mono, monospace); letter-spacing: -0.5px;";
           const groupStyle = "background: var(--card-bg, #fff); border-radius: 16px; padding: 5px 15px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.03);";
 
-          // CARD 1: TECHNICALS (Qty, Avg Price, BEP)
+          // CARD 1: TECHNICAL STATS (Quantity, Avg Price, BreakEven)
           let block1 = `
             <div style="${groupStyle}">
                 <div style="${rowStyle}">
@@ -438,7 +487,7 @@ function openPortfolioModal(type, index) {
           // CARD 2: FINANCIAL PERFORMANCE
           let block2Content = '';
           
-          // 1. Unrealized (Always top)
+          // A. Unrealized P&L
           block2Content += `
             <div style="${rowStyle}">
                 <span style="${labelStyle}">Unrealized P&L</span>
@@ -448,7 +497,7 @@ function openPortfolioModal(type, index) {
                 </div>
             </div>`;
 
-          // 2. Realized (Under Unrealized)
+          // B. Realized P&L (if available)
           if (hasData(item.realizedEur)) {
              block2Content += `
             <div style="${rowStyle}">
@@ -460,16 +509,19 @@ function openPortfolioModal(type, index) {
             </div>`;
           }
 
-          // 3. Dividends (Under Realized)
+          // C. Dividends + Yield on Cost
           if (hasData(item.div)) {
              block2Content += `
             <div style="${rowStyle}">
                 <span style="${labelStyle}">Dividends</span>
-                <span style="${valStyle} color:var(--primary, #007aff);" class="sensitive">${item.div}</span>
+                <div style="text-align:right;">
+                    <span style="${valStyle} color:var(--primary, #007aff);" class="sensitive">${item.div}</span>
+                    ${divYieldOnCost ? `<div style="font-size:10px; font-weight:600; color:var(--primary); opacity:0.7;">${divYieldOnCost} Yield</div>` : ''}
+                </div>
             </div>`;
           }
 
-          // 4. Balance (Bottom)
+          // D. Total Balance (Bottom Summary)
           block2Content += `
             <div style="${rowStyle} border-bottom:none; border-top: 1px dashed rgba(128,128,128,0.2); margin-top:5px; padding-top:12px;">
                 <span style="${labelStyle} font-weight:700; color:var(--text-main);">Total Balance</span>
@@ -485,7 +537,7 @@ function openPortfolioModal(type, index) {
           statsContainer.style.display = 'block'; 
       }
       
-      // Standard Stats
+      // Standard Stats (Populate only if valid)
       setText('wl-mod-pe', item.pe); 
       setText('wl-mod-eps', item.eps); 
       setText('wl-mod-beta', item.beta); 
@@ -500,18 +552,67 @@ function openPortfolioModal(type, index) {
       setText('wl-mod-ctry', item.ctry); 
       setText('wl-mod-curr', item.curr);
 
+      // External Links
       const linkSite = document.getElementById('wl-link-site');
       if(linkSite) linkSite.href = 'https://www.google.com/search?q=' + encodeURIComponent(fullName + ' IR');
       
       const linkGoogle = document.getElementById('wl-link-google');
       if(linkGoogle) linkGoogle.href = 'https://www.google.com/finance?q=' + item.t;
       
+      // --- HISTORY BUTTON INJECTION ---
+      // Finds the container of external links to inject the history button below them
+      const linkContainer = document.getElementById('wl-link-site').parentElement;
+      // Remove existing button if re-opening modal
+      const existingHistBtn = document.getElementById('wl-btn-history');
+      if(existingHistBtn) existingHistBtn.remove();
+
+      if(linkContainer) {
+          const histBtn = document.createElement('div');
+          histBtn.id = 'wl-btn-history';
+          histBtn.style.cssText = "grid-column: 1 / -1; margin-top:5px;";
+          histBtn.innerHTML = `
+            <button onclick="searchTickerHistory('${item.t}')" style="width:100%; background:var(--card-bg, #fff); color:var(--text-main); border:1px solid rgba(0,0,0,0.1); padding:12px; border-radius:12px; font-weight:600; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
+               <span>📜</span> View Transaction History
+            </button>
+          `;
+          linkContainer.appendChild(histBtn);
+      }
+
+      // Render Chart
       if(typeof renderChartWidget === 'function') renderChartWidget(item.t);
+      
+      // --- 52-WEEK RANGE BAR LOGIC ---
+      const rangeContainer = document.getElementById('wl-range-container');
+      const parseNum = (v) => { if(!v || v === "-" || v === "0" || v === "" || v === "N/A") return null; let s = String(v).replace(/[^\d.,-]/g, ''); if (s.indexOf(',') > -1) { s = s.replace(/\./g, ''); s = s.replace(',', '.'); } let n = parseFloat(s); return isNaN(n) ? null : n; };
+      
+      let currentP = parseNum(item.price); 
+      let low52 = parseNum(item.yearL); 
+      let high52 = parseNum(item.yearH);
+      
+      // Only show range bar if all data points are valid
+      if (currentP !== null && low52 !== null && high52 !== null && high52 > low52) {
+          let pct = ((currentP - low52) / (high52 - low52)) * 100; 
+          pct = Math.max(0, Math.min(100, pct));
+          
+          const dot = document.getElementById('wl-range-dot'); 
+          if(dot) { 
+              dot.style.left = pct + "%"; 
+              dot.style.background = pct > 80 ? "#34c759" : (pct < 20 ? "#ff3b30" : "#007AFF"); 
+          }
+          const rangeMin = document.getElementById('wl-range-min');
+          const rangeMax = document.getElementById('wl-range-max');
+          if(rangeMin) rangeMin.innerText = item.yearL; 
+          if(rangeMax) rangeMax.innerText = item.yearH; 
+          
+          if(rangeContainer) rangeContainer.style.display = 'block';
+      } else { 
+          // Hide container if data is missing (e.g. for Crypto)
+          if(rangeContainer) rangeContainer.style.display = 'none'; 
+      }
       
       modal.style.display = 'flex';
   } catch(e) { console.error("Error opening portfolio modal:", e); }
 }
-
 function closeWlModal() { document.getElementById('wl-modal').style.display = 'none'; }
 
 /**
