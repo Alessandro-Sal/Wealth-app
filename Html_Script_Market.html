@@ -10,12 +10,16 @@
 
 /**
  * Fetches real-time portfolio data from the server.
- * Triggers skeleton loading states before rendering.
+ * Triggers skeleton loading ONLY on initial load, not during updates.
  */
-function fetchLivePortfolio() {
-  showSkeleton('live-stocks', 3, '70px', true);
-  showSkeleton('live-etfs', 3, '70px', true);
-  showSkeleton('live-crypto', 3, '70px', true);
+function fetchLivePortfolio(isUpdate = false) {
+  if (!isUpdate) {
+      showSkeleton('live-stocks', 3, '70px', true);
+      showSkeleton('live-etfs', 3, '70px', true);
+      showSkeleton('live-crypto', 3, '70px', true);
+  }
+  
+  // La chiamata al server rimane invariata
   google.script.run.withSuccessHandler(renderLivePortfolio).getLivePortfolio();
 }
 
@@ -106,7 +110,7 @@ function renderLivePortfolio(data) {
 
 // --- Watchlist Management ---
 
-function fetchWatchlist() {
+function fetchWatchlist(isUpdate = false) {
   const cont = document.getElementById('watchlist-container'); if (!cont) return;
   let list = document.getElementById('wl-list');
   
@@ -119,7 +123,10 @@ function fetchWatchlist() {
   
   // Horizontal Scroll Layout
   list.style.cssText = `display: flex !important; overflow-x: auto !important; gap: 10px !important; padding: 10px !important; width: 100% !important; box-sizing: border-box !important; list-style: none !important; -webkit-overflow-scrolling: touch;`;
-  list.innerHTML = '<div style="grid-column: 1/-1; padding:20px; text-align:center; color:#888; font-size:12px;">Loading watchlist...</div>';
+  
+  if (!isUpdate) {
+      list.innerHTML = '<div style="grid-column: 1/-1; padding:20px; text-align:center; color:#888; font-size:12px;">Loading watchlist...</div>';
+  }
   
   google.script.run.withSuccessHandler(function(data) { 
       myWatchlistData = data; 
@@ -196,6 +203,13 @@ function openWlModal(index) {
       delBtn.onclick = function() { deleteFromWatchlist(item.row, item.ticker); }; 
   }
   
+  // 1. FIX IMPORTANTE: Nascondi la sezione "Advanced Stats" del Portfolio se esiste
+  // Questo impedisce che i dati del portafoglio (Gain, Balance, ecc.) appaiano nella Watchlist
+  const advStats = document.getElementById('portfolio-advanced-stats');
+  if (advStats) {
+      advStats.style.display = 'none';
+  }
+
   const externalName = document.getElementById('wl-mod-name'); 
   if(externalName) externalName.style.display = 'none';
   
@@ -231,7 +245,7 @@ function openWlModal(index) {
       valConv.style.color = "var(--text-main)"; 
   }
   
-  // Advanced Stats
+  // Advanced Stats Helper
   const fmtBig = (val) => { 
       if (!val || val === "0" || val === "-") return "-"; 
       let n = parseFloat(String(val).replace(/,/g,'')); 
@@ -242,28 +256,59 @@ function openWlModal(index) {
       return n.toFixed(2); 
   };
   
+  // UI Helper: Nasconde le righe vuote invece di mostrare "-"
   const setText = (id, txt) => { 
       const el = document.getElementById(id); 
-      if(el) el.innerText = (txt && txt !== "" && txt !== "#N/A" && txt !== "0") ? txt : "-"; 
+      if(!el) return;
+      if (txt && txt !== "" && txt !== "#N/A" && txt !== "0" && txt !== "-" && txt !== "--") {
+          el.innerText = txt;
+          if(el.parentElement) el.parentElement.style.display = 'flex';
+      } else {
+          el.innerText = "";
+          // Nasconde il contenitore genitore (la "scatolina" della stat)
+          if(el.parentElement) el.parentElement.style.display = 'none';
+      }
   };
   
   setText('wl-mod-pe', item.pe); 
   setText('wl-mod-eps', item.eps); 
-  document.getElementById('wl-mod-mkt').innerText = fmtBig(item.mkt); 
+  
+  // Gestione speciale per Market Cap (usa fmtBig)
+  const mktEl = document.getElementById('wl-mod-mkt');
+  if(mktEl) {
+      const mktVal = fmtBig(item.mkt);
+      if(mktVal !== "-") {
+         mktEl.innerText = mktVal;
+         if(mktEl.parentElement) mktEl.parentElement.style.display = 'flex';
+      } else {
+         if(mktEl.parentElement) mktEl.parentElement.style.display = 'none';
+      }
+  }
+
   setText('wl-mod-beta', item.beta); 
   setText('wl-mod-52h', item.yearH); 
   setText('wl-mod-52l', item.yearL);
   
+  // Resetta/Pulisce i campi che potrebbero essere rimasti sporchi dal Portfolio
+  setText('wl-mod-vol', item.vol || ""); 
+  setText('wl-mod-dh', item.dayH || "");
+  setText('wl-mod-dl', item.dayL || "");
+  setText('wl-mod-sector', item.sector || "");
+  setText('wl-mod-ind', item.ind || "");
+  setText('wl-mod-ctry', item.ctry || "");
+  setText('wl-mod-curr', item.curr || "");
+  
   if(typeof renderChartWidget === 'function') renderChartWidget(item.ticker);
-        const siteLink = document.getElementById('wl-link-site');
-        const googleLink = document.getElementById('wl-link-google');
-          
-          if (siteLink) {
-          siteLink.href = 'https://www.google.com/search?q=' + encodeURIComponent((item.name || item.ticker) + ' IR');
-          }
-          if (googleLink) {
-          googleLink.href = 'https://www.google.com/finance?q=' + encodeURIComponent(item.ticker);
-          }
+  
+  const siteLink = document.getElementById('wl-link-site');
+  const googleLink = document.getElementById('wl-link-google');
+    
+  if (siteLink) {
+      siteLink.href = 'https://www.google.com/search?q=' + encodeURIComponent((item.name || item.ticker) + ' IR');
+  }
+  if (googleLink) {
+      googleLink.href = 'https://www.google.com/finance?q=' + encodeURIComponent(item.ticker);
+  }
   
   // 52-Week Range Bar
   const rangeContainer = document.getElementById('wl-range-container');
@@ -299,10 +344,22 @@ function openPortfolioModal(type, index) {
       
       const modal = document.getElementById('wl-modal');
       const delBtn = document.getElementById('wl-btn-del'); 
-      if(delBtn) delBtn.style.display = 'none'; // Hide delete button for portfolio items
+      if(delBtn) delBtn.style.display = 'none'; 
       
-      const setText = (id, txt) => { const el = document.getElementById(id); if(el) el.innerText = (txt && txt !== "" && txt !== "#N/A" && txt !== "0") ? txt : "-"; };
+      // LOGIC: Hide element if value is empty, "-", or "0"
+      const setText = (id, txt) => { 
+          const el = document.getElementById(id); 
+          if(!el) return;
+          if (txt && txt !== "" && txt !== "#N/A" && txt !== "0" && txt !== "-" && txt !== "--") {
+             el.innerText = txt;
+             if(el.parentElement) el.parentElement.style.display = 'flex';
+          } else {
+             el.innerText = ""; 
+             if(el.parentElement) el.parentElement.style.display = 'none'; 
+          }
+      };
       
+      // --- HEADERS & PRICES ---
       const tickerEl = document.getElementById('wl-mod-ticker'); 
       const fullName = item.name && item.name !== "#N/A" ? item.name : item.t; 
       if(tickerEl) tickerEl.innerHTML = item.t + '<br><span style="font-size:14px; font-weight:normal; opacity:0.8;">' + fullName + '</span>';
@@ -326,7 +383,109 @@ function openPortfolioModal(type, index) {
           valContainer.classList.add('sensitive'); 
           valContainer.style.color = "var(--text-main)"; 
       }
+
+      // --- NEW DESIGN SECTION: ADVANCED PORTFOLIO STATS ---
+      let statsContainer = document.getElementById('portfolio-advanced-stats');
+      if (!statsContainer) {
+          statsContainer = document.createElement('div');
+          statsContainer.id = 'portfolio-advanced-stats';
+          statsContainer.style.marginTop = "20px";
+          statsContainer.style.marginBottom = "20px";
+          if (valContainer && valContainer.parentNode) {
+              valContainer.parentNode.parentNode.insertBefore(statsContainer, valContainer.parentNode.nextSibling);
+          }
+      }
+
+      if (statsContainer) {
+          const fmtCol = (val) => {
+             if(!val) return 'color:var(--text-main);';
+             if(String(val).includes('-')) return 'color:var(--danger, #ff3b30);';
+             return 'color:var(--stocks-bg, #34c759);';
+          };
+          
+          const hasData = (v) => (v && v !== "" && v !== "0" && v !== "-" && v !== "€ 0,00");
+
+          // STYLES
+          const rowStyle = "display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.05);";
+          const labelStyle = "font-size: 13px; color: var(--gray, #888); font-weight: 500;";
+          const valStyle = "font-size: 14px; font-weight: 700; font-family: var(--font-mono, monospace); letter-spacing: -0.5px;";
+          const groupStyle = "background: var(--card-bg, #fff); border-radius: 16px; padding: 5px 15px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.03);";
+
+          // CARD 1: TECHNICALS (Qty, Avg Price, BEP)
+          let block1 = `
+            <div style="${groupStyle}">
+                <div style="${rowStyle}">
+                    <span style="${labelStyle}">Quantity</span>
+                    <span style="${valStyle} color:var(--text-main);">${item.qty || '-'}</span>
+                </div>
+                <div style="${rowStyle}">
+                    <span style="${labelStyle}">Average Price</span>
+                    <span style="${valStyle} color:var(--text-main);">${item.avgPrice || '-'}</span>
+                </div>
+                ${ hasData(item.bep) ? `
+                <div style="${rowStyle}">
+                    <span style="${labelStyle}">BreakEven Point</span>
+                    <span style="${valStyle} color:var(--text-main);">${item.bep}</span>
+                </div>` : ''}
+                ${ hasData(item.delta) ? `
+                <div style="${rowStyle} border-bottom:none;">
+                    <span style="${labelStyle}">Dist. to BreakEven</span>
+                    <span style="${valStyle} ${fmtCol(item.delta)}">${item.delta}</span>
+                </div>` : ''}
+            </div>
+          `;
+
+          // CARD 2: FINANCIAL PERFORMANCE
+          let block2Content = '';
+          
+          // 1. Unrealized (Always top)
+          block2Content += `
+            <div style="${rowStyle}">
+                <span style="${labelStyle}">Unrealized P&L</span>
+                <div style="text-align:right;">
+                    <div style="${valStyle} ${fmtCol(item.unrealizedEur)}" class="sensitive">${item.unrealizedEur || '-'}</div>
+                    <div style="font-size:11px; font-weight:600; ${fmtCol(item.unrealizedPct)} opacity:0.9;">${item.unrealizedPct || ''}</div>
+                </div>
+            </div>`;
+
+          // 2. Realized (Under Unrealized)
+          if (hasData(item.realizedEur)) {
+             block2Content += `
+            <div style="${rowStyle}">
+                <span style="${labelStyle}">Realized P&L</span>
+                <div style="text-align:right;">
+                    <div style="${valStyle} ${fmtCol(item.realizedEur)}" class="sensitive">${item.realizedEur}</div>
+                     <div style="font-size:11px; font-weight:600; ${fmtCol(item.realizedPct)} opacity:0.9;">${item.realizedPct || ''}</div>
+                </div>
+            </div>`;
+          }
+
+          // 3. Dividends (Under Realized)
+          if (hasData(item.div)) {
+             block2Content += `
+            <div style="${rowStyle}">
+                <span style="${labelStyle}">Dividends</span>
+                <span style="${valStyle} color:var(--primary, #007aff);" class="sensitive">${item.div}</span>
+            </div>`;
+          }
+
+          // 4. Balance (Bottom)
+          block2Content += `
+            <div style="${rowStyle} border-bottom:none; border-top: 1px dashed rgba(128,128,128,0.2); margin-top:5px; padding-top:12px;">
+                <span style="${labelStyle} font-weight:700; color:var(--text-main);">Total Balance</span>
+                <div style="text-align:right;">
+                    <div style="${valStyle} ${fmtCol(item.balEur)}" class="sensitive">${item.balEur || '-'}</div>
+                    <div style="font-size:11px; font-weight:600; ${fmtCol(item.balPct)} opacity:0.9;">${item.balPct || ''}</div>
+                </div>
+            </div>`;
+
+          let block2 = `<div style="${groupStyle}"><div style="padding: 8px 0 0 0; font-size:11px; font-weight:800; text-transform:uppercase; color:var(--gray); letter-spacing:1px; opacity:0.7;">Performance</div>${block2Content}</div>`;
+
+          statsContainer.innerHTML = block1 + block2;
+          statsContainer.style.display = 'block'; 
+      }
       
+      // Standard Stats
       setText('wl-mod-pe', item.pe); 
       setText('wl-mod-eps', item.eps); 
       setText('wl-mod-beta', item.beta); 
@@ -341,11 +500,11 @@ function openPortfolioModal(type, index) {
       setText('wl-mod-ctry', item.ctry); 
       setText('wl-mod-curr', item.curr);
 
-       const linkSite = document.getElementById('wl-link-site');
-          if(linkSite) linkSite.href = 'https://www.google.com/search?q=' + encodeURIComponent(fullName + ' IR');
-          
-          const linkGoogle = document.getElementById('wl-link-google');
-          if(linkGoogle) linkGoogle.href = 'https://www.google.com/finance?q=' + item.t;
+      const linkSite = document.getElementById('wl-link-site');
+      if(linkSite) linkSite.href = 'https://www.google.com/search?q=' + encodeURIComponent(fullName + ' IR');
+      
+      const linkGoogle = document.getElementById('wl-link-google');
+      if(linkGoogle) linkGoogle.href = 'https://www.google.com/finance?q=' + item.t;
       
       if(typeof renderChartWidget === 'function') renderChartWidget(item.t);
       
@@ -549,12 +708,12 @@ function startMarketPolling() {
   // 1. Safety Clear: Ensure no duplicate intervals are running
   stopMarketPolling();
   
-  console.log("🟢 Market Polling Started (30s interval)");
+  console.log("🟢 Market Polling Started (60s interval)");
   
   // 2. IMMEDIATE UPDATE (Runs as soon as tab opens)
   // This ensures data is aligned instantly without waiting for the first interval tick.
-  fetchWatchlist();
-  fetchLivePortfolio(); 
+  fetchWatchlist(false);
+  fetchLivePortfolio(false); 
   loadMarketInsights(false); // Quick load (Cached Macro)
 
   // 3. SET INTERVAL (Cyclic updates)
@@ -569,10 +728,10 @@ function startMarketPolling() {
           console.log("🔄 Polling Market Data...");
           
           // A. Refresh Watchlist
-          fetchWatchlist();
+          fetchWatchlist(true); // True = Full Refresh (No Cache)
           
           // B. Refresh Live Portfolio (Syncs your Day Change)
-          fetchLivePortfolio(); 
+          fetchLivePortfolio(true); 
           
           // C. Refresh Benchmarks (Syncs S&P500, VIX, etc.)
           loadMarketInsights(false); 
@@ -581,7 +740,7 @@ function startMarketPolling() {
           // If page is hidden but interval is running, stop it to save battery
           stopMarketPolling();
       }
-  }, 60000); // 30 Seconds Interval
+  }, 60000); // 60 Seconds Interval
 }
 
 function stopMarketPolling() {

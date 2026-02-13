@@ -459,7 +459,7 @@ function getMarketInsightsData(onlyMacro) {
     Date: ${today}.
     
     CONTEXT DATA:
-    MACRO: S&P500 ${macro.spx}% | VIX ${macro.vix} | US10Y ${macro.us10y}% | Crypto Trend ${macro.cryptoTrend}.
+    MACRO: S&P500 ${macro.spx}% | VIX ${macro.vix} | US10Y ${macro.us10y}%.
     PORTFOLIO: Beta ${portBeta} | P/E ${portPE} | Top Sectors: ${topSectors} | Top Countries: ${topCountries}.
     ASSETS: \n${assetsStr}
     
@@ -475,7 +475,7 @@ function getMarketInsightsData(onlyMacro) {
     Ruthless review of my allocation. Am I too exposed to Tech? Too defensive? What is my biggest blind spot?
     
     C. SENTIMENT SCORE (0-10):
-    Based on VIX, Crypto Trend, and Macro. (0=Extreme Fear, 10=Extreme Greed).
+    Based on VIX, and Macro. (0=Extreme Fear, 10=Extreme Greed).
     
     D. EVENTS & CATALYSTS (Next 10 Days - STRICT & COMPREHENSIVE):
     I need EVERY significant event that could move my money in the next 10-15 days.

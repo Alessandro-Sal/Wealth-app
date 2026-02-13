@@ -1368,88 +1368,98 @@
    </div>
 
    <div id="wl-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; align-items:flex-end; justify-content:center; backdrop-filter: blur(2px);">
-      <div style="background-color:var(--card-bg, #ffffff); width:100%; max-width:600px; border-radius:24px 24px 0 0; padding:25px; box-shadow:0 -10px 40px rgba(0,0,0,0.3); animation: slideUp 0.3s ease-out; max-height:85vh; overflow-y:auto; position:relative;">
-         <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:25px;">
-            <div>
-               <div id="wl-mod-ticker" style="background:#007aff; color:white; padding:4px 10px; border-radius:6px; font-size:13px; font-weight:800; display:inline-block; margin-bottom:8px; letter-spacing:0.5px;">--</div>
-               <div id="wl-mod-name" style="font-size:24px; font-weight:900; line-height:1.1; color:var(--text-main, #000);">--</div>
-            </div>
-            <div onclick="closeWlModal()" style="background:#f2f2f7; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:bold; color:#333; font-size:18px;">✕</div>
+   <div style="background-color:var(--card-bg, #ffffff); width:100%; max-width:600px; border-radius:24px 24px 0 0; padding:25px; box-shadow:0 -10px 40px rgba(0,0,0,0.3); animation: slideUp 0.3s ease-out; max-height:85vh; overflow-y:auto; position:relative;">
+      
+      <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:25px;">
+         <div>
+            <div id="wl-mod-ticker" style="background:#007aff; color:white; padding:4px 10px; border-radius:6px; font-size:13px; font-weight:800; display:inline-block; margin-bottom:8px; letter-spacing:0.5px;"></div>
+            <div id="wl-mod-name" style="font-size:24px; font-weight:900; line-height:1.1; color:var(--text-main, #000);"></div>
          </div>
-         <div style="background:var(--bg-color, #f5f5f7); padding:20px; border-radius:16px; margin-bottom:25px; display:flex; justify-content:space-between; align-items:center; border:1px solid rgba(0,0,0,0.05);">
-            <div>
-               <div style="font-size:11px; color:#888; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Current Price</div>
-               <div id="wl-mod-price-main" style="font-size:28px; font-weight:800; color:var(--text-main, #000); letter-spacing:-0.5px;">--</div>
-            </div>
-            <div style="text-align:right;">
-               <div id="wl-mod-lbl-conv"style="font-size:11px; color:#888; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Converted</div>
-               <div id="wl-mod-price-conv" style="font-size:18px; font-weight:600; color:#555;">--</div>
-            </div>
-         </div>
-         <div id="wl-chart-wrapper" style="height:250px; margin-bottom:20px; border-radius:16px; overflow:hidden; border:1px solid rgba(0,0,0,0.05);">
-         </div>
-         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-bottom:15px;">
-            <div class="wl-stat-box"><span>P/E</span><b id="wl-mod-pe">--</b></div>
-            <div class="wl-stat-box"><span>EPS</span><b id="wl-mod-eps">--</b></div>
-            <div class="wl-stat-box"><span>Beta</span><b id="wl-mod-beta">--</b></div>
-            <div class="wl-stat-box"><span>Day High</span><b id="wl-mod-dh">--</b></div>
-            <div class="wl-stat-box"><span>Day Low</span><b id="wl-mod-dl">--</b></div>
-            <div class="wl-stat-box"><span>Mkt Cap</span><b id="wl-mod-mkt" style="font-size:11px;">--</b></div>
-            <div class="wl-stat-box"><span>52w High</span><b id="wl-mod-52h">--</b></div>
-            <div class="wl-stat-box"><span>52w Low</span><b id="wl-mod-52l">--</b></div>
-            <div class="wl-stat-box"><span>Volume</span><b id="wl-mod-vol" style="font-size:11px;">--</b></div>
-         </div>
-         <div style="background:var(--white); padding:15px; border-radius:12px; margin-bottom:10px; border:1px solid rgba(0,0,0,0.05);">
-            <div style="font-size:11px; font-weight:700; color:#888; text-transform:uppercase; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:5px;">Company Profile</div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-               <span style="font-size:12px; color:#555;">Sector:</span>
-               <span id="wl-mod-sector" style="font-weight:700; font-size:12px;">--</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-               <span style="font-size:12px; color:#555;">Industry:</span>
-               <span id="wl-mod-ind" style="font-weight:700; font-size:12px; text-align:right; max-width:60%;">--</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-               <span style="font-size:12px; color:#555;">Country:</span>
-               <span id="wl-mod-ctry" style="font-weight:700; font-size:12px;">--</span>
-            </div>
-            <div style="display:flex; justify-content:space-between;">
-               <span style="font-size:12px; color:#555;">Currency:</span>
-               <span id="wl-mod-curr" style="font-weight:700; font-size:12px;">--</span>
-            </div>
-         </div>
-         <div id="wl-range-container" style="margin-top:15px; margin-bottom:20px; display:none;">
-            <div style="display:flex; justify-content:space-between; font-size:11px; color:#888; margin-bottom:5px;">
-               <span>52w Low</span>
-               <span style="font-weight:600; color:var(--text-main);">Annual Range</span>
-               <span>52w High</span>
-            </div>
-            <div style="position:relative; height:6px; background:#e5e5ea; border-radius:10px; width:100%;">
-               <div id="wl-range-dot" style="
-                  position:absolute; top:-4px; left:0%; width:14px; height:14px; background:#007AFF; border:2px solid #fff; border-radius:50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transform: translateX(-50%); transition: left 0.5s ease-out;
-                  "></div>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:10px; color:#555; margin-top:4px;">
-               <span id="wl-range-min">--</span>
-               <span id="wl-range-max">--</span>
-            </div>
-         </div>
-         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:30px;">
-            <a id="wl-link-site" href="#" target="_blank" style="text-decoration:none; background:#007aff; color:white; padding:14px; border-radius:12px; text-align:center; font-weight:700; font-size:14px; box-shadow:0 4px 10px rgba(0,122,255,0.2);">
-            🌐 Official Website
-            </a>
-            <a id="wl-link-google" href="#" target="_blank" style="text-decoration:none; background:#2c2c2e; color:white; padding:14px; border-radius:12px; text-align:center; font-weight:700; font-size:14px; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
-            📈 Google Finance
-            </a>
-         </div>
-         <button id="wl-btn-del" class="fancy-del-btn">
-         <span style="font-size:18px;">🗑️</span>
-         <span>Delete</span>
-         </button>
-         <div style="height:40px;"></div>
+         <div onclick="closeWlModal()" style="background:#f2f2f7; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:bold; color:#333; font-size:18px;">✕</div>
       </div>
-   </div>
 
+      <div style="background:var(--bg-color, #f5f5f7); padding:20px; border-radius:16px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; border:1px solid rgba(0,0,0,0.05);">
+         <div>
+            <div style="font-size:11px; color:#888; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Current Price</div>
+            <div id="wl-mod-price-main" style="font-size:28px; font-weight:800; color:var(--text-main, #000); letter-spacing:-0.5px;"></div>
+         </div>
+         <div style="text-align:right;">
+            <div id="wl-mod-lbl-conv" style="font-size:11px; color:#888; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Converted</div>
+            <div id="wl-mod-price-conv" style="font-size:18px; font-weight:600; color:#555;"></div>
+         </div>
+      </div>
+
+      <div id="portfolio-advanced-stats" style="margin-bottom: 20px; display:none;"></div>
+
+      <div id="wl-chart-wrapper" style="height:250px; margin-bottom:20px; border-radius:16px; overflow:hidden; border:1px solid rgba(0,0,0,0.05);">
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-bottom:15px;">
+         <div class="wl-stat-box"><span>P/E</span><b id="wl-mod-pe"></b></div>
+         <div class="wl-stat-box"><span>EPS</span><b id="wl-mod-eps"></b></div>
+         <div class="wl-stat-box"><span>Beta</span><b id="wl-mod-beta"></b></div>
+         <div class="wl-stat-box"><span>Day High</span><b id="wl-mod-dh"></b></div>
+         <div class="wl-stat-box"><span>Day Low</span><b id="wl-mod-dl"></b></div>
+         <div class="wl-stat-box"><span>Mkt Cap</span><b id="wl-mod-mkt" style="font-size:11px;"></b></div>
+         <div class="wl-stat-box"><span>52w High</span><b id="wl-mod-52h"></b></div>
+         <div class="wl-stat-box"><span>52w Low</span><b id="wl-mod-52l"></b></div>
+         <div class="wl-stat-box"><span>Volume</span><b id="wl-mod-vol" style="font-size:11px;"></b></div>
+      </div>
+
+      <div style="background:var(--white); padding:15px; border-radius:12px; margin-bottom:10px; border:1px solid rgba(0,0,0,0.05);">
+         <div style="font-size:11px; font-weight:700; color:#888; text-transform:uppercase; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:5px;">Company Profile</div>
+         <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <span style="font-size:12px; color:#555;">Sector:</span>
+            <span id="wl-mod-sector" style="font-weight:700; font-size:12px;"></span>
+         </div>
+         <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <span style="font-size:12px; color:#555;">Industry:</span>
+            <span id="wl-mod-ind" style="font-weight:700; font-size:12px; text-align:right; max-width:60%;"></span>
+         </div>
+         <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <span style="font-size:12px; color:#555;">Country:</span>
+            <span id="wl-mod-ctry" style="font-weight:700; font-size:12px;"></span>
+         </div>
+         <div style="display:flex; justify-content:space-between;">
+            <span style="font-size:12px; color:#555;">Currency:</span>
+            <span id="wl-mod-curr" style="font-weight:700; font-size:12px;"></span>
+         </div>
+      </div>
+
+      <div id="wl-range-container" style="margin-top:15px; margin-bottom:20px; display:none;">
+         <div style="display:flex; justify-content:space-between; font-size:11px; color:#888; margin-bottom:5px;">
+            <span>52w Low</span>
+            <span style="font-weight:600; color:var(--text-main);">Annual Range</span>
+            <span>52w High</span>
+         </div>
+         <div style="position:relative; height:6px; background:#e5e5ea; border-radius:10px; width:100%;">
+            <div id="wl-range-dot" style="
+               position:absolute; top:-4px; left:0%; width:14px; height:14px; background:#007AFF; border:2px solid #fff; border-radius:50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transform: translateX(-50%); transition: left 0.5s ease-out;
+               "></div>
+         </div>
+         <div style="display:flex; justify-content:space-between; font-size:10px; color:#555; margin-top:4px;">
+            <span id="wl-range-min"></span>
+            <span id="wl-range-max"></span>
+         </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:30px;">
+         <a id="wl-link-site" href="#" target="_blank" style="text-decoration:none; background:#007aff; color:white; padding:14px; border-radius:12px; text-align:center; font-weight:700; font-size:14px; box-shadow:0 4px 10px rgba(0,122,255,0.2);">
+         🌐 Official Website
+         </a>
+         <a id="wl-link-google" href="#" target="_blank" style="text-decoration:none; background:#2c2c2e; color:white; padding:14px; border-radius:12px; text-align:center; font-weight:700; font-size:14px; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
+         📈 Google Finance
+         </a>
+      </div>
+
+      <button id="wl-btn-del" class="fancy-del-btn">
+      <span style="font-size:18px;">🗑️</span>
+      <span>Delete</span>
+      </button>
+      
+      <div style="height:40px;"></div>
+   </div>
+</div>
    <div id="gemini-pin-overlay">
       <div class="gemini-pin-title">Enter Gemini PIN</div>
       <div class="gemini-dots-container" id="geminiDotsBox">
