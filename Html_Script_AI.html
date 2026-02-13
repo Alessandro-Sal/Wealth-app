@@ -531,7 +531,7 @@ function forceReloadRisk() {
       console.error(err); 
       document.getElementById('risk-comment').innerText = "Update Error."; 
       if(btn) { btn.innerText = "⚠️"; btn.style.pointerEvents = "auto"; } 
-  }).getPortfolioRiskAnalysis(true); // <--- IMPORTANTE: true = FORCE REFRESH
+  }).getPortfolioRiskAnalysis(true); 
 }
 
 // --- Risk Report ---

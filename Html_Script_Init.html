@@ -87,7 +87,8 @@ async function initApp() {
       });
           
       // Start Live Market Updates
-      fetchWatchlist(); 
+      fetchWatchlist();
+      fetchAnalyticsData(); 
       setTimeout(() => startMarketPolling(), 5000);
 
   } catch (err) {
