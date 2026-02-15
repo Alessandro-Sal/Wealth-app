@@ -128,4 +128,76 @@
    .gemini-btn { flex: 1; padding: 12px 0; border: none; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; }
    .gemini-btn.cancel { background: #f2f2f7; color: #333; }
    .gemini-btn.lock { background: #ff3b30; color: white; box-shadow: 0 4px 10px rgba(255, 59, 48, 0.2); }
+
+   body.dark-mode .sheet-modal {
+       background: #1c1c1e; 
+       border-top: 1px solid #333;
+       box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.6);
+   }
+   
+   body.dark-mode .sheet-close {
+       background: #2c2c2e;
+       color: #0a84ff;
+   }
+
+   body.dark-mode .search-res-item {
+       border-bottom: 1px solid #2c2c2e;
+       color: #fff;
+   }
+   body.dark-mode .sr-note { color: #8e8e93; }
+
+   body.dark-mode .calc-display {
+       background: #000;
+       color: #fff;
+       border: 1px solid #333;
+   }
+   
+   body.dark-mode .calc-btn {
+       background: #2c2c2e; 
+       color: #fff;
+   }
+   
+   body.dark-mode .calc-btn:active {
+       background: #48484a;
+   }
+   
+   body.dark-mode .calc-btn.clear {
+       background: #3a3a3c;
+       color: #ff453a;
+   }
+
+   body.dark-mode .ai-chip {
+       background: linear-gradient(145deg, #2c2c2e, #1c1c1e);
+       color: #e5e5ea;
+       box-shadow: 3px 3px 8px rgba(0,0,0,0.4), -1px -1px 5px rgba(255,255,255,0.05);
+   }
+   
+   body.dark-mode .ai-chip:hover {
+       color: #fff;
+       background: linear-gradient(145deg, #3a3a3c, #2c2c2e);
+   }
+
+   body.dark-mode .ai-chip.magic { background: rgba(79, 70, 229, 0.2); color: #818cf8; border: 1px solid rgba(79, 70, 229, 0.3); box-shadow: none; }
+   body.dark-mode .ai-chip.crypto { background: rgba(194, 65, 12, 0.2); color: #fb923c; border: 1px solid rgba(194, 65, 12, 0.3); box-shadow: none; }
+   body.dark-mode .ai-chip.budget { background: rgba(220, 38, 38, 0.2); color: #f87171; border: 1px solid rgba(220, 38, 38, 0.3); box-shadow: none; }
+   
+   body.dark-mode #gemini-pin-overlay {
+       background: rgba(0, 0, 0, 0.85); 
+   }
+   body.dark-mode .gemini-pin-title { color: #fff; }
+   
+   body.dark-mode .gemini-key {
+       background: #2c2c2e;
+       color: #fff;
+       border: 1px solid #3a3a3c;
+   }
+   body.dark-mode .gemini-dot { border-color: #555; }
+   
+   body.dark-mode .gemini-confirm-card {
+       background: #1c1c1e;
+       border: 1px solid #333;
+   }
+   body.dark-mode .gemini-confirm-title { color: #fff; }
+   body.dark-mode .gemini-confirm-desc { color: #aaa; }
+   body.dark-mode .gemini-btn.cancel { background: #2c2c2e; color: #fff; }
 </style>
