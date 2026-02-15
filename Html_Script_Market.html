@@ -403,7 +403,7 @@ function openPortfolioModal(type, index) {
       if(valContainer) { 
           let cleanVal = String(item.val).replace(/[^0-9.,-]/g, '').trim(); 
           valContainer.innerText = "€ " + cleanVal; 
-          valContainer.classList.add('sensitive'); 
+          valContainer.classList.add('sensitive'); // Main value is sensitive
           valContainer.style.color = "var(--text-main)"; 
       }
 
@@ -422,7 +422,7 @@ function openPortfolioModal(type, index) {
       }
 
       if (statsContainer) {
-          // Helper: Color logic (Green for positive, Red for negative)
+          // Helper: Color logic
           const fmtCol = (val) => {
              if(!val) return 'color:var(--text-main);';
              if(String(val).includes('-')) return 'color:var(--danger, #ff3b30);';
@@ -432,27 +432,22 @@ function openPortfolioModal(type, index) {
           const hasData = (v) => (v && v !== "" && v !== "0" && v !== "-" && v !== "€ 0,00");
 
           // --- YIELD ON COST CALCULATION ---
-          // Calculates the return on original investment based on dividends
           let divYieldOnCost = null;
           if (hasData(item.div) && hasData(item.avgPrice) && hasData(item.qty)) {
-              // Smart parser for both comma and dot decimals
               let smartParse = (v) => {
                   let s = String(v).replace(/[^0-9.,-]/g, '');
                   if (s.indexOf(',') > -1 && s.indexOf('.') > -1) s = s.replace(/\./g, '').replace(',', '.');
                   else if (s.indexOf(',') > -1) s = s.replace(',', '.');
                   return parseFloat(s) || 0;
               };
-
               let cDiv = smartParse(item.div);
               let cAvg = smartParse(item.avgPrice);
               let cQty = smartParse(item.qty);
               let totalInvested = cAvg * cQty;
-
               if (totalInvested > 0 && cDiv > 0) {
                   divYieldOnCost = ((cDiv / totalInvested) * 100).toFixed(2) + "%";
               }
           }
-          // ---------------------------------
 
           // IN-LINE CSS STYLES
           const rowStyle = "display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.05);";
@@ -460,34 +455,33 @@ function openPortfolioModal(type, index) {
           const valStyle = "font-size: 14px; font-weight: 700; font-family: var(--font-mono, monospace); letter-spacing: -0.5px;";
           const groupStyle = "background: var(--card-bg, #fff); border-radius: 16px; padding: 5px 15px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.03);";
 
-          // CARD 1: TECHNICAL STATS (Quantity, Avg Price, BreakEven)
+          // CARD 1: TECHNICAL STATS (AGGIUNTO "sensitive" a Quantity, Avg, BEP, Delta)
           let block1 = `
             <div style="${groupStyle}">
                 <div style="${rowStyle}">
                     <span style="${labelStyle}">Quantity</span>
-                    <span style="${valStyle} color:var(--text-main);">${item.qty || '-'}</span>
+                    <span style="${valStyle} color:var(--text-main);" class="sensitive">${item.qty || '-'}</span>
                 </div>
                 <div style="${rowStyle}">
                     <span style="${labelStyle}">Average Price</span>
-                    <span style="${valStyle} color:var(--text-main);">${item.avgPrice || '-'}</span>
+                    <span style="${valStyle} color:var(--text-main);" class="sensitive">${item.avgPrice || '-'}</span>
                 </div>
                 ${ hasData(item.bep) ? `
                 <div style="${rowStyle}">
                     <span style="${labelStyle}">BreakEven Point</span>
-                    <span style="${valStyle} color:var(--text-main);">${item.bep}</span>
+                    <span style="${valStyle} color:var(--text-main);" class="sensitive">${item.bep}</span>
                 </div>` : ''}
                 ${ hasData(item.delta) ? `
                 <div style="${rowStyle} border-bottom:none;">
                     <span style="${labelStyle}">Dist. to BreakEven</span>
-                    <span style="${valStyle} ${fmtCol(item.delta)}">${item.delta}</span>
+                    <span style="${valStyle} ${fmtCol(item.delta)}" class="sensitive">${item.delta}</span>
                 </div>` : ''}
             </div>
           `;
 
-          // CARD 2: FINANCIAL PERFORMANCE
+          // CARD 2: FINANCIAL PERFORMANCE (Già sensitive)
           let block2Content = '';
           
-          // A. Unrealized P&L
           block2Content += `
             <div style="${rowStyle}">
                 <span style="${labelStyle}">Unrealized P&L</span>
@@ -497,7 +491,6 @@ function openPortfolioModal(type, index) {
                 </div>
             </div>`;
 
-          // B. Realized P&L (if available)
           if (hasData(item.realizedEur)) {
              block2Content += `
             <div style="${rowStyle}">
@@ -509,7 +502,6 @@ function openPortfolioModal(type, index) {
             </div>`;
           }
 
-          // C. Dividends + Yield on Cost
           if (hasData(item.div)) {
              block2Content += `
             <div style="${rowStyle}">
@@ -521,7 +513,6 @@ function openPortfolioModal(type, index) {
             </div>`;
           }
 
-          // D. Total Balance (Bottom Summary)
           block2Content += `
             <div style="${rowStyle} border-bottom:none; border-top: 1px dashed rgba(128,128,128,0.2); margin-top:5px; padding-top:12px;">
                 <span style="${labelStyle} font-weight:700; color:var(--text-main);">Total Balance</span>
@@ -533,7 +524,30 @@ function openPortfolioModal(type, index) {
 
           let block2 = `<div style="${groupStyle}"><div style="padding: 8px 0 0 0; font-size:11px; font-weight:800; text-transform:uppercase; color:var(--gray); letter-spacing:1px; opacity:0.7;">Performance</div>${block2Content}</div>`;
 
-          statsContainer.innerHTML = block1 + block2;
+          // CARD 3: TRADING STATS (Tutto sensitive)
+          let block3 = '';
+          if (hasData(item.firstBuyDate) || hasData(item.daysHeld) || hasData(item.tradeCount)) {
+            let b3Content = '';
+            
+            if (hasData(item.firstBuyDate)) b3Content += `<div style="${rowStyle}"><span style="${labelStyle}">First Buy</span><span style="${valStyle} color:var(--text-main);" class="sensitive">${item.firstBuyDate}</span></div>`;
+            if (hasData(item.daysHeld)) b3Content += `<div style="${rowStyle}"><span style="${labelStyle}">Days Held</span><span style="${valStyle} color:var(--text-main);" class="sensitive">${item.daysHeld}</span></div>`;
+            if (hasData(item.lastActivity)) b3Content += `<div style="${rowStyle}"><span style="${labelStyle}">Last Activity</span><span style="${valStyle} color:var(--text-main);" class="sensitive">${item.lastActivity}</span></div>`;
+            if (hasData(item.tradeCount)) b3Content += `<div style="${rowStyle}"><span style="${labelStyle}">Total Trades</span><span style="${valStyle} color:var(--text-main);" class="sensitive">${item.tradeCount}</span></div>`;
+            
+            // Trading Prices Subsection
+            if (hasData(item.minBuy) || hasData(item.maxSell)) {
+               b3Content += `<div style="background:#f9f9f9; padding:8px; border-radius:8px; margin-top:8px;">`;
+               if (hasData(item.minBuy)) b3Content += `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;"><span style="color:#666;">Min Buy:</span> <b class="sensitive">${item.minBuy}</b></div>`;
+               if (hasData(item.maxBuy)) b3Content += `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;"><span style="color:#666;">Max Buy:</span> <b class="sensitive">${item.maxBuy}</b></div>`;
+               if (hasData(item.avgSell)) b3Content += `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:#ff9500;"><span style="color:#666;">Avg Sell:</span> <b class="sensitive">${item.avgSell}</b></div>`;
+               if (hasData(item.maxSell)) b3Content += `<div style="display:flex; justify-content:space-between; font-size:11px; color:#ff9500;"><span style="color:#666;">Max Sell:</span> <b class="sensitive">${item.maxSell}</b></div>`;
+               b3Content += `</div>`;
+            }
+            
+            block3 = `<div style="${groupStyle}"><div style="padding: 8px 0 0 0; font-size:11px; font-weight:800; text-transform:uppercase; color:var(--gray); letter-spacing:1px; opacity:0.7;">Trading Stats</div>${b3Content}</div>`;
+          }
+
+          statsContainer.innerHTML = block1 + block2 + block3;
           statsContainer.style.display = 'block'; 
       }
       
@@ -552,17 +566,13 @@ function openPortfolioModal(type, index) {
       setText('wl-mod-ctry', item.ctry); 
       setText('wl-mod-curr', item.curr);
 
-      // External Links
+      // External Links & History Button
       const linkSite = document.getElementById('wl-link-site');
       if(linkSite) linkSite.href = 'https://www.google.com/search?q=' + encodeURIComponent(fullName + ' IR');
-      
       const linkGoogle = document.getElementById('wl-link-google');
       if(linkGoogle) linkGoogle.href = 'https://www.google.com/finance?q=' + item.t;
       
-      // --- HISTORY BUTTON INJECTION ---
-      // Finds the container of external links to inject the history button below them
       const linkContainer = document.getElementById('wl-link-site').parentElement;
-      // Remove existing button if re-opening modal
       const existingHistBtn = document.getElementById('wl-btn-history');
       if(existingHistBtn) existingHistBtn.remove();
 
@@ -581,7 +591,7 @@ function openPortfolioModal(type, index) {
       // Render Chart
       if(typeof renderChartWidget === 'function') renderChartWidget(item.t);
       
-      // --- 52-WEEK RANGE BAR LOGIC ---
+      // 52-Week Range Bar
       const rangeContainer = document.getElementById('wl-range-container');
       const parseNum = (v) => { if(!v || v === "-" || v === "0" || v === "" || v === "N/A") return null; let s = String(v).replace(/[^\d.,-]/g, ''); if (s.indexOf(',') > -1) { s = s.replace(/\./g, ''); s = s.replace(',', '.'); } let n = parseFloat(s); return isNaN(n) ? null : n; };
       
@@ -589,7 +599,6 @@ function openPortfolioModal(type, index) {
       let low52 = parseNum(item.yearL); 
       let high52 = parseNum(item.yearH);
       
-      // Only show range bar if all data points are valid
       if (currentP !== null && low52 !== null && high52 !== null && high52 > low52) {
           let pct = ((currentP - low52) / (high52 - low52)) * 100; 
           pct = Math.max(0, Math.min(100, pct));
@@ -603,10 +612,8 @@ function openPortfolioModal(type, index) {
           const rangeMax = document.getElementById('wl-range-max');
           if(rangeMin) rangeMin.innerText = item.yearL; 
           if(rangeMax) rangeMax.innerText = item.yearH; 
-          
           if(rangeContainer) rangeContainer.style.display = 'block';
       } else { 
-          // Hide container if data is missing (e.g. for Crypto)
           if(rangeContainer) rangeContainer.style.display = 'none'; 
       }
       

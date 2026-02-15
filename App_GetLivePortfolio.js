@@ -1,6 +1,6 @@
 /**
  * Retrieves live portfolio data including detailed metrics for Stocks, ETFs, and Crypto.
- * Reads extended data points from the "Stocks" sheet (Cols A-AJ).
+ * Reads extended data points from the "Stocks" sheet (Cols A-AT).
  * Reads extended data points from the "Crypto" sheet (Cols A-S).
  * Fetches daily global performance from the Dashboard.
  * @return {Object} Structured data object: { stocks, etfs, crypto, dayChange }.
@@ -14,8 +14,9 @@ function getLivePortfolio() {
   let etfs = [];
   
   if (sheet && sheet.getLastRow() >= 3) {
-    // Read raw data starting from Row 3, Column 1 (A) for 40 columns
-    const data = sheet.getRange(3, 1, sheet.getLastRow() - 2, 40).getDisplayValues();
+    // MODIFICA: Leggiamo ora 46 colonne (da A ad AT) invece di 40
+    // A=1 ... AJ=36 ... AT=46
+    const data = sheet.getRange(3, 1, sheet.getLastRow() - 2, 46).getDisplayValues();
     
     const allItems = data.map(r => {
       // Skip empty rows or assets with 0 value
@@ -23,8 +24,8 @@ function getLivePortfolio() {
       
       return {
         t: r[0],          // A: Ticker
-        qty: r[1],        // B: Quantity (NEW)
-        avgPrice: r[2],   // C: Average Price (NEW - corrected from D)
+        qty: r[1],        // B: Quantity
+        avgPrice: r[2],   // C: Average Price
         price: r[3],      // D: Current Price
         pct: r[5],        // F: Change %
         dCh: r[7],        // H: Day Change
@@ -58,7 +59,19 @@ function getLivePortfolio() {
         dayL: r[32],      // AG: Day Low
         yearH: r[33],     // AH: 52w High
         yearL: r[34],     // AI: 52w Low
-        beta: r[35]       // AJ: Beta
+        beta: r[35],      // AJ: Beta
+        
+        // --- NEW TRADING DATA (Columns AL-AT) ---
+        // AK (index 36) skipped/unused based on your request
+        firstBuyDate: r[37], // AL: First Buy Date
+        firstPrice: r[38],   // AM: First Price
+        minBuy: r[39],       // AN: Min Buy Price
+        maxBuy: r[40],       // AO: Max Buy Price
+        maxSell: r[41],      // AP: Max Sell Price
+        avgSell: r[42],      // AQ: Avg Sell Price
+        daysHeld: r[43],     // AR: Days Held
+        lastActivity: r[44], // AS: Last Activity
+        tradeCount: r[45]    // AT: Trade Count
       };
     }).filter(i => i !== null);
 
@@ -78,8 +91,8 @@ function getLivePortfolio() {
             
             return { 
                 t: r[0],              // A: Ticker
-                qty: r[1],            // B: Quantity (NEW)
-                avgPrice: r[2],       // C: Average Price (NEW)
+                qty: r[1],            // B: Quantity
+                avgPrice: r[2],       // C: Average Price
                 price: r[3],          // D: Current Price
                 pct: null,            // No Day Change % for Crypto
                 val: r[6],            // G: Current Value
@@ -87,8 +100,6 @@ function getLivePortfolio() {
                 // --- CRYPTO SPECIFIC MAPPING ---
                 unrealizedPct: r[7],  // H: Unrealized Gain %
                 unrealizedEur: r[8],  // I: Unrealized Gain €
-                
-                // J, K, L, M skipped (if needed check sheet)
                 
                 realizedPct: r[13],   // N: Realized Gain %
                 realizedEur: r[14],   // O: Realized Gain €
