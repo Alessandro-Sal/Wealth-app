@@ -4,23 +4,23 @@
  * 'bankCol' refers to the specific column index where the amount should be written.
  * Note: Categories ('cat') are kept in Italian to match Spreadsheet validation rules.
  */
-function _getSubsData() {
+/*function _getSubsData() {
   return [
     { 
       id: 0, 
       cat: 'Alloggio', 
-      note: 'Affitto (Intesa + Wallet)', 
+      note: 'Affitto (Wallet)', 
       isSplit: true, 
-      splits: [{ col: 5, amt: 270.00 }, { col: 7, amt: 180.00 }]
+      splits: [{ col: 5, amt: 800 }]
     }, 
     { id: 1, cat: 'Free-Time', note: 'Prime Video', amt: 4.99, bankCol: 9 }, 
-    { id: 2, cat: 'Necessità', note: 'iCloud', amt: 2.99, bankCol: 9 }, 
+    { id: 2, cat: 'Necessità', note: 'iCloud', amt: 50.22, bankCol: 9 }, 
     { id: 3, cat: 'Necessità', note: 'Phone Top-up', amt: 9.99, bankCol: 6 },  
     { id: 4, cat: 'Free-Time', note: 'Spotify', amt: 6.49, bankCol: 6 },
-    { id: 5, cat: 'Altro', note: 'Corso Data Analytics', amt: 600.00, bankCol: 5 },
-    { id: 6, cat: 'Altro', note: 'Corso Inglese', amt: 165.00, bankCol: 5 }
+    { id: 5, cat: 'Altro', note: 'Corso', amt: 300, bankCol: 5 },
+    { id: 6, cat: 'Altro', note: 'Corso Inglese', amt: 300, bankCol: 5 }
   ];
-}
+}*/
 
 /**
  * Public getter for the subscription list.
