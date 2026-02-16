@@ -1,0 +1,148 @@
+/**
+ * App_BudgetGuardian.js
+ * Monitors CURRENT MONTH's expenses.
+ * Trigger: Runs weekly (e.g., Friday).
+ * Logic: Alerts if Burn Rate > 70% or if Net Savings is negative for the current month.
+ */
+
+function checkBudgetStatus() {
+  // 1. Get detailed analysis for the CURRENT MONTH
+  const monthlyData = getCurrentMonthAnalysis();
+
+  // Safety check: if no income yet (start of month), avoid division by zero
+  if (monthlyData.income === 0) return; 
+
+  const burnRate = (monthlyData.expense / monthlyData.income) * 100;
+  const netSavings = monthlyData.income - monthlyData.expense;
+
+  // TRIGGER CONDITIONS:
+  // A. Burn Rate > 70% (Spending too fast)
+  // B. Net Savings < 0 (In debt for the month)
+  if (burnRate > 70 || netSavings < 0) {
+    
+    console.log(`Budget Alert Triggered. Burn Rate: ${burnRate.toFixed(1)}%`);
+    
+    // Generate AI Scolding
+    const aiWarning = generateBudgetAI(monthlyData, burnRate);
+    
+    MailApp.sendEmail({
+      to: "alessandro.saladino01@gmail.com", // ⚠️ Your Email
+      subject: `⚠️ ALERT BUDGET: Burn Rate al ${burnRate.toFixed(1)}%`,
+      htmlBody: `<div style="font-family: Arial, sans-serif; padding: 20px; background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; color: #856404;">
+        <h2 style="margin-top: 0;">👮‍♂️ Budget Guardian Alert</h2>
+        <p><strong>Mese Corrente:</strong> Entrate €${monthlyData.income.toFixed(0)} | Uscite €${monthlyData.expense.toFixed(0)}</p>
+        <hr style="border-top: 1px solid #ffeeba;">
+        ${aiWarning}
+      </div>`
+    });
+  } else {
+    console.log(`Budget Safe. Burn Rate: ${burnRate.toFixed(1)}%`);
+  }
+}
+
+/**
+ * Helper: Analyzes the specific sheet for the current month.
+ * Returns totals AND top spending categories.
+ */
+function getCurrentMonthAnalysis() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-11
+  
+  const sheetName = `Expenses Tracker ${currentYear}`;
+  const sheet = ss.getSheetByName(sheetName);
+  
+  // Default structure
+  let result = { income: 0, expense: 0, topCategories: [] };
+  
+  if (!sheet) return result;
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 20) return result; // Assuming data starts at row 20
+
+  // Read Columns A (Date) to J (Banks) - adjust range as per your sheet
+  const data = sheet.getRange(20, 1, lastRow - 19, 10).getValues();
+  
+  let expenseMap = {};
+
+  data.forEach(row => {
+    // Row[0] = Date, Row[1] = Type, Row[2] = Category
+    if (row[0] && row[1]) {
+      let d = new Date(row[0]);
+      
+      // FILTER: Only process rows belonging to the CURRENT MONTH & YEAR
+      if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+        
+        // Sum amount from Bank Columns (Index 4 to 9)
+        let amount = 0;
+        for (let i = 4; i <= 9; i++) {
+          let val = parseFloat(row[i]);
+          if (!isNaN(val)) amount += val;
+        }
+        
+        let type = String(row[1]);
+        let category = String(row[2]).trim();
+
+        if (type === 'Income') {
+          result.income += amount;
+        } else if (type === 'Expense') {
+          // Expenses are usually negative in DB, we treat them as absolute for burn rate
+          let absAmount = Math.abs(amount);
+          result.expense += absAmount;
+          
+          // Map category for AI analysis
+          if (category) {
+            expenseMap[category] = (expenseMap[category] || 0) + absAmount;
+          }
+        }
+      }
+    }
+  });
+
+  // Sort Categories by spend (Desc) and take Top 3
+  result.topCategories = Object.entries(expenseMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([cat, val]) => `${cat} (€${val.toFixed(0)})`);
+
+  return result;
+}
+
+/**
+ * Generates the warning message using AI with Fallback.
+ */
+function generateBudgetAI(data, rate) {
+  const API_KEY = GEMINI_API_KEY;
+  const MODELS = ["gemini-2.0-flash", "gemini-flash-latest", "gemini-2.0-flash-lite"];
+
+  const prompt = `
+    ROLE: You are a strict personal accountant.
+    CONTEXT: Current Month Analysis.
+    DATA: 
+    - Income: €${data.income.toFixed(0)}
+    - Expenses: €${data.expense.toFixed(0)}
+    - Burn Rate: ${rate.toFixed(1)}% (Threshold is 70%).
+    - TOP SPENDING CATEGORIES THIS MONTH: ${JSON.stringify(data.topCategories)}
+    
+    TASK:
+    Scold the user (in Italian, friendly but firm).
+    Explicitly mention the category where they are wasting the most money this month.
+    Give one specific, actionable tip to save money for the remaining days of the month.
+    Keep it short (max 3-4 sentences).
+  `;
+
+  const payload = { contents: [{ parts: [{ text: prompt }] }] };
+  const options = { method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true };
+
+  for (let i = 0; i < MODELS.length; i++) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[i]}:generateContent?key=${API_KEY}`;
+      const res = UrlFetchApp.fetch(url, options);
+      if (res.getResponseCode() === 200) {
+        return JSON.parse(res.getContentText()).candidates[0].content.parts[0].text;
+      }
+    } catch(e) { console.warn(`Budget AI Model ${MODELS[i]} failed.`); }
+  }
+  return "<p>AI unavailable. Stop spending money!</p>";
+}
