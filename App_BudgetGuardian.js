@@ -113,36 +113,61 @@ function getCurrentMonthAnalysis() {
  * Generates the warning message using AI with Fallback.
  */
 function generateBudgetAI(data, rate) {
-  const API_KEY = GEMINI_API_KEY;
+  const API_KEY = GEMINI_API_KEY; // Ensure this global variable is accessible
   const MODELS = ["gemini-2.0-flash", "gemini-flash-latest", "gemini-2.0-flash-lite"];
+
+  // 1. Calculate End-of-Month Projection
+  const today = new Date();
+  const dayOfMonth = today.getDate();
+  // Get total days in current month (day 0 of next month is the last day of current)
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  
+  // Linear projection: (Current Expense / Days Passed) * Total Days
+  // We use 'data.expense' because 'data' is the argument passed to this function
+  const projectedExpense = (data.expense / dayOfMonth) * daysInMonth;
 
   const prompt = `
     ROLE: You are a strict personal accountant.
     CONTEXT: Current Month Analysis.
+    
+    TIME CONTEXT: Day ${dayOfMonth} of ${daysInMonth}.
+    
     DATA: 
     - Income: €${data.income.toFixed(0)}
-    - Expenses: €${data.expense.toFixed(0)}
+    - Expenses (Current): €${data.expense.toFixed(0)}
+    - PROJECTED EXPENSE (End of Month): €${projectedExpense.toFixed(0)}
     - Burn Rate: ${rate.toFixed(1)}% (Threshold is 70%).
     - TOP SPENDING CATEGORIES THIS MONTH: ${JSON.stringify(data.topCategories)}
     
     TASK:
     Scold the user (in Italian, friendly but firm).
-    Explicitly mention the category where they are wasting the most money this month.
-    Give one specific, actionable tip to save money for the remaining days of the month.
+    1. Highlight the gap between Current Expense and Projected Expense if relevant.
+    2. Explicitly mention the category where they are wasting the most money.
+    3. Give one specific, actionable tip to save money for the remaining ${daysInMonth - dayOfMonth} days.
     Keep it short (max 3-4 sentences).
   `;
 
   const payload = { contents: [{ parts: [{ text: prompt }] }] };
-  const options = { method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true };
+  const options = { 
+    method: "post", 
+    contentType: "application/json", 
+    payload: JSON.stringify(payload), 
+    muteHttpExceptions: true 
+  };
 
+  // --- Model Retry Loop ---
   for (let i = 0; i < MODELS.length; i++) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[i]}:generateContent?key=${API_KEY}`;
       const res = UrlFetchApp.fetch(url, options);
+      
       if (res.getResponseCode() === 200) {
         return JSON.parse(res.getContentText()).candidates[0].content.parts[0].text;
       }
-    } catch(e) { console.warn(`Budget AI Model ${MODELS[i]} failed.`); }
+    } catch(e) { 
+      console.warn(`Budget AI Model ${MODELS[i]} failed.`); 
+    }
   }
+  
   return "<p>AI unavailable. Stop spending money!</p>";
 }
