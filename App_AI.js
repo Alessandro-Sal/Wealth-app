@@ -537,6 +537,75 @@ function getMarketInsightsData(onlyMacro) {
 }
 
 /**
+ * Automates the nightly email dispatch of the Market Insights report.
+ * Checks for weekdays (Mon-Fri) to ensure it only runs on trading days.
+ */
+function sendNightlyMarketReport() {
+  const recipient = "alessandro.saladino01@gmail.com";
+  const today = new Date();
+  const day = today.getDay(); // 0 = Sunday, 6 = Saturday
+
+  // Execute only on Weekdays (Monday=1 to Friday=5)
+  if (day === 0 || day === 6) {
+    console.log("Weekend: Skipping nightly report.");
+    return;
+  }
+
+  try {
+    // Force fresh analysis (false) to get the latest data
+    const insights = getMarketInsightsData(false);
+
+    // Prepare HTML Email Body
+    // Using safe access to properties to prevent crashes if AI fails
+    const macroAnalysis = insights.analysis ? insights.analysis.macro : "No Macro Data";
+    const portAnalysis = insights.analysis ? insights.analysis.portfolio : "No Portfolio Data";
+    const sentimentLabel = insights.sentiment ? insights.sentiment.label : "N/A";
+    const sentimentScore = insights.sentiment ? insights.sentiment.score : 0;
+
+    const htmlBody = `
+      <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px;">
+        <h2 style="color: #2c3e50;">🧠 Market Insights Report</h2>
+        <p><strong>Date:</strong> ${today.toLocaleDateString('it-IT')}</p>
+        
+        <div style="background-color: #f8f9fa; padding: 15px; border-left: 5px solid #007bff; margin: 20px 0;">
+          <h3 style="margin-top: 0;">🚦 Market Sentiment</h3>
+          <p style="font-size: 18px; font-weight: bold;">
+            ${sentimentLabel} <span style="color: #666;">(${sentimentScore}/10)</span>
+          </p>
+        </div>
+
+        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px;">🌍 Macro Analysis</h3>
+        <p style="line-height: 1.6;">${macroAnalysis}</p>
+
+        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-top: 20px;">💼 Portfolio Strategy</h3>
+        <p style="line-height: 1.6;">${portAnalysis}</p>
+
+        <hr style="margin-top: 30px; border: 0; border-top: 1px solid #eee;">
+        <p style="font-size: 12px; color: #999; text-align: center;">
+          Generated automatically by Wealth App AI
+        </p>
+      </div>
+    `;
+
+    MailApp.sendEmail({
+      to: recipient,
+      subject: `📉 Market Insights - ${today.toLocaleDateString('it-IT')}`,
+      htmlBody: htmlBody
+    });
+
+    console.log("Nightly report sent successfully.");
+
+  } catch (e) {
+    console.error("Failed to send nightly report: " + e.toString());
+    MailApp.sendEmail({
+      to: recipient,
+      subject: "⚠️ Error: Market Report Failed",
+      body: "The nightly generation failed. Error: " + e.toString()
+    });
+  }
+}
+
+/**
  * Performs a deep-dive "Chief Risk Officer" assessment.
  * UPGRADE: Enhanced Analytical Prompt for Asset Allocation & Correlation.
  * Checks for "Fake Diversification" and specific hedging strategies.
