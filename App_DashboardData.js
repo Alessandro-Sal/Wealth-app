@@ -58,9 +58,9 @@ function getDashboardData() {
       crypto: getRowData(6),    
       others: getRowData(7),
       pension: {
-        amount: sheet.getRange(24, 4).getDisplayValue(), // Legge D24 (Col 4)
+        amount: sheet.getRange(24, 4).getDisplayValue(), 
         raw: (typeof sheet.getRange(24, 4).getValue() === 'number' ? sheet.getRange(24, 4).getValue() : 0),
-        percent: "" // Lasciato vuoto se non c'è una % specifica accanto a D24
+        percent: sheet.getRange(24, 5).getDisplayValue() 
       }
     },
 

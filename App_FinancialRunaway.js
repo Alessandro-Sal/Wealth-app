@@ -1,8 +1,9 @@
 /**
  * Calculates the Financial Runway (Survival Months).
  * Determines how long the user can survive on current liquid assets based on average monthly expenses.
+ * Also calculates "Survival Mode" based strictly on fixed recurring costs.
  * * @param {number|string} year - The year to analyze for expense averages.
- * @return {Object} Object containing runway months and average monthly burn.
+ * @return {Object} Object containing runway months, average burn, fixed costs, and survival months.
  */
 function getRunwayData(year) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -22,7 +23,7 @@ function getRunwayData(year) {
   
   // Return zero defaults if sheet is missing or empty
   if (!expSheet || expSheet.getLastRow() < 20) {
-    return { months: 0, avg: 0 };
+    return { months: 0, avg: 0, fixed: 0, survival: 0 };
   }
 
   // Read data: Col A (Date), B (Type), and Amount Columns E-J (indices 4-9)
@@ -57,12 +58,22 @@ function getRunwayData(year) {
   
   let avgMonthly = totalExpense / monthsCount;
   
-  // Calculate Runway: Liquid Cash / Average Monthly Expense
+  // Calculate Standard Runway: Liquid Cash / Average Monthly Expense
   let runway = avgMonthly > 0 ? (liquidCash / avgMonthly) : 0;
 
+  // --- NEW: Survival Mode Calculation ---
+  // Retrieves total fixed costs (subscriptions + recurring) from the helper function
+  const fixedCosts = getMonthlyFixedCost(); 
+  
+  // Calculate Survival Runway: Liquid Cash / Fixed Costs
+  // This represents how long you can survive if you cut all discretionary spending
+  let survivalRunway = fixedCosts > 0 ? (liquidCash / fixedCosts) : 0;
+
   return {
-    months: runway.toFixed(1),      // e.g., "12.5"
-    avg: avgMonthly.toFixed(0)      // e.g., "1500"
+    months: runway.toFixed(1),      // e.g., "12.5" (Standard based on lifestyle)
+    avg: avgMonthly.toFixed(0),     // e.g., "1500" (Real Monthly Average)
+    fixed: fixedCosts.toFixed(0),       // Total Fixed Expenses
+    survival: survivalRunway.toFixed(1) // Survival Months (Emergency Mode)
   };
 }
 

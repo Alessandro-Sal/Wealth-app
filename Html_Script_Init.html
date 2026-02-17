@@ -150,20 +150,40 @@ function renderAllData(data) {
       }
   }
   
-  // Runway Section
+ // Runway Section
   if (data.runway) {
+      // 1. Render Standard Runway (Lifestyle based)
       const elVal = document.getElementById('runway-val');
       if (elVal) {
           elVal.innerText = data.runway.months;
           const m = parseFloat(data.runway.months);
+          
+          // Color coding based on safety thresholds
           if (m < 6) elVal.style.color = 'var(--danger)';
           else if (m < 12) elVal.style.color = 'var(--warning)';
           else elVal.style.color = 'var(--success)';
       }
-      const fmtAvg = new Intl.NumberFormat('it-IT').format(data.runway.avg);
-      if(document.getElementById('runway-avg')) document.getElementById('runway-avg').innerText = "€ " + fmtAvg;
+      
+      // 2. Render Average Burn vs Fixed Costs
+      if (document.getElementById('runway-avg')) {
+          const fmtAvg = new Intl.NumberFormat('it-IT').format(data.runway.avg);
+          const fmtFix = new Intl.NumberFormat('it-IT').format(data.runway.fixed || 0);
+          
+          // Shows: "€ 1.500 (Fix: € 800)"
+          document.getElementById('runway-avg').innerHTML = 
+              `€ ${fmtAvg} <span style="font-size:0.8em; opacity:0.7;">(Fix: € ${fmtFix})</span>`;
+      }
+
+      // 3. Render Survival Mode (Emergency Runway)
+      // Checks if the element exists in HTML before updating
+      if (document.getElementById('runway-survival')) {
+          const s = data.runway.survival || 0;
+          document.getElementById('runway-survival').innerText = s + " mo";
+          
+          // Optional: Add visual emphasis for high survival rate
+          if (parseFloat(s) > 12) document.getElementById('runway-survival').style.color = 'var(--success)';
+      }
   }
-  
   // Yearly Totals
   if (data.yearlyTotals) {
       const label = document.getElementById('yr-label');

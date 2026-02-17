@@ -100,3 +100,23 @@ function addSelectedSubs(selectedIds) {
 
   return "Added: " + subsToAdd.map(s => s.note).join(", ");
 }
+
+/**
+ * Calculates the total monthly fixed expenses sum.
+ * useful for "Survival Mode" runway calculation.
+ * @return {number} Total monthly amount.
+ */
+function getMonthlyFixedCost() {
+  const subs = _getSubsData();
+  let total = 0;
+  
+  subs.forEach(sub => {
+    if (sub.isSplit && sub.splits) {
+      sub.splits.forEach(s => total += s.amt);
+    } else if (sub.amt) {
+      total += sub.amt;
+    }
+  });
+  
+  return total;
+}
