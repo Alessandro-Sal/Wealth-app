@@ -263,7 +263,7 @@ function parseExpenseAI(inputData, mode) {
   Allowed Categories (Must use one of these exact strings): [${CATS}].
   Today is: ${new Date().toLocaleDateString()}.
   
-  Expected Output strictly valid JSON (no markdown, no backticks):
+  Expected Output: Language Italian and strictly valid JSON (no markdown, no backticks):
   {
     "type": "Expense" or "Income",
     "category": "One of the allowed categories above or 'Altro'",
@@ -489,7 +489,7 @@ function getMarketInsightsData(onlyMacro) {
     - GOOD: "US CPI: Critical for Fed Pivot. If >3.2%, expect Tech sell-off. High Volatility."
     - GOOD: "NVDA Earnings: Focus on Data Center guidance. +/- 8% implied move."
 
-    JSON OUTPUT FORMAT:
+    LANGUAGE ITALIAN AND JSON OUTPUT FORMAT:
     {
       "sentiment_score": 5.5,
       "sentiment_label": "Fear/Neutral/Greed",
@@ -689,7 +689,7 @@ function getPortfolioRiskAnalysis(forceRefresh) {
     3. STRESS TEST SIMULATION:
        - Calculate expected drawdown based on the weight of High-Beta assets (Crypto/Tech) vs Low-Beta (Cash/Bonds).
 
-    OUTPUT FORMAT: STRICT JSON (No Markdown).
+    OUTPUT FORMAT: STRICT JSON (No Markdown) and Italian language.
 
     JSON STRUCTURE:
     {
@@ -810,7 +810,7 @@ function fetchDividendData() {
     - BAD: "US CPI"
     - GOOD: "US CPI Data: Crucial for Fed Pivot. If >3.2%, Tech stocks will suffer. Watch 10Y Yield."
 
-    JSON OUTPUT:
+    LANGUAGE ITALIAN AND JSON OUTPUT:
     {
       "sentiment_score": 5.5,
       "sentiment_label": "Fear/Neutral/Greed",
@@ -909,6 +909,7 @@ function runStockBattle(inputA, inputB) {
     - Growth (Revenue and Earnings Growth Y/Y).
     - Momentum/Risks.
 
+    OUTPUT LANGUAGE: Italian (Strictly).
     STRICT JSON OUTPUT (No Markdown):
     {
       "resolved_ticker_a": "TICKER_A",
