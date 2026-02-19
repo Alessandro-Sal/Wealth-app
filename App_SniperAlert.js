@@ -4,7 +4,7 @@
  * - Stocks/ETFs: Uses the "pct" (Percentage Change) column from the sheet.
  * - Crypto: Calculates volatility based on the difference vs. the LAST SCRIPT RUN.
  * Uses ROBUST AI for market commentary.
- * * SCHEDULE CONSTRAINT: Runs ONLY on Weekends (Sat-Sun) between 16:00 and 22:30.
+ * * SCHEDULE CONSTRAINT: Runs ONLY on Weekdays (Mon-Fri) between 16:00 and 22:30.
  */
 
 function runMarketSniper() {
@@ -15,10 +15,10 @@ function runMarketSniper() {
 
   // --- 1. TIME & DAY CONSTRAINT CHECK ---
   
-  // A. Day Check: Run ONLY on Saturday (6) and Sunday (0).
-  // If it's a Weekday (1-5), STOP.
-  if (day >= 1 && day <= 5) {
-    console.log("Sniper Skipped: Weekday (Mon-Fri).");
+  // A. Day Check: Run ONLY on Weekdays (Monday to Friday).
+  // If it's a Weekend (0 or 6), STOP.
+  if (day === 0 || day === 6) {
+    console.log("Sniper Skipped: Weekend (Sat-Sun).");
     return;
   }
 
@@ -35,7 +35,7 @@ function runMarketSniper() {
     return;
   }
 
-  console.log(`Sniper Active: Weekend ${now.toLocaleTimeString()}`);
+  console.log(`Sniper Active: Weekday ${now.toLocaleTimeString()}`);
 
   // --- 2. Get Live Portfolio Data ---
   let portfolio;
@@ -121,7 +121,7 @@ function runMarketSniper() {
       htmlBody: `
       <div style="font-family: Arial, sans-serif; padding: 20px; border: 2px solid #e74c3c; border-radius: 8px; max-width: 600px;">
         <h2 style="color: #c0392b; margin-top: 0;">🎯 Sniper Alert</h2>
-        <p>Volatile movements detected during weekend session:</p>
+        <p>Volatile movements detected during weekday session:</p>
         <ul style="font-size: 16px; background-color: #fff0f0; padding: 15px; border-radius: 5px;">
           ${alerts.map(a => `<li style="margin-bottom: 8px; list-style-type: none;">${a}</li>`).join('')}
         </ul>
@@ -163,45 +163,79 @@ function parsePrice(priceStr) {
 }
 
 /**
- * Generates quick trading advice with AI Fallback.
+ * Generates quick trading advice with AI Fallback and REAL-TIME WEB SEARCH.
  */
 function generateSniperAI(alerts) {
-  // Retrieve API Key securely
-  const API_KEY = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  const API_KEY = GEMINI_API_KEY; 
   
   if (!API_KEY) {
-      console.warn("Sniper AI: GEMINI_API_KEY not found in Script Properties.");
+      console.warn("Sniper AI: GEMINI_API_KEY global variable not found.");
       return "AI Commentary Unavailable (Missing Key).";
   }
 
-  const MODELS = ["gemini-2.0-flash", "gemini-flash-latest", "gemini-2.0-flash-lite"];
+  // Updated Fallback based on available API models, prioritizing Lite/Flash versions
+  // to avoid 429 Rate Limit errors while keeping web search capabilities.
+  const MODELS = [
+    "gemini-2.5-flash-lite", 
+    "gemini-2.0-flash-lite", 
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-3-flash-preview"
+  ];
 
   const prompt = `
     ROLE: You are an Expert Crypto & Swing Trader.
-    CONTEXT: It is the Weekend (Low Liquidity).
-    EVENTS: The following assets are moving fast:
+    CONTEXT: Weekday market session. The following assets have triggered high-volatility alerts:
     ${JSON.stringify(alerts)}
     
     TASK:
-    Provide immediate, short advice (In Italian).
-    - If dropping: "Buy the dip or catching a falling knife?"
-    - If pumping: "Take profit or let it ride?"
-    - Mention "Weekend Volatility" risk.
-    Max 2 sentences.
+    1. Search the web for the latest breaking news TODAY regarding these specific assets.
+    2. Provide a short explanation (In Italian) of WHY they are moving.
+    3. You MUST include the name of the news source or the title of the article you found.
+    4. Conclude with a quick actionable advice. 
+    Keep it punchy. Max 4 sentences total. language: Italian. Use emojis if you want, but keep it professional.
   `;
 
-  const payload = { contents: [{ parts: [{ text: prompt }] }] };
-  const options = { method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true };
+  const payload = { 
+    contents: [{ parts: [{ text: prompt }] }],
+    tools: [{ google_search: {} }] 
+  };
+  
+  const options = { 
+    method: "post", 
+    contentType: "application/json", 
+    payload: JSON.stringify(payload), 
+    muteHttpExceptions: true 
+  };
 
   for (let i = 0; i < MODELS.length; i++) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[i]}:generateContent?key=${API_KEY}`;
-      const res = UrlFetchApp.fetch(url, options);
-      if (res.getResponseCode() === 200) {
-        let text = JSON.parse(res.getContentText()).candidates[0].content.parts[0].text;
-        return text.replace(/\*/g, ''); // Clean markdown
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[i]}:generateContent?key=${API_KEY}`;
+    const res = UrlFetchApp.fetch(url, options);
+    const responseCode = res.getResponseCode();
+    
+    if (responseCode === 200) {
+      const data = JSON.parse(res.getContentText());
+      
+      // Debugging: Verify if Grounding (Web Search) was actually used
+      const metadata = data.candidates[0].groundingMetadata;
+      if (metadata && metadata.webSearchQueries) {
+          console.log(`Sniper AI performed web searches: ${metadata.webSearchQueries.join(", ")}`);
+      } else {
+          console.log("Sniper AI Warning: Responded without triggering Google Search.");
       }
-    } catch(e) { console.warn(`Sniper AI Model ${MODELS[i]} failed.`); }
+
+      let text = data.candidates[0].content.parts[0].text;
+      return text.replace(/\*/g, ''); 
+    } else {
+      console.warn(`Model ${MODELS[i]} failed. Code: ${responseCode}`);
+      
+      // If we hit a Rate Limit (429), pause for 10 seconds before trying the next model
+      if (responseCode === 429) {
+        console.log(`Rate limit hit on ${MODELS[i]}. Waiting 10 seconds before next attempt...`);
+        Utilities.sleep(10000); 
+      }
+    }
   }
-  return "Market is volatile. Trade with caution.";
+  
+  return "Market is volatile today. AI quota exceeded, trade with caution.";
 }
