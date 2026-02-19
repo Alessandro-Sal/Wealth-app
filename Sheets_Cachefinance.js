@@ -10,6 +10,8 @@
  * @param {String} cmdOption - Option parameter used only with backdoor commands.
  * @returns {any}
  * @customfunction
+ *  // Note: This file contains modified code from the original CacheFinance project.
+ *  // Modified by Alessandro Saladino for Wealth-app integration.
  */
 function CACHEFINANCE(symbol, attribute = "price", googleFinanceValue = "", cmdOption = "") {         // skipcq: JS-0128
     Logger.log(`CACHEFINANCE:${symbol}=${attribute}. Google=${googleFinanceValue}`);
