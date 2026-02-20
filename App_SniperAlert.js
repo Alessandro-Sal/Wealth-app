@@ -1,43 +1,16 @@
 /**
  * App_SniperAlert.js
  * Scans LIVE portfolio for rapid price movements (> 4% or < -4%).
- * - Stocks/ETFs: Uses the "pct" (Percentage Change) column from the sheet.
- * - Crypto: Calculates volatility based on the difference vs. the LAST SCRIPT RUN.
+ * - Stocks/ETFs: Uses the "pct" (Percentage Change) column. Evaluates per-asset market hours.
+ * - Crypto: Calculates volatility vs LAST SCRIPT RUN. Runs 24/7.
  * Uses ROBUST AI for market commentary.
- * * SCHEDULE CONSTRAINT: Runs ONLY on Weekdays (Mon-Fri) between 16:00 and 22:30.
  */
 
 function runMarketSniper() {
   const now = new Date();
-  const day = now.getDay();   // 0 = Sunday, 6 = Saturday
-  const hour = now.getHours();
-  const minute = now.getMinutes();
+  console.log(`Sniper Scan Started: ${now.toLocaleTimeString()}`);
 
-  // --- 1. TIME & DAY CONSTRAINT CHECK ---
-  
-  // A. Day Check: Run ONLY on Weekdays (Monday to Friday).
-  // If it's a Weekend (0 or 6), STOP.
-  if (day === 0 || day === 6) {
-    console.log("Sniper Skipped: Weekend (Sat-Sun).");
-    return;
-  }
-
-  // B. Time Check: Run ONLY between 16:00 and 22:30.
-  // Before 16:00? STOP.
-  if (hour < 16) {
-    console.log("Sniper Skipped: Too early (Before 16:00).");
-    return;
-  }
-  
-  // After 22:30? STOP.
-  if (hour > 22 || (hour === 22 && minute >= 30)) {
-    console.log("Sniper Skipped: Too late (After 22:30).");
-    return;
-  }
-
-  console.log(`Sniper Active: Weekday ${now.toLocaleTimeString()}`);
-
-  // --- 2. Get Live Portfolio Data ---
+  // --- 1. Get Live Portfolio Data ---
   let portfolio;
   try {
      portfolio = getLivePortfolio(); 
@@ -46,8 +19,15 @@ function runMarketSniper() {
      return;
   }
 
-  // Combine Stocks, ETFs, and Crypto into one array
-  const allAssets = [...portfolio.stocks, ...portfolio.etfs, ...portfolio.crypto];
+  // Tag crypto assets explicitly so they are always recognized, 
+  // regardless of missing sheet columns.
+  const taggedCrypto = portfolio.crypto.map(c => {
+      c._isCryptoAsset = true;
+      return c;
+  });
+
+  // Combine Stocks, ETFs, and explicitly tagged Crypto into one array
+  const allAssets = [...portfolio.stocks, ...portfolio.etfs, ...taggedCrypto];
   
   // Retrieve stored prices from the last run
   const scriptProperties = PropertiesService.getScriptProperties();
@@ -55,8 +35,11 @@ function runMarketSniper() {
   
   let alerts = [];
   let updates = {}; // Object to store current prices for the next run
+  
+  let traditionalMarketsScanned = 0;
+  let cryptoScanned = 0;
 
-  // --- 3. Scan for Volatility ---
+  // --- 2. Scan for Volatility ---
   allAssets.forEach(asset => {
     let changeVal = 0.0;
     let changeStr = "0%";
@@ -64,14 +47,31 @@ function runMarketSniper() {
     // Check if asset has a valid ticker/name
     if (!asset.t) return;
 
+    // Check if asset is crypto by sector, exchange, or our explicit tag
+    const isCrypto = (asset.sector === "Crypto" || String(asset.ex).toUpperCase() === 'CRYPTO' || asset._isCryptoAsset);
+
+    // --- MARKET HOURS CHECK (For Stocks & ETFs only) ---
+    if (!isCrypto) {
+        // Use the server-side logic to check if the specific exchange is open
+        const marketStatus = getMarketStateServer(asset.ex);
+        
+        // If the market is completely closed (not PRE_MARKET, OPEN, or CLOSING_SOON), skip this asset.
+        if (marketStatus === 'CLOSED') {
+            return; 
+        }
+        traditionalMarketsScanned++;
+    } else {
+        cryptoScanned++;
+    }
+
     // --- CASE A: STOCKS & ETFS (Use 'pct' - Percentage Change) ---
     // We check if 'pct' exists and is not a placeholder.
-    if (asset.pct && asset.pct !== "" && asset.pct !== "0%" && asset.sector !== "Crypto") {
+    if (!isCrypto && asset.pct && asset.pct !== "" && asset.pct !== "0%") {
        changeStr = asset.pct;
        // Clean string: "-6,00%" -> -6.00 (replace comma with dot for JS math)
        changeVal = parseFloat(String(changeStr).replace('%', '').replace(',', '.'));
     } 
-    // --- CASE B: ASSETS WITHOUT % (e.g., Crypto or missing data) ---
+    // --- CASE B: CRYPTO or ASSETS WITHOUT % ---
     // We calculate volatility manually by comparing Current Price vs. Last Run Price
     else {
        // Helper to clean price string
@@ -106,14 +106,20 @@ function runMarketSniper() {
     }
   });
 
-  // Save the updated Crypto prices to script properties
+  // Save the updated Crypto/Manual prices to script properties
   if (Object.keys(updates).length > 0) {
     scriptProperties.setProperties(updates);
   }
 
-  // --- 4. Send Alert if Triggered ---
+  // --- 3. Send Alert if Triggered ---
   if (alerts.length > 0) {
     const aiComment = generateSniperAI(alerts);
+    
+    // Determine session type for the email subject/header
+    let sessionType = "Crypto-Only Session";
+    if (traditionalMarketsScanned > 0) {
+        sessionType = "Active Market Session";
+    }
     
     MailApp.sendEmail({
       to: "alessandro.saladino01@gmail.com",
@@ -121,7 +127,7 @@ function runMarketSniper() {
       htmlBody: `
       <div style="font-family: Arial, sans-serif; padding: 20px; border: 2px solid #e74c3c; border-radius: 8px; max-width: 600px;">
         <h2 style="color: #c0392b; margin-top: 0;">🎯 Sniper Alert</h2>
-        <p>Volatile movements detected during weekday session:</p>
+        <p>Volatile movements detected during <b>${sessionType}</b>:</p>
         <ul style="font-size: 16px; background-color: #fff0f0; padding: 15px; border-radius: 5px;">
           ${alerts.map(a => `<li style="margin-bottom: 8px; list-style-type: none;">${a}</li>`).join('')}
         </ul>
@@ -135,30 +141,77 @@ function runMarketSniper() {
         </div>
       </div>`
     });
-    console.log(`Sniper Alert Sent: ${alerts.length} assets.`);
+    console.log(`Sniper Alert Sent: ${alerts.length} assets. (Scanned: ${traditionalMarketsScanned} Trad, ${cryptoScanned} Crypto)`);
   } else {
-    console.log("Sniper Scan: Markets are calm.");
+    console.log(`Sniper Scan: Markets calm. (Scanned: ${traditionalMarketsScanned} Trad, ${cryptoScanned} Crypto)`);
   }
 }
 
 /**
- * Helper function to parse currency strings like "€ 1.234,56" or "$ 50.40" into a float.
- * Handles both comma and dot decimals based on common European/US formats.
+ * Server-side adaptation of getMarketState.
+ * Evaluates if a specific exchange is open right now based on Time Zones.
+ */
+function getMarketStateServer(exchangeCode) {
+  if (!exchangeCode || String(exchangeCode).toUpperCase() === 'CRYPTO') return 'OPEN';
+  
+  const now = new Date(); 
+  let timeZone = "UTC"; 
+  let openH = 9, openM = 0, closeH = 17, closeM = 0;
+  
+  switch (String(exchangeCode).toUpperCase()) {
+      case 'US': case 'USA': case 'NASDAQ': case 'NYSE': case 'AMEX': 
+          timeZone = "America/New_York"; openH = 9; openM = 30; closeH = 16; closeM = 0; break;
+      case 'IT': case 'ITA': case 'MIL': case 'MTA': case 'DE': case 'GER': case 'XETRA': case 'EU': case 'EAM': case 'TDG': case 'CPH': 
+          timeZone = "Europe/Berlin"; openH = 9; openM = 0; closeH = 17; closeM = 30; break;
+      case 'UK': case 'LSE': 
+          timeZone = "Europe/London"; openH = 8; openM = 0; closeH = 16; closeM = 30; break;
+      default: 
+          return 'CLOSED';
+  }
+  
+  try {
+      // Create a date string localized to the specific exchange's timezone
+      const localTimeStr = now.toLocaleString("en-US", {timeZone: timeZone}); 
+      const localDate = new Date(localTimeStr); 
+      
+      const day = localDate.getDay(); 
+      const h = localDate.getHours(); 
+      const m = localDate.getMinutes();
+      
+      const curMins = h * 60 + m; 
+      const openMins = openH * 60 + openM; 
+      const closeMins = closeH * 60 + closeM;
+      
+      // Weekend check (local to the exchange)
+      if (day === 0 || day === 6) return 'CLOSED';
+      
+      // Inside market hours
+      if (curMins >= openMins && curMins < closeMins) { 
+          if (closeMins - curMins <= 60) return 'CLOSING_SOON'; 
+          return 'OPEN'; 
+      }
+      
+      // Pre-market (1 hour before)
+      if (curMins >= (openMins - 60) && curMins < openMins) return 'PRE_MARKET';
+      
+      return 'CLOSED';
+  } catch (e) { 
+      console.warn(`Timezone calculation error for ${exchangeCode}: ${e}`);
+      return 'CLOSED'; 
+  }
+}
+
+/**
+ * Helper function to parse currency strings.
  */
 function parsePrice(priceStr) {
   if (!priceStr) return 0;
-  // Remove currency symbols, spaces, and keep only digits, commas, dots, and minus signs
   let clean = String(priceStr).replace(/[^\d,\.-]/g, ''); 
-  
-  // Logic to handle "1.234,56" (IT) vs "1,234.56" (US)
   if (clean.includes(',') && clean.includes('.')) {
-      // Assume Italian format (1.000,00) -> remove dots, replace comma with dot
       clean = clean.replace(/\./g, '').replace(',', '.');
   } else if (clean.includes(',')) {
-      // If only comma exists (e.g. 12,50), replace with dot
       clean = clean.replace(',', '.');
   }
-  
   return parseFloat(clean) || 0;
 }
 
@@ -167,14 +220,8 @@ function parsePrice(priceStr) {
  */
 function generateSniperAI(alerts) {
   const API_KEY = GEMINI_API_KEY; 
-  
-  if (!API_KEY) {
-      console.warn("Sniper AI: GEMINI_API_KEY global variable not found.");
-      return "AI Commentary Unavailable (Missing Key).";
-  }
+  if (!API_KEY) return "AI Commentary Unavailable (Missing Key).";
 
-  // Updated Fallback based on available API models, prioritizing Lite/Flash versions
-  // to avoid 429 Rate Limit errors while keeping web search capabilities.
   const MODELS = [
     "gemini-2.5-flash-lite", 
     "gemini-2.0-flash-lite", 
@@ -185,7 +232,7 @@ function generateSniperAI(alerts) {
 
   const prompt = `
     ROLE: You are an Expert Crypto & Swing Trader.
-    CONTEXT: Weekday market session. The following assets have triggered high-volatility alerts:
+    CONTEXT: Live market session. The following assets have triggered high-volatility alerts:
     ${JSON.stringify(alerts)}
     
     TASK:
@@ -196,17 +243,8 @@ function generateSniperAI(alerts) {
     Keep it punchy. Max 4 sentences total. language: Italian. Use emojis if you want, but keep it professional.
   `;
 
-  const payload = { 
-    contents: [{ parts: [{ text: prompt }] }],
-    tools: [{ google_search: {} }] 
-  };
-  
-  const options = { 
-    method: "post", 
-    contentType: "application/json", 
-    payload: JSON.stringify(payload), 
-    muteHttpExceptions: true 
-  };
+  const payload = { contents: [{ parts: [{ text: prompt }] }], tools: [{ google_search: {} }] };
+  const options = { method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true };
 
   for (let i = 0; i < MODELS.length; i++) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[i]}:generateContent?key=${API_KEY}`;
@@ -215,27 +253,11 @@ function generateSniperAI(alerts) {
     
     if (responseCode === 200) {
       const data = JSON.parse(res.getContentText());
-      
-      // Debugging: Verify if Grounding (Web Search) was actually used
-      const metadata = data.candidates[0].groundingMetadata;
-      if (metadata && metadata.webSearchQueries) {
-          console.log(`Sniper AI performed web searches: ${metadata.webSearchQueries.join(", ")}`);
-      } else {
-          console.log("Sniper AI Warning: Responded without triggering Google Search.");
-      }
-
       let text = data.candidates[0].content.parts[0].text;
       return text.replace(/\*/g, ''); 
-    } else {
-      console.warn(`Model ${MODELS[i]} failed. Code: ${responseCode}`);
-      
-      // If we hit a Rate Limit (429), pause for 10 seconds before trying the next model
-      if (responseCode === 429) {
-        console.log(`Rate limit hit on ${MODELS[i]}. Waiting 10 seconds before next attempt...`);
-        Utilities.sleep(10000); 
-      }
+    } else if (responseCode === 429) {
+      Utilities.sleep(10000); 
     }
   }
-  
   return "Market is volatile today. AI quota exceeded, trade with caution.";
 }
