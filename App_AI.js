@@ -81,148 +81,6 @@ function askGemini(userQuestion, sessionPin, historyJson) {
   return "All AI models are currently busy. Please try again shortly.";
 }
 
-
-/**
- * Performs a deep-dive "Chief Risk Officer" assessment.
- * UPGRADE: Now analyzes Sector Concentration, Geographic Exposure, and Specific Crash Scenarios.
- * Uses aggressive caching (12 hours).
- * * @return {Object} JSON object with detailed risk metrics and strategic hedging advice.
- */
-function getPortfolioRiskAnalysis() {
-  const CACHE_KEY = "GEMINI_RISK_DEEP_V2"; // Updated Key Version
-  const cache = CacheService.getScriptCache();
-  
-  // Check cache first
-  const cachedResult = cache.get(CACHE_KEY);
-  if (cachedResult) return JSON.parse(cachedResult);
-
-  // 1. Retrieve Data
-  const dash = getDashboardData();
-  const portfolio = getLivePortfolio();
-  
-  // 2. Pre-process Data for Context (Aggregation)
-  // We aggregate sectors and countries to give the AI a "Macro View" of the portfolio
-  let sectorMap = {};
-  let countryMap = {};
-  let totalEquity = 0;
-
-  const allAssets = [...portfolio.stocks, ...portfolio.etfs];
-  
-  allAssets.forEach(a => {
-    let val = parseFloat(String(a.val).replace(/[€$£%\s]/g, '').replace(',', '.')) || 0;
-    if (val > 0) {
-      totalEquity += val;
-      let s = a.sector || "Other";
-      let c = a.ctry || "Global";
-      sectorMap[s] = (sectorMap[s] || 0) + val;
-      countryMap[c] = (countryMap[c] || 0) + val;
-    }
-  });
-
-  // Format Top 5 Sectors/Countries for the Prompt
-  const formatMap = (map) => Object.entries(map)
-    .sort((a,b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([k,v]) => `${k} (${((v/totalEquity)*100).toFixed(0)}%)`)
-    .join(", ");
-
-  const topSectors = formatMap(sectorMap);
-  const topCountries = formatMap(countryMap);
-  
-  // Clean List for top individual positions
-  const cleanList = (list) => list.slice(0, 10).map(i => `${i.t} (${i.pct})`).join(", ");
-  const topStocks = cleanList(portfolio.stocks);
-  const topCrypto = cleanList(portfolio.crypto);
-
-  // 3. Construct the "Chief Risk Officer" Prompt
-  const prompt = `
-    ROLE: You are the Chief Risk Officer (CRO) of a Multi-Family Office.
-    Your job is NOT to be nice. Your job is to protect capital.
-    
-    PORTFOLIO SNAPSHOT:
-    - Liquid Cash Buffer: ${dash.summary.cash.percent} (Total: ${dash.liquidNetWorth})
-    - Stock Exposure: ${dash.summary.stocks.percent}
-    - Crypto Exposure: ${dash.summary.crypto.percent}
-    - ETFs (Passive): ${dash.summary.etfs.percent}
-    
-    RISK FACTORS (Calculated):
-    - Top Sectors Exposure: [${topSectors}]
-    - Geographic Exposure: [${topCountries}]
-    - Top Volatile Positions: ${topStocks}
-    - Crypto Holdings: ${topCrypto}
-
-    TASK: Perform a Stress Test & Asset Allocation Review.
-    
-    OUTPUT FORMAT: STRICT JSON (No Markdown).
-    Language: Italian.
-
-    JSON STRUCTURE:
-    {
-      "riskScore": "1-100",  // 1=Treasury Bills, 100=Degen Leverage
-      "riskLevel": "Low/Medium/High/Extreme",
-      "summary": "1 sharp sentence summarizing the main vulnerability.",
-      "concentration": "Detailed analysis of Sector/Country bias. Are we too exposed to Tech or USA? Is diversification real or fake?",
-      "stressTest": {
-        "marketCrash": "Est. Portfolio Drawdown if S&P500 falls 20% (e.g., -25%)",
-        "cryptoWinter": "Est. Portfolio Drawdown if BTC falls 50% (e.g., -10%)"
-      },
-      "suggestions": [
-        "Actionable Advice 1 (e.g., 'Reduce NVDA by 5% to rebalance Tech')",
-        "Actionable Advice 2 (e.g., 'Increase Gold/Bonds as hedge')",
-        "Actionable Advice 3 (Strategic view)"
-      ]
-    }
-    
-    GUIDELINES:
-    - If Cash is > 30%, warn about "Inflation Risk" (Opportunity Cost).
-    - If Crypto is > 20%, warn about "Extreme Volatility".
-    - If Top Sector (e.g. Tech) is > 40%, warn about "Concentration Risk".
-    - Be numeric and specific in the suggestions.
-  `;
-
-  const API_KEY = GEMINI_API_KEY; 
-  const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
-  
-  let finalResult = { 
-    riskLevel: "N/A", 
-    riskScore: 0, 
-    summary: "AI Analysis unavailable", 
-    stressTest: { marketCrash: "--%", cryptoWinter: "--%" },
-    concentration: "No data",
-    suggestions: ["Retry later"]
-  };
-
-  for (let m = 0; m < MODELS.length; m++) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[m]}:generateContent?key=${API_KEY}`;
-      const payload = { contents: [{ parts: [{ text: prompt }] }] };
-      const res = UrlFetchApp.fetch(url, {
-        method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true
-      });
-      
-      if (res.getResponseCode() === 200) {
-        let text = JSON.parse(res.getContentText()).candidates[0].content.parts[0].text;
-        text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-        
-        // Find JSON boundaries to avoid parsing errors
-        const s = text.indexOf('{');
-        const e = text.lastIndexOf('}');
-        if (s !== -1 && e !== -1) {
-            finalResult = JSON.parse(text.substring(s, e + 1));
-            
-            // Save to cache for 12 hours (High-value, low-frequency report)
-            cache.put(CACHE_KEY, JSON.stringify(finalResult), 43200); 
-            break; 
-        }
-      }
-    } catch (e) {
-      console.error("Risk AI Error: " + e.toString());
-    }
-  }
-
-  return finalResult;
-}
-
 /**
  * Utility function to clear specific server-side cache keys.
  * Used to force a refresh of the Risk Analysis or Crypto Sentiment data.
@@ -335,6 +193,7 @@ function parseExpenseAI(inputData, mode) {
 /**
  * Generates a comprehensive "Hedge Fund" style market report.
  * UPDATED: Handles both fast polling (Cache) and forced user refresh (Live).
+ * Solved P/E dependency: AI now infers Growth/Value and Cap Size from Tickers.
  *
  * @param {boolean} onlyMacro - If true (Polling), uses cache. If false (User Click), FORCES new analysis.
  */
@@ -349,7 +208,7 @@ function getMarketInsightsData(onlyMacro) {
   let macro = null;
   const cachedJSON = cache.get(MACRO_CACHE_KEY);
 
-  // LOGIC CHANGE: If user clicks Refresh (!onlyMacro), we ignore cache and fetch fresh prices from Sheet
+  // If user clicks Refresh (!onlyMacro), ignore cache and fetch fresh prices
   if (cachedJSON && onlyMacro) {
       macro = JSON.parse(cachedJSON);
   } else {
@@ -386,11 +245,11 @@ function getMarketInsightsData(onlyMacro) {
       portfolio_events: []
   };
 
-  // IF POLLING (onlyMacro = true): Return cached AI immediately (don't run Gemini)
+  // IF POLLING (onlyMacro = true): Return cached AI immediately
   if (onlyMacro) {
       return {
           ...macro,
-          metrics: { beta: 0, pe: 0 }, 
+          metrics: { beta: 0, pe: 0 }, // Beta & PE are recalculated on fresh analysis
           sentiment: aiData.sentiment,
           analysis: aiData.analysis,
           market_events: aiData.market_events,
@@ -428,7 +287,10 @@ function getMarketInsightsData(onlyMacro) {
     const pe = parseFloat(a.pe) || 0;
     totalEquityVal += val;
     weightedBeta += (beta * val);
+    
+    // We still calculate PE if available for purely internal metrics, but AI won't strictly rely on it.
     if (pe > 0 && a.sector !== 'ETFs') { weightedPE += (pe * val); peEligibleVal += val; }
+    
     const s = a.sector || "Other"; sectorMap[s] = (sectorMap[s] || 0) + val;
     const c = a.ctry || "Global"; countryMap[c] = (countryMap[c] || 0) + val;
     return { t: a.t, val: val, dCh: a.dCh, details: { beta: beta } };
@@ -438,95 +300,115 @@ function getMarketInsightsData(onlyMacro) {
   const portPE = peEligibleVal > 0 ? (weightedPE / peEligibleVal).toFixed(1) : "N/A";
 
   // --- 4. AI GENERATION (Gemini) ---
-  let aiRes = { 
-    sentiment_score: 5, sentiment_label: "Neutral", 
-    macro_analysis: null, portfolio_analysis: null, 
-    market_events: [], portfolio_events: [] 
-  };
-
-  const API_KEY = GEMINI_API_KEY; 
-  const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
   const today = new Date().toISOString().split('T')[0];
-  
   const topSectors = Object.entries(sectorMap).sort((a,b) => b[1]-a[1]).slice(0,5).map(([k,v]) => k).join(", ");
   const topCountries = Object.entries(countryMap).sort((a,b) => b[1]-a[1]).slice(0,3).map(([k,v]) => k).join(", ");
   const myTickers = enrichedEquity.map(a => a.t).join(", ");
   const assetsStr = enrichedEquity.slice(0, 30).map(a => `${a.t} (${a.dCh})`).join("\n");
 
-  // PROMPT "DEEP DIVE" (10 DAYS)
   const prompt = `
-    Role: Institutional Hedge Fund Manager & Senior Macro Strategist.
-    Date: ${today}.
-    
-    CONTEXT DATA:
-    MACRO: S&P500 ${macro.spx}% | VIX ${macro.vix} | US10Y ${macro.us10y}%.
-    PORTFOLIO: Beta ${portBeta} | P/E ${portPE} | Top Sectors: ${topSectors} | Top Countries: ${topCountries}.
-    ASSETS: \n${assetsStr}
-    
-    MISSION:
-    Perform a "Deep Dive" risk & opportunity analysis. Be extremely specific, critical, and forward-looking.
-    
-    TASK LIST:
-    
-    A. MACRO SYNTHESIS (The "Why"):
-    Analyze how Rates, Inflation, and Geopolitics are impacting the market RIGHT NOW. Connect dots.
-    
-    B. PORTFOLIO DIAGNOSIS:
-    Ruthless review of my allocation. Am I too exposed to Tech? Too defensive? What is my biggest blind spot?
-    
-    C. SENTIMENT SCORE (0-10):
-    Based on VIX, and Macro. (0=Extreme Fear, 10=Extreme Greed).
-    
-    D. EVENTS & CATALYSTS (Next 10 Days - STRICT & COMPREHENSIVE):
-    I need EVERY significant event that could move my money in the next 10-15 days.
-    
-    1. MACRO EVENTS: List ALL critical economic data (CPI, PPI, Jobs, GDP), Central Bank meetings (Fed, ECB), or Geopolitical deadlines.
-    2. PORTFOLIO EVENTS: List ALL Earnings, Dividends, Product Launches, or Governance votes specifically for [${myTickers}].
-    
-    *** CRITICAL INSTRUCTION FOR "event" FIELD ***
-    Do NOT just list the name. You MUST provide the "Analytic Context" and "Impact Prediction".
-    - BAD: "US CPI Release"
-    - GOOD: "US CPI: Critical for Fed Pivot. If >3.2%, expect Tech sell-off. High Volatility."
-    - GOOD: "NVDA Earnings: Focus on Data Center guidance. +/- 8% implied move."
+<role>
+You are an Institutional Hedge Fund Manager & Senior Macro Strategist. Today is ${today}.
+You are blunt, highly analytical, and focus on forward-looking catalysts and risk asymmetry.
+</role>
 
-    LANGUAGE ITALIAN AND JSON OUTPUT FORMAT:
-    {
-      "sentiment_score": 5.5,
-      "sentiment_label": "Fear/Neutral/Greed",
-      "macro_analysis": "Deep institutional commentary here...",
-      "portfolio_analysis": "Specific, actionable portfolio advice here...",
-      "market_events": [{"ticker": "MACRO", "event": "Event Name: Context & Impact Prediction", "date": "YYYY-MM-DD"}],
-      "portfolio_events": [{"ticker": "TICKER", "event": "Event Name: Context & Impact Prediction", "date": "YYYY-MM-DD"}]
-    }
+<context_data>
+[MACRO ENVIRONMENT]
+- S&P500: ${macro.spx}%
+- VIX: ${macro.vix}
+- US10Y: ${macro.us10y}%
+
+[PORTFOLIO SNAPSHOT]
+- Portfolio Beta: ${portBeta}
+- Partial P/E (Incomplete data): ${portPE}
+- Top Sectors: ${topSectors}
+- Top Countries: ${topCountries}
+
+[TOP 30 ACTIVE HOLDINGS (Ticker & Daily Change)]
+${assetsStr}
+</context_data>
+
+<mission>
+Perform a "Deep Dive" risk & opportunity analysis based on the current context. Be specific, critical, and explicitly connect macro variables to the specific portfolio holdings.
+</mission>
+
+<task_list>
+A. MACRO SYNTHESIS (The "Why"): Analyze how Rates, Inflation, and Geopolitics are impacting the market right now.
+B. PORTFOLIO DIAGNOSIS: Ruthlessly review the allocation. Since P/E data is incomplete, deduce the Style (Growth vs Value) and Cap Size (Mega-Cap vs Small-Cap) strictly from the provided tickers. Are we too exposed to Mega-Cap Tech? Too defensive given the Beta? Identify the biggest blind spot.
+C. EVENTS & CATALYSTS: Provide EVERY significant event (Macro and Portfolio-specific) that could move this money in the next 10-15 days.
+</task_list>
+
+<guidelines>
+- The Sentiment Score must be between 0 (Extreme Fear) and 10 (Extreme Greed) based strictly on VIX and macro movements.
+- For events, DO NOT just list the name. Provide "Analytic Context" and "Impact Prediction" (e.g., "US CPI: Critical for Fed Pivot. If >3.2%, expect Tech sell-off").
+- "market_events" should focus on CPI, PPI, Central Banks, or broad geopolitical deadlines.
+- "portfolio_events" should focus specifically on earnings, dividends, or product launches for [${myTickers}].
+- Output Language: Keep JSON keys in English. Write all string values (analysis, labels, event descriptions) in Italian.
+</guidelines>
+
+<output_format>
+{
+  "sentiment": {
+    "score": "Float (0.0 to 10.0)",
+    "label": "Fear | Neutral | Greed"
+  },
+  "analysis": {
+    "macro": "Deep institutional commentary on the global environment...",
+    "portfolio": "Specific, actionable diagnosis based on Beta, Sector mix, and implied Style/Cap Size of the given tickers..."
+  },
+  "market_events": [
+    {"ticker": "MACRO", "event": "Name: Context & Impact Prediction", "date": "YYYY-MM-DD"}
+  ],
+  "portfolio_events": [
+    {"ticker": "TICKER", "event": "Name: Context & Impact Prediction", "date": "YYYY-MM-DD"}
+  ]
+}
+</output_format>
   `;
+
+  const API_KEY = GEMINI_API_KEY; 
+  const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
+  
+  // Default fallback if generation fails
+  let finalResult = {
+      sentiment: { score: 5, label: "Neutral" },
+      analysis: { macro: "Analisi Macro non disponibile. Riprova più tardi.", portfolio: "Analisi Portafoglio non disponibile." },
+      market_events: [],
+      portfolio_events: []
+  };
 
   for (let m=0; m<MODELS.length; m++) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[m]}:generateContent?key=${API_KEY}`;
-      const payload = { contents: [{ parts: [{ text: prompt }] }] };
-      const options = { method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true };
+      
+      const payload = { 
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
+      };
+      
+      const options = { 
+        method: "post", 
+        contentType: "application/json", 
+        payload: JSON.stringify(payload), 
+        muteHttpExceptions: true 
+      };
+      
       const response = UrlFetchApp.fetch(url, options);
       
       if (response.getResponseCode() === 200) {
         let txt = JSON.parse(response.getContentText()).candidates[0].content.parts[0].text;
         txt = txt.replace(/```json/g, "").replace(/```/g, "").trim();
-        const s = txt.indexOf('{'); const e = txt.lastIndexOf('}');
-        if (s !== -1 && e !== -1) aiRes = JSON.parse(txt.substring(s, e + 1));
+        finalResult = JSON.parse(txt);
+        
+        // Save to cache on successful parse
+        if (finalResult.market_events && finalResult.market_events.length > 0) {
+          cache.put(AI_CACHE_KEY, JSON.stringify(finalResult), 21600); // 6 Hours
+        }
         break;
       }
     } catch(err) { console.warn("AI Err: " + err); }
-  }
-
-  // SAVE NEW ANALYSIS TO CACHE
-  const finalResult = {
-    sentiment: { score: aiRes.sentiment_score, label: aiRes.sentiment_label },
-    analysis: { macro: aiRes.macro_analysis, portfolio: aiRes.portfolio_analysis },
-    market_events: aiRes.market_events,
-    portfolio_events: aiRes.portfolio_events
-  };
-
-  if (aiRes.market_events.length > 0 || aiRes.portfolio_events.length > 0) {
-      cache.put(AI_CACHE_KEY, JSON.stringify(finalResult), 21600); // 6 Hours
   }
 
   return {
@@ -609,6 +491,7 @@ function sendNightlyMarketReport() {
  * Performs a deep-dive "Chief Risk Officer" assessment.
  * UPGRADE: Enhanced Analytical Prompt for Asset Allocation & Correlation.
  * Checks for "Fake Diversification" and specific hedging strategies.
+ * Now uses Native JSON Mode for 100% parsing reliability.
  *
  * @param {boolean} forceRefresh - If true, bypasses cache and forces new AI analysis.
  */
@@ -655,58 +538,68 @@ function getPortfolioRiskAnalysis(forceRefresh) {
   const topStocks = cleanList(portfolio.stocks);
   const topCrypto = cleanList(portfolio.crypto);
 
-  // 3. THE "ELITE CRO" PROMPT
+  // 3. THE "ELITE CRO" PROMPT (XML STRUCTURED)
   const prompt = `
-    ROLE: You are the Chief Risk Officer (CRO) of a Top-Tier Multi-Family Office.
-    Your methodology is based on Ray Dalio's "All Weather" principles and Taleb's Risk Management.
-    
-    PORTFOLIO STRUCTURE:
-    - 💵 CASH / LIQUIDITY: ${dash.summary.cash.percent} (Value: ${dash.liquidNetWorth})
-    - 📈 EQUITY (Stocks): ${dash.summary.stocks.percent}
-    - 📉 ETFS (Passive): ${dash.summary.etfs.percent}
-    - ⚡ CRYPTO (High Vol): ${dash.summary.crypto.percent}
-    
-    DEEP EXPOSURE DATA (Equity Component):
-    - Sector Dominance: [${topSectors}]
-    - Geographic Bias: [${topCountries}]
-    - Top Positions: ${topStocks}
-    - Crypto Holdings: ${topCrypto}
+<role>
+You are the Chief Risk Officer (CRO) of a Top-Tier Multi-Family Office.
+Your methodology is based on Ray Dalio's "All Weather" principles and Taleb's Risk Management.
+</role>
 
-    MISSION:
-    Conduct a forensic analysis of the Asset Allocation quality. Don't just read the numbers; interpret the CORRELATIONS.
-    
-    KEY ANALYTICAL TASKS:
-    
-    1. "FAKE DIVERSIFICATION" CHECK:
-       - Do I own different names that act the same? (e.g. Tech Stocks + Nasdaq ETF + Crypto = 100% Correlation).
-       - Identify the "Single Point of Failure" (The one factor that kills the portfolio).
-    
-    2. EFFICIENCY & SIZING:
-       - Is the Cash drag too high given inflation?
-       - Is the Crypto allocation reckless (>5-10%) or strategic?
-       - Is there Home Country Bias?
+<portfolio_structure>
+- 💵 CASH / LIQUIDITY: ${dash.summary.cash.percent} (Value: ${dash.liquidNetWorth})
+- 📈 EQUITY (Stocks): ${dash.summary.stocks.percent}
+- 📉 ETFS (Passive): ${dash.summary.etfs.percent}
+- ⚡ CRYPTO (High Vol): ${dash.summary.crypto.percent}
+</portfolio_structure>
 
-    3. STRESS TEST SIMULATION:
-       - Calculate expected drawdown based on the weight of High-Beta assets (Crypto/Tech) vs Low-Beta (Cash/Bonds).
+<deep_exposure_data>
+- Sector Dominance: [${topSectors}]
+- Geographic Bias: [${topCountries}]
+- Top Positions: ${topStocks}
+- Crypto Holdings: ${topCrypto}
+</deep_exposure_data>
 
-    OUTPUT FORMAT: STRICT JSON (No Markdown) and Italian language.
+<mission>
+Conduct a forensic analysis of the Asset Allocation quality. Don't just read the numbers; interpret the CORRELATIONS.
+</mission>
 
-    JSON STRUCTURE:
-    {
-      "riskScore": "1-100", // (1=Safe, 100=Reckless)
-      "riskLevel": "Low/Medium/High/Extreme",
-      "summary": "1 brutal sentence on the portfolio's main weakness.",
-      "concentration": "Detailed analysis. Discuss Correlation, Sector Overlap, and 'Fake Diversification'. Be specific about which assets are overlapping.",
-      "stressTest": {
-        "marketCrash": "Est. Portfolio Drawdown if S&P500 falls 20% (e.g. -12%). Explain logic briefly.",
-        "cryptoWinter": "Est. Portfolio Drawdown if Bitcoin falls 50% (e.g. -5%)."
-      },
-      "suggestions": [
-        "Rebalancing Action 1 (Specific % move, e.g. 'Cut Tech by 10%')",
-        "Hedging Strategy (e.g. 'Buy Gold/Bonds to de-correlate')",
-        "Optimization (e.g. 'Deploy Cash into Dividend Aristocrats')"
-      ]
-    }
+<key_analytical_tasks>
+1. "FAKE DIVERSIFICATION" CHECK:
+   - Do I own different names that act the same? (e.g. Tech Stocks + Nasdaq ETF + Crypto = 100% Correlation).
+   - Identify the "Single Point of Failure" (The one factor that kills the portfolio).
+
+2. EFFICIENCY & SIZING:
+   - Is the Cash drag too high given inflation?
+   - Is the Crypto allocation reckless (>5-10%) or strategic?
+   - Is there Home Country Bias?
+
+3. STRESS TEST SIMULATION:
+   - Calculate expected drawdown based on the weight of High-Beta assets (Crypto/Tech) vs Low-Beta (Cash/Bonds).
+</key_analytical_tasks>
+
+<output_guidelines>
+- Output strictly in JSON format.
+- Keep all JSON keys in English.
+- Write all JSON string values in Italian.
+</output_guidelines>
+
+<output_format>
+{
+  "riskScore": "1-100", 
+  "riskLevel": "Basso/Medio/Alto/Estremo",
+  "summary": "1 brutal sentence on the portfolio's main weakness.",
+  "concentration": "Detailed analysis. Discuss Correlation, Sector Overlap, and 'Fake Diversification'. Be specific about which assets are overlapping.",
+  "stressTest": {
+    "marketCrash": "Est. Portfolio Drawdown if S&P500 falls 20% (e.g. -12%). Explain logic briefly.",
+    "cryptoWinter": "Est. Portfolio Drawdown if Bitcoin falls 50% (e.g. -5%)."
+  },
+  "suggestions": [
+    "Rebalancing Action 1 (Specific % move, e.g. 'Cut Tech by 10%')",
+    "Hedging Strategy (e.g. 'Buy Gold/Bonds to de-correlate')",
+    "Optimization (e.g. 'Deploy Cash into Dividend Aristocrats')"
+  ]
+}
+</output_format>
   `;
 
   const API_KEY = GEMINI_API_KEY; 
@@ -721,34 +614,43 @@ function getPortfolioRiskAnalysis(forceRefresh) {
   for (let m = 0; m < MODELS.length; m++) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[m]}:generateContent?key=${API_KEY}`;
-      const payload = { contents: [{ parts: [{ text: prompt }] }] };
+      
+      const payload = { 
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" } // CRITICAL: Force JSON mode
+      };
+      
       const res = UrlFetchApp.fetch(url, {
-        method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true
+        method: "post", 
+        contentType: "application/json", 
+        payload: JSON.stringify(payload), 
+        muteHttpExceptions: true
       });
       
       if (res.getResponseCode() === 200) {
         let text = JSON.parse(res.getContentText()).candidates[0].content.parts[0].text;
-        text = text.replace(/```json/g, "").replace(/```/g, "").trim();
         
-        const s = text.indexOf('{');
-        const e = text.lastIndexOf('}');
-        if (s !== -1 && e !== -1) {
-            finalResult = JSON.parse(text.substring(s, e + 1));
-            // Save to cache for 12 hours
-            cache.put(CACHE_KEY, JSON.stringify(finalResult), 43200); 
-            break; 
-        }
+        // No regex cleanup needed, parse safely directly
+        finalResult = JSON.parse(text);
+        
+        // Save to cache for 12 hours
+        cache.put(CACHE_KEY, JSON.stringify(finalResult), 43200); 
+        break; 
       }
-    } catch (e) { console.error("Risk AI Error: " + e.toString()); }
+    } catch (e) { 
+      console.error("Risk AI Error: " + e.toString()); 
+    }
   }
 
   return finalResult;
 }
 /**
- * estimates annual dividend income using AI.
+ * Estimates annual dividend income using AI.
  * Cleans European number formats, fetches current dividend yields/payment months via Gemini,
  * and calculates the total projected yearly return for the top 15 assets.
- * * @return {Object} Total yearly estimate and a detailed list of paying assets.
+ * Now uses Native JSON Mode for 100% parsing reliability.
+ *
+ * @return {Object} Total yearly estimate and a detailed list of paying assets.
  */
 function fetchDividendData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -788,37 +690,28 @@ function fetchDividendData() {
     "gemini-flash-latest"
   ];
   
-  // English Prompt
+  // Corrected English Prompt with XML tags for strict JSON schema enforcement
   const prompt = `
-    Role: Algorithmic Hedge Fund Manager. Date: ${today}.
-    MACRO: S&P500 ${macro.spx}% | VIX ${macro.vix} | US10Y ${macro.us10y}% | Crypto Trend ${macro.cryptoTrend}.
-    PORTFOLIO: Beta ${portBeta} | P/E ${portPE} | Top Sectors: ${topSectors} | Top Countries: ${topCountries}.
-    ASSETS: \n${assetsStr}
-    
-    TASK:
-    A. Analyze Macro interaction (Rates, Inflation, Geopolitics).
-    B. Diagnose Portfolio Style & Risks.
-    C. Sentiment Score (0-10) based on VIX and Momentum.
-    
-    D. DEEP DIVE EVENTS & CATALYSTS (Next 30 Days):
-    Identify 5 CRITICAL Global Market Events (Fed, ECB, CPI, Jobs) + Specific Earnings/Divs for my assets: [${myTickers}].
-    
-    CRITICAL INSTRUCTION FOR "event" FIELD:
-    Do NOT just list the name. You MUST include the "Why it matters" and "Expected Impact".
-    - BAD: "Apple Earnings"
-    - GOOD: "Apple Earnings: Focus on China sales decline. If miss, expect -5% drop. High Volatility."
-    - BAD: "US CPI"
-    - GOOD: "US CPI Data: Crucial for Fed Pivot. If >3.2%, Tech stocks will suffer. Watch 10Y Yield."
-
-    LANGUAGE ITALIAN AND JSON OUTPUT:
-    {
-      "sentiment_score": 5.5,
-      "sentiment_label": "Fear/Neutral/Greed",
-      "macro_analysis": "Detailed view on how macro factors (Rates/War/Oil) are impacting the market NOW. Be specific.",
-      "portfolio_analysis": "Specific feedback on my allocation. Am I too exposed to Tech? Too defensive? Give actionable advice.",
-      "market_events": [{"ticker": "MACRO", "event": "Event Name: Analytic Context & Impact Prediction", "date": "YYYY-MM-DD"}],
-      "portfolio_events": [{"ticker": "TICKER", "event": "Event Name: Analytic Context & Impact Prediction", "date": "YYYY-MM-DD"}]
-    }
+<role>You are an expert Financial Data Analyst.</role>
+<task>
+Estimate the current Annual Dividend Yield (as a decimal) and the Next Payment Month for the following financial assets:
+[${assetString}]
+</task>
+<rules>
+- Return strictly a JSON array of objects.
+- If an asset does NOT pay a dividend (e.g., Growth stocks, Bitcoin), set "y" to 0 and "m" to "N/A".
+- The "m" (month) value MUST be written in Italian (e.g., "Maggio", "Giugno").
+- Use English for the JSON keys ("t", "y", "m").
+</rules>
+<output_format>
+[
+  {
+    "t": "TICKER",
+    "y": 0.045, 
+    "m": "Mese in Italiano"
+  }
+]
+</output_format>
   `;
 
   let aiData = [];
@@ -826,7 +719,12 @@ function fetchDividendData() {
   for (let m=0; m<MODELS.length; m++) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[m]}:generateContent?key=${API_KEY}`;
-      const payload = { contents: [{ parts: [{ text: prompt }] }] };
+      
+      const payload = { 
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" } // CRITICAL: Force JSON mode
+      };
+      
       const options = { 
         method: "post", 
         contentType: "application/json", 
@@ -836,25 +734,21 @@ function fetchDividendData() {
       
       const res = UrlFetchApp.fetch(url, options);
       if (res.getResponseCode() === 200) {
-        let txt = JSON.parse(res.getContentText()).candidates[0].content.parts[0].text;
-        txt = txt.replace(/```json/g, "").replace(/```/g, "").trim();
+        let text = JSON.parse(res.getContentText()).candidates[0].content.parts[0].text;
         
-        const firstBracket = txt.indexOf('[');
-        const lastBracket = txt.lastIndexOf(']');
-        if (firstBracket !== -1 && lastBracket !== -1) {
-            txt = txt.substring(firstBracket, lastBracket + 1);
-            aiData = JSON.parse(txt);
-            break; 
-        }
+        // Native JSON parsing without string manipulation
+        aiData = JSON.parse(text);
+        break; 
       }
-    } catch(e) { console.warn("AI Model Error:", e); }
+    } catch(e) { console.warn("Dividend AI Model Error:", e); }
   }
 
   let totalYearly = 0;
   let finalItems = [];
 
   assetList.forEach(myAsset => {
-      const info = aiData.find(d => d.t.toUpperCase() === myAsset.ticker);
+      // Find matching data from AI response (safe check on 't')
+      const info = aiData.find(d => d.t && d.t.toUpperCase() === myAsset.ticker);
       
       if (info && info.y > 0) {
           let estimatedYearly = myAsset.value * info.y;
