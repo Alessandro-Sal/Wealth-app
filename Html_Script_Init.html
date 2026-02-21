@@ -88,8 +88,14 @@ async function initApp() {
           
       // Start Live Market Updates
       fetchWatchlist();
-      fetchAnalyticsData(); 
+      fetchAnalyticsData();
+      setTimeout(() => {
+          if (typeof renderNetWorthTrendChart === 'function') {
+              renderNetWorthTrendChart();
+          }
+      }, 2000);
       setTimeout(() => startMarketPolling(), 5000);
+      
 
   } catch (err) {
       console.error("Critical Init Error:", err);
@@ -257,41 +263,62 @@ function renderAllData(data) {
 
 /**
  * Updates the Dashboard Summary DOM elements.
- * 
+ * Includes a safety check to ignore temporary "0" or "#N/A" values from slow API loads (e.g., Crypto).
  */
 function updateDashboardDOM(d) {
   if(!d) return;
-  
-  document.getElementById('liq-eur').innerText = d.liquidNetWorth || "--";
-  document.getElementById('liq-usd').innerText = d.liquidNetWorthUSD || "--";
-  document.getElementById('tot-eur').innerText = d.totalNetWorth || "--";
-  document.getElementById('tot-usd').innerText = d.totalNetWorthUSD || "--";
+
+  // Smart helper: updates the element ONLY if the new value is valid 
+  // or if the element is currently empty ("--"). Prevents replacing cached data with "0" or errors.
+  const safeSet = (id, val) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      
+      let cleanVal = val || "--";
+      const valStr = String(cleanVal).trim();
+      
+      const isZeroOrError = valStr === "--" || valStr === "0" || valStr === "€ 0,00" || valStr === "€ 0" || valStr.includes("#N/A") || valStr.includes("Error") || valStr.includes("Loading");
+      
+      if (isZeroOrError) {
+          // If the element already has a real number on screen, ignore the new 0
+          if (el.innerText !== "--" && el.innerText !== "") return; 
+      }
+      
+      el.innerText = cleanVal;
+  };
+
+  safeSet('liq-eur', d.liquidNetWorth);
+  safeSet('liq-usd', d.liquidNetWorthUSD);
+  safeSet('tot-eur', d.totalNetWorth);
+  safeSet('tot-usd', d.totalNetWorthUSD);
   
   if (d.summary) {
-      if(d.summary.stocks) { document.getElementById('sum-s-a').innerText = d.summary.stocks.amount; setP('sum-s-p', d.summary.stocks.percent); }
-      if(d.summary.cash) { document.getElementById('sum-c-a').innerText = d.summary.cash.amount; setP('sum-c-p', d.summary.cash.percent); }
+      if(d.summary.stocks) { safeSet('sum-s-a', d.summary.stocks.amount); setP('sum-s-p', d.summary.stocks.percent); }
+      if(d.summary.cash) { safeSet('sum-c-a', d.summary.cash.amount); setP('sum-c-p', d.summary.cash.percent); }
       if(document.getElementById('sum-ceq-a')) {
-          if (d.summary.cashEq) { document.getElementById('sum-ceq-a').innerText = d.summary.cashEq.amount; setP('sum-ceq-p', d.summary.cashEq.percent); }
-          else { document.getElementById('sum-ceq-a').innerText = "€ 0,00"; setP('sum-ceq-p', "0%"); }
+          if (d.summary.cashEq) { safeSet('sum-ceq-a', d.summary.cashEq.amount); setP('sum-ceq-p', d.summary.cashEq.percent); }
+          else { safeSet('sum-ceq-a', "€ 0,00"); setP('sum-ceq-p', "0%"); }
       }
-      if(d.summary.etfs) { document.getElementById('sum-e-a').innerText = d.summary.etfs.amount; setP('sum-e-p', d.summary.etfs.percent); }
-      if(d.summary.crypto) { document.getElementById('sum-y-a').innerText = d.summary.crypto.amount; setP('sum-y-p', d.summary.crypto.percent); }
-      if(d.summary.others) { document.getElementById('sum-o-a').innerText = d.summary.others.amount; setP('sum-o-p', d.summary.others.percent); }
+      if(d.summary.etfs) { safeSet('sum-e-a', d.summary.etfs.amount); setP('sum-e-p', d.summary.etfs.percent); }
+      if(d.summary.crypto) { safeSet('sum-y-a', d.summary.crypto.amount); setP('sum-y-p', d.summary.crypto.percent); }
+      if(d.summary.others) { safeSet('sum-o-a', d.summary.others.amount); setP('sum-o-p', d.summary.others.percent); }
       if(typeof renderAssetChart === 'function') renderAssetChart(d.summary);
   }
   
   // Render specific asset sections (Crypto, Stocks, ETFs)
   const renderSection = (prefix, data) => {
       if(!data) return;
-      document.getElementById(`${prefix}-det-main`).innerText = data.main.amount;
-      document.getElementById(`${prefix}-det-un-a`).innerText = data.unrealized.amount; 
+      safeSet(`${prefix}-det-main`, data.main.amount);
+      safeSet(`${prefix}-det-un-a`, data.unrealized.amount); 
       setP(`${prefix}-det-un-p`, data.unrealized.percent);
-      document.getElementById(`${prefix}-det-re-a`).innerText = data.realized.amount; 
+      safeSet(`${prefix}-det-re-a`, data.realized.amount); 
       setP(`${prefix}-det-re-p`, data.realized.percent);
-      document.getElementById(`${prefix}-det-bal-a`).innerText = data.balance.amount; 
+      safeSet(`${prefix}-det-bal-a`, data.balance.amount); 
       setP(`${prefix}-det-bal-p`, data.balance.percent);
-      if(document.getElementById(`${prefix}-det-inv`) && data.invested) 
-          document.getElementById(`${prefix}-det-inv`).innerText = data.invested.amount;
+      
+      if(document.getElementById(`${prefix}-det-inv`) && data.invested) {
+          safeSet(`${prefix}-det-inv`, data.invested.amount);
+      }
   };
 
   renderSection('y', d.cryptoSection);

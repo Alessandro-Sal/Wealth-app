@@ -158,6 +158,7 @@ function renderAssetChart(summary) {
 
 /**
  * Renders Stacked Bar Charts for Category Breakdown (Income/Expense).
+ * Includes Privacy Mode support for Y-axis, Tooltips, and custom Average badge.
  */
 function renderStackedCharts(data) {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -184,27 +185,69 @@ function renderStackedCharts(data) {
           type: 'bar',
           data: { labels: months, datasets: datasets },
           options: {
-              responsive: true, maintainAspectRatio: false, layout: { padding: { top: 35 } },
+              responsive: true, 
+              maintainAspectRatio: false, 
+              layout: { padding: { top: 35 } },
               scales: { 
                   x: { stacked: true, grid: { display: false }, ticks: {font:{size:10}} }, 
-                  y: { stacked: true, border: { display: false }, grid: { color: '#f2f2f7' }, ticks: { font:{size:10}, callback: function(value) { if (document.body.classList.contains('privacy-mode')) return '****'; return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(value); } } } 
+                  y: { 
+                      stacked: true, 
+                      border: { display: false }, 
+                      grid: { color: '#f2f2f7' }, 
+                      ticks: { 
+                          font:{size:10}, 
+                          callback: function(value) { 
+                              // Hide Y-axis values in privacy mode
+                              if (document.body.classList.contains('privacy-mode')) return '****'; 
+                              return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(value); 
+                          } 
+                      } 
+                  } 
               },
               plugins: {
                   legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 10 }, padding: 10, usePointStyle: true } },
-                  tooltip: { mode: 'nearest', intersect: true, backgroundColor: 'rgba(255, 255, 255, 0.95)', titleColor: '#000', bodyColor: '#333', borderColor: '#eee', borderWidth: 1, callbacks: { label: function(context) { let label = context.dataset.label || ''; if (document.body.classList.contains('privacy-mode')) return label + ': ****'; let currentVal = context.parsed.y; let valStr = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(currentVal); let avgStr = ""; if (specificAverages && specificAverages[label]) { let avgVal = specificAverages[label]; let avgFmt = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(avgVal); avgStr = ` (Ø ${avgFmt})`; } return `${label}: ${valStr}${avgStr}`; } } }
-              },
-              plugins: [{
-                  id: 'avgLabelSingle',
-                  afterDraw: (chart) => {
-                      if (document.body.classList.contains('privacy-mode') || !totalAvgValue) return;
-                      const ctx = chart.ctx; ctx.save(); ctx.font = "600 11px Inter, sans-serif";
-                      const text = "Ø Tot: € " + new Intl.NumberFormat('it-IT', {maximumFractionDigits: 0}).format(totalAvgValue);
-                      const metrics = ctx.measureText(text); const width = metrics.width + 20; const height = 24; const x = chart.chartArea.right - width; const y = 0;
-                      ctx.fillStyle = themeColor + '15'; ctx.beginPath(); ctx.roundRect(x, y, width, height, 8); ctx.fill();
-                      ctx.fillStyle = themeColor; ctx.textBaseline = 'middle'; ctx.fillText(text, x + 10, y + height/2 + 1); ctx.restore();
+                  tooltip: { 
+                      mode: 'nearest', 
+                      intersect: true, 
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                      titleColor: '#000', 
+                      bodyColor: '#333', 
+                      borderColor: '#eee', 
+                      borderWidth: 1, 
+                      callbacks: { 
+                          label: function(context) { 
+                              let label = context.dataset.label || ''; 
+                              
+                              // Hide Tooltip values in privacy mode
+                              if (document.body.classList.contains('privacy-mode')) return label + ': ****'; 
+                              
+                              let currentVal = context.parsed.y; 
+                              let valStr = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(currentVal); 
+                              let avgStr = ""; 
+                              if (specificAverages && specificAverages[label]) { 
+                                  let avgVal = specificAverages[label]; 
+                                  let avgFmt = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(avgVal); 
+                                  avgStr = ` (Ø ${avgFmt})`; 
+                              } 
+                              return `${label}: ${valStr}${avgStr}`; 
+                          } 
+                      } 
                   }
-              }]
-          }
+              }
+          },
+          // Custom plugins must be placed OUTSIDE the "options" object
+          plugins: [{
+              id: 'avgLabelSingle',
+              afterDraw: (chart) => {
+                  // Hide top right average badge in privacy mode
+                  if (document.body.classList.contains('privacy-mode') || !totalAvgValue) return;
+                  const ctx = chart.ctx; ctx.save(); ctx.font = "600 11px Inter, sans-serif";
+                  const text = "Ø Tot: € " + new Intl.NumberFormat('it-IT', {maximumFractionDigits: 0}).format(totalAvgValue);
+                  const metrics = ctx.measureText(text); const width = metrics.width + 20; const height = 24; const x = chart.chartArea.right - width; const y = 0;
+                  ctx.fillStyle = themeColor + '15'; ctx.beginPath(); ctx.roundRect(x, y, width, height, 8); ctx.fill();
+                  ctx.fillStyle = themeColor; ctx.textBaseline = 'middle'; ctx.fillText(text, x + 10, y + height/2 + 1); ctx.restore();
+              }
+          }]
       });
   };
   
@@ -319,7 +362,7 @@ function renderSankeyChart(data) {
  * Utility to force update all charts (e.g., when toggling privacy mode).
  */
 function updateAllCharts() {
-  const allCharts = [myChart, assetChart, analyticsChartInstance, expenseStackInstance, incomeStackInstance, pensionChartInstance, tripChartInstance, sankeyChartInstance];
+  const allCharts = [myChart, assetChart, analyticsChartInstance, expenseStackInstance, incomeStackInstance, pensionChartInstance, tripChartInstance, sankeyChartInstance, nwTrendChartInstance,expenseStackChart,incomeStackChart];
   allCharts.forEach(chart => { if (chart) chart.update(); });
 }
 function getChartTheme() {
@@ -331,5 +374,115 @@ function getChartTheme() {
         tooltipText: isDark ? '#ffffff' : '#000000',
         borderColor: isDark ? '#333333' : '#e5e5ea'
     };
+}
+
+/**
+ * Renders the Net Worth and Asset Class Historical Trend Chart.
+ * Uses Chart.js with responsive datasets and privacy mode support (hides Y-axis and Tooltips).
+ */
+let nwTrendChartInstance = null;
+
+function renderNetWorthTrendChart() {
+  const canvas = document.getElementById('nwTrendChart');
+  if (!canvas) return; 
+  
+  const ctx = canvas.getContext('2d');
+  
+  google.script.run.withSuccessHandler(data => {
+    const loader = document.getElementById('nw-loading-indicator');
+    if (loader) loader.style.display = 'none';
+    if (!data || data.error) {
+        console.error("Error loading NW Trend data:", data?.error);
+        return;
+    }
+    
+    if (nwTrendChartInstance) {
+      nwTrendChartInstance.destroy();
+    }
+
+    const isDark = document.body.classList.contains('dark-mode');
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+
+    nwTrendChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.labels,
+        datasets: [
+          { label: 'Total Net Worth', data: data.totalNW, borderColor: '#007aff', backgroundColor: 'rgba(0, 122, 255, 0.1)', borderWidth: 3, fill: true, tension: 0.4, order: 1 },
+          { label: 'Liquid Net Worth', data: data.liquidNW, borderColor: '#34c759', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, borderDash: [5, 5], order: 2 },
+          
+          // USD Counterparts (Hidden by default)
+          { label: 'Total Net Worth (USD)', data: data.totalNW_USD, borderColor: '#5ac8fa', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, borderDash: [2, 2], hidden: true, order: 3 },
+          { label: 'Liquid Net Worth (USD)', data: data.liquidNW_USD, borderColor: '#30b0c7', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, borderDash: [2, 2], hidden: true, order: 4 },
+          
+          // Asset Classes
+          { label: 'Cash', data: data.cash, borderColor: '#32ade6', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 5 },
+          { label: 'Cash Eq', data: data.cashEq, borderColor: '#00c7be', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 6 },
+          { label: 'Stocks', data: data.stocks, borderColor: '#5856d6', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 7 },
+          { label: 'ETFs', data: data.etfs, borderColor: '#8e8e93', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 8 },
+          { label: 'Crypto', data: data.crypto, borderColor: '#ffcc00', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 9 },
+          { label: 'Pension', data: data.pension, borderColor: '#fd7e14', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 10 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        plugins: {
+          legend: { 
+            position: 'bottom', 
+            labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 }, padding: 15 } 
+          },
+          tooltip: {
+            backgroundColor: isDark ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            titleColor: isDark ? '#fff' : '#000',
+            bodyColor: isDark ? '#ddd' : '#333',
+            borderColor: isDark ? '#333' : '#eee',
+            borderWidth: 1,
+            callbacks: {
+              label: function(context) {
+                let label = context.dataset.label || '';
+                if (label) label += ': ';
+                
+                // HIDE DATA IN TOOLTIP ON PRIVACY MODE
+                if (document.body.classList.contains('privacy-mode')) return label + '****';
+                
+                // Dynamic Currency Formatting (EUR vs USD)
+                let isUSD = label.includes('USD');
+                let val = new Intl.NumberFormat(isUSD ? 'en-US' : 'it-IT', { 
+                  style: 'currency', 
+                  currency: isUSD ? 'USD' : 'EUR', 
+                  maximumFractionDigits: 0 
+                }).format(context.parsed.y);
+                
+                return label + val;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { 
+            grid: { display: false },
+            ticks: { font: { size: 10 } }
+          },
+          y: { 
+            grid: { color: gridColor, borderDash: [5, 5] }, 
+            border: { display: false },
+            ticks: {
+              font: { size: 10 },
+              // HIDE DATA ON Y AXIS WHEN PRIVACY MODE IS ACTIVE
+              callback: function(value) {
+                if (document.body.classList.contains('privacy-mode')) return '****';
+                return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(value);
+              }
+            }
+          }
+        }
+      }
+    });
+  }).getHistoricalNetWorthTrend();
 }
 </script>

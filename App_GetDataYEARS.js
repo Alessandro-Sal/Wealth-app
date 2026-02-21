@@ -263,3 +263,90 @@ function getHistoryNWData(year) {
     }
   };
 }
+
+/**
+ * Retrieves historical trend data for Net Worth and Asset Classes over time.
+ * Extracts data from "NW analitico" strictly for columns where the header is an exact year.
+ * * @return {Object} Trend data containing labels (years) and datasets for each asset class, including Cash, Cash Eq, and USD equivalents.
+ */
+function getHistoricalNetWorthTrend() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("NW analitico");
+  
+  if (!sheet) return { error: "Sheet 'NW analitico' not found" };
+
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0]; 
+
+  // Helper to safely parse string values into numbers
+  const parseVal = (val) => {
+    if (!val) return 0;
+    let s = String(val).replace(/[^0-9.,-]/g, '');
+    if (s.includes(',') && s.includes('.')) {
+       s = s.replace(/\./g, '').replace(',', '.'); 
+    } else if (s.includes(',')) {
+       s = s.replace(',', '.');
+    }
+    let num = parseFloat(s);
+    return isNaN(num) ? 0 : num;
+  };
+
+  let result = {
+    labels: [],
+    totalNW: [],
+    liquidNW: [],
+    totalNW_USD: [], // Added Total USD
+    liquidNW_USD: [], // Added Liquid USD
+    stocks: [],
+    etfs: [],
+    crypto: [],
+    pension: [],
+    cash: [],
+    cashEq: []
+  };
+
+  // Loop through columns starting from index 1 (skipping row labels in column A)
+  for (let c = 1; c < headers.length; c++) {
+    let rawLabel = headers[c];
+    if (!rawLabel) continue; 
+    
+    let labelStr = String(rawLabel).trim();
+
+    // ONLY process columns where the header is exactly a 4-digit year
+    if (!/^\d{4}$/.test(labelStr)) {
+      continue;
+    }
+    
+    result.labels.push(labelStr);
+
+    // Retrieve values mapping the correct rows
+    let valLiquidUsd = parseVal(data[3][c]); // Row 4 -> index 3
+    let valTotalUsd  = parseVal(data[7][c]); // Row 8 -> index 7
+
+    let vStocks = parseVal(data[43][c]);     // Row 44 -> index 43
+    let vEtfs = parseVal(data[34][c]);       // Row 35 -> index 34
+    let vCrypto = parseVal(data[15][c]);     // Row 16 -> index 15
+    let vCash = parseVal(data[9][c]);        // Row 10 -> index 9
+    let vCashEq = parseVal(data[11][c]);     // Row 12 -> index 11
+    let vPension = parseVal(data[75][c]);    // Row 76 -> index 75
+
+    // 1) Liquid NW Calculation = Cash + Stocks + Crypto + Etfs
+    let calcLiquidNW = vCash + vStocks + vCrypto + vEtfs;
+
+    // 2) Total NW Calculation = Cash + Cash Eq + Stocks + Crypto + Etfs + Pension
+    let calcTotalNW = vCashEq + vStocks + vCrypto + vEtfs + vPension;
+
+    result.totalNW.push(calcTotalNW);
+    result.liquidNW.push(calcLiquidNW);
+    result.totalNW_USD.push(valTotalUsd);
+    result.liquidNW_USD.push(valLiquidUsd);
+    result.stocks.push(vStocks);
+    result.etfs.push(vEtfs);
+    result.crypto.push(vCrypto);
+    result.pension.push(vPension);
+    result.cash.push(vCash);
+    result.cashEq.push(vCashEq);
+  }
+
+  return result;
+}
