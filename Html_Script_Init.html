@@ -463,7 +463,27 @@ function setP(id, val) {
   const el = document.getElementById(id);
   if (!el) return;
   el.innerText = val;
-  el.style.color = (val && val.includes('-')) ? 'var(--danger)' : 'var(--stocks-bg)';
+
+  if (id.startsWith('sum-')) {
+      el.style.color = 'var(--text-main)';
+      const amtId = id.replace('-p', '-a');
+      const amtEl = document.getElementById(amtId);
+      if (amtEl) amtEl.style.color = 'var(--text-main)';
+      return;
+  }
+
+  const isNegative = val && String(val).includes('-');
+  const color = isNegative ? 'var(--danger)' : 'var(--stocks-bg)';
+  el.style.color = color;
+
+  if (id.endsWith('-p') && id.includes('-det-')) {
+      const amtId = id.replace('-p', '-a');
+      const amtEl = document.getElementById(amtId);
+      if (amtEl) {
+          amtEl.style.color = color;
+          amtEl.style.transition = 'color 0.3s ease';
+      }
+  }
 }
 
 function fetchHistory() {
@@ -495,8 +515,7 @@ function renderHistoricalNWDOM(data) {
   
   const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.innerText = fmtEur(val); };
   const setUsd = (id, val) => { const el = document.getElementById(id); if(el) el.innerText = fmtUsd(val); };
-  const setAlloc = (id, textPct) => { const el = document.getElementById(id); if(el) { el.innerText = textPct; el.style.color = 'var(--stocks-bg)'; } };
-  
+    const setAlloc = (id, textPct) => { const el = document.getElementById(id); if(el) { el.innerText = textPct; el.style.color = 'var(--text-main)'; } };   
   const setTrend = (id, valStr) => {
       const el = document.getElementById(id); if(!el) return;
       el.innerText = valStr;

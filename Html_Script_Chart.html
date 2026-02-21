@@ -132,9 +132,9 @@ function renderAssetChart(summary) {
   
   assetChart = new Chart(ctx, {
       type: 'doughnut',
-      data: { labels: labels, datasets: [{ data: finalValues, backgroundColor: finalColors, borderWidth: 0, hoverOffset: 4 }] },
+      data: { labels: labels, datasets: [{ data: finalValues, backgroundColor: finalColors, borderWidth: 0, hoverOffset: 4, borderRadius: 5 }] },
       options: {
-          responsive: true, maintainAspectRatio: false, cutout: '70%',
+          responsive: true, maintainAspectRatio: false, cutout: '80%',
           plugins: {
               legend: { display: totalCheck > 0, position: 'bottom', labels: { boxWidth: 10, font: { size: 11 }, padding: 15 } },
               tooltip: {
@@ -362,7 +362,7 @@ function renderSankeyChart(data) {
  * Utility to force update all charts (e.g., when toggling privacy mode).
  */
 function updateAllCharts() {
-  const allCharts = [myChart, assetChart, analyticsChartInstance, expenseStackInstance, incomeStackInstance, pensionChartInstance, tripChartInstance, sankeyChartInstance, nwTrendChartInstance,expenseStackChart,incomeStackChart];
+  const allCharts = [myChart, assetChart, analyticsChartInstance, expenseStackInstance, incomeStackInstance, pensionChartInstance, tripChartInstance, sankeyChartInstance, nwTrendChartInstance];
   allCharts.forEach(chart => { if (chart) chart.update(); });
 }
 function getChartTheme() {

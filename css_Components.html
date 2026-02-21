@@ -36,19 +36,85 @@
    .shake { animation: shake 0.4s cubic-bezier(.36, .07, .19, .97) both; }
    @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
 
-   /* --- NAVIGATION BAR --- */
-   /* Bottom tab bar with safe-area support for iPhone X+ */
-   .nav-bar {
-   position: fixed; bottom: 0; width: 100%; height: 75px;
-   background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
-   display: flex; border-top: 1px solid #d1d1d6; z-index: 1000;
-   transition: background 0.3s; padding-bottom: 10px; box-sizing: border-box;
-   padding-bottom: env(safe-area-inset-bottom); /* Push up for Home Indicator */
-   height: calc(75px + env(safe-area-inset-bottom)); /* Adjust total height */
+/* --- FLOATING NAVIGATION BAR (Ultra-Premium) --- */
+   .nav-bar-container {
+       position: fixed;
+       bottom: 0;
+       left: 0;
+       width: 100%;
+       display: flex;
+       justify-content: center;
+       z-index: 1000;
+       pointer-events: none; /* Permette di cliccare lo sfondo attorno alla barra */
+       /* Usa safe-area per distaccarsi dalla barra di sistema degli iPhone */
+       padding-bottom: calc(15px + env(safe-area-inset-bottom)); 
    }
-   .nav-btn { flex: 1; text-align: center; padding: 10px 2px; font-size: 9px; color: var(--gray); font-weight: 500; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-   .nav-btn.active { color: #007aff !important; transform: scale(1.15); transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); font-weight: 700; text-shadow: 0 0 10px rgba(0, 122, 255, 0.3); }
-   .nav-btn i { display: block; font-size: 22px; margin-bottom: 3px; font-style: normal; }
+
+   .nav-bar {
+       background: rgba(255, 255, 255, 0.85);
+       backdrop-filter: blur(25px);
+       -webkit-backdrop-filter: blur(25px);
+       border: 1px solid rgba(0, 0, 0, 0.08);
+       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+       border-radius: 40px; /* Effetto Pillola */
+       display: flex;
+       align-items: center;
+       justify-content: space-between;
+       padding: 5px 15px;
+       width: calc(100% - 40px);
+       max-width: 450px; /* Perfetta anche su PC/Tablet */
+       height: 70px;
+       pointer-events: auto; /* Riattiva il touch sulla barra */
+       transition: background 0.3s, border-color 0.3s;
+   }
+
+   .nav-btn {
+       flex: 1;
+       display: flex;
+       flex-direction: column;
+       align-items: center;
+       justify-content: center;
+       height: 100%;
+       cursor: pointer;
+       color: var(--gray);
+       font-size: 10px;
+       font-weight: 600;
+       transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Animazione a molla */
+       -webkit-tap-highlight-color: transparent;
+   }
+
+   .nav-btn i {
+       font-size: 22px;
+       font-style: normal;
+       margin-bottom: 4px;
+       transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s, filter 0.3s;
+       opacity: 0.5; /* Più spente quando non selezionate */
+       filter: grayscale(0.6); /* Tolgono "rumore visivo" */
+   }
+
+   .nav-btn span { transition: color 0.3s; }
+
+   /* STATO ATTIVO */
+   .nav-btn.active span {
+       color: var(--primary);
+       font-weight: 800;
+   }
+
+   .nav-btn.active i {
+       opacity: 1;
+       filter: grayscale(0);
+       /* Piccolo salto verso l'alto ed espansione per il tab attivo */
+       transform: translateY(-4px) scale(1.15); 
+   }
+
+   /* Stile speciale per la calcolatrice (colore indipendente) */
+   .nav-btn-calc i {
+       filter: none;
+       opacity: 0.8;
+   }
+   .nav-btn-calc.active span {
+       color: var(--invest-bg);
+   }
    
    /* --- HEADER ACTIONS & PAGE STRUCTURE --- */
    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
@@ -217,4 +283,12 @@
    body.dark-mode .ai-report-content th { background-color: #3a3a3c; color: #fff; border-color: #555; }
    body.dark-mode .ai-report-content td { color: #ddd; border-color: #444; }
    body.dark-mode .ai-report-content strong { color: #fff; }
+
+   #p-market .header-actions.nav-hidden,
+   #p-recap .header-actions.nav-hidden,
+   #p-recap .floating-year-selector.nav-hidden {
+       transform: translateY(0) !important;
+       opacity: 1 !important;
+       pointer-events: auto !important;
+   }
 </style>

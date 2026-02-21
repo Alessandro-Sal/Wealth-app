@@ -367,7 +367,19 @@
    </div>
    <div id="app-content" style="display:none;">
       <div id="p-add" class="page active-page">
-        <div class="card" style="padding: 20px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background: white; margin-bottom: 20px;">
+        <form id="txForm">
+            <div class="page-header">
+                <h3 style="margin:0">New Movement</h3>
+                <div class="header-actions">
+                  <button type="button" class="mini-theme-btn" onclick="startVoiceInput()" style="color:#007aff; border-color:#007aff;">🎙️</button>
+                  <button type="button" class="mini-theme-btn" onclick="document.getElementById('camInput').click()" style="color:#007aff; border-color:#007aff;">📸</button>
+                  <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;" onchange="handleImageInput(this)">
+                  <button type="button" class="mini-theme-btn" onclick="openSubs()">🔄</button>
+                  <button type="button" class="mini-theme-btn" onclick="togglePrivacy()">👁️</button>
+                  <button type="button" class="mini-theme-btn" onclick="openGeminiSheet()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border:none; color:white;">✨</button>
+               </div>
+            </div>
+            <div class="card" style="padding: 20px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background: white; margin-bottom: 20px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
                 <div style="font-size:11px; font-weight:700; color:var(--gray); text-transform:uppercase; letter-spacing:1px;">Current Month Flow</div>
                 <div id="flow-rate" class="sensitive" style="font-size:12px; font-weight:700; color:white; background: linear-gradient(135deg, #007aff 0%, #5856d6 100%); padding: 4px 10px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,122,255,0.3);">--%</div>
@@ -396,18 +408,6 @@
                 </div>
             </div>
         </div>
-        <form id="txForm">
-            <div class="page-header">
-                <h3 style="margin:0">New Movement</h3>
-                <div class="header-actions">
-                  <button type="button" class="mini-theme-btn" onclick="startVoiceInput()" style="color:#007aff; border-color:#007aff;">🎙️</button>
-                  <button type="button" class="mini-theme-btn" onclick="document.getElementById('camInput').click()" style="color:#007aff; border-color:#007aff;">📸</button>
-                  <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;" onchange="handleImageInput(this)">
-                  <button type="button" class="mini-theme-btn" onclick="openSubs()">🔄</button>
-                  <button type="button" class="mini-theme-btn" onclick="togglePrivacy()">👁️</button>
-                  <button type="button" class="mini-theme-btn" onclick="openGeminiSheet()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border:none; color:white;">✨</button>
-               </div>
-            </div>
             <label>Type</label>
             <select id="tType" onchange="handleTypeChange()">
                <option value="">Choose Type...</option>
@@ -638,728 +638,1116 @@
             </div>
          </form>
       </div>
-      <div id="p-market" class="page">
-         <div class="page-header">
+ <style>
+    /* =========================================
+       ULTRA-PREMIUM MARKET PAGE UI (UNBREAKABLE)
+       ========================================= */
+
+    /* 1. Blocca comportamenti anomali di scorrimento pagina */
+    #p-market {
+        overscroll-behavior-x: none;
+    }
+
+    /* 2. Header FISSATO IN ALTO (Sticky) con bottoni */
+    .market-header-container {
+        position: -webkit-sticky;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 20px;
+        margin: -15px -15px 25px -15px; /* Compensa i padding della pagina */
+        background: rgba(242, 242, 247, 0.85);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    body.dark-mode .market-header-container {
+        background: rgba(28, 28, 30, 0.85);
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .market-page-title {
+        font-size: 24px;
+        font-weight: 900;
+        letter-spacing: -1px;
+        color: var(--text-main);
+        margin: 0;
+        line-height: 1.2;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    /* 3. WIDGET BASE (Semplice, solido, 100% larghezza) */
+    .dash-widget {
+        background: var(--white);
+        border-radius: 24px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        border: 1px solid rgba(0,0,0,0.02);
+        margin-bottom: 20px;
+        min-width: 0; /* Previene esplosioni di layout */
+    }
+    .dash-widget.no-pad { padding: 0; overflow: hidden; border-radius: 20px; }
+    
+    body.dark-mode .dash-widget {
+        background: #1c1c1e;
+        border: 1px solid rgba(255,255,255,0.05);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    /* Griglia solo per i grafici grandi su PC */
+    @media (min-width: 768px) {
+        .pc-tv-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .pc-tv-grid .full-width { grid-column: span 2; }
+    }
+
+    /* 4. UTILITIES (Testi, Icone, Formattazione) */
+    .dash-section-title {
+        font-size: 18px; font-weight: 800; letter-spacing: -0.5px;
+        margin: 35px 0 15px 5px; color: var(--text-main);
+    }
+    .widget-title {
+        font-size: 13px; font-weight: 800; text-transform: uppercase;
+        letter-spacing: 0.5px; color: var(--gray);
+        display: flex; align-items: center; gap: 8px; margin-bottom: 15px;
+    }
+    .badge-icon {
+        width: 28px; height: 28px; border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 14px; color: white;
+    }
+    .bg-blue { background: #007aff; } .bg-green { background: #34c759; }
+    .bg-orange { background: #ff9500; } .bg-purple { background: #5856d6; }
+    .bg-red { background: #ff3b30; } .bg-dark { background: #2c2c2e; }
+
+    .live-dot {
+        width: 8px; height: 8px; background-color: #ff3b30; border-radius: 50%;
+        display: inline-block; box-shadow: 0 0 8px rgba(255,59,48,0.8);
+        animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+
+    /* =========================================================
+       5. JAVASCRIPT INJECTION FIXES (TICKERS)
+       ========================================================= */
+
+    /* Scroll Orizzontale Perfetto (Senza blocchi) */
+    #p-market .live-scroll {
+        display: flex; 
+        gap: 12px; 
+        padding-bottom: 10px; 
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        min-width: 0;
+    }
+    
+    /* Scrollbar visibile solo su PC */
+    #p-market .live-scroll::-webkit-scrollbar { display: none; } 
+    @media (min-width: 768px) {
+        #p-market .live-scroll::-webkit-scrollbar { display: block; height: 6px; }
+        #p-market .live-scroll::-webkit-scrollbar-track { background: transparent; }
+        #p-market .live-scroll::-webkit-scrollbar-thumb { background: rgba(142, 142, 147, 0.3); border-radius: 10px; }
+        #p-market .live-scroll::-webkit-scrollbar-thumb:hover { background: rgba(142, 142, 147, 0.6); }
+    }
+
+    /* TICKER CARDS - IL SEGRETO E' FLEX-SHRINK: 0 */
+    #p-market .ticker-card {
+        flex-shrink: 0 !important; /* IMPEDISCE LO SCHIACCIAMENTO */
+        width: 145px !important;   /* LARGHEZZA FISSA */
+        background: var(--white) !important;
+        border-top: 1px solid var(--row-border) !important;
+        border-right: 1px solid var(--row-border) !important;
+        border-bottom: 1px solid var(--row-border) !important;
+        /* NON SOVRASCRIVO IL BORDER-LEFT, LO DECIDE IL TUO JS */
+        border-radius: 14px !important;
+        padding: 14px !important;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03) !important;
+        display: flex; flex-direction: column; justify-content: space-between;
+        transition: transform 0.2s ease, box-shadow 0.2s ease; 
+    }
+    body.dark-mode #p-market .ticker-card { 
+        background: #2c2c2e !important; 
+        border-top-color: rgba(255,255,255,0.05) !important; 
+        border-right-color: rgba(255,255,255,0.05) !important; 
+        border-bottom-color: rgba(255,255,255,0.05) !important; 
+    }
+    #p-market .ticker-card:active { transform: scale(0.96); }
+
+    /* Testi Ticker */
+    #p-market .tc-symbol { font-size: 15px !important; font-weight: 800 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #p-market .tc-change { font-size: 12px !important; padding: 4px 6px !important; border-radius: 6px !important; font-weight: 800 !important; }
+    #p-market .tc-val-big { font-size: 18px !important; font-weight: 800 !important; margin-top: 8px !important; font-variant-numeric: tabular-nums; letter-spacing: -0.5px;}
+    #p-market .tc-val-sub { font-size: 11px !important; font-weight: 600 !important; }
+
+    /* Day Change TRASPARENTE e pulito */
+    #live-day-change > div {
+        background: transparent !important; box-shadow: none !important; border: none !important;
+        border-bottom: 1px dashed var(--row-border) !important; padding: 0 0 15px 0 !important;
+        margin: 0 0 15px 0 !important; border-radius: 0 !important;
+    }
+
+    /* Struttura Titoli Asset Live */
+    .live-asset-group { margin-bottom: 15px; }
+    .live-asset-title {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 0 5px 8px 5px; margin-bottom: 5px;
+    }
+
+    /* Watchlist & Calendar Overrides */
+    #p-market #wl-list {
+        display: grid !important; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+        gap: 12px !important; padding: 0 !important;
+    }
+    #p-market .wl-stat-box {
+        background: var(--section-bg) !important; border: 1px solid var(--row-border) !important;
+        border-radius: 14px !important; box-shadow: none !important; word-wrap: break-word !important;
+    }
+    body.dark-mode #p-market .wl-stat-box { background: #2c2c2e !important; border-color: rgba(255,255,255,0.05) !important; }
+
+    #p-market .calendar-header { background: transparent !important; padding: 0 0 15px 0 !important; border-bottom: none !important; }
+    #p-market .calendar-grid { background: transparent !important; padding: 0 !important; gap: 6px !important; }
+    #p-market .calendar-day { background: var(--section-bg); border-radius: 10px !important; font-weight: 700 !important; font-size: 14px !important; }
+    body.dark-mode #p-market .calendar-day { background: #2c2c2e; }
+    #p-market .calendar-day.selected { background: var(--primary) !important; color: white !important; box-shadow: 0 4px 10px rgba(0,122,255,0.3); }
+    #p-market .event-details-box { background: var(--section-bg) !important; border-radius: 14px !important; border: none !important; padding: 15px !important; margin-top: 15px !important; word-wrap: break-word; }
+
+    /* Testi Analyst AI - Niente bordature fuori controllo */
+    .ai-text-box {
+        font-size: 13px; font-weight: 500; line-height: 1.6; color: var(--text-main);
+        white-space: pre-wrap; word-break: break-word;
+    }
+
+    /* Custom Inputs */
+    .premium-input {
+        width: 100%; padding: 12px 15px; background: var(--white); border: none;
+        color: var(--text-main); border-radius: 12px; font-size: 14px; font-weight: 700;
+        box-sizing: border-box; outline: none; transition: 0.3s; font-family: 'Inter', sans-serif;
+    }
+    .premium-input:focus { box-shadow: 0 0 0 2px var(--primary) inset; }
+    .ios-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: var(--section-bg); border-radius: 12px; margin-bottom: 10px;}
+    .ios-select { background: transparent; border: none; text-align: right; text-align-last: right; font-size: 15px; font-weight: 800; color: var(--primary); outline: none; -webkit-appearance: none; appearance: none; }
+
+    /* Wrapper */
+    .tabular-nums { font-variant-numeric: tabular-nums; }
+    .pc-wrapper { max-width: 1200px; margin: 0 auto; width: 100%; padding-bottom: 40px; }
+</style>
+
+<div id="p-market" class="page" style="padding-top: 0;">
+    <div class="pc-wrapper">
+        
+        <div class="market-header-container">
             <div>
-               <h3 style="margin:0; line-height: 1.1;">Market Data</h3>
-               <div id="market-status" style="font-size:11px; font-weight:600; color:var(--gray); margin-top:2px; display:flex; align-items:center; gap:4px;">
-                  Checking status...
-               </div>
+                <h3 class="market-page-title">Market Data</h3>
+                <div id="market-status" style="font-size:12px; font-weight:700; color:var(--gray); margin-top:2px;">
+                    Checking status...
+                </div>
             </div>
             <div class="header-actions">
-               <button type="button" class="mini-theme-btn" onclick="togglePrivacy()">👁️</button>
-               <button type="button" class="mini-theme-btn" onclick="toggleLanguage()" style="font-size: 18px;">🇮🇹</button>
-               <button type="button" class="mini-theme-btn" onclick="openGeminiSheet()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border:none; color:white;">✨</button>
-               <button type="button" class="mini-theme-btn" onclick="openAnalystAI()" style="background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); border:none; color:white; margin-left:4px;">🧠</button>            
+                <button type="button" class="mini-theme-btn" onclick="togglePrivacy()" style="background:var(--section-bg); border:none; width:36px; height:36px;">👁️</button>
+                <button type="button" class="mini-theme-btn" onclick="toggleLanguage()" style="font-size: 18px; background:var(--section-bg); border:none; width:36px; height:36px;">🇮🇹</button>
+                <button type="button" class="mini-theme-btn" onclick="openGeminiSheet()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border:none; color:white; width:36px; height:36px; box-shadow: 0 4px 10px rgba(118,75,162,0.3);">✨</button>
+                <button type="button" class="mini-theme-btn" onclick="openAnalystAI()" style="background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); border:none; color:white; width:36px; height:36px; box-shadow: 0 4px 10px rgba(79,70,229,0.3);">🧠</button>            
             </div>
-         </div>
-         <div class="card" style="padding:0; overflow:hidden; height:44px; margin-bottom:15px;">
-            <div class="tradingview-widget-container">
-               <div class="tradingview-widget-container__widget"></div>
-               <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
-                  {
-                    "symbols": [
-                      { "proName": "FOREXCOM:SPXUSD", "title": "S&P 500" },
-                      { "proName": "FOREXCOM:NSXUSD", "title": "US 100" },
-                      { "proName": "FX_IDC:EURUSD", "title": "EUR/USD" },
-                      { "proName": "BITSTAMP:BTCUSD", "title": "Bitcoin" },
-                      { "proName": "BITSTAMP:ETHUSD", "title": "Ethereum" }
-                    ],
-                    "showSymbolLogo": true,
-                    "colorTheme": "light",
-                    "isTransparent": true,
-                    "displayMode": "regular",
-                    "locale": "en"
-                  };
-               </script>
+        </div>
+
+        <div style="display: flex; flex-direction: column;">
+            
+            <div class="dash-widget no-pad" style="height: 46px; border:none;">
+                <div class="tradingview-widget-container">
+                    <div class="tradingview-widget-container__widget"></div>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+                    { "symbols": [ { "proName": "FOREXCOM:SPXUSD", "title": "S&P 500" }, { "proName": "FOREXCOM:NSXUSD", "title": "US 100" }, { "proName": "FX_IDC:EURUSD", "title": "EUR/USD" }, { "proName": "BITSTAMP:BTCUSD", "title": "Bitcoin" }, { "proName": "BITSTAMP:ETHUSD", "title": "Ethereum" } ], "showSymbolLogo": true, "colorTheme": "light", "isTransparent": true, "displayMode": "regular", "locale": "en" }
+                    </script>
+                </div>
             </div>
-         </div>
-         <div class="section-header" style="background:#5856d6; color:white; margin-top:15px; padding: 10px 15px; border-radius: 12px 12px 0 0; display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-weight:bold;">My Watchlist</span>
-            <span onclick="toggleWatchlistInput()" style="font-size:24px; cursor:pointer; padding: 0 15px; font-weight:bold; color: #ffffff !important; user-select: none;">
-            +
-            </span>
-         </div>
-         <div id="wl-add-box" style="display:none; background:white; padding:15px; border-bottom:1px solid #eee;">
-            <div style="display:flex; gap:10px;">
-               <input type="text" id="wlTickerInput" placeholder="Ticker (e.g. NVDA)..." style="flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; text-transform:uppercase;">
-               <button onclick="sendAddToWatchlist()" style="background:var(--stocks-bg); color:white; border:none; border-radius:8px; font-weight:bold; padding:0 20px;">ADD</button>
+
+            <div class="dash-widget">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                    <div class="widget-title" style="margin:0;"><span class="live-dot"></span> Portfolio Live</div>
+                </div>
+                
+                <div id="live-day-change"></div>
+                
+                <div class="live-asset-group">
+                    <div class="live-asset-title">
+                        <div style="font-size:14px; font-weight:800; color:var(--text-main);">📈 STOCKS</div>
+                        <div style="font-size:11px; font-weight:700; color:var(--gray);">(24h %)</div>
+                    </div>
+                    <div id="live-stocks" class="live-scroll">
+                        <div style="padding:15px; color:var(--gray); font-size:12px; font-weight:600;">Tap 'Market' tab to refresh...</div>
+                    </div>
+                </div>
+                
+                <div class="live-asset-group">
+                    <div class="live-asset-title">
+                        <div style="font-size:14px; font-weight:800; color:var(--text-main);">📦 ETFs</div>
+                        <div style="font-size:11px; font-weight:700; color:var(--gray);">(24h %)</div>
+                    </div>
+                    <div id="live-etfs" class="live-scroll">
+                        <div style="padding:15px; color:var(--gray); font-size:12px; font-weight:600;">Tap 'Market' tab to refresh...</div>
+                    </div>
+                </div>
+                
+                <div class="live-asset-group" style="margin-bottom:0;">
+                    <div class="live-asset-title">
+                        <div style="font-size:14px; font-weight:800; color:var(--text-main);">₿ CRYPTO</div>
+                        <div style="font-size:11px; font-weight:700; color:var(--gray);">(Live Price)</div>
+                    </div>
+                    <div id="live-crypto" class="live-scroll" style="margin-bottom:0; padding-bottom:5px;">
+                        <div style="padding:15px; color:var(--gray); font-size:12px; font-weight:600;">Tap 'Market' tab to refresh...</div>
+                    </div>
+                </div>
             </div>
-         </div>
-         <div class="card" style="padding:0; min-height:50px; border-radius: 0 0 12px 12px; margin-top:0;">
-            <div id="watchlist-container">
-               <div style="padding:20px; text-align:center; color:var(--gray); font-size:12px;">Loading watchlist...</div>
+
+            <div class="dash-widget">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+                    <div class="widget-title" style="margin:0;"><div class="badge-icon bg-purple">⭐</div> My Watchlist</div>
+                    <span onclick="toggleWatchlistInput()" style="font-size:24px; cursor:pointer; font-weight:800; color:var(--primary); line-height:1; transition:0.2s;">+</span>
+                </div>
+                <div id="wl-add-box" style="display:none; padding-bottom:15px;">
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="wlTickerInput" class="premium-input" placeholder="Ticker (e.g. NVDA)" style="text-transform:uppercase; background:var(--section-bg);">
+                        <button onclick="sendAddToWatchlist()" style="background:var(--primary); color:white; border:none; border-radius:12px; font-weight:800; padding:0 20px; cursor:pointer;">ADD</button>
+                    </div>
+                </div>
+                <div id="watchlist-container" style="min-height:100px;">
+                    <div style="padding:20px; text-align:center; color:var(--gray); font-size:13px; font-weight:600;">Loading watchlist...</div>
+                </div>
             </div>
-         </div>
-         <div class="section-header stocks-title" style="margin-top: 5px; border-radius: 12px 12px 0 0;">
-            My Portfolio Live
-         </div>
-         <div class="card" style="border-radius: 0 0 12px 12px; background: var(--white); box-shadow: 0 4px 12px rgba(0,0,0,0.05); padding: 15px; margin-bottom: 20px;">
-            <div id="live-day-change" style="margin-bottom: 15px;"></div>
-            <div style="margin-bottom: 15px;">
-               <div style="font-size:11px; font-weight:bold; color:var(--gray); margin: 0 0 8px 5px;">STOCKS (24h %)</div>
-               <div id="live-stocks" class="live-scroll">
-                  <div style="padding:10px; color:var(--gray); font-size:12px;">Tap 'Market' tab to refresh...</div>
-               </div>
+
+            <div class="dash-widget">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <div class="widget-title" style="margin:0;"><div class="badge-icon bg-dark">🏆</div> Daily Benchmark</div>
+                    <span id="btn-refresh-market" onclick="forceReloadMarket()" style="font-size:16px; cursor:pointer; color:var(--primary); background:var(--section-bg); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px;">🔄</span>
+                </div>
+                <div id="benchmark-container" style="flex-grow:1; display:flex; flex-direction:column; justify-content:center;">
+                    <div style="font-size:13px; font-weight:600; color:var(--gray); text-align:center; padding:10px;">Loading indices...</div>
+                </div>
             </div>
-            <div style="margin-bottom: 15px;">
-               <div style="font-size:11px; font-weight:bold; color:var(--gray); margin: 0 0 8px 5px;">ETFs (24h %)</div>
-               <div id="live-etfs" class="live-scroll">
-                  <div style="padding:10px; color:var(--gray); font-size:12px;">Tap 'Market' tab to refresh...</div>
-               </div>
+
+            <div class="dash-widget">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <div class="widget-title" style="margin:0;"><div class="badge-icon" style="background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);">🤖</div> Analyst Insight</div>
+                    <div id="sentiment-badge" style="font-size:10px; font-weight:800; padding:4px 10px; border-radius:10px; background:var(--section-bg); color:var(--text-main);">Ready</div>
+                </div>
+                <div style="background:rgba(0,122,255,0.05); border-left:4px solid #007aff; padding:15px; border-radius:0 12px 12px 0; margin-bottom:15px;">
+                    <div style="font-size:10px; font-weight:800; color:#007aff; margin-bottom:6px; letter-spacing:0.5px;">🌍 MACRO SCENARIO</div>
+                    <div id="macro-text" class="ai-text-box">Click 🔄 in Daily Benchmark to generate.</div>
+                </div>
+                <div style="background:rgba(255,149,0,0.05); border-left:4px solid #ff9500; padding:15px; border-radius:0 12px 12px 0;">
+                    <div style="font-size:10px; font-weight:800; color:#ff9500; margin-bottom:6px; letter-spacing:0.5px;">👤 PORTFOLIO IMPACT</div>
+                    <div id="portfolio-text" class="sensitive ai-text-box">Waiting for user input...</div>
+                </div>
             </div>
-            <div>
-               <div style="font-size:11px; font-weight:bold; color:var(--gray); margin: 0 0 8px 5px;">CRYPTO (Live Price)</div>
-               <div id="live-crypto" class="live-scroll">
-                  <div style="padding:10px; color:var(--gray); font-size:12px;">Tap 'Market' tab to refresh...</div>
-               </div>
+
+            <div class="dash-widget">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <div class="widget-title" style="margin:0;"><div class="badge-icon bg-red">🗓️</div> Outlook</div>
+                    <span style="font-size:10px; font-weight:600; color:var(--gray);">Tap for info</span>
+                </div>
+                <div>
+                    <div class="calendar-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <button onclick="changeMonth(-1)" style="border:none; background:var(--section-bg); width:28px; height:28px; border-radius:8px; cursor:pointer; font-size:12px; color:var(--primary); font-weight:bold;">◀</button>
+                        <div id="cal-month-year" style="flex:1; text-align:center; font-weight:800; font-size:13px; color:var(--text-main);">Tap 🔄</div>
+                        <button onclick="changeMonth(1)" style="border:none; background:var(--section-bg); width:28px; height:28px; border-radius:8px; cursor:pointer; font-size:12px; color:var(--primary); font-weight:bold;">▶</button>
+                    </div>
+                    <div class="calendar-grid" id="calendar-grid">
+                        <div style="grid-column: span 7; text-align:center; padding:10px; color:var(--gray); font-size:12px; font-weight:600;">Waiting data...</div>
+                    </div>
+                    <div id="calendar-details" class="event-details-box">
+                        <div style="text-align:center; color:var(--gray); font-size:11px; font-weight:600;">Select marked day.</div>
+                    </div>
+                </div>
             </div>
-         </div>
-         <div class="section-header market-title" style="background: linear-gradient(135deg, #1e1e1e 0%, #3a3a3c 100%); display:flex; justify-content:space-between; align-items:center;">
-            <span>⚡ Market Pulse</span>
-            <span id="btn-refresh-market" onclick="forceReloadMarket()" style="font-size:16px; cursor:pointer; padding: 0 10px;">🔄</span>
-         </div>
-         <div class="card" style="padding:15px; background:var(--white); margin-bottom:20px;">
-            <div style="margin-bottom:20px;">
-               <div style="font-size:11px; font-weight:700; color:var(--gray); text-transform:uppercase; margin-bottom:10px;">
-                  🏆 Daily Benchmark
-               </div>
-               <div id="benchmark-container">
-                  <div style="font-size:11px; color:#ccc; text-align:center; padding:10px;">Loading indices...</div>
-               </div>
+
+            <div class="dash-section-title" style="margin-top:10px;">📊 Analytics & Allocation</div>
+            <div class="dash-widget">
+                <div style="display:flex; flex-direction:column; gap: 10px; margin-bottom: 20px;">
+                    <div class="ios-row">
+                        <span class="ios-label" style="font-size:11px; color:var(--gray);">ASSET</span>
+                        <select id="assetSelect" class="ios-select" onchange="updateAnalyticsChart()">
+                            <option value="combined" selected>Stocks + ETFs</option>
+                            <option value="stocks">Stocks Only</option>
+                            <option value="etfs">ETFs Only</option>
+                            <option value="crypto">Crypto</option>
+                        </select>
+                    </div>
+                    <div class="ios-row">
+                        <span class="ios-label" style="font-size:11px; color:var(--gray);">CHART</span>
+                        <select id="chartSelect" class="ios-select" onchange="updateAnalyticsChart()">
+                            <optgroup label="📊 Portfolio Structure">
+                                <option value="breakdown" selected>Current Value</option>
+                                <option value="invested">Invested Capital</option>
+                                <option value="winloss">Win/Loss Count</option>
+                            </optgroup>
+                            <optgroup label="💰 Profitability">
+                                <option value="performance">Performance</option>
+                            </optgroup>
+                            <optgroup label="✅ Realized">
+                                <option value="realized_excl">Realized (Trading)</option>
+                                <option value="realized_incl">Realized + Divs</option>
+                                <option value="total_gain">Total Gain</option>
+                                <option value="div_single">Dividends</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+                <div id="chartContainer" style="position: relative; height:300px; width:100%; display:flex; align-items:center; justify-content:center;">
+                   <canvas id="analyticsChart"></canvas>
+                </div>
             </div>
-            <div style="border-top:1px dashed #e5e5ea; margin:15px 0;"></div>
-            <div style="margin-bottom:20px;">
-               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                  <div style="font-size:11px; font-weight:700; color:var(--stocks-bg); text-transform:uppercase;">
-                     🤖 Analyst Insight
-                  </div>
-                  <div id="sentiment-badge" style="font-size:10px; font-weight:bold; padding:2px 8px; border-radius:10px; background:#eee; color:#555;">
-                     Ready to Analyze
-                  </div>
-               </div>
-               <div style="background:#f0f4f8; border-left:3px solid #007aff; padding:10px; border-radius:0 8px 8px 0; margin-bottom:10px;">
-                  <div style="font-size:10px; font-weight:700; color:#007aff; margin-bottom:4px;">🌍 MACRO SCENARIO</div>
-                  <div id="macro-text" style="font-size:12px; line-height:1.4; color:#333;">
-                     Click 🔄 above to generate AI analysis.
-                  </div>
-               </div>
-               <div style="background:#fff7ed; border-left:3px solid #ff9500; padding:10px; border-radius:0 8px 8px 0;">
-                  <div style="font-size:10px; font-weight:700; color:#ff9500; margin-bottom:4px;">👤 PORTFOLIO IMPACT</div>
-                  <div id="portfolio-text" class="sensitive" style="font-size:12px; line-height:1.4; color:#333;">
-                     Waiting for user input...
-                  </div>
-               </div>
+
+            <div class="dash-widget">
+                <div class="widget-title" style="justify-content:space-between; width:100%; margin-bottom: 20px;">
+                    <span style="display:flex; align-items:center; gap:8px;"><div class="badge-icon bg-green">💸</div> Passive Income</span>
+                    <span onclick="loadDividends()" style="cursor:pointer; font-size:18px; color:var(--primary); background:var(--section-bg); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px;">🔄</span>
+                </div>
+                <div style="text-align:center; margin-bottom:20px; background:rgba(52, 199, 89, 0.05); padding:15px; border-radius:16px; border: 1px solid rgba(52, 199, 89, 0.1);">
+                    <div style="font-size:11px; font-weight:800; color:var(--success); text-transform:uppercase; letter-spacing:1px;">Est. Annual Income</div>
+                    <div id="div-total" class="sensitive tabular-nums" style="font-size:32px; font-weight:900; letter-spacing:-1px; color:var(--text-main); margin-top:5px;">--</div>
+                </div>
+                <div id="div-list">
+                    <div style="font-size:13px; font-weight:600; color:var(--gray); text-align:center; padding:10px;">Tap 🔄 to calculate...</div>
+                </div>
             </div>
-            <div style="border-top:1px dashed #e5e5ea; margin:20px 0;"></div>
-            <div class="section-header" style="background: #f2f2f7; color: #333; padding: 8px 12px; border-radius: 8px 8px 0 0; font-weight: bold; font-size: 11px; text-transform: uppercase; display:flex; justify-content:space-between; align-items:center;">
-               <span>🗓️ Financial Outlook</span>
-               <span style="font-size:9px; color:#8e8e93; font-weight:normal;">Tap day for details</span>
+
+            <div class="dash-widget" style="background: linear-gradient(135deg, var(--white) 0%, var(--section-bg) 100%);">
+                <div class="widget-title"><div class="badge-icon bg-orange">⚔️</div> Stock Battle AI</div>
+                <div style="font-size:13px; font-weight:600; color:var(--gray); text-align:center; margin-bottom:20px;">Compare two companies and let AI decide.</div>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:25px;">
+                    <input id="battle-ticker-a" class="premium-input" style="text-align:center; font-size:18px; font-weight:900; text-transform:uppercase; background:var(--section-bg);" type="text" placeholder="RACE">
+                    <div style="font-weight:900; font-size:16px; color:var(--gray); font-style:italic;">VS</div>
+                    <input id="battle-ticker-b" class="premium-input" style="text-align:center; font-size:18px; font-weight:900; text-transform:uppercase; background:var(--section-bg);" type="text" placeholder="TSLA">
+                </div>
+                
+                <button onclick="startBattle()" style="width:100%; background:var(--text-main); color:var(--bg); border:none; padding:16px; border-radius:16px; font-weight:900; font-size:16px; cursor:pointer; transition:transform 0.2s;">
+                    🔥 FIGHT! 🔥
+                </button>
+                
+                <div id="battle-result" style="display:none; background:var(--white); border-radius:20px; border: 1px solid var(--row-border); margin-top:25px; overflow:hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+                   <div style="background:var(--section-bg); padding:20px; text-align:center; border-bottom:1px solid var(--row-border);">
+                      <div style="font-size:11px; text-transform:uppercase; color:var(--gray); font-weight:800; letter-spacing:1px;">WINNER IS</div>
+                      <div id="battle-winner" style="font-size:36px; font-weight:900; color:var(--primary); margin-top:5px; letter-spacing:-1px;">--</div>
+                   </div>
+                   <div style="padding:20px;">
+                      <div style="display:flex; align-items:center; margin-bottom:12px; font-size:13px; font-weight:800;">
+                         <div id="score-a-label" style="width:50px; color:var(--text-main);">A</div>
+                         <div style="flex:1; height:10px; background:var(--section-bg); margin:0 12px; border-radius:5px; overflow:hidden;">
+                            <div id="score-bar-a" style="height:100%; width:0%; background:var(--danger); transition: width 1s ease;"></div>
+                         </div>
+                         <div id="score-val-a" class="tabular-nums">0</div>
+                      </div>
+                      <div style="display:flex; align-items:center; margin-bottom:25px; font-size:13px; font-weight:800;">
+                         <div id="score-b-label" style="width:50px; color:var(--text-main);">B</div>
+                         <div style="flex:1; height:10px; background:var(--section-bg); margin:0 12px; border-radius:5px; overflow:hidden;">
+                            <div id="score-bar-b" style="height:100%; width:0%; background:var(--primary); transition: width 1s ease;"></div>
+                         </div>
+                         <div id="score-val-b" class="tabular-nums">0</div>
+                      </div>
+                      
+                      <div style="display:flex; flex-direction:column; gap:15px; margin-bottom:20px;">
+                         <div style="background:rgba(255, 59, 48, 0.05); padding:15px; border-radius:12px;">
+                            <div id="title-list-a" style="font-weight:800; font-size:14px; color:var(--danger); margin-bottom:10px; border-bottom:1px solid rgba(255, 59, 48, 0.1); padding-bottom:5px;">--</div>
+                            <ul id="list-a" style="margin:0; padding-left:20px; color:var(--text-main); font-size:13px; font-weight:500; line-height:1.6;"></ul>
+                         </div>
+                         <div style="background:rgba(0, 122, 255, 0.05); padding:15px; border-radius:12px;">
+                            <div id="title-list-b" style="font-weight:800; font-size:14px; color:var(--primary); margin-bottom:10px; border-bottom:1px solid rgba(0, 122, 255, 0.1); padding-bottom:5px;">--</div>
+                            <ul id="list-b" style="margin:0; padding-left:20px; color:var(--text-main); font-size:13px; font-weight:500; line-height:1.6;"></ul>
+                         </div>
+                      </div>
+                      
+                      <div style="background:var(--section-bg); padding:15px; border-radius:16px;">
+                         <div style="font-size:11px; text-transform:uppercase; color:var(--gray); font-weight:800; margin-bottom:8px; display:flex; align-items:center; gap:6px;"><div class="badge-icon bg-dark" style="width:20px; height:20px; font-size:10px;">📊</div> VERDICT</div>
+                         <div id="battle-reason" class="ai-text-box">Analysis in progress...</div>
+                      </div>
+                   </div>
+                </div>
             </div>
-            <div style="background:white; border-radius: 0 0 12px 12px; border:1px solid #f2f2f7; border-top:none; overflow:hidden;">
-               <div class="calendar-header" style="display:flex; justify-content:space-between; align-items:center;">
-                  <button onclick="changeMonth(-1)" style="border:none; background:none; cursor:pointer; font-size:16px; color:#007aff; padding:0 10px;">◀</button>
-                  <div id="cal-month-year" style="flex:1; text-align:center; font-weight:800; font-size:12px; color:#333; line-height:1.2;">Tap 🔄 to load calendar</div>
-                  <button onclick="changeMonth(1)" style="border:none; background:none; cursor:pointer; font-size:16px; color:#007aff; padding:0 10px;">▶</button>
-               </div>
-               <div class="calendar-grid" id="calendar-grid">
-                  <div style="grid-column: span 7; text-align:center; padding:20px; color:#ccc; font-size:11px;">Waiting for AI-generated calendar data...</div>
-               </div>
+
+            <div class="dash-section-title" style="margin-top:10px;">🌐 Global Markets</div>
+            <div class="pc-tv-grid">
+                <div class="dash-widget no-pad" style="height: 320px;">
+                    <div style="background:var(--text-main); color:var(--bg); padding: 12px 20px; font-weight:800; font-size:14px;">🇺🇸 S&P 500 Heatmap</div>
+                    <div class="tradingview-widget-container" style="height: calc(100% - 44px);">
+                        <div class="tradingview-widget-container__widget" style="height:100%; width:100%;"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-stock-heatmap.js" async>
+                        { "dataSource": "SPX500", "grouping": "sector", "blockSize": "market_cap_basic", "blockColor": "change", "locale": "en", "colorTheme": "light", "hasTopBar": false, "isTransparent": true, "width": "100%", "height": "100%" }
+                        </script>
+                    </div>
+                </div>
+
+                <div class="dash-widget no-pad" style="height: 320px;">
+                    <div style="background:var(--invest-bg); color:white; padding: 12px 20px; font-weight:800; font-size:14px;">💱 Currencies</div>
+                    <div class="tradingview-widget-container" style="height: calc(100% - 44px);">
+                        <div class="tradingview-widget-container__widget" style="height:100%; width:100%;"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-forex-cross-rates.js" async>
+                        { "width": "100%", "height": "100%", "currencies": [ "EUR", "USD", "GBP", "CHF", "JPY" ], "isTransparent": true, "colorTheme": "light", "locale": "en" }
+                        </script>
+                    </div>
+                </div>
+
+                <div class="dash-widget no-pad full-width" style="height: 350px;">
+                    <div style="background:var(--purple); color:white; padding: 12px 20px; font-weight:800; font-size:14px;">📆 Macro Calendar</div>
+                    <div class="tradingview-widget-container" style="height: calc(100% - 44px);">
+                        <div class="tradingview-widget-container__widget" style="height:100%; width:100%;"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-events.js" async>
+                        { "colorTheme": "light", "isTransparent": true, "width": "100%", "height": "100%", "locale": "en", "importanceFilter": "0,1", "countryFilter": "us,eu,it" }
+                        </script>
+                    </div>
+                </div>
+
+                <div class="dash-widget no-pad full-width" style="height: 350px;">
+                    <div style="background:var(--warning); color:black; padding: 12px 20px; font-weight:800; font-size:14px;">🥇 Hard Assets & Rates</div>
+                    <div class="tradingview-widget-container" style="height: calc(100% - 44px);">
+                        <div class="tradingview-widget-container__widget" style="height:100%; width:100%;"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js" async>
+                        { "colorTheme": "light", "dateRange": "12M", "showChart": false, "locale": "en", "isTransparent": true, "showSymbolLogo": true, "width": "100%", "height": "100%", "tabs": [ { "title": "Commodities", "symbols": [ { "s": "TVC:GOLD", "d": "Gold" }, { "s": "TVC:SILVER", "d": "Silver" }, { "s": "TVC:USOIL", "d": "Crude Oil" } ] }, { "title": "Bonds", "symbols": [ { "s": "TVC:US10Y", "d": "US 10Y Yield" }, { "s": "TVC:US02Y", "d": "US 2Y Yield" }, { "s": "TVC:EU10Y", "d": "EU 10Y Yield" } ] } ] }
+                        </script>
+                    </div>
+                </div>
+
+                <div class="dash-widget no-pad full-width" style="height: 400px;">
+                    <div style="background:var(--danger); color:white; padding: 12px 20px; font-weight:800; font-size:14px;">📰 Breaking News</div>
+                    <div class="tradingview-widget-container" style="height: calc(100% - 44px);">
+                        <div class="tradingview-widget-container__widget" style="height:100%; width:100%;"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-timeline.js" async>
+                        { "feedMode": "all_symbols", "colorTheme": "light", "isTransparent": true, "displayMode": "regular", "width": "100%", "height": "100%", "locale": "en" }
+                        </script>
+                    </div>
+                </div>
             </div>
-            <div id="calendar-details" class="event-details-box">
-               <div style="text-align:center; color:#999; font-size:11px; padding:5px;">
-                  Select a marked day to see events.
-               </div>
+
+            <div class="dash-section-title" style="margin-top:10px;">😨 Fear & Greed Index</div>
+            <div class="dash-widget pc-tv-grid">
+                
+                <div style="display:flex; flex-direction:column; align-items:center; gap: 10px;">
+                    <div style="font-size:11px; font-weight:800; color:var(--gray); text-transform:uppercase; letter-spacing:1px;">Crypto</div>
+                    <div style="width:100%; display:flex; align-items:center; justify-content:center; background:var(--section-bg); border-radius:16px; padding:15px; box-sizing:border-box;">
+                        <img src="https://alternative.me/crypto/fear-and-greed-index.png" alt="Crypto Sentiment" style="height: 160px; object-fit: contain; border-radius: 8px;">
+                    </div>
+                </div>
+
+                <div style="display:flex; flex-direction:column; align-items:center; gap: 10px; margin-top:20px;">
+                    <div style="font-size:11px; font-weight:800; color:var(--gray); text-transform:uppercase; letter-spacing:1px;">Stocks (VIX)</div>
+                    <div style="width:100%; background:var(--section-bg); border-radius:16px; overflow:hidden; position:relative; height: 190px; box-sizing:border-box;">
+                        <div class="tradingview-widget-container" style="height:100%; width:100%; position:absolute; top:0; left:0;">
+                            <div class="tradingview-widget-container__widget" style="height:100%; width:100%;"></div>
+                            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
+                            { "interval": "1D", "width": "100%", "isTransparent": true, "height": "100%", "symbol": "CBOE:VIX", "showIntervalTabs": false, "displayMode": "single", "locale": "en", "colorTheme": "light" }
+                            </script>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="full-width" style="font-size:11px; font-weight:600; color:var(--gray); margin-top:5px; text-align:center;">
+                    *Note: VIX on "Buy" = High Volatility (Fear in the traditional markets).
+                </div>
             </div>
-         </div>
-         <div class="section-header" style="background: linear-gradient(135deg, #34c759 0%, #30b350 100%); margin-top:20px; display:flex; justify-content:space-between; align-items:center;">
-            <span>💸 Passive Income</span>
-            <span onclick="loadDividends()" style="cursor:pointer;">🔄</span>
-         </div>
-         <div class="card" style="padding:15px; background:var(--white);">
-            <div style="text-align:center; margin-bottom:20px;">
-               <div style="font-size:10px; color:var(--gray); text-transform:uppercase; letter-spacing:1px;">Est. Annual Income</div>
-               <div id="div-total" class="sensitive" style="font-size:28px; font-weight:900; color:#34c759; margin-top:5px;">--</div>
-               <div style="font-size:10px; color:#8e8e93;">(Estimated on current Yield)</div>
+
+        </div> </div>
+</div>
+      <style>
+    /* =========================================
+       ULTRA-PREMIUM DASHBOARD UI (RESPONSIVE)
+       ========================================= */
+       
+    /* 1. Glass Header */
+    .recap-header-container {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 20px;
+        margin: -15px -15px 20px -15px;
+        background: rgba(242, 242, 247, 0.75);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    body.dark-mode .recap-header-container {
+        background: rgba(28, 28, 30, 0.75);
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* 2. Hero Card with Animated Gradient */
+    .dash-hero {
+        background: linear-gradient(-45deg, #007aff, #5856d6, #5ac8fa, #007aff);
+        background-size: 400% 400%;
+        animation: gradientBG 15s ease infinite;
+        border-radius: 28px;
+        padding: 30px 20px;
+        color: white;
+        box-shadow: 0 12px 35px rgba(0, 122, 255, 0.3);
+        margin-bottom: 25px;
+        position: relative;
+        overflow: hidden;
+    }
+    @keyframes gradientBG {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    .dash-hero::before {
+        content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 60%);
+        pointer-events: none;
+    }
+
+    /* 3. Modern Responsive Grid */
+    .dash-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+    .dash-widget {
+        background: var(--white);
+        border-radius: 24px;
+        padding: 18px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+        border: 1px solid rgba(0,0,0,0.02);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+        position: relative;
+    }
+    .dash-widget:active { transform: scale(0.98); }
+    
+    /* MOBILE SPANS */
+    .span-2 { grid-column: span 2; } 
+    
+    body.dark-mode .dash-widget {
+        background: #1c1c1e;
+        border: 1px solid rgba(255,255,255,0.05);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    /* Desktop & Tablet Optimizations */
+    @media (min-width: 768px) {
+        .dash-grid { grid-template-columns: repeat(4, 1fr); }
+        .dash-widget { padding: 24px; }
+        .span-pc-1 { grid-column: span 1; }
+        .span-pc-2 { grid-column: span 2; }
+        .span-pc-4 { grid-column: span 4; }
+        .dash-list-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    }
+
+    /* 4. Widget Micro-Elements */
+    .widget-title {
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--gray);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 15px;
+    }
+    .widget-value {
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        color: var(--text-main);
+    }
+    .widget-sub {
+        font-size: 12px;
+        color: var(--gray);
+        margin-top: 6px;
+        font-weight: 600;
+    }
+
+    /* 5. Native iOS List Style */
+    .dash-list {
+        background: var(--white);
+        border-radius: 20px;
+        padding: 0 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    }
+    .dash-list-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 0;
+        border-bottom: 1px solid var(--row-border);
+    }
+    .dash-list-row:last-child { border-bottom: none; }
+    .dash-list-label { font-size: 14px; font-weight: 600; color: var(--text-main); }
+    .dash-list-value { font-size: 15px; font-weight: 700; color: var(--text-main); text-align: right; }
+    .dash-list-pct { font-size: 13px; font-weight: 600; background: var(--section-bg); padding: 4px 8px; border-radius: 8px; margin-left: 10px; }
+    
+    body.dark-mode .dash-list { background: #1c1c1e; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+
+    /* 6. Premium Trip Items */
+    #trip-list-container { display: flex; flex-direction: column; gap: 12px; }
+    #trip-list-container > div {
+        background: var(--white);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+        border: 1px solid var(--row-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    body.dark-mode #trip-list-container > div { background: #1c1c1e; border-color: rgba(255,255,255,0.05); }
+    #trip-list-container .trip-name { font-weight: 700; font-size: 15px; color: var(--text-main); margin-bottom: 4px; display: block;}
+    #trip-list-container .trip-date { font-size: 12px; color: var(--gray); font-weight: 500;}
+    #trip-list-container .trip-cost { font-weight: 800; font-size: 16px; color: var(--danger); }
+
+    /* 7. Section Titles */
+    .dash-section-title {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        margin: 40px 0 15px 5px;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Specific Colored Badges */
+    .badge-icon {
+        width: 28px; height: 28px;
+        border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 14px; color: white;
+    }
+    .bg-blue { background: #007aff; }
+    .bg-green { background: #34c759; }
+    .bg-orange { background: #ff9500; }
+    .bg-purple { background: #5856d6; }
+    .bg-red { background: #ff3b30; }
+    .bg-yellow { background: #ffcc00; color: #000; }
+    .bg-dark { background: #2c2c2e; }
+    
+    .pc-wrapper { max-width: 1200px; margin: 0 auto; width: 100%; }
+    .sensitive, .widget-value, .dash-list-value, .amt {
+    font-variant-numeric: tabular-nums;
+    }
+    @keyframes floatUp {
+    0% { opacity: 0; transform: translateY(15px); }
+    100% { opacity: 1; transform: translateY(0); }
+   }
+   .dash-widget, .dash-list, .dash-hero {
+    animation: floatUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+   }
+   /* Ritarda leggermente ogni elemento per un effetto a cascata */
+   .dash-grid > div:nth-child(1) { animation-delay: 0.1s; }
+   .dash-grid > div:nth-child(2) { animation-delay: 0.15s; }
+   .dash-grid > div:nth-child(3) { animation-delay: 0.2s; }
+   .dash-grid > div:nth-child(4) { animation-delay: 0.25s; }
+   .dash-list-wrapper > div:nth-child(1) { animation-delay: 0.2s; }
+   .dash-list-wrapper > div:nth-child(2) { animation-delay: 0.3s; }
+</style>
+
+<div id="p-recap" class="page" style="padding-top: 0;">
+    <div class="pc-wrapper">
+        
+        <div class="recap-header-container">
+            <div class="floating-year-selector" style="position:static; box-shadow:none; padding:0; background:transparent; border:none; animation:none;">
+                <select id="trendYear" onchange="renderFinancialChart(this.value); fetchTrips(this.value);fetchCategoryBreakdown(this.value);fetchProjection(this.value);fetchFireProgress(this.value);fetchRunway(this.value);fetchYearlyTotals(this.value);fetchHistoricalNW(this.value);" style="font-size: 24px; font-weight: 900; letter-spacing: -1px; background:var(--section-bg); padding: 8px 16px; border-radius: 14px;">
+                    <option value="2026" selected>2026</option>
+                </select>
             </div>
-            <div id="div-list">
-               <div style="font-size:11px; color:#ccc; text-align:center;">Tap 🔄 to calculate income...</div>
+            <div class="header-actions" style="position:static; box-shadow:none; background:transparent; border:none; padding:0; animation:none; display:flex; gap:10px;">
+                <button type="button" class="mini-theme-btn" onclick="togglePrivacy()" style="background:var(--section-bg); border:none; width:40px; height:40px; font-size:18px;">👁️</button>
+                <button type="button" class="mini-theme-btn" onclick="toggleLanguage()" style="font-size: 20px; background:var(--section-bg); border:none; width:40px; height:40px;">🇮🇹</button>
+                <button type="button" class="mini-theme-btn" onclick="openGeminiSheet()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border:none; color:white; width:40px; height:40px; font-size:18px; box-shadow: 0 4px 12px rgba(118, 75, 162, 0.4);">✨</button>
             </div>
-         </div>
-         <div class="section-header" style="background: linear-gradient(135deg, #ff3b30 0%, #ff9500 100%); margin-top:20px; display:flex; justify-content:space-between; align-items:center;">
-            <span>⚔️ Stock Battle AI</span>
-         </div>
-         <div class="card" style="padding:15px; background:var(--white); text-align:center;">
-            <div style="font-size:11px; color:var(--gray); margin-bottom:15px;">Compare two companies (e.g. Apple vs Microsoft) and find the best opportunity today.</div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-               <div style="width:40%;">
-                  <input id="battle-ticker-a" type="text" placeholder="e.g. Ferrari" style="width:100%; font-weight:bold; text-align:center; padding:8px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-               </div>
-               <div style="font-weight:900; font-size:18px; color:#ccc;">VS</div>
-               <div style="width:40%;">
-                  <input id="battle-ticker-b" type="text" placeholder="e.g. Tesla" style="width:100%; font-weight:bold; text-align:center; padding:8px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
-               </div>
+        </div>
+
+        <div class="dash-hero">
+            <div style="position: relative; z-index: 10;">
+                
+                <div style="font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.9;">💎 Total Net Worth</div>
+                <div class="sensitive" style="display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; margin-top: 5px;">
+                    <span id="liq-eur" style="font-size: 46px; font-weight: 900; letter-spacing: -2px; text-shadow: 0 4px 20px rgba(0,0,0,0.15);">€ --</span>
+                    <span id="liq-usd" style="font-size: 18px; font-weight: 700; opacity: 0.9; background: rgba(0,0,0,0.15); padding: 4px 10px; border-radius: 10px;">$ --</span>
+                </div>
+                
+                <div style="height: 1px; background: rgba(255,255,255,0.25); margin: 25px 0 20px 0; box-shadow: 0 1px 2px rgba(0,0,0,0.05);"></div>
+                
+                <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.9;">💧 Liquid Net Worth</div>
+                <div class="sensitive" style="display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; margin-top: 5px;">
+                    <span id="tot-eur" style="font-size: 28px; font-weight: 800; letter-spacing: -1px; text-shadow: 0 2px 10px rgba(0,0,0,0.1);">€ --</span>
+                    <span id="tot-usd" style="font-size: 14px; font-weight: 700; opacity: 0.85; background: rgba(0,0,0,0.15); padding: 2px 8px; border-radius: 8px;">$ --</span>
+                </div>
+
             </div>
-            <button onclick="startBattle()" style="width:100%; background:var(--text-main); color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; font-size:14px; cursor:pointer; margin-bottom:15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            🔥 FIGHT! 🔥
-            </button>
-            <div id="battle-result" style="display:none; background:#fff; padding:0; border-radius:12px; border: 2px solid #e5e5ea; margin-top:15px; overflow:hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-               <div style="background:#f9f9f9; padding:15px; text-align:center; border-bottom:1px solid #eee;">
-                  <div style="font-size:10px; text-transform:uppercase; color:var(--gray); font-weight:bold; letter-spacing:1px;">WINNER IS</div>
-                  <div id="battle-winner" style="font-size:28px; font-weight:900; color:#007aff; margin-top:5px;">--</div>
-               </div>
-               <div style="padding:15px;">
-                  <div style="display:flex; align-items:center; margin-bottom:8px; font-size:11px; font-weight:bold;">
-                     <div id="score-a-label" style="width:40px;">A</div>
-                     <div style="flex:1; height:8px; background:#f0f0f5; margin:0 8px; border-radius:4px; overflow:hidden;">
-                        <div id="score-bar-a" style="height:100%; width:0%; background:#ff3b30; transition: width 1s ease;"></div>
-                     </div>
-                     <div id="score-val-a">0</div>
-                  </div>
-                  <div style="display:flex; align-items:center; margin-bottom:20px; font-size:11px; font-weight:bold;">
-                     <div id="score-b-label" style="width:40px;">B</div>
-                     <div style="flex:1; height:8px; background:#f0f0f5; margin:0 8px; border-radius:4px; overflow:hidden;">
-                        <div id="score-bar-b" style="height:100%; width:0%; background:#007aff; transition: width 1s ease;"></div>
-                     </div>
-                     <div id="score-val-b">0</div>
-                  </div>
-                  <div style="display:flex; justify-content:space-between; gap:10px; margin-bottom:20px;">
-                     <div style="flex:1; background:#fff5f5; padding:10px; border-radius:8px; font-size:10px;">
-                        <div id="title-list-a" style="font-weight:bold; color:#ff3b30; margin-bottom:5px;">--</div>
-                        <ul id="list-a" style="margin:0; padding-left:15px; color:#555; text-align:left;"></ul>
-                     </div>
-                     <div style="flex:1; background:#f0f7ff; padding:10px; border-radius:8px; font-size:10px;">
-                        <div id="title-list-b" style="font-weight:bold; color:#007aff; margin-bottom:5px;">--</div>
-                        <ul id="list-b" style="margin:0; padding-left:15px; color:#555; text-align:left;"></ul>
-                     </div>
-                  </div>
-                  <div>
-                     <div style="font-size:10px; text-transform:uppercase; color:var(--gray); font-weight:bold; margin-bottom:5px;">📊 ANALYST VERDICT</div>
-                     <div id="battle-reason" style="font-size:12px; line-height:1.5; color:#333; text-align:justify; border-left:3px solid #34c759; padding-left:10px;">
-                        Analysis in progress...
-                     </div>
-                  </div>
-               </div>
+        </div>
+
+        <div class="dash-grid">
+            
+            <div class="dash-widget span-pc-2">
+                <div class="widget-title"><div class="badge-icon bg-blue">🚀</div> FIRE Status</div>
+                <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:10px;">
+                        <span class="widget-value" id="fire-pct" style="color:var(--primary); font-size: 26px;">--%</span>
+                        <span onclick="showFireInfo()" style="font-size:18px; color:var(--gray); cursor:pointer;">ⓘ</span>
+                    </div>
+                    <div style="height: 8px; width: 100%; background: var(--section-bg); border-radius: 4px; overflow: hidden; margin-bottom: 12px;">
+                        <div id="fire-bar" style="height: 100%; width: 0%; background: var(--primary); border-radius: 4px; transition: width 1.5s ease;"></div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <div class="widget-sub sensitive" style="margin-top:0;">Cur: <span id="fire-nw" style="font-weight:700; color:var(--text-main);">€ --</span></div>
+                        <div class="widget-sub sensitive" style="margin-top:0;">Trg: <span id="fire-target" style="font-weight:700; color:var(--text-main);">€ --</span></div>
+                    </div>
+                </div>
             </div>
-         </div>
-         <div class="section-header market-title">Analytics</div>
-         <div class="card" style="padding:15px; min-height:360px;">
-            <div style="display:flex; gap:10px; margin-bottom:15px;">
-               <div style="flex:1;">
-                  <label style="margin-top:0; font-size:10px; text-transform:uppercase; color:var(--gray);">Asset Class</label>
-                  <select id="assetSelect" onchange="updateAnalyticsChart()" style="font-weight:bold; width:100%;">
-                     <option value="combined" selected>Stocks + ETFs</option>
-                     <option value="stocks">Stocks Only</option>
-                     <option value="etfs">ETFs Only</option>
-                     <option value="crypto">Crypto</option>
-                  </select>
-               </div>
-               <div style="flex:1;">
-                  <label style="margin-top:0; font-size:10px; text-transform:uppercase; color:var(--gray);">Chart Type</label>
-                  <select id="chartSelect" onchange="updateAnalyticsChart()" style="font-weight:bold; width:100%;">
-                     <optgroup label="📊 Portfolio Structure">
-                        <option value="breakdown" selected>🍰 Current Value (€)</option>
-                        <option value="invested">📉 Invested Capital (€)</option>
-                        <option value="winloss">🟢🔴 Win/Loss Count</option>
-                     </optgroup>
-                     <optgroup label="💰 Profitability (Unrealized)">
-                        <option value="performance">🚀 Performance (Unrealized)</option>
-                     </optgroup>
-                     <optgroup label="✅ Realized & History">
-                        <option value="realized_excl">📉 Realized (Trading Only)</option>
-                        <option value="realized_incl">💵 Realized + Divs (Cash)</option>
-                        <option value="total_gain">🏆 Total Gain (All Time)</option>
-                        <option value="div_single">💸 Single Dividends (€)</option>
-                     </optgroup>
-                     <optgroup label="🌍 Allocation">
-                        <option value="sector">🏭 Sector</option>
-                        <option value="industry">🏗️ Industry</option>
-                        <option value="country">🌍 Country</option>
-                     </optgroup>
-                  </select>
-               </div>
+
+            <div class="dash-widget span-pc-1">
+                <div class="widget-title"><div class="badge-icon bg-purple">🔮</div> Projection</div>
+                <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <div class="widget-value sensitive" id="proj-val">€ --</div>
+                        <span onclick="showProjectionInfo()" style="font-size:18px; color:var(--gray); cursor:pointer;">ⓘ</span>
+                    </div>
+                    <div id="proj-msg" style="font-size:11px; font-weight:800; color:var(--purple); background:rgba(88, 86, 214, 0.1); display:inline-block; padding:4px 10px; border-radius:10px; margin-top:10px;">--</div>
+                    <div class="widget-sub sensitive" style="margin-top:10px;">YTD: <span id="proj-curr" style="font-weight:700; color:var(--text-main);">€ --</span></div>
+                </div>
             </div>
-            <div id="chartContainer" style="position: relative; height:250px; width:100%; display:flex; align-items:center; justify-content:center;">
-               <canvas id="analyticsChart"></canvas>
+
+            <div class="dash-widget span-2 span-pc-1" style="border-left: 4px solid var(--warning);">
+                <div class="widget-title"><div class="badge-icon bg-yellow">📉</div> Fin. Runway <span onclick="showRunwayInfo()" style="font-size:16px; color:var(--gray); cursor:pointer; margin-left:auto;">ⓘ</span></div>
+                <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
+                    <div style="display:flex; align-items:baseline; gap:6px; margin-bottom: 5px;">
+                        <span id="runway-val" class="widget-value sensitive" style="font-size:28px;">--</span>
+                        <span style="font-size:14px; font-weight:600; color:var(--gray);">mo</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--row-border);">
+                        <div style="font-size:10px; font-weight:800; color:var(--gray); text-transform:uppercase;">Survive</div>
+                        <div id="runway-survival" class="sensitive" style="font-size:14px; font-weight:800; color:var(--success);">--</div>
+                    </div>
+                    <div class="widget-sub sensitive" style="margin-top:5px; display:flex; justify-content:space-between;">
+                        <span>Burn</span>
+                        <span id="runway-avg" style="font-weight:700; color:var(--danger);">€ --</span>
+                    </div>
+                </div>
             </div>
-         </div>
-         <div class="section-header stocks-title" style="background:#2c3e50; color:#fff;">S&P 500 Map</div>
-         <div class="card" style="padding:0; height: 300px; overflow:hidden;">
-            <div class="tradingview-widget-container">
-               <div class="tradingview-widget-container__widget"></div>
-               <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-stock-heatmap.js" async>
-                  {
-                    "exchanges": [],
-                    "dataSource": "SPX500",
-                    "grouping": "sector",
-                    "blockSize": "market_cap_basic",
-                    "blockColor": "change",
-                    "locale": "en",
-                    "symbolUrl": "",
-                    "colorTheme": "light",
-                    "hasTopBar": false,
-                    "isTransparent": true,
-                    "width": "100%",
-                    "height": "100%"
-                  }
-               </script>
+            
+            <div class="dash-widget span-2 span-pc-4" id="risk-card" style="flex-direction: row; align-items: center; background: linear-gradient(135deg, var(--section-bg) 0%, var(--white) 100%);">
+                <div style="flex:1;">
+                    <div class="widget-title"><div class="badge-icon bg-dark">🤖</div> AI Risk Assessment</div>
+                    <div id="risk-level" class="sensitive" style="font-size:20px; font-weight:800; color:var(--text-main);">Click 🔄 to calc</div>
+                    <div id="risk-comment" class="sensitive" style="font-size:13px; color:var(--gray); margin-top:6px; line-height:1.4;">Analysis disabled to save resources.</div>
+                    <div id="risk-tip" class="sensitive" style="margin-top:10px; font-size:12px; font-weight:600; color:var(--primary);">Data waiting...</div>
+                </div>
+                <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end;">
+                    <span id="btn-refresh-risk" onclick="forceReloadRisk()" style="cursor:pointer; font-size:20px; background:var(--white); width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">🔄</span>
+                    <div id="risk-score" class="sensitive" style="font-size:42px; font-weight:900; opacity:0.1; margin-top:10px;">--</div>
+                </div>
             </div>
-         </div>
-         <div class="section-header stocks-title" style="background:#555;">Currencies</div>
-         <div class="card" style="padding:0; height: 180px; overflow:hidden;">
-            <div class="tradingview-widget-container">
-               <div class="tradingview-widget-container__widget"></div>
-               <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-forex-cross-rates.js" async>
-                  {
-                    "width": "100%",
-                    "height": "100%",
-                    "currencies": [ "EUR", "USD", "GBP", "CHF", "JPY" ],
-                    "isTransparent": true,
-                    "colorTheme": "light",
-                    "locale": "en"
-                  }
-               </script>
+        </div>
+
+        <div class="dash-section-title">💼 Asset Allocation</div>
+        <div class="dash-grid" style="grid-template-columns: 1fr;">
+            <div class="dash-widget span-pc-4" style="padding: 24px;">
+                <div class="dash-list-wrapper">
+                    <div style="position: relative; height:250px; width:100%; display:flex; justify-content:center; align-items:center;">
+                        <canvas id="assetAllocationChart"></canvas>
+                    </div>
+                    <div class="dash-list" style="box-shadow:none; padding:0; margin:0; background:transparent;">
+                        <div class="dash-list-row row"><span class="dash-list-label label">Stocks</span><div><span id="sum-s-a" class="dash-list-value amt sensitive">--</span><span id="sum-s-p" class="dash-list-pct pct">--</span></div></div>
+                        <div class="dash-list-row row"><span class="dash-list-label label">Cash</span><div><span id="sum-c-a" class="dash-list-value amt sensitive">--</span><span id="sum-c-p" class="dash-list-pct pct">--</span></div></div>
+                        <div class="dash-list-row row"><span class="dash-list-label label" style="font-size:13px; color:var(--gray); padding-left:15px;">↳ Cash Eq.</span><div><span id="sum-ceq-a" class="dash-list-value amt sensitive" style="color:var(--gray); font-size:14px;">--</span><span id="sum-ceq-p" class="dash-list-pct pct" style="color:var(--gray); background:transparent; padding:0;">--</span></div></div>
+                        <div class="dash-list-row row"><span class="dash-list-label label">ETFs</span><div><span id="sum-e-a" class="dash-list-value amt sensitive">--</span><span id="sum-e-p" class="dash-list-pct pct">--</span></div></div>
+                        <div class="dash-list-row row"><span class="dash-list-label label">Crypto</span><div><span id="sum-y-a" class="dash-list-value amt sensitive">--</span><span id="sum-y-p" class="dash-list-pct pct">--</span></div></div>
+                        <div class="dash-list-row row"><span class="dash-list-label label">Others</span><div><span id="sum-o-a" class="dash-list-value amt sensitive">--</span><span id="sum-o-p" class="dash-list-pct pct">--</span></div></div>
+                        <div class="dash-list-row row" style="border:none; padding-bottom:0;"><span class="dash-list-label label">Pension</span><div><span id="sum-p-a" class="dash-list-value amt sensitive">--</span><span id="sum-p-p" class="dash-list-pct pct">--</span></div></div>
+                    </div>
+                </div>
             </div>
-         </div>
-         <div class="section-header stocks-title" style="background:#8e44ad;">Hard Assets & Rates</div>
-         <div class="card" style="padding:0; height: 250px; overflow:hidden;">
-            <div class="tradingview-widget-container">
-               <div class="tradingview-widget-container__widget"></div>
-               <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js" async>
-                  {
-                    "colorTheme": "light",
-                    "dateRange": "12M",
-                    "showChart": false,
-                    "locale": "en",
-                    "largeChartUrl": "",
-                    "isTransparent": true,
-                    "showSymbolLogo": true,
-                    "showFloatingTooltip": false,
-                    "width": "100%",
-                    "height": "100%",
-                    "tabs": [
-                      {
-                        "title": "Commodities",
-                        "symbols": [
-                          { "s": "TVC:GOLD", "d": "Gold" },
-                          { "s": "TVC:SILVER", "d": "Silver" },
-                          { "s": "TVC:USOIL", "d": "Crude Oil" }
-                        ]
-                      },
-                      {
-                        "title": "Bonds",
-                        "symbols": [
-                          { "s": "TVC:US10Y", "d": "US 10Y Yield" },
-                          { "s": "TVC:US02Y", "d": "US 2Y Yield" },
-                          { "s": "TVC:EU10Y", "d": "EU 10Y Yield" }
-                        ]
-                      }
-                    ]
-                  }
-               </script>
+        </div>
+
+        <div class="dash-section-title">📊 Assets Breakdown</div>
+        <div class="dash-list-wrapper">
+            
+            <div class="dash-list">
+                <div class="dash-list-row row" style="padding: 20px 0;">
+                    <span class="dash-list-label label" style="display:flex; align-items:center; gap:12px;"><div class="badge-icon bg-green" style="width:36px; height:36px; font-size:18px;">📈</div> Stocks</span>
+                    <div style="text-align:right;">
+                        <div id="s-det-main" class="dash-list-value amt sensitive" style="font-size:22px;">--</div>
+                        <div style="font-size:12px; font-weight:600; color:var(--gray); margin-top:4px;">Inv: <span id="s-det-inv" class="amt sensitive">--</span></div>
+                    </div>
+                </div>
+                <div style="padding: 15px 0; border-top: 1px dashed var(--row-border);">
+                    <div class="row" style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border:none;">
+                        <span class="label" style="font-size:13px; color:var(--gray); font-weight:600;">Unrealized</span>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <span id="s-det-un-a" class="amt sensitive" style="font-size:14px; font-weight:700; transition:color 0.3s;">--</span>
+                            <span id="s-det-un-p" class="pct" style="font-size:14px; font-weight:700;">--</span>
+                        </div>
+                    </div>
+                    <div class="row" style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border:none;">
+                        <span class="label" style="font-size:13px; color:var(--gray); font-weight:600;">Realized</span>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <span id="s-det-re-a" class="amt sensitive" style="font-size:14px; font-weight:700; transition:color 0.3s;">--</span>
+                            <span id="s-det-re-p" class="pct" style="font-size:14px; font-weight:700;">--</span>
+                        </div>
+                    </div>
+                    <div class="row" style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border:none;">
+                        <span class="label" style="font-size:14px; color:var(--text-main); font-weight:800;">Balance</span>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <span id="s-det-bal-a" class="amt sensitive" style="font-size:15px; font-weight:900; transition:color 0.3s;">--</span>
+                            <span id="s-det-bal-p" class="pct" style="font-size:15px; font-weight:900;">--</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-         </div>
-         <div class="section-header market-title" style="background:#000; color:#fff;">Breaking News</div>
-         <div class="card" style="padding:0; height: 400px; overflow:hidden;">
-            <div class="tradingview-widget-container">
-               <div class="tradingview-widget-container__widget"></div>
-               <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-timeline.js" async>
-                  {
-                    "feedMode": "all_symbols",
-                    "colorTheme": "light",
-                    "isTransparent": true,
-                    "displayMode": "regular",
-                    "width": "100%",
-                    "height": "100%",
-                    "locale": "en"
-                  }
-               </script>
+
+            <div class="dash-list">
+                <div class="dash-list-row row" style="padding: 20px 0;">
+                    <span class="dash-list-label label" style="display:flex; align-items:center; gap:12px;"><div class="badge-icon" style="background:#8e8e93; width:36px; height:36px; font-size:18px;">📦</div> ETFs</span>
+                    <div style="text-align:right;">
+                        <div id="e-det-main" class="dash-list-value amt sensitive" style="font-size:22px;">--</div>
+                        <div style="font-size:12px; font-weight:600; color:var(--gray); margin-top:4px;">Inv: <span id="e-det-inv" class="amt sensitive">--</span></div>
+                    </div>
+                </div>
+                <div style="padding: 15px 0; border-top: 1px dashed var(--row-border);">
+                    <div class="row" style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border:none;">
+                        <span class="label" style="font-size:13px; color:var(--gray); font-weight:600;">Unrealized</span>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <span id="e-det-un-a" class="amt sensitive" style="font-size:14px; font-weight:700; transition:color 0.3s;">--</span>
+                            <span id="e-det-un-p" class="pct" style="font-size:14px; font-weight:700;">--</span>
+                        </div>
+                    </div>
+                    <div class="row" style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border:none;">
+                        <span class="label" style="font-size:13px; color:var(--gray); font-weight:600;">Realized</span>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <span id="e-det-re-a" class="amt sensitive" style="font-size:14px; font-weight:700; transition:color 0.3s;">--</span>
+                            <span id="e-det-re-p" class="pct" style="font-size:14px; font-weight:700;">--</span>
+                        </div>
+                    </div>
+                    <div class="row" style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border:none;">
+                        <span class="label" style="font-size:14px; color:var(--text-main); font-weight:800;">Balance</span>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <span id="e-det-bal-a" class="amt sensitive" style="font-size:15px; font-weight:900; transition:color 0.3s;">--</span>
+                            <span id="e-det-bal-p" class="pct" style="font-size:15px; font-weight:900;">--</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-         </div>
-         <div class="section-header market-title" style="background:#5856d6;">Macro Calendar</div>
-         <div class="card" style="padding:0; height: 300px; overflow:hidden;">
-            <div class="tradingview-widget-container">
-               <div class="tradingview-widget-container__widget"></div>
-               <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-events.js" async>
-                  {
-                    "colorTheme": "light",
-                    "isTransparent": true,
-                    "width": "100%",
-                    "height": "100%",
-                    "locale": "en",
-                    "importanceFilter": "0,1",
-                    "countryFilter": "us,eu,it"
-                  }
-               </script>
+
+            <div class="dash-list span-pc-2">
+                <div class="dash-list-row row" style="padding: 20px 0;">
+                    <span class="dash-list-label label" style="display:flex; align-items:center; gap:12px;"><div class="badge-icon bg-orange" style="width:36px; height:36px; font-size:18px;">₿</div> Crypto</span>
+                    <div style="text-align:right;">
+                        <div id="y-det-main" class="dash-list-value amt sensitive" style="font-size:22px;">--</div>
+                        <div style="font-size:12px; font-weight:600; color:var(--gray); margin-top:4px;">Inv: <span id="y-det-inv" class="amt sensitive">--</span></div>
+                    </div>
+                </div>
+                <div style="padding: 15px 0; border-top: 1px dashed var(--row-border);">
+                    <div class="row" style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border:none;">
+                        <span class="label" style="font-size:13px; color:var(--gray); font-weight:600;">Unrealized</span>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <span id="y-det-un-a" class="amt sensitive" style="font-size:14px; font-weight:700; transition:color 0.3s;">--</span>
+                            <span id="y-det-un-p" class="pct" style="font-size:14px; font-weight:700;">--</span>
+                        </div>
+                    </div>
+                    <div class="row" style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border:none;">
+                        <span class="label" style="font-size:13px; color:var(--gray); font-weight:600;">Realized</span>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <span id="y-det-re-a" class="amt sensitive" style="font-size:14px; font-weight:700; transition:color 0.3s;">--</span>
+                            <span id="y-det-re-p" class="pct" style="font-size:14px; font-weight:700;">--</span>
+                        </div>
+                    </div>
+                    <div class="row" style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border:none;">
+                        <span class="label" style="font-size:14px; color:var(--text-main); font-weight:800;">Balance</span>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <span id="y-det-bal-a" class="amt sensitive" style="font-size:15px; font-weight:900; transition:color 0.3s;">--</span>
+                            <span id="y-det-bal-p" class="pct" style="font-size:15px; font-weight:900;">--</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-         </div>
-         <div class="section-header crypto-title" style="background: linear-gradient(90deg, #ffc107 50%, #8e8e93 50%); color: #000;">
-            <span style="display:inline-block; width:48%; text-align:center;">CRYPTO</span>
-            <span style="display:inline-block; width:48%; text-align:center; color:white;">STOCKS (VIX)</span>
-         </div>
-         <div class="card" style="padding: 15px 10px; margin-bottom: 30px;">
-            <div style="display:flex; gap:10px; align-items: stretch; height: 160px;">
-               <div style="flex: 1; display:flex; align-items:center; justify-content:center; overflow:hidden;">
-                  <img src="https://alternative.me/crypto/fear-and-greed-index.png" 
-                     alt="Crypto Sentiment" 
-                     style="height: 100%; max-width: 100%; object-fit: contain; border-radius: 10px;">
-               </div>
-               <div style="flex: 1; overflow:hidden; border-radius:10px; border:1px solid var(--row-border); position:relative;">
-                  <div class="tradingview-widget-container" style="height:100%; width:100%;">
-                     <div class="tradingview-widget-container__widget" style="height:100%; width:100%;"></div>
-                     <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
-                        {
-                          "interval": "1D",
-                          "width": "100%",
-                          "isTransparent": true,
-                          "height": "100%",
-                          "symbol": "CBOE:VIX",
-                          "showIntervalTabs": false,
-                          "displayMode": "single",
-                          "locale": "en",
-                          "colorTheme": "light"
-                        }
-                     </script>
-                  </div>
-               </div>
+        </div>
+
+        <div class="dash-section-title">💸 Cashflow & Trends</div>
+        
+        <div class="dash-grid">
+            <div class="dash-widget span-2 span-pc-4" id="year-recap-card" style="border-top: 5px solid var(--primary);">
+                <div style="font-size:13px; color:var(--text-main); font-weight:800; text-transform:uppercase; margin-bottom:25px; text-align:center; letter-spacing: 1px;">
+                    Yearly Overview <span id="yr-label"></span>
+                </div>
+                
+                <div class="dash-list-wrapper" style="align-items:center;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex:1; padding:0 15px;">
+                        <div style="text-align:center; flex:1;">
+                            <div style="font-size:12px; font-weight:700; color:var(--gray); margin-bottom:8px;">Income</div>
+                            <div id="yr-inc" class="sensitive" style="font-size:22px; font-weight:900; color:var(--success);">...</div>
+                        </div>
+                        <div style="width:1px; height:50px; background:var(--row-border);"></div>
+                        <div style="text-align:center; flex:1;">
+                            <div style="font-size:12px; font-weight:700; color:var(--gray); margin-bottom:8px;">Expense</div>
+                            <div id="yr-exp" class="sensitive" style="font-size:22px; font-weight:900; color:var(--danger);">...</div>
+                        </div>
+                        <div style="width:1px; height:50px; background:var(--row-border);"></div>
+                        <div style="text-align:center; flex:1;">
+                            <div style="font-size:12px; font-weight:700; color:var(--gray); margin-bottom:8px;">Net Saving</div>
+                            <div id="yr-sav" class="sensitive" style="font-size:22px; font-weight:900; color:var(--text-main);">...</div>
+                        </div>
+                    </div>
+                    
+                    <div style="background:var(--section-bg); border-radius:18px; padding:20px; display:flex; gap: 20px; flex:1; margin-top:20px;">
+                        <div style="flex:1;">
+                            <div style="font-size:11px; font-weight:800; color:var(--success); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">🟢 Top Income</div>
+                            <div id="yr-cat-inc"><div style="font-size:13px; font-weight:600; color:var(--gray);">...</div></div>
+                        </div>
+                        <div style="flex:1; border-left:1px solid rgba(0,0,0,0.05); padding-left:20px;">
+                            <div style="font-size:11px; font-weight:800; color:var(--danger); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">🔴 Top Expense</div>
+                            <div id="yr-cat-exp"><div style="font-size:13px; font-weight:600; color:var(--gray);">...</div></div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div style="font-size:10px; color:var(--gray); margin-top:10px; text-align:center; font-style:italic;">
-               *Note: VIX on “Buy” = High Volatility (Fear in the markets).
+
+            <div class="dash-widget span-2">
+                <div class="widget-title">Sankey Diagram</div>
+                <div style="position: relative; height:280px; width:100%"><canvas id="sankeyChart"></canvas></div>
             </div>
-         </div>
-      </div>
-      <div id="p-recap" class="page">
-         <div class="floating-year-selector">
-            <span style="font-size:16px;">🗓️</span>
-            <select id="trendYear" onchange="renderFinancialChart(this.value); fetchTrips(this.value);fetchCategoryBreakdown(this.value);fetchProjection(this.value);fetchFireProgress(this.value);fetchRunway(this.value);fetchYearlyTotals(this.value);fetchHistoricalNW(this.value);">
-               <option value="2026" selected>2026</option>
-            </select>
-         </div>
-         <div class="page-header">
-            <h3 style="margin:0; padding-top: 5px; margin-left: 90px;"></h3>
-            <div class="header-actions">
-               <button type="button" class="mini-theme-btn" onclick="togglePrivacy()">👁️</button>
-               <button type="button" class="mini-theme-btn" onclick="toggleLanguage()" style="font-size: 18px;">🇮🇹</button>
-               <button type="button" class="mini-theme-btn" onclick="openGeminiSheet()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border:none; color:white;">✨</button>
+
+            <div class="dash-widget span-2">
+                <div class="widget-title">Monthly Trend</div>
+                <div style="position: relative; height:280px; width:100%"><canvas id="expensesChart"></canvas></div>
             </div>
-         </div>
-         <div style="background: linear-gradient(135deg, #FF9500 0%, #FF2D55 100%); border-radius: 22px; padding: 25px 20px; color: white; box-shadow: 0 15px 35px rgba(255, 45, 85, 0.35); margin-bottom: 25px; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
-            <div style="position: absolute; top: -30px; right: -30px; width: 180px; height: 180px; background: rgba(255,255,255,0.15); border-radius: 50%; filter: blur(20px);"></div>
-            <div style="position: absolute; bottom: -40px; left: -20px; width: 140px; height: 140px; background: rgba(0,0,0,0.1); border-radius: 50%; filter: blur(30px);"></div>
-            <div style="position: relative; z-index: 1;">
-               <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8;">LIQUID NW</span>
-                  <span style="font-size: 16px;">💧</span>
-               </div>
-               <div class="sensitive" style="margin-top: 5px; display: flex; align-items: baseline; gap: 4px;">
-                  <span id="tot-eur" style="font-size: 22px; font-weight: 700;">€ --</span>
-                  <span style="font-size: 13px; font-weight: 500; opacity: 0.9;">/ <span id="tot-usd">$ --</span></span>
-               </div>
+            
+            <div class="dash-widget span-2">
+                <div class="widget-title"><span style="color:var(--danger);">🔴</span> Monthly Expenditures</div>
+                <div style="position: relative; height:280px; width:100%"><canvas id="expenseStackChart"></canvas></div>
             </div>
-            <div style="height: 1px; background: rgba(255,255,255,0.25); margin-bottom: 15px; margin-top: 15px;"></div>
-            <div style="position: relative; z-index: 1;">
-               <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8;">TOTAL NW</span>
-                  <span style="font-size: 14px;">💎</span>
-               </div>
-               <div class="sensitive" style="margin-top: 5px; display: flex; align-items: baseline; gap: 4px;">
-                  <span id="liq-eur" style="font-size: 22px; font-weight: 700;">€ --</span>
-                  <span style="font-size: 13px; font-weight: 500; opacity: 0.9;">/ <span id="liq-usd">$ --</span></span>
-               </div>
+
+            <div class="dash-widget span-2">
+                <div class="widget-title"><span style="color:var(--success);">🟢</span> Monthly Revenue</div>
+                <div style="position: relative; height:280px; width:100%"><canvas id="incomeStackChart"></canvas></div>
             </div>
-         </div>
-         <div class="card" style="margin-top: 20px; border:none; background: #fff;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-               <div style="display:flex; align-items:center; gap:5px;">
-                  <span style="font-size:12px; font-weight:800; color:var(--text-main); text-transform:uppercase;">
-                  🚀 Road to Freedom
-                  </span>
-                  <span onclick="showFireInfo()" style="cursor:pointer; font-size:14px; color:var(--primary);">ⓘ</span>
-               </div>
-               <div style="font-size:14px; font-weight:900; color:var(--primary);" id="fire-pct">--%</div>
+
+            <div class="dash-widget span-2 span-pc-4" style="margin-bottom: 30px;">
+                <div class="widget-title">📈 Net Worth & Asset Growth</div>
+                <div id="nw-loading-indicator" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--gray); font-size: 15px; font-weight: 700; z-index: 5;">
+                    Loading historical data...
+                </div>
+                <div style="position: relative; height: 400px; width: 100%; z-index: 10;">
+                    <canvas id="nwTrendChart"></canvas>
+                </div>
             </div>
-            <div style="height: 12px; width: 100%; background: #e5e5ea; border-radius: 6px; overflow: hidden; position: relative;">
-               <div id="fire-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #007aff, #5ac8fa); border-radius: 6px; transition: width 1.5s ease-in-out;"></div>
+        </div>
+
+        <div class="dash-section-title">🏝️ Lifestyle & Planning</div>
+
+        <div class="dash-grid">
+            <div class="dash-widget span-2 span-pc-2">
+                <div class="widget-title">✈️ Travels Cost</div>
+                <div style="position: relative; height:280px; width:100%; min-width:0;"><canvas id="tripChart"></canvas></div>
             </div>
-            <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:10px; color:var(--gray);">
-               <div>
-                  <div style="margin-bottom:2px;">Current Net Worth</div>
-                  <div id="fire-nw" class="sensitive" style="font-weight:700; color:var(--text-main);">€ --</div>
-               </div>
-               <div style="text-align:right;">
-                  <div style="margin-bottom:2px;">Target (FIRE)</div>
-                  <div id="fire-target" class="sensitive" style="font-weight:700; color:var(--text-main);">€ --</div>
-               </div>
+
+            <div class="dash-widget span-2 span-pc-2" style="padding:0; overflow:hidden;">
+                <div style="background:var(--text-main); color:var(--bg); padding: 18px 24px; font-weight:800; font-size:15px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>Travel Map 🌍</span>
+                </div>
+                <div style="min-width:0; width: 100%;">
+                    <div id="map" style="height: 280px; width: 100%;"></div>
+                </div>
             </div>
-         </div>
-         <div class="section-header summary-title">Summary</div>
-         <div class="card">
-            <div class="row"><span class="label">Stocks</span><span id="sum-s-a" class="amt sensitive">--</span><span id="sum-s-p" class="pct">--</span></div>
-            <div class="row"><span class="label">Cash</span><span id="sum-c-a" class="amt sensitive">--</span><span id="sum-c-p" class="pct">--</span></div>
-            <div class="row"><span class="label" style="font-size:12px;">Cash Eq.</span><span id="sum-ceq-a" class="amt sensitive">--</span><span id="sum-ceq-p" class="pct">--</span></div>
-            <div class="row"><span class="label">ETFs</span><span id="sum-e-a" class="amt sensitive">--</span><span id="sum-e-p" class="pct">--</span></div>
-            <div class="row"><span class="label">Crypto</span><span id="sum-y-a" class="amt sensitive">--</span><span id="sum-y-p" class="pct">--</span></div>
-            <div class="row"><span class="label">Others</span><span id="sum-o-a" class="amt sensitive">--</span><span id="sum-o-p" class="pct">--</span></div>
-            <div class="row"><span class="label">Pension</span><span id="sum-p-a" class="amt sensitive">--</span><span id="sum-p-p" class="pct">--</span></div>
-         </div>
-         <div class="card" id="risk-card" style="margin-top:20px; border-left: 5px solid #8e8e93;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-               <div style="font-size:12px; font-weight:bold; color:var(--gray); text-transform:uppercase;">
-                  🤖 AI Risk Assessment
-               </div>
-               <div id="btn-refresh-risk" onclick="forceReloadRisk()" style="cursor:pointer; font-size:14px; opacity:0.7;">
-                  🔄
-               </div>
+            
+            <div class="span-2 span-pc-4">
+                <div class="widget-title" style="margin-left:5px;">List of Trips</div>
+                <div id="trip-list-container">
+                    <div style="text-align:center; color:var(--gray); font-size:14px; font-weight:600; background:transparent; border:none; box-shadow:none;">Loading Trips...</div>
+                </div>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-               <div>
-                  <div id="risk-level" class="sensitive" style="font-size:18px; font-weight:800; opacity:0.6;">
-                     Click 🔄 to calculate
-                  </div>
-                  <div id="risk-comment" class="sensitive" style="font-size:12px; color:var(--text-main); margin-top:5px; line-height:1.4;">
-                     Analysis disabled to save resources.
-                  </div>
-               </div>
-               <div id="risk-score" class="sensitive" style="font-size:24px; font-weight:900; opacity:0.1;">
-                  --
-               </div>
+        </div>
+
+        <div class="dash-widget span-2 span-pc-4" style="margin-top:20px; margin-bottom: 50px; background: linear-gradient(180deg, var(--white) 0%, var(--section-bg) 100%);">
+            <div class="widget-title" style="font-size:14px; color:var(--text-main);"><div class="badge-icon bg-dark">🐢</div> Pension Fund</div>
+            
+            <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top: 15px;">
+                <div>
+                    <div style="font-size:12px; font-weight:800; color:var(--gray); margin-bottom:6px; text-transform:uppercase;">Cumulative</div>
+                    <div id="pension-total" style="font-size:36px; font-weight:900; letter-spacing:-1px; color:var(--text-main);">€ --</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:12px; font-weight:800; color:var(--gray); margin-bottom:6px; text-transform:uppercase;">Poured 2026</div>
+                    <div id="pension-year" style="font-size:18px; font-weight:800; color:var(--success); background: rgba(52, 199, 89, 0.15); padding: 8px 16px; border-radius: 14px;">
+                        + € --
+                    </div>
+                </div>
             </div>
-            <div id="risk-tip" class="sensitive" style="margin-top:10px; padding-top:10px; border-top:1px dashed #eee; font-size:11px; font-style:italic; color:#007aff;">
-               Data waiting...
+
+            <div style="position: relative; height: 280px; min-height: 280px; width: 100%; flex-shrink: 0; margin: 25px 0;">
+                <canvas id="pensionChart"></canvas>
             </div>
-         </div>
-         <div class="card" style="padding:15px; min-height:300px;">
-            <div style="font-size:12px; font-weight:bold; color:var(--gray); margin-bottom:15px;">ASSET ALLOCATION</div>
-            <div style="position: relative; height:250px; width:100%">
-               <canvas id="assetAllocationChart"></canvas>
-            </div>
-         </div>
-         <div class="section-header crypto-title">Crypto</div>
-         <div class="card">
-            <div class="row" style="background:rgba(255,253,231, 0.2);"><span class="label">Value</span><span id="y-det-main" class="amt sensitive">--</span><span class="pct">--</span></div>
-            <div class="row"><span class="label">Unrealized</span><span id="y-det-un-a" class="amt sensitive">--</span><span id="y-det-un-p" class="pct">--</span></div>
-            <div class="row"><span class="label">Realized</span><span id="y-det-re-a" class="amt sensitive">--</span><span id="y-det-re-p" class="pct">--</span></div>
-            <div class="row" style="font-weight:bold;"><span class="label">Balance</span><span id="y-det-bal-a" class="amt sensitive">--</span><span id="y-det-bal-p" class="pct">--</span></div>
-            <div class="row" style="border-top:1px dashed #eee; margin-top:5px; padding-top:5px;"><span class="label">Invested</span><span id="y-det-inv" class="amt sensitive" style="color:var(--text-main)">--</span><span class="pct"></span></div>
-         </div>
-         <div class="section-header stocks-title">Stocks</div>
-         <div class="card">
-            <div class="row" style="background:rgba(241,248,233, 0.2);"><span class="label">Value</span><span id="s-det-main" class="amt sensitive">--</span><span class="pct">--</span></div>
-            <div class="row"><span class="label">Unrealized</span><span id="s-det-un-a" class="amt sensitive">--</span><span id="s-det-un-p" class="pct">--</span></div>
-            <div class="row"><span class="label">Realized</span><span id="s-det-re-a" class="amt sensitive">--</span><span id="s-det-re-p" class="pct">--</span></div>
-            <div class="row" style="font-weight:bold;"><span class="label">Balance</span><span id="s-det-bal-a" class="amt sensitive">--</span><span id="s-det-bal-p" class="pct">--</span></div>
-            <div class="row" style="border-top:1px dashed #eee; margin-top:5px; padding-top:5px;"><span class="label">Invested</span><span id="s-det-inv" class="amt sensitive" style="color:var(--text-main)">--</span><span class="pct"></span></div>
-         </div>
-         <div class="section-header etf-title">ETFs</div>
-         <div class="card">
-            <div class="row"><span class="label">Value</span><span id="e-det-main" class="amt sensitive">--</span><span class="pct">--</span></div>
-            <div class="row"><span class="label">Unrealized</span><span id="e-det-un-a" class="amt sensitive">--</span><span id="e-det-un-p" class="pct">--</span></div>
-            <div class="row"><span class="label">Realized</span><span id="e-det-re-a" class="amt sensitive">--</span><span id="e-det-re-p" class="pct">--</span></div>
-            <div class="row" style="font-weight:bold;"><span class="label">Balance</span><span id="e-det-bal-a" class="amt sensitive">--</span><span id="e-det-bal-p" class="pct">--</span></div>
-            <div class="row" style="border-top:1px dashed #eee; margin-top:5px; padding-top:5px;"><span class="label">Invested</span><span id="e-det-inv" class="amt sensitive" style="color:var(--text-main)">--</span><span class="pct"></span></div>
-         </div>
-         <div class="card" style="padding:15px; min-height:250px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-               <div style="font-size:12px; font-weight:bold; color:var(--gray);">FINANCIAL TREND</div>
-            </div>
-            <div class="card" style="margin-top: 20px; background: linear-gradient(135deg, #2c3e50 0%, #4b4b4d 100%); color: white; border:none;">
-               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                  <div style="display:flex; align-items:center; gap:6px;">
-                     <div style="font-size:12px; font-weight:700; opacity:0.9; letter-spacing:1px;">
-                        🔮 YEAR PROJECTION
-                     </div>
-                     <div onclick="showProjectionInfo()" style="cursor:pointer; font-size:14px; opacity:0.7;">ⓘ</div>
-                  </div>
-                  <div style="font-size:10px; background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:10px;" id="proj-msg">
-                     --
-                  </div>
-               </div>
-               <div style="display:flex; justify-content:space-between; align-items:flex-end;">
-                  <div>
-                     <div style="font-size:11px; opacity:0.7; margin-bottom:2px;">Estimated Savings</div>
-                     <div id="proj-val" class="sensitive" style="font-size:32px; font-weight:800; text-shadow: 0 2px 10px rgba(0,0,0,0.3);">
-                        € --
-                     </div>
-                  </div>
-                  <div style="text-align:right;">
-                     <div style="font-size:10px; opacity:0.7;">Current (YTD)</div>
-                     <div id="proj-curr" class="sensitive" style="font-weight:600; font-size:14px;">€ --</div>
-                  </div>
-               </div>
-            </div>
-            <div class="card" style="margin-bottom: 20px; border-left: 5px solid #ffcc00; background: #fff;">
-               <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <div>
-                     <div style="display:flex; align-items:center; gap:5px; margin-bottom:5px;">
-                        <span style="font-size:11px; font-weight:700; color:var(--gray); text-transform:uppercase; letter-spacing:0.5px;">
-                        📉 Financial Runway
+            
+            <div class="dash-grid" style="grid-template-columns: 1fr; margin-bottom: 0;">
+                <div style="background: var(--white); border-radius: 20px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+                        <span style="font-size:13px; font-weight:800; color:var(--text-main);">🎯 Obj. Deductibility</span>
+                        <span id="tax-gap-val" style="font-size:13px; font-weight:800; color:var(--primary);">Remaining: € --</span>
+                    </div>
+                    
+                    <div style="height: 14px; background: var(--section-bg); border-radius: 14px; overflow: hidden; position: relative;">
+                        <div id="tax-bar" style="width: 0%; background: linear-gradient(90deg, var(--warning) 0%, #ffcc00 100%); height: 100%; border-radius: 14px; transition: width 1s ease;"></div>
+                    </div>
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 15px;">
+                        <span style="font-size:12px; color:var(--gray); font-weight:800;">0€</span>
+                        <span style="font-size:11px; background:var(--section-bg); padding: 4px 10px; border-radius:12px; color:var(--gray); font-weight:700;">
+                            Saturated: <strong id="tax-pct" style="color:var(--text-main);">0%</strong>
                         </span>
-                        <span onclick="showRunwayInfo()" style="cursor:pointer; font-size:14px; color:var(--primary); opacity:0.8;">ⓘ</span>
-                     </div>
-                     <div style="display:flex; align-items:baseline; gap:5px;">
-                        <span id="runway-val" class="sensitive" style="font-size:26px; font-weight:800; color:var(--text-main);">--</span>
-                        <span style="font-size:14px; font-weight:500; color:var(--gray);">months</span>
-                     </div>
-                     <div style="font-size:11px; color:var(--gray); margin-top:2px;">
-                        Avg. Burn: <span id="runway-avg" class="sensitive" style="font-weight:700; color:var(--danger);">€ --</span>
-                     </div>
-                  </div>
-                  <div style="text-align:right; min-width: 80px;">
-                     <div style="font-size:28px;">🏝️</div>
-                     <div style="font-size:9px; color:var(--gray); margin-top:2px; text-transform:uppercase;">Survival Mode</div>
-                     <div id="runway-survival" class="sensitive" style="font-size:15px; font-weight:800; color:var(--success); margin-top:2px;">--</div>
-                  </div>
-               </div>
+                        <span style="font-size:12px; color:var(--text-main); font-weight:900;">5.164€</span>
+                    </div>
+                </div>
+                
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div style="background: var(--white); padding: 18px; border-radius: 20px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size:11px; font-weight:800; color:var(--gray); text-transform:uppercase; margin-bottom:8px;">Monthly Avg</div>
+                        <div id="pension-avg" style="font-size:20px; font-weight:900; color:var(--primary);">€ 0</div>
+                    </div>
+                    <div style="background: var(--white); padding: 18px; border-radius: 20px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size:11px; font-weight:800; color:var(--gray); text-transform:uppercase; margin-bottom:8px;">In 10 Years</div>
+                        <div id="pension-proj" style="font-size:20px; font-weight:900; color:var(--stocks-bg);">€ 0</div>
+                    </div>
+                </div>
             </div>
-            <div style="position: relative; height:220px; width:100%">
-               <canvas id="expensesChart"></canvas>
-            </div>
-         </div>
-         <div class="card" style="padding:15px; min-height:300px; margin-top:20px;">
-            <div style="font-size:12px; font-weight:bold; color:var(--gray); margin-bottom:15px; text-transform:uppercase;">
-               💸 Money Flow (Sankey)
-            </div>
-            <div style="position: relative; height:250px; width:100%">
-               <canvas id="sankeyChart"></canvas>
-            </div>
-            <div style="font-size:10px; color:var(--gray); text-align:center; margin-top:10px;">
-               Left: Income • Right: Expenses & Savings
-            </div>
-         </div>
-         <div id="year-recap-card" style="background:var(--white); border-radius:16px; padding:15px; margin: 10px 5px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-            <div style="font-size:12px; color:var(--gray); font-weight:700; text-transform:uppercase; margin-bottom:10px; text-align:center;">
-               Yearly Overview <span id="yr-label"></span>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
-               <div style="text-align:center; flex:1;">
-                  <div style="font-size:10px; color:var(--gray);">Income</div>
-                  <div id="yr-inc" class="sensitive" style="font-size:15px; font-weight:800; color:#34c759; margin-top:2px;">...</div>
-               </div>
-               <div style="width:1px; height:30px; background:#f2f2f7;"></div>
-               <div style="text-align:center; flex:1;">
-                  <div style="font-size:10px; color:var(--gray);">Expense</div>
-                  <div id="yr-exp" class="sensitive" style="font-size:15px; font-weight:800; color:#ff3b30; margin-top:2px;">...</div>
-               </div>
-               <div style="width:1px; height:30px; background:#f2f2f7;"></div>
-               <div style="text-align:center; flex:1;">
-                  <div style="font-size:10px; color:var(--gray);">Net Saving</div>
-                  <div id="yr-sav" class="sensitive" style="font-size:15px; font-weight:800; color:var(--text-main); margin-top:2px;">...</div>
-               </div>
-            </div>
-            <div style="border-top: 1px dashed #e5e5ea; padding-top: 10px;">
-               <div style="display:flex; gap: 15px;">
-                  <div style="flex:1;">
-                     <div style="font-size:9px; font-weight:700; color:#34c759; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Top Income</div>
-                     <div id="yr-cat-inc">
-                        <div style="font-size:10px; color:#ccc;">...</div>
-                     </div>
-                  </div>
-                  <div style="flex:1;">
-                     <div style="font-size:9px; font-weight:700; color:#ff3b30; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Top Expense</div>
-                     <div id="yr-cat-exp">
-                        <div style="font-size:10px; color:#ccc;">...</div>
-                     </div>
-                  </div>
-               </div>
-            </div>
-         </div>
-         <div class="section-header" style="background:#ff3b30; color:white; margin-top:20px;">Monthly Expenditures by Category</div>
-         <div class="card" style="padding:15px; min-height:250px;">
-            <div style="position: relative; height:250px; width:100%">
-               <canvas id="expenseStackChart"></canvas>
-            </div>
-         </div>
-         <div class="section-header" style="background:#28a745; color:white; margin-top:20px;">Monthly Revenue by Category</div>
-         <div class="card" style="padding:15px; min-height:250px;">
-            <div style="position: relative; height:250px; width:100%">
-               <canvas id="incomeStackChart"></canvas>
-            </div>
-         </div>
-         <div class="section-header" style="background:#00bcd4; color:white; margin-top:20px;">Travels & Trips</div>
-         <div class="card" style="padding:15px; min-height:250px;">
-            <div style="font-size:12px; font-weight:bold; color:var(--gray); margin-bottom:15px;">COST BREAKDOWN PER TRIP</div>
-            <div style="position: relative; height:200px; width:100%">
-               <canvas id="tripChart"></canvas>
-            </div>
-         </div>
-         <div class="section-header" style="background:#5856d6; color:white; margin-top:20px;">Travel Map 🌍</div>
-         <div class="card" style="padding:0; overflow:hidden; min-height:300px;">
-            <div id="map" style="height: 300px; width: 100%;"></div>
-         </div>
-         <div id="trip-list-container" style="padding-bottom:20px; margin-top: 20px;">
-            <div style="text-align:center; color:var(--gray); font-size:12px;">Loading Trips...</div>
-         </div>
-         <div class="section-header" style="background: linear-gradient(135deg, #4b4b4d 0%, #2c2c2e 100%); color:white; margin-top:20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            Pension Fund🐢
-         </div>
-         <div class="card" style="padding: 20px; min-height: 280px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-            <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 20px;">
-               <div>
-                  <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--gray); margin-bottom:4px;">Cumulative amount</div>
-                  <div id="pension-total" style="font-size:24px; font-weight:800; color:#2c3e50; letter-spacing:-0.5px;">€ --</div>
-               </div>
-               <div style="text-align:right;">
-                  <div style="font-size:10px; color:var(--gray); margin-bottom:4px;">Poured 2026</div>
-                  <div id="pension-year" style="font-size:16px; font-weight:700; color:var(--success); background: rgba(52, 199, 89, 0.1); padding: 4px 8px; border-radius: 8px;">
-                     + € --
-                  </div>
-               </div>
-            </div>
-            <div style="position: relative; height:180px; width:100%; margin-bottom: 25px;">
-               <canvas id="pensionChart"></canvas>
-            </div>
-            <div style="background: #fbfbfd; border-radius: 16px; padding: 15px; border: 1px solid #f2f2f7;">
-               <div style="margin-bottom: 20px;">
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                     <span style="font-size:12px; font-weight:700; color:#4b4b4d;">🎯 Objective Deductibility</span>
-                     <span id="tax-gap-val" style="font-size:11px; font-weight:600; color:var(--gray);">Remaining: € --</span>
-                  </div>
-                  <div style="height: 10px; background: #e5e5ea; border-radius: 10px; overflow: hidden; position: relative;">
-                     <div id="tax-bar" style="width: 0%; background: linear-gradient(90deg, #ff9500 0%, #ffcc00 100%); height: 100%; border-radius: 10px; transition: width 1s ease;"></div>
-                  </div>
-                  <div style="display:flex; justify-content:space-between; margin-top: 5px;">
-                     <span style="font-size:10px; color:var(--gray);">0€</span>
-                     <span style="font-size:10px; color:#4b4b4d; font-weight:bold;">5.164€</span>
-                  </div>
-                  <div style="text-align:center; margin-top:-15px;">
-                     <span style="font-size:10px; background:white; padding: 2px 6px; border-radius:10px; border:1px solid #eee; color:var(--gray);">
-                     Saturated: <strong id="tax-pct" style="color:#4b4b4d;">0%</strong>
-                     </span>
-                  </div>
-               </div>
-               <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                  <div style="background: white; padding: 12px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.02); text-align: center;">
-                     <div style="font-size:20px; margin-bottom:5px;">📊</div>
-                     <div style="font-size:10px; font-weight:600; color:var(--gray); text-transform:uppercase;">Monthly Average</div>
-                     <div id="pension-avg" style="font-size:15px; font-weight:800; color:var(--primary); margin-top:2px;">€ 0</div>
-                  </div>
-                  <div style="background: white; padding: 12px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.02); text-align: center;">
-                     <div style="font-size:20px; margin-bottom:5px;">🔮</div>
-                     <div style="font-size:10px; font-weight:600; color:var(--gray); text-transform:uppercase;">In 10 Years</div>
-                     <div id="pension-proj" style="font-size:15px; font-weight:800; color:var(--stocks-bg); margin-top:2px;">€ 0</div>
-                  </div>
-               </div>
-            </div>
-         </div>
-         <div class="section-header" style="background: linear-gradient(135deg, #007aff 0%, #005bb5 100%); color:white; margin-top:20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            Net Worth & Asset Growth 📈
-         </div>
-         <div class="card" style="position: relative; padding: 15px; min-height: 350px; margin-bottom: 20px;">
-            <div id="nw-loading-indicator" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--gray); font-size: 14px; font-weight: 600; z-index: 5;">
-               Loading historical data...
-            </div>
-            <div style="position: relative; height: 350px; width: 100%; z-index: 10;">
-               <canvas id="nwTrendChart"></canvas>
-            </div>
-         </div>
+        </div>
+
+    </div> 
+</div>
+      <div class="nav-bar-container">
+   <div class="nav-bar">
+      <div class="nav-btn active" id="btn-add" onclick="changeTab('add')">
+         <i>✏️</i><span>Exp</span>
       </div>
-      <div class="nav-bar">
-         <div class="nav-btn active" id="btn-add" onclick="changeTab('add')"><i>✏️</i>Exp</div>
-         <div class="nav-btn" id="btn-invest" onclick="changeTab('invest')"><i>📈</i>Invest</div>
-         <div class="nav-btn" id="btn-market" onclick="changeTab('market')"><i>📊</i>Market</div>
-         <div class="nav-btn" onclick="toggleCalc()" style="color: var(--invest-bg);"><i>🧮</i>Calc</div>
-         <div class="nav-btn" id="btn-recap" onclick="changeTab('recap')"><i>📑</i>Recap</div>
+      <div class="nav-btn" id="btn-invest" onclick="changeTab('invest')">
+         <i>📈</i><span>Invest</span>
       </div>
+      <div class="nav-btn" id="btn-market" onclick="changeTab('market')">
+         <i>📊</i><span>Market</span>
+      </div>
+      <div class="nav-btn nav-btn-calc" onclick="toggleCalc()">
+         <i>🧮</i><span>Calc</span>
+      </div>
+      <div class="nav-btn" id="btn-recap" onclick="changeTab('recap')">
+         <i>📑</i><span>Recap</span>
+      </div>
+   </div>
+</div>
    </div>
    <div id="wl-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; align-items:flex-end; justify-content:center; backdrop-filter: blur(2px);">
       <div style="background-color:var(--card-bg, #ffffff); width:100%; max-width:600px; border-radius:24px 24px 0 0; padding:25px; box-shadow:0 -10px 40px rgba(0,0,0,0.3); animation: slideUp 0.3s ease-out; max-height:85vh; overflow-y:auto; position:relative;">
