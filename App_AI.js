@@ -82,14 +82,24 @@ function askGemini(userQuestion, sessionPin, historyJson) {
 }
 
 /**
- * Utility function to clear specific server-side cache keys.
- * Used to force a refresh of the Risk Analysis or Crypto Sentiment data.
+ * Utility function to clear specific server-side cache keys and persistent properties.
+ * Used to force a refresh of the Risk Analysis, Crypto Sentiment, or Dividend estimates.
  */
 function clearServerCache() {
   const cache = CacheService.getScriptCache();
-  // Added new key "GEMINI_RISK_DEEP_V1" to the clearing list
-  cache.removeAll(['GEMINI_RISK_ANALYSIS_PCT_V2', 'GEMINI_RISK_DEEP_V1', 'CRYPTO_FNG']); 
-  return "Server Cache Cleared";
+  const props = PropertiesService.getScriptProperties();
+
+  // Clear standard temporary cache keys
+  cache.removeAll([
+    'GEMINI_RISK_ANALYSIS_PCT_V2', 
+    'GEMINI_RISK_DEEP_V1', 
+    'CRYPTO_FNG'
+  ]); 
+  
+  // Delete the permanent persistent property for Dividends
+  props.deleteProperty('DIVIDEND_ESTIMATES_PERSISTENT_V1');
+
+  return "Server Cache & Properties Cleared";
 }
 
 
@@ -646,15 +656,23 @@ Conduct a forensic analysis of the Asset Allocation quality. Don't just read the
 }
 /**
  * Estimates annual dividend income using AI.
- * Cleans European number formats, fetches current dividend yields/payment months via Gemini,
- * and calculates the total projected yearly return for the top 15 assets.
- * Now uses Native JSON Mode for 100% parsing reliability.
+ * Uses PropertiesService to store data PERMANENTLY until manually reset.
+ * Cleans European number formats, fetches current dividend yields/payment months via Gemini.
  *
  * @return {Object} Total yearly estimate and a detailed list of paying assets.
  */
 function fetchDividendData() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const PROPERTY_KEY = "DIVIDEND_ESTIMATES_PERSISTENT_V1";
+  const props = PropertiesService.getScriptProperties();
   
+  // 1. Check if persistent data exists
+  const savedData = props.getProperty(PROPERTY_KEY);
+  if (savedData) {
+    return JSON.parse(savedData); // Return immediately if found
+  }
+
+  // --- 2. START OF HEAVY LOGIC (Executed only if Property is empty) ---
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
   const port = getLivePortfolio();
   const assets = [...port.stocks, ...port.etfs];
   
@@ -670,10 +688,7 @@ function fetchDividendData() {
   };
 
   const assetList = assets
-    .map(a => ({
-       ticker: a.t.toUpperCase(), 
-       value: parseValue(a.val)   
-    }))
+    .map(a => ({ ticker: a.t.toUpperCase(), value: parseValue(a.val) }))
     .filter(a => a.value > 0) 
     .sort((a, b) => b.value - a.value)
     .slice(0, 15);
@@ -681,16 +696,9 @@ function fetchDividendData() {
   if (assetList.length === 0) return { totalYearly: 0, items: [] };
 
   const assetString = assetList.map(a => a.ticker).join(", ");
-
   const API_KEY = GEMINI_API_KEY; 
+  const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
   
-  const MODELS = [
-    "gemini-2.0-flash",    
-    "gemini-1.5-flash",    
-    "gemini-flash-latest"
-  ];
-  
-  // Corrected English Prompt with XML tags for strict JSON schema enforcement
   const prompt = `
 <role>You are an expert Financial Data Analyst.</role>
 <task>
@@ -719,24 +727,19 @@ Estimate the current Annual Dividend Yield (as a decimal) and the Next Payment M
   for (let m=0; m<MODELS.length; m++) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[m]}:generateContent?key=${API_KEY}`;
-      
       const payload = { 
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" } // CRITICAL: Force JSON mode
+        generationConfig: { responseMimeType: "application/json" }
       };
       
       const options = { 
-        method: "post", 
-        contentType: "application/json", 
-        payload: JSON.stringify(payload), 
-        muteHttpExceptions: true 
+        method: "post", contentType: "application/json", 
+        payload: JSON.stringify(payload), muteHttpExceptions: true 
       };
       
       const res = UrlFetchApp.fetch(url, options);
       if (res.getResponseCode() === 200) {
         let text = JSON.parse(res.getContentText()).candidates[0].content.parts[0].text;
-        
-        // Native JSON parsing without string manipulation
         aiData = JSON.parse(text);
         break; 
       }
@@ -747,9 +750,7 @@ Estimate the current Annual Dividend Yield (as a decimal) and the Next Payment M
   let finalItems = [];
 
   assetList.forEach(myAsset => {
-      // Find matching data from AI response (safe check on 't')
       const info = aiData.find(d => d.t && d.t.toUpperCase() === myAsset.ticker);
-      
       if (info && info.y > 0) {
           let estimatedYearly = myAsset.value * info.y;
           totalYearly += estimatedYearly;
@@ -765,7 +766,12 @@ Estimate the current Annual Dividend Yield (as a decimal) and the Next Payment M
 
   finalItems.sort((a,b) => b.estAmount - a.estAmount);
 
-  return { totalYearly: totalYearly, items: finalItems };
+  const finalResult = { totalYearly: totalYearly, items: finalItems };
+
+  // 3. Save permanently to PropertiesService before returning
+  props.setProperty(PROPERTY_KEY, JSON.stringify(finalResult));
+  
+  return finalResult;
 }
 
 /**
