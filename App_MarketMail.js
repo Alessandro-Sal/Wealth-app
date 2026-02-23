@@ -130,16 +130,24 @@ Today's date is ${todayStr}. Identify the most critical upcoming MACRO EVENTS (e
                   const subject = `${icon} ${event.type}: ${event.title}`;
                   const description = `${event.desc}\\n\\nType: ${event.type}\\nRelated Asset: ${event.ticker}`;
                   
+                  // Generate UID and DTSTAMP required by Outlook's strict policies
+                  const uid = Utilities.getUuid() + "@wealthapp.local";
+                  const nowStr = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + "Z";
+
                   const icsContent = [
                     "BEGIN:VCALENDAR",
                     "VERSION:2.0",
                     "PRODID:-//WealthApp//MarketEvents//EN",
+                    "METHOD:PUBLISH",
                     "BEGIN:VEVENT",
+                    `UID:${uid}`,
+                    `DTSTAMP:${nowStr}`,
                     `DTSTART;VALUE=DATE:${icsDate}`,
                     `DTEND;VALUE=DATE:${icsDate}`,
                     `SUMMARY:${subject}`,
                     `DESCRIPTION:${description}`,
                     "STATUS:CONFIRMED",
+                    "SEQUENCE:0",
                     "END:VEVENT",
                     "END:VCALENDAR"
                   ].join("\r\n");

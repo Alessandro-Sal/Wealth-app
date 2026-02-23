@@ -122,16 +122,24 @@ Today's date is ${todayStr}. Estimate the current Annual Dividend Yield (as a de
                   const subject = `💰 Dividend Payment: ${myAsset.ticker}`;
                   const description = `Estimated dividend payment for ${myAsset.ticker}.\\nEstimated Amount: ~€${estPayment}\\nYearly Yield: ${(info.y * 100).toFixed(2)}%\\nTotal Asset Value: €${myAsset.value}`;
                   
+                  // Generate UID and DTSTAMP required by Outlook's strict policies
+                  const uid = Utilities.getUuid() + "@wealthapp.local";
+                  const nowStr = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + "Z";
+
                   const icsContent = [
                     "BEGIN:VCALENDAR",
                     "VERSION:2.0",
                     "PRODID:-//WealthApp//DividendTracker//EN",
+                    "METHOD:PUBLISH",
                     "BEGIN:VEVENT",
+                    `UID:${uid}`,
+                    `DTSTAMP:${nowStr}`,
                     `DTSTART;VALUE=DATE:${icsDate}`,
                     `DTEND;VALUE=DATE:${icsDate}`,
                     `SUMMARY:${subject}`,
                     `DESCRIPTION:${description}`,
                     "STATUS:CONFIRMED",
+                    "SEQUENCE:0",
                     "END:VEVENT",
                     "END:VCALENDAR"
                   ].join("\r\n");
@@ -312,16 +320,24 @@ Today's date is ${todayStr}. Estimate the current Annual Dividend Yield (as a de
                   const subject = `💰 TEST Dividend: ${myAsset.ticker}`;
                   const description = `TEST EMAIL.\\nEstimated Amount: ~€${estPayment}\\nYearly Yield: ${(info.y * 100).toFixed(2)}%`;
                   
+                  // Generate UID and DTSTAMP required by Outlook's strict policies
+                  const uid = Utilities.getUuid() + "@wealthapp.local";
+                  const nowStr = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + "Z";
+
                   const icsContent = [
                     "BEGIN:VCALENDAR",
                     "VERSION:2.0",
                     "PRODID:-//WealthApp//DividendTracker//EN",
+                    "METHOD:PUBLISH",
                     "BEGIN:VEVENT",
+                    `UID:${uid}`,
+                    `DTSTAMP:${nowStr}`,
                     `DTSTART;VALUE=DATE:${icsDate}`,
                     `DTEND;VALUE=DATE:${icsDate}`,
                     `SUMMARY:${subject}`,
                     `DESCRIPTION:${description}`,
                     "STATUS:CONFIRMED",
+                    "SEQUENCE:0",
                     "END:VEVENT",
                     "END:VCALENDAR"
                   ].join("\r\n");
