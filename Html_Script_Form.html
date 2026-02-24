@@ -620,6 +620,8 @@ function showRunwayInfo() {
   });
 }
 
+// --- Projections, Runway, FIRE (Fetchers) ---
+
 function fetchRunway(year) {
   document.getElementById('runway-val').innerText = "--";
   google.script.run.withSuccessHandler(data => {
@@ -627,12 +629,23 @@ function fetchRunway(year) {
       elVal.innerText = data.months;
       
       const m = parseFloat(data.months); 
+      // Color coding based on safety thresholds
       if (m < 6) elVal.style.color = 'var(--danger)'; 
       else if (m < 12) elVal.style.color = 'var(--warning)'; 
       else elVal.style.color = 'var(--success)';
       
-      const fmtAvg = new Intl.NumberFormat('en-US').format(data.avg); 
-      document.getElementById('runway-avg').innerText = "€ " + fmtAvg;
+      // Format the average burn
+      const fmtAvg = new Intl.NumberFormat('it-IT').format(data.avg); 
+      
+      // --- FIX UPDATE ---
+      // Get the fixed amount from the backend payload (data.fixed directly)
+      const fixedAmount = data.fixed || 0;
+      const fmtFix = new Intl.NumberFormat('it-IT').format(fixedAmount);
+      
+      // Update DOM with average and fixed amounts
+      document.getElementById('runway-avg').innerHTML = 
+          `€ ${fmtAvg} <span style="font-size:0.8em; opacity:0.7; font-weight:600;">(Fix: € ${fmtFix})</span>`;
+          
   }).getRunwayData(year);
 }
 

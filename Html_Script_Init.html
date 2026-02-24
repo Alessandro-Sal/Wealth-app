@@ -171,16 +171,18 @@ function renderAllData(data) {
           else elVal.style.color = 'var(--success)';
       }
       
-      // 2. Render Average Burn vs Fixed Costs
+     // 2. Render Average Burn vs Fixed Costs
       if (document.getElementById('runway-avg')) {
           const fmtAvg = new Intl.NumberFormat('it-IT').format(data.runway.avg);
-          const fmtFix = new Intl.NumberFormat('it-IT').format(data.runway.fixed || 0);
+          
+          // Get server data directly
+          const fixedAmount = data.runway.fixed || 0;
+          const fmtFix = new Intl.NumberFormat('it-IT').format(fixedAmount);
           
           // Shows: "€ 1.500 (Fix: € 800)"
           document.getElementById('runway-avg').innerHTML = 
-              `€ ${fmtAvg} <span style="font-size:0.8em; opacity:0.7;">(Fix: € ${fmtFix})</span>`;
+              `€ ${fmtAvg} <span style="font-size:0.8em; opacity:0.7; font-weight:600;">(Fix: € ${fmtFix})</span>`;
       }
-
       // 3. Render Survival Mode (Emergency Runway)
       // Checks if the element exists in HTML before updating
       if (document.getElementById('runway-survival')) {
@@ -259,6 +261,18 @@ function renderAllData(data) {
       document.getElementById('flow-rate').innerText = "Rate: " + data.savings.rate + "%";
       const elSave = document.getElementById('flow-save');
       if(elSave) elSave.style.color = parseFloat(data.savings.savings) >= 0 ? 'var(--stocks-bg)' : 'var(--danger)';
+      
+      // --- NEW: Fix Update ---
+      const elFlowOutFix = document.getElementById('flow-out-fix');
+      if (elFlowOutFix) {
+          // Usa il dato fisso dal server se disponibile, altrimenti chiama la funzione
+          let fixedAmount = (data.runway && data.runway.fixed) ? data.runway.fixed : 0;
+          if (!fixedAmount && typeof getMonthlyFixedCost === 'function') {
+              fixedAmount = getMonthlyFixedCost();
+          }
+          const fmtFixOut = new Intl.NumberFormat('it-IT').format(fixedAmount);
+          elFlowOutFix.innerText = `(Fix: € ${fmtFixOut})`;
+      }
   }
 }
 
@@ -332,6 +346,14 @@ function fetchDashboard() {
       document.getElementById('flow-save').innerText = "€ " + f.savings;
       document.getElementById('flow-rate').innerText = "Rate: " + f.rate + "%";
       document.getElementById('flow-save').style.color = parseFloat(f.savings) >= 0 ? 'var(--stocks-bg)' : 'var(--danger)';
+      
+      // --- NEW: Fix Update ---
+      const elFlowOutFix = document.getElementById('flow-out-fix');
+      if (elFlowOutFix && typeof getMonthlyFixedCost === 'function') {
+          const fixedAmount = getMonthlyFixedCost();
+          const fmtFixOut = new Intl.NumberFormat('it-IT').format(fixedAmount);
+          elFlowOutFix.innerText = `(Fix: € ${fmtFixOut})`;
+      }
   }).getMonthlySavings();
   /*google.script.run.withSuccessHandler(analysis => {
       const card = document.getElementById('risk-card');
