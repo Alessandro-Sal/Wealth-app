@@ -665,32 +665,57 @@ function fetchProjection(year) {
           return; 
       }
       
-      const pVal = new Intl.NumberFormat('en-US').format(data.projected); 
-      const cVal = new Intl.NumberFormat('en-US').format(data.current);
+      const pVal = new Intl.NumberFormat('it-IT').format(data.projected); 
+      const cVal = new Intl.NumberFormat('it-IT').format(data.current);
       
       if(elVal) elVal.innerText = "€ " + pVal; 
       if(elCurr) elCurr.innerText = "€ " + cVal; 
       if(elMsg) elMsg.innerText = data.message;
       
+      // Dynamic Card Color based on projection (Elegant style)
       const card = elVal ? elVal.closest('.card') : null; 
       if (card) { 
+          // Clean layout with left border emphasis, respecting themes
+          card.style.background = ""; // Revert to CSS default
+          card.style.color = "var(--text-main)";
+          card.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)";
+          card.style.border = "none";
+          
+          if(elVal) {
+              elVal.style.textShadow = "none";
+              elVal.style.fontWeight = "900";
+          }
+          if(elCurr) elCurr.style.color = "var(--gray)";
+          if(elMsg) elMsg.style.color = "var(--gray)";
+
           if (parseFloat(data.projected) < 0) { 
-              card.style.background = "linear-gradient(135deg, #3a1c1c 0%, #502c2c 100%)"; 
+              // Danger red accent
+              card.style.borderLeft = "5px solid var(--danger, #ff3b30)"; 
+              if(elVal) elVal.style.color = "var(--danger, #ff3b30)";
           } else { 
-              card.style.background = "linear-gradient(135deg, #2c3e50 0%, #4b4b4d 100%)"; 
+              // Success green accent
+              card.style.borderLeft = "5px solid var(--stocks-bg, #34c759)"; 
+              if(elVal) elVal.style.color = "var(--stocks-bg, #34c759)";
           } 
       }
   }).getYearlyProjection(year);
 }
 
+// --- Projections, Runway, FIRE (Fetchers) ---
+
 function showProjectionInfo() {
   const isDark = document.body.classList.contains('dark-mode');
   Swal.fire({ 
       title: 'Year Projection 🔮', 
-      html: `<div style="text-align:left; font-size:14px; line-height:1.6;"><p>Mathematical estimate of end-of-year savings based on current pace.</p><hr style="border:0; border-top:1px solid #ddd; margin:10px 0;"><strong>🧮 Formula:</strong><div style="background:${isDark ? '#2c2c2e' : '#f2f2f7'}; padding:10px; border-radius:8px; margin:5px 0; text-align:center; font-family:monospace; font-weight:bold; font-size:12px;">Current + (Avg Monthly × Remaining Months)</div></div>`, 
+      html: `<div style="text-align:left; font-size:14px; line-height:1.6;">
+                <p>Mathematical estimate of end-of-year savings based on current pace.</p>
+                <hr style="border:0; border-top:1px solid #ddd; margin:10px 0;">
+                <strong>🧮 Formula:</strong>
+                <div style="background:${isDark ? '#2c2c2e' : '#f2f2f7'}; padding:10px; border-radius:8px; margin:5px 0; text-align:center; font-family:monospace; font-weight:bold;">Current + (Avg Monthly × Remaining Months)</div>
+             </div>`, 
       icon: 'info', 
-      confirmButtonText: 'Clear', 
-      confirmButtonColor: '#4b4b4d' 
+      confirmButtonText: 'Got it', 
+      confirmButtonColor: '#007aff' 
   });
 }
 

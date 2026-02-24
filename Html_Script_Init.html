@@ -137,7 +137,7 @@ function renderAllData(data) {
       setTimeout(() => { if(document.getElementById('fire-bar')) document.getElementById('fire-bar').style.width = data.fire.bar + "%"; }, 100);
   }
   
-  // Projection Card
+// Projection Card
   if (data.projection) {
       const elVal = document.getElementById('proj-val');
       const elCurr = document.getElementById('proj-curr');
@@ -149,14 +149,33 @@ function renderAllData(data) {
       if(elCurr) elCurr.innerText = "€ " + cVal;
       if(elMsg) elMsg.innerText = data.projection.message;
       
-      // Dynamic Card Color based on projection
+      // Dynamic Card Color based on projection (Elegant style)
       const card = elVal ? elVal.closest('.card') : null;
       if (card) {
-          if (parseFloat(data.projection.projected) < 0) card.style.background = "linear-gradient(135deg, #3a1c1c 0%, #502c2c 100%)"; 
-          else card.style.background = "linear-gradient(135deg, #2c3e50 0%, #4b4b4d 100%)"; 
+          // Clean layout with left border emphasis, respecting themes
+          card.style.background = ""; // Revert to CSS default
+          card.style.color = "var(--text-main)";
+          card.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)";
+          card.style.border = "none";
+          
+          if(elVal) {
+              elVal.style.textShadow = "none";
+              elVal.style.fontWeight = "900";
+          }
+          if(elCurr) elCurr.style.color = "var(--gray)";
+          if(elMsg) elMsg.style.color = "var(--gray)";
+
+          if (parseFloat(data.projection.projected) < 0) { 
+              // Danger red accent
+              card.style.borderLeft = "5px solid var(--danger, #ff3b30)"; 
+              if(elVal) elVal.style.color = "var(--danger, #ff3b30)";
+          } else { 
+              // Success green accent
+              card.style.borderLeft = "5px solid var(--stocks-bg, #34c759)"; 
+              if(elVal) elVal.style.color = "var(--stocks-bg, #34c759)";
+          } 
       }
   }
-  
  // Runway Section
   if (data.runway) {
       // 1. Render Standard Runway (Lifestyle based)
