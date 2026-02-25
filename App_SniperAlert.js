@@ -2,12 +2,14 @@
  * App_SniperAlert.js
  * Scans LIVE portfolio for rapid price movements (> 4% or < -4%).
  * - Stocks/ETFs: Uses the "pct" (Percentage Change) column. Evaluates per-asset market hours.
- * - Crypto: Calculates volatility vs LAST SCRIPT RUN. Runs 24/7.
+ * - Crypto: Calculates rolling 24h volatility using script cache. Runs 24/7.
  * Uses ROBUST AI for market commentary.
  */
 
 function runMarketSniper() {
   const now = new Date();
+  const nowMs = now.getTime();
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
   console.log(`Sniper Scan Started: ${now.toLocaleTimeString()}`);
 
   // --- 1. Get Live Portfolio Data ---
@@ -29,12 +31,12 @@ function runMarketSniper() {
   // Combine Stocks, ETFs, and explicitly tagged Crypto into one array
   const allAssets = [...portfolio.stocks, ...portfolio.etfs, ...taggedCrypto];
   
-  // Retrieve stored prices from the last run
+  // Retrieve stored prices from the last runs
   const scriptProperties = PropertiesService.getScriptProperties();
   const lastPrices = scriptProperties.getProperties();
   
   let alerts = [];
-  let updates = {}; // Object to store current prices for the next run
+  let updates = {}; // Object to store current histories for the next run
   
   let traditionalMarketsScanned = 0;
   let cryptoScanned = 0;
@@ -72,27 +74,40 @@ function runMarketSniper() {
        changeVal = parseFloat(String(changeStr).replace('%', '').replace(',', '.'));
     } 
     // --- CASE B: CRYPTO or ASSETS WITHOUT % ---
-    // We calculate volatility manually by comparing Current Price vs. Last Run Price
+    // We calculate 24h volatility manually by storing a history queue in properties
     else {
        // Helper to clean price string
        const cleanPrice = parsePrice(asset.price || asset.val); // Fallback to val if price missing
        
        if (cleanPrice > 0) {
-           // Create a unique cache key (e.g., LAST_PRICE_BTC)
-           const cacheKey = "LAST_PRICE_" + asset.t.replace(/\s/g, ''); 
+           // Create a unique cache key for the 24h history
+           const cacheKey = "HISTORY_24H_" + asset.t.replace(/\s/g, ''); 
            
-           // Get previous price (if any)
-           const lastPriceStr = lastPrices[cacheKey];
-           const lastPrice = lastPriceStr ? parseFloat(lastPriceStr) : 0;
-
-           // Only calculate if we have a valid previous price to compare against
-           if (lastPrice > 0) {
-             changeVal = ((cleanPrice - lastPrice) / lastPrice) * 100;
-             changeStr = changeVal.toFixed(2).replace('.', ',') + "% (vs Last Run)";
+           let history = [];
+           const historyStr = lastPrices[cacheKey];
+           if (historyStr) {
+               try {
+                   history = JSON.parse(historyStr);
+               } catch(e) {
+                   history = [];
+               }
            }
 
-           // Store the current price to be used as "lastPrice" in the next run
-           updates[cacheKey] = String(cleanPrice);
+           // Add current price and timestamp to history
+           history.push({ ts: nowMs, p: cleanPrice });
+
+           // Filter out entries older than 24 hours
+           history = history.filter(entry => entry.ts >= (nowMs - ONE_DAY_MS));
+
+           // Calculate variation compared to the oldest price in our 24h window
+           if (history.length > 1) {
+             const oldestPrice = history[0].p;
+             changeVal = ((cleanPrice - oldestPrice) / oldestPrice) * 100;
+             changeStr = changeVal.toFixed(2).replace('.', ',') + "% (24h)";
+           }
+
+           // Store the updated history array back as a JSON string
+           updates[cacheKey] = JSON.stringify(history);
        }
     }
 
@@ -106,7 +121,7 @@ function runMarketSniper() {
     }
   });
 
-  // Save the updated Crypto/Manual prices to script properties
+  // Save the updated Crypto/Manual price histories to script properties
   if (Object.keys(updates).length > 0) {
     scriptProperties.setProperties(updates);
   }
@@ -136,7 +151,7 @@ function runMarketSniper() {
         <p style="font-style: italic; color: #555;">${aiComment}</p>
         <br>
         <div style="font-size: 11px; color: #999; text-align: center;">
-          *Crypto change is calculated based on movement since the last script run.<br>
+          *Crypto change is calculated based on movement over a rolling 24-hour period.<br>
           Generated automatically by Wealth App Sniper.
         </div>
       </div>`
