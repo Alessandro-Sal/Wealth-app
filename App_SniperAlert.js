@@ -3,7 +3,7 @@
  * Scans LIVE portfolio for rapid price movements (> 4% or < -4%).
  * - Stocks/ETFs: Uses the "pct" (Percentage Change) column. Evaluates per-asset market hours.
  * - Crypto: Calculates rolling 24h volatility using script cache. Runs 24/7.
- * Uses ROBUST AI for market commentary.
+ * Uses ROBUST AI for market commentary via Universal Router (OpenRouter -> Gemini).
  */
 
 function runMarketSniper() {
@@ -231,48 +231,37 @@ function parsePrice(priceStr) {
 }
 
 /**
- * Generates quick trading advice with AI Fallback and REAL-TIME WEB SEARCH.
+ * Generates quick trading advice using a cascading AI fallback system.
+ * Tries OpenRouter first (for Claude/GPT), falls back to Gemini if it fails.
  */
 function generateSniperAI(alerts) {
-  const API_KEY = GEMINI_API_KEY; 
-  if (!API_KEY) return "AI Commentary Unavailable (Missing Key).";
-
-  const MODELS = [
-    "gemini-2.5-flash-lite", 
-    "gemini-2.0-flash-lite", 
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-3-flash-preview"
-  ];
-
   const prompt = `
     ROLE: You are an Expert Crypto & Swing Trader.
     CONTEXT: Live market session. The following assets have triggered high-volatility alerts:
     ${JSON.stringify(alerts)}
     
     TASK:
-    1. Search the web for the latest breaking news TODAY regarding these specific assets.
-    2. Provide a short explanation (In Italian) of WHY they are moving.
-    3. You MUST include the name of the news source or the title of the article you found.
-    4. Conclude with a quick actionable advice. 
+    1. Provide a short explanation (In Italian) of WHY they might be moving.
+    2. Conclude with a quick actionable advice. 
     Keep it punchy. Max 4 sentences total. language: Italian. Use emojis if you want, but keep it professional.
   `;
 
-  const payload = { contents: [{ parts: [{ text: prompt }] }], tools: [{ google_search: {} }] };
-  const options = { method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true };
+  let response = null;
 
-  for (let i = 0; i < MODELS.length; i++) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[i]}:generateContent?key=${API_KEY}`;
-    const res = UrlFetchApp.fetch(url, options);
-    const responseCode = res.getResponseCode();
-    
-    if (responseCode === 200) {
-      const data = JSON.parse(res.getContentText());
-      let text = data.candidates[0].content.parts[0].text;
-      return text.replace(/\*/g, ''); 
-    } else if (responseCode === 429) {
-      Utilities.sleep(10000); 
-    }
+  // PLAN A: Try OpenRouter (Claude 3.5 or GPT-4o)
+  console.log("Sniper AI: Attempting OPENROUTER...");
+  response = fetchUniversalAI(prompt, 'OPENROUTER');
+
+  // PLAN B: Fallback to Gemini (Native cascade)
+  if (!response) {
+    console.log("Sniper AI: OPENROUTER failed. Falling back to GEMINI...");
+    response = fetchUniversalAI(prompt, 'GEMINI', true);
   }
-  return "Market is volatile today. AI quota exceeded, trade with caution.";
+
+  // PLAN C: Ultimate Fallback
+  if (!response) {
+    return "Market is volatile today. AI services are currently overloaded, trade with caution.";
+  }
+
+  return response.replace(/\*/g, ''); // Clean markdown for email
 }

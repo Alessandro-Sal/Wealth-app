@@ -1,6 +1,7 @@
 /**
  * Identifies upcoming earnings and macro events using AI for the next 14 days,
  * and sends calendar invites (.ics) to the specified email.
+ * Uses the Universal AI Router for robust fallback (OpenRouter -> Gemini).
  *
  * @param {string} targetEmail - The email address to send the calendars to.
  * @return {Object} Status of the operation and generated events.
@@ -33,8 +34,6 @@ function sendMarketEventsCalendarToOutlook(targetEmail = "alessandro.saladino01@
   if (assetList.length === 0) return { status: "No assets found", items: [] };
 
   const assetString = assetList.map(a => a.ticker).join(", ");
-  const API_KEY = GEMINI_API_KEY; 
-  const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
   
   // 2. Define Time Window for the upcoming 14 days
   const today = new Date();
@@ -86,27 +85,30 @@ Today's date is ${todayStr}. Identify the most critical upcoming MACRO EVENTS (e
 
   let aiData = [];
 
-  // 4. API Call to Gemini
-  for (let m=0; m < MODELS.length; m++) {
+  // 4. API Call using Universal AI Router
+  console.log("Fetching Market Events via OpenRouter...");
+  let responseText = fetchUniversalAI(prompt, 'OPENROUTER');
+
+  if (!responseText) {
+    console.log("OpenRouter failed. Falling back to Gemini Cascade...");
+    responseText = fetchUniversalAI(prompt, 'GEMINI');
+  }
+
+  // Parse the AI response robustly
+  if (responseText) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[m]}:generateContent?key=${API_KEY}`;
-      const payload = { 
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
-      };
+      let cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
       
-      const options = { 
-        method: "post", contentType: "application/json", 
-        payload: JSON.stringify(payload), muteHttpExceptions: true 
-      };
-      
-      const res = UrlFetchApp.fetch(url, options);
-      if (res.getResponseCode() === 200) {
-        let text = JSON.parse(res.getContentText()).candidates[0].content.parts[0].text;
-        aiData = JSON.parse(text);
-        break; 
+      const firstBracket = cleanText.indexOf('[');
+      const lastBracket = cleanText.lastIndexOf(']');
+      if (firstBracket !== -1 && lastBracket !== -1) {
+          cleanText = cleanText.substring(firstBracket, lastBracket + 1);
       }
-    } catch(e) { console.warn("Market Events AI Model Error:", e); }
+      
+      aiData = JSON.parse(cleanText);
+    } catch(e) { 
+      console.warn("Market Events JSON Parsing Error:", e); 
+    }
   }
 
   let attachments = [];

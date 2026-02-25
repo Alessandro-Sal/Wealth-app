@@ -1,7 +1,7 @@
 /**
  * App_MondayBriefing.js
  * Sends a weekly strategy email every Monday morning.
- * USES ROBUST AI FALLBACK to prevent timeouts.
+ * Uses Universal AI Router for robust fallback (OpenRouter -> Gemini).
  */
 
 function sendMondayBriefing() {
@@ -47,18 +47,9 @@ function getWatchlistTopPicks() {
 }
 
 /**
- * Generates the briefing using Gemini with Model Fallback.
+ * Generates the briefing using Universal AI Router.
  */
 function generateBriefingAI(market, watchlist) {
-  const API_KEY = GEMINI_API_KEY; 
-  
-  // ROBUST MODEL SEQUENCE
-  const MODELS = [
-    "gemini-2.0-flash",      // Priority 1
-    "gemini-flash-latest",   // Priority 2
-    "gemini-2.0-flash-lite"  // Priority 3 (Backup)
-  ];
-
   const prompt = `
     ROLE: You are a Senior Investment Strategist. It is Monday Morning.
     
@@ -74,31 +65,20 @@ function generateBriefingAI(market, watchlist) {
     2. **Weekly Focus**: Be cautious or aggressive?
     3. **Stock Pick**: Select 1 stock from the watchlist above and explain why to watch it.
     
-    FORMAT: HTML (clean div/p tags), professional but energetic tone.
+    FORMAT: HTML (clean div/p tags), professional but energetic tone. Do not wrap in markdown blocks like \`\`\`html.
   `;
 
-  const payload = { contents: [{ parts: [{ text: prompt }] }] };
-  const options = { 
-    method: "post", 
-    contentType: "application/json", 
-    payload: JSON.stringify(payload), 
-    muteHttpExceptions: true 
-  };
+  console.log("Monday Briefing AI: Attempting OPENROUTER...");
+  let responseText = fetchUniversalAI(prompt, 'OPENROUTER');
 
-  // --- RETRY LOOP ---
-  for (let i = 0; i < MODELS.length; i++) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[i]}:generateContent?key=${API_KEY}`;
-      console.log(`Attempting Briefing with model: ${MODELS[i]}`);
-      
-      const response = UrlFetchApp.fetch(url, options);
-      if (response.getResponseCode() === 200) {
-        let text = JSON.parse(response.getContentText()).candidates[0].content.parts[0].text;
-        return text.replace(/```html/g, "").replace(/```/g, "").trim();
-      }
-    } catch(e) {
-      console.warn(`Model ${MODELS[i]} failed. Trying next.`);
-    }
+  if (!responseText) {
+    console.log("Monday Briefing AI: OPENROUTER failed. Falling back to GEMINI...");
+    responseText = fetchUniversalAI(prompt, 'GEMINI');
+  }
+
+  if (responseText) {
+    // Clean up any accidental markdown blocks that the AI might insert
+    return responseText.replace(/```html/gi, "").replace(/```/g, "").trim();
   }
 
   return "<p>Error: AI models are currently unavailable. Please check API Key or Quota.</p>";

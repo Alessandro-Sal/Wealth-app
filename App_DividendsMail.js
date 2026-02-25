@@ -1,6 +1,7 @@
 /**
  * Estimates next dividend payment dates using AI, filters for the upcoming week,
  * and sends calendar invites (.ics) to the specified email.
+ * Uses Universal AI Router for robust fallback (OpenRouter -> Gemini).
  *
  * @param {string} targetEmail - The email address to send the calendars to.
  * @return {Object} Status of the operation and generated events.
@@ -33,8 +34,6 @@ function sendDividendCalendarToOutlook(targetEmail = "alessandro.saladino01@gmai
   if (assetList.length === 0) return { status: "No assets found", items: [] };
 
   const assetString = assetList.map(a => a.ticker).join(", ");
-  const API_KEY = GEMINI_API_KEY; 
-  const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
   
   // 2. Define Time Window for the upcoming week (Today to Today + 7 days)
   const today = new Date();
@@ -75,86 +74,90 @@ Today's date is ${todayStr}. Estimate the current Annual Dividend Yield (as a de
 
   let aiData = [];
 
-  // 4. API Call to Gemini
-  for (let m=0; m < MODELS.length; m++) {
+  // 4. API Call using Universal AI Router
+  console.log("Dividend Calendar AI: Attempting OPENROUTER...");
+  let responseText = fetchUniversalAI(prompt, 'OPENROUTER');
+
+  if (!responseText) {
+    console.log("Dividend Calendar AI: OPENROUTER failed. Falling back to GEMINI...");
+    responseText = fetchUniversalAI(prompt, 'GEMINI');
+  }
+
+  // Parse the AI response robustly
+  if (responseText) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[m]}:generateContent?key=${API_KEY}`;
-      const payload = { 
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
-      };
+      let cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
       
-      const options = { 
-        method: "post", contentType: "application/json", 
-        payload: JSON.stringify(payload), muteHttpExceptions: true 
-      };
-      
-      const res = UrlFetchApp.fetch(url, options);
-      if (res.getResponseCode() === 200) {
-        let text = JSON.parse(res.getContentText()).candidates[0].content.parts[0].text;
-        aiData = JSON.parse(text);
-        break; 
+      const firstBracket = cleanText.indexOf('[');
+      const lastBracket = cleanText.lastIndexOf(']');
+      if (firstBracket !== -1 && lastBracket !== -1) {
+          cleanText = cleanText.substring(firstBracket, lastBracket + 1);
+          aiData = JSON.parse(cleanText);
       }
-    } catch(e) { console.warn("Dividend AI Model Error:", e); }
+    } catch(e) { 
+      console.warn("Dividend Calendar JSON Parsing Error:", e); 
+    }
   }
 
   let attachments = [];
   let generatedEvents = [];
 
   // 5. Generate .ics calendar files ONLY for events within the next 7 days
-  assetList.forEach(myAsset => {
-      const info = aiData.find(d => d.t && d.t.toUpperCase() === myAsset.ticker);
-      
-      if (info && info.y > 0 && info.d && info.d !== "N/A") {
-          // Strictly filter dates to ensure they fall within the upcoming week
-          if (info.d >= todayStr && info.d <= nextWeekStr) {
-              let estimatedYearly = myAsset.value * info.y;
-              let estPayment = (estimatedYearly / 4).toFixed(2); 
-              
-              const dateParts = info.d.split("-");
-              if(dateParts.length === 3) {
-                  const year = dateParts[0];
-                  const month = dateParts[1];
-                  const day = dateParts[2];
-                  
-                  const icsDate = `${year}${month}${day}`;
-                  
-                  const subject = `💰 Dividend Payment: ${myAsset.ticker}`;
-                  const description = `Estimated dividend payment for ${myAsset.ticker}.\\nEstimated Amount: ~€${estPayment}\\nYearly Yield: ${(info.y * 100).toFixed(2)}%\\nTotal Asset Value: €${myAsset.value}`;
-                  
-                  // Generate UID and DTSTAMP required by Outlook's strict policies
-                  const uid = Utilities.getUuid() + "@wealthapp.local";
-                  const nowStr = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + "Z";
+  if (Array.isArray(aiData)) {
+    assetList.forEach(myAsset => {
+        const info = aiData.find(d => d.t && d.t.toUpperCase() === myAsset.ticker);
+        
+        if (info && info.y > 0 && info.d && info.d !== "N/A") {
+            // Strictly filter dates to ensure they fall within the upcoming week
+            if (info.d >= todayStr && info.d <= nextWeekStr) {
+                let estimatedYearly = myAsset.value * info.y;
+                let estPayment = (estimatedYearly / 4).toFixed(2); 
+                
+                const dateParts = info.d.split("-");
+                if(dateParts.length === 3) {
+                    const year = dateParts[0];
+                    const month = dateParts[1];
+                    const day = dateParts[2];
+                    
+                    const icsDate = `${year}${month}${day}`;
+                    
+                    const subject = `💰 Dividend Payment: ${myAsset.ticker}`;
+                    const description = `Estimated dividend payment for ${myAsset.ticker}.\\nEstimated Amount: ~€${estPayment}\\nYearly Yield: ${(info.y * 100).toFixed(2)}%\\nTotal Asset Value: €${myAsset.value}`;
+                    
+                    // Generate UID and DTSTAMP required by Outlook's strict policies
+                    const uid = Utilities.getUuid() + "@wealthapp.local";
+                    const nowStr = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + "Z";
 
-                  const icsContent = [
-                    "BEGIN:VCALENDAR",
-                    "VERSION:2.0",
-                    "PRODID:-//WealthApp//DividendTracker//EN",
-                    "METHOD:PUBLISH",
-                    "BEGIN:VEVENT",
-                    `UID:${uid}`,
-                    `DTSTAMP:${nowStr}`,
-                    `DTSTART;VALUE=DATE:${icsDate}`,
-                    `DTEND;VALUE=DATE:${icsDate}`,
-                    `SUMMARY:${subject}`,
-                    `DESCRIPTION:${description}`,
-                    "STATUS:CONFIRMED",
-                    "SEQUENCE:0",
-                    "END:VEVENT",
-                    "END:VCALENDAR"
-                  ].join("\r\n");
+                    const icsContent = [
+                      "BEGIN:VCALENDAR",
+                      "VERSION:2.0",
+                      "PRODID:-//WealthApp//DividendTracker//EN",
+                      "METHOD:PUBLISH",
+                      "BEGIN:VEVENT",
+                      `UID:${uid}`,
+                      `DTSTAMP:${nowStr}`,
+                      `DTSTART;VALUE=DATE:${icsDate}`,
+                      `DTEND;VALUE=DATE:${icsDate}`,
+                      `SUMMARY:${subject}`,
+                      `DESCRIPTION:${description}`,
+                      "STATUS:CONFIRMED",
+                      "SEQUENCE:0",
+                      "END:VEVENT",
+                      "END:VCALENDAR"
+                    ].join("\r\n");
 
-                  attachments.push({
-                    fileName: `${myAsset.ticker}_dividend_${info.d}.ics`,
-                    mimeType: "text/calendar",
-                    content: icsContent
-                  });
-                  
-                  generatedEvents.push({ ticker: myAsset.ticker, date: info.d, amount: estPayment });
-              }
-          }
-      }
-  });
+                    attachments.push({
+                      fileName: `${myAsset.ticker}_dividend_${info.d}.ics`,
+                      mimeType: "text/calendar",
+                      content: icsContent
+                    });
+                    
+                    generatedEvents.push({ ticker: myAsset.ticker, date: info.d, amount: estPayment });
+                }
+            }
+        }
+    });
+  }
 
   // 6. Send Email if there are upcoming dividends
   if (attachments.length > 0) {
@@ -236,8 +239,6 @@ function test_sendDividendCalendarToOutlook() {
   }
 
   const assetString = assetList.map(a => a.ticker).join(", ");
-  const API_KEY = GEMINI_API_KEY; 
-  const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
   
   // WIDENED TIME WINDOW FOR TESTING: Next 365 days
   const today = new Date();
@@ -276,81 +277,84 @@ Today's date is ${todayStr}. Estimate the current Annual Dividend Yield (as a de
 
   let aiData = [];
 
-  for (let m=0; m < MODELS.length; m++) {
+  console.log("TEST Dividend AI: Attempting OPENROUTER...");
+  let responseText = fetchUniversalAI(prompt, 'OPENROUTER');
+
+  if (!responseText) {
+    console.log("TEST Dividend AI: OPENROUTER failed. Falling back to GEMINI...");
+    responseText = fetchUniversalAI(prompt, 'GEMINI');
+  }
+
+  if (responseText) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[m]}:generateContent?key=${API_KEY}`;
-      const payload = { 
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
-      };
+      let cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
       
-      const options = { 
-        method: "post", contentType: "application/json", 
-        payload: JSON.stringify(payload), muteHttpExceptions: true 
-      };
-      
-      const res = UrlFetchApp.fetch(url, options);
-      if (res.getResponseCode() === 200) {
-        let text = JSON.parse(res.getContentText()).candidates[0].content.parts[0].text;
-        aiData = JSON.parse(text);
-        break; 
+      const firstBracket = cleanText.indexOf('[');
+      const lastBracket = cleanText.lastIndexOf(']');
+      if (firstBracket !== -1 && lastBracket !== -1) {
+          cleanText = cleanText.substring(firstBracket, lastBracket + 1);
+          aiData = JSON.parse(cleanText);
       }
-    } catch(e) { console.warn("Dividend AI Model Error:", e); }
+    } catch(e) { 
+      console.warn("TEST Dividend JSON Parsing Error:", e); 
+    }
   }
 
   let attachments = [];
 
-  assetList.forEach(myAsset => {
-      const info = aiData.find(d => d.t && d.t.toUpperCase() === myAsset.ticker);
-      
-      if (info && info.y > 0 && info.d && info.d !== "N/A") {
-          // Broad filter just to guarantee some emails for the test
-          if (info.d >= todayStr && info.d <= nextYearStr) {
-              let estimatedYearly = myAsset.value * info.y;
-              let estPayment = (estimatedYearly / 4).toFixed(2); 
-              
-              const dateParts = info.d.split("-");
-              if(dateParts.length === 3) {
-                  const year = dateParts[0];
-                  const month = dateParts[1];
-                  const day = dateParts[2];
-                  
-                  const icsDate = `${year}${month}${day}`;
-                  
-                  const subject = `💰 TEST Dividend: ${myAsset.ticker}`;
-                  const description = `TEST EMAIL.\\nEstimated Amount: ~€${estPayment}\\nYearly Yield: ${(info.y * 100).toFixed(2)}%`;
-                  
-                  // Generate UID and DTSTAMP required by Outlook's strict policies
-                  const uid = Utilities.getUuid() + "@wealthapp.local";
-                  const nowStr = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + "Z";
+  if (Array.isArray(aiData)) {
+    assetList.forEach(myAsset => {
+        const info = aiData.find(d => d.t && d.t.toUpperCase() === myAsset.ticker);
+        
+        if (info && info.y > 0 && info.d && info.d !== "N/A") {
+            // Broad filter just to guarantee some emails for the test
+            if (info.d >= todayStr && info.d <= nextYearStr) {
+                let estimatedYearly = myAsset.value * info.y;
+                let estPayment = (estimatedYearly / 4).toFixed(2); 
+                
+                const dateParts = info.d.split("-");
+                if(dateParts.length === 3) {
+                    const year = dateParts[0];
+                    const month = dateParts[1];
+                    const day = dateParts[2];
+                    
+                    const icsDate = `${year}${month}${day}`;
+                    
+                    const subject = `💰 TEST Dividend: ${myAsset.ticker}`;
+                    const description = `TEST EMAIL.\\nEstimated Amount: ~€${estPayment}\\nYearly Yield: ${(info.y * 100).toFixed(2)}%`;
+                    
+                    // Generate UID and DTSTAMP required by Outlook's strict policies
+                    const uid = Utilities.getUuid() + "@wealthapp.local";
+                    const nowStr = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + "Z";
 
-                  const icsContent = [
-                    "BEGIN:VCALENDAR",
-                    "VERSION:2.0",
-                    "PRODID:-//WealthApp//DividendTracker//EN",
-                    "METHOD:PUBLISH",
-                    "BEGIN:VEVENT",
-                    `UID:${uid}`,
-                    `DTSTAMP:${nowStr}`,
-                    `DTSTART;VALUE=DATE:${icsDate}`,
-                    `DTEND;VALUE=DATE:${icsDate}`,
-                    `SUMMARY:${subject}`,
-                    `DESCRIPTION:${description}`,
-                    "STATUS:CONFIRMED",
-                    "SEQUENCE:0",
-                    "END:VEVENT",
-                    "END:VCALENDAR"
-                  ].join("\r\n");
+                    const icsContent = [
+                      "BEGIN:VCALENDAR",
+                      "VERSION:2.0",
+                      "PRODID:-//WealthApp//DividendTracker//EN",
+                      "METHOD:PUBLISH",
+                      "BEGIN:VEVENT",
+                      `UID:${uid}`,
+                      `DTSTAMP:${nowStr}`,
+                      `DTSTART;VALUE=DATE:${icsDate}`,
+                      `DTEND;VALUE=DATE:${icsDate}`,
+                      `SUMMARY:${subject}`,
+                      `DESCRIPTION:${description}`,
+                      "STATUS:CONFIRMED",
+                      "SEQUENCE:0",
+                      "END:VEVENT",
+                      "END:VCALENDAR"
+                    ].join("\r\n");
 
-                  attachments.push({
-                    fileName: `TEST_${myAsset.ticker}_dividend.ics`,
-                    mimeType: "text/calendar",
-                    content: icsContent
-                  });
-              }
-          }
-      }
-  });
+                    attachments.push({
+                      fileName: `TEST_${myAsset.ticker}_dividend.ics`,
+                      mimeType: "text/calendar",
+                      content: icsContent
+                    });
+                }
+            }
+        }
+    });
+  }
 
   if (attachments.length > 0) {
       const blobs = attachments.map(att => 

@@ -1,84 +1,54 @@
 /**
  * Main chat interface for the AI Assistant.
  * Handles user authentication via PIN to inject financial context (Net Worth, Savings).
- * Implements a robust fallback strategy cycling through multiple Gemini models (Flash 2.0, Latest, Lite) to ensure high availability.
- * * @param {string} userQuestion - The user's query.
+ * Uses the Universal AI Router (OpenRouter -> Gemini).
+ *
+ * @param {string} userQuestion - The user's query.
  * @param {string} sessionPin - The session PIN to validate access to sensitive data.
  * @param {string} historyJson - Previous chat history context.
  * @return {string} The AI response.
  */
 function askGemini(userQuestion, sessionPin, historyJson) {
   const SECRET_PIN = PropertiesService.getScriptProperties().getProperty('APP_PIN');
-  
-  // Reference to the global key (ensure GEMINI_API_KEY is defined in Secrets.gs or Global)
-  const API_KEY = GEMINI_API_KEY; 
-
-  const MODELS = [
-    "gemini-2.0-flash",      // Primary: Fastest and most modern
-    "gemini-flash-latest",   // Fallback 1: Latest stable version
-    "gemini-2.0-flash-lite"  // Fallback 2: Lightweight version
-  ];
-
   const isAuthorized = (String(sessionPin).trim() === SECRET_PIN);
   
-  let messages = [];
-  let systemPrompt = "";
+  let fullPrompt = "";
 
   if (isAuthorized) {
     const dash = getDashboardData();
     const savings = getMonthlySavings();
-    
-    // Prompt translated to English, but keeps the context clear
-    systemPrompt = `You are Wealth AI. User VERIFIED.
-    Data: Net Worth ${dash.totalNetWorth}, Liquid ${dash.liquidNetWorth}.
-    Current Month: In ${savings.income}, Out ${savings.expenses}.
-    Keep responses concise.`;
+    fullPrompt += `SYSTEM CONTEXT: You are Wealth AI. User VERIFIED.
+Data: Net Worth ${dash.totalNetWorth}, Liquid ${dash.liquidNetWorth}.
+Current Month: In ${savings.income}, Out ${savings.expenses}.
+Keep responses concise and professional.\n\n`;
   } else {
-    systemPrompt = "You are Wealth AI. User GUEST. Do not reveal any financial data.";
+    fullPrompt += `SYSTEM CONTEXT: You are Wealth AI. User GUEST. Do not reveal any financial data.\n\n`;
   }
 
-  messages.push({ role: "user", parts: [{ text: systemPrompt }] });
-  
-  // Load chat history if available
+  // Flatten chat history into the prompt string
   if (historyJson) {
     try {
       const prevChat = JSON.parse(historyJson);
-      if(Array.isArray(prevChat)) prevChat.forEach(msg => messages.push(msg));
+      if(Array.isArray(prevChat)) {
+        prevChat.forEach(msg => {
+          const role = msg.role === 'user' ? 'USER' : 'AI';
+          fullPrompt += `${role}: ${msg.parts[0].text}\n`;
+        });
+      }
     } catch(e) {}
   }
-  messages.push({ role: "user", parts: [{ text: userQuestion }] });
+  
+  fullPrompt += `USER: ${userQuestion}`;
 
-  const payload = { contents: messages };
-  const options = {
-    method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true
-  };
-
-  // --- MODEL RETRY LOOP ---
-  for (let m = 0; m < MODELS.length; m++) {
-    const modelName = MODELS[m];
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${API_KEY}`;
-    
-    try {
-      const response = UrlFetchApp.fetch(url, options);
-      const code = response.getResponseCode();
-      const json = JSON.parse(response.getContentText());
-
-      if (code === 200 && !json.error) {
-        return json.candidates[0].content.parts[0].text;
-      }
-      
-      // If error is not 429 (Rate Limit), try the next model
-      if (code !== 429) {
-        console.warn(`Model ${modelName} failed (${code}). Trying next.`);
-        continue;
-      }
-      
-    } catch (e) {
-      console.error(e);
-    }
+  console.log("Chat AI: Attempting OPENROUTER...");
+  let response = fetchUniversalAI(fullPrompt, 'OPENROUTER');
+  
+  if (!response) {
+    console.log("Chat AI: OPENROUTER failed. Falling back to GEMINI...");
+    response = fetchUniversalAI(fullPrompt, 'GEMINI');
   }
 
-  return "All AI models are currently busy. Please try again shortly.";
+  return response || "All AI models are currently busy. Please try again shortly.";
 }
 
 /**
@@ -106,27 +76,26 @@ function clearServerCache() {
 /**
  * AI-powered parser for expenses (Smart Input).
  * Converts unstructured voice text or receipt images into structured JSON data.
- * Recognizes categories, amounts, and dates automatically.
- * * @param {string} inputData - The text prompt or base64 image string.
+ * NOTE: Kept on Native Gemini to support Vision/Image processing seamlessly.
+ *
+ * @param {string} inputData - The text prompt or base64 image string.
  * @param {string} mode - The input mode: 'voice' or 'image'.
  * @return {Object} Structured expense object {type, category, amount, desc, date}.
  */
 function parseExpenseAI(inputData, mode) {
-  const API_KEY = GEMINI_API_KEY; 
-  
-  // Model Sequence (Try in order)
+  const API_KEY = typeof GEMINI_API_KEY !== 'undefined' ? GEMINI_API_KEY : null; 
+  if (!API_KEY) return { error: "Missing API Key" };
+
+  // Vision/Fast models
   const MODELS = [
+    "gemini-2.5-flash", 
     "gemini-2.0-flash", 
-    "gemini-flash-latest",
-    "gemini-2.0-flash-lite"
+    "gemini-flash-latest"
   ];
 
-  // ITALIAN CATEGORIES PRESERVED AS REQUESTED
   const CATS = "Alimentazione, Alloggio, Trasporti, Free-Time, Necessità, Regali, Uscite, Viaggi, Altro, Stipendio";
-  
   let userContent = [];
   
-  // Prompt Construction (Instructions in English, but forcing Italian Categories)
   let systemText = `You are an accounting assistant. Analyze the input and extract transaction data.
   Allowed Categories (Must use one of these exact strings): [${CATS}].
   Today is: ${new Date().toLocaleDateString()}.
@@ -158,7 +127,6 @@ function parseExpenseAI(inputData, mode) {
     muteHttpExceptions: true
   };
 
-  // --- MODEL LOOP ---
   let lastError = "";
 
   for (let i = 0; i < MODELS.length; i++) {
@@ -166,33 +134,30 @@ function parseExpenseAI(inputData, mode) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${API_KEY}`;
     
     try {
-      console.log(`Attempting model: ${modelName}`); 
+      console.log(`Expense Parser: Attempting ${modelName}`); 
       const response = UrlFetchApp.fetch(url, options);
       const code = response.getResponseCode();
       const textRaw = response.getContentText();
 
       if (code !== 200) {
-        console.warn(`Model ${modelName} failed with code ${code}: ${textRaw}`);
         lastError = `API Error (${code})`;
         continue; 
       }
 
       const json = JSON.parse(textRaw);
+      if (!json.candidates || json.candidates.length === 0) continue;
 
-      if (!json.candidates || json.candidates.length === 0) {
-        console.warn(`Model ${modelName} returned no candidates.`);
-        lastError = "No AI result generated.";
-        continue;
+      let cleanText = json.candidates[0].content.parts[0].text;
+      cleanText = cleanText.replace(/```json/gi, "").replace(/```/g, "").trim();
+      
+      const firstBrace = cleanText.indexOf('{');
+      const lastBrace = cleanText.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+          cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+          return JSON.parse(cleanText);
       }
 
-      // --- SUCCESS ---
-      let cleanText = json.candidates[0].content.parts[0].text;
-      cleanText = cleanText.replace(/```json/g, "").replace(/```/g, "").trim();
-      
-      return JSON.parse(cleanText);
-
     } catch (e) {
-      console.error(`Exception on ${modelName}: ${e.toString()}`);
       lastError = e.toString();
     }
   }
@@ -202,8 +167,7 @@ function parseExpenseAI(inputData, mode) {
 
 /**
  * Generates a comprehensive "Hedge Fund" style market report.
- * UPDATED: Handles both fast polling (Cache) and forced user refresh (Live).
- * Solved P/E dependency: AI now infers Growth/Value and Cap Size from Tickers.
+ * Uses Universal AI Router.
  *
  * @param {boolean} onlyMacro - If true (Polling), uses cache. If false (User Click), FORCES new analysis.
  */
@@ -214,11 +178,10 @@ function getMarketInsightsData(onlyMacro) {
   const MACRO_CACHE_KEY = "MARKET_MACRO_DATA_V1";
   const AI_CACHE_KEY = "MARKET_AI_INSIGHTS_PERSIST_V1"; 
   
-  // --- 1. MACRO DATA (Prices & Indices) ---
+  // --- 1. MACRO DATA ---
   let macro = null;
   const cachedJSON = cache.get(MACRO_CACHE_KEY);
 
-  // If user clicks Refresh (!onlyMacro), ignore cache and fetch fresh prices
   if (cachedJSON && onlyMacro) {
       macro = JSON.parse(cachedJSON);
   } else {
@@ -240,7 +203,6 @@ function getMarketInsightsData(onlyMacro) {
           macro.russell = cleanPct(indices[3]);
           macro.vix = cleanPct(indices[4]);
           macro.us10y = cleanPct(sheet.getRange("E12").getDisplayValue());
-          // Save for 60s
           cache.put(MACRO_CACHE_KEY, JSON.stringify(macro), 60);
         }
       } catch(e) { console.error("Error Dashboard Data: " + e); }
@@ -255,21 +217,16 @@ function getMarketInsightsData(onlyMacro) {
       portfolio_events: []
   };
 
-  // IF POLLING (onlyMacro = true): Return cached AI immediately
   if (onlyMacro) {
       return {
           ...macro,
-          metrics: { beta: 0, pe: 0 }, // Beta & PE are recalculated on fresh analysis
+          metrics: { beta: 0, pe: 0 }, 
           sentiment: aiData.sentiment,
           analysis: aiData.analysis,
           market_events: aiData.market_events,
           portfolio_events: aiData.portfolio_events
       };
   }
-
-  // =========================================================
-  // USER CLICKED REFRESH -> RUNNING FULL ANALYSIS (NO CACHE)
-  // =========================================================
 
   // --- 3. PORTFOLIO METRICS ---
   const port = getLivePortfolio(); 
@@ -298,7 +255,6 @@ function getMarketInsightsData(onlyMacro) {
     totalEquityVal += val;
     weightedBeta += (beta * val);
     
-    // We still calculate PE if available for purely internal metrics, but AI won't strictly rely on it.
     if (pe > 0 && a.sector !== 'ETFs') { weightedPE += (pe * val); peEligibleVal += val; }
     
     const s = a.sector || "Other"; sectorMap[s] = (sectorMap[s] || 0) + val;
@@ -309,7 +265,7 @@ function getMarketInsightsData(onlyMacro) {
   const portBeta = totalEquityVal > 0 ? (weightedBeta / totalEquityVal).toFixed(2) : 1;
   const portPE = peEligibleVal > 0 ? (weightedPE / peEligibleVal).toFixed(1) : "N/A";
 
-  // --- 4. AI GENERATION (Gemini) ---
+  // --- 4. AI GENERATION (Universal Router) ---
   const today = new Date().toISOString().split('T')[0];
   const topSectors = Object.entries(sectorMap).sort((a,b) => b[1]-a[1]).slice(0,5).map(([k,v]) => k).join(", ");
   const topCountries = Object.entries(countryMap).sort((a,b) => b[1]-a[1]).slice(0,3).map(([k,v]) => k).join(", ");
@@ -350,9 +306,7 @@ C. EVENTS & CATALYSTS: Provide EVERY significant event (Macro and Portfolio-spec
 
 <guidelines>
 - The Sentiment Score must be between 0 (Extreme Fear) and 10 (Extreme Greed) based strictly on VIX and macro movements.
-- For events, DO NOT just list the name. Provide "Analytic Context" and "Impact Prediction" (e.g., "US CPI: Critical for Fed Pivot. If >3.2%, expect Tech sell-off").
-- "market_events" should focus on CPI, PPI, Central Banks, or broad geopolitical deadlines.
-- "portfolio_events" should focus specifically on earnings, dividends, or product launches for [${myTickers}].
+- For events, DO NOT just list the name. Provide "Analytic Context" and "Impact Prediction".
 - Output Language: Keep JSON keys in English. Write all string values (analysis, labels, event descriptions) in Italian.
 </guidelines>
 
@@ -376,49 +330,33 @@ C. EVENTS & CATALYSTS: Provide EVERY significant event (Macro and Portfolio-spec
 </output_format>
   `;
 
-  const API_KEY = GEMINI_API_KEY; 
-  const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
-  
-  // Default fallback if generation fails
   let finalResult = {
       sentiment: { score: 5, label: "Neutral" },
-      analysis: { macro: "Analisi Macro non disponibile. Riprova più tardi.", portfolio: "Analisi Portafoglio non disponibile." },
+      analysis: { macro: "Analisi Macro non disponibile.", portfolio: "Analisi Portafoglio non disponibile." },
       market_events: [],
       portfolio_events: []
   };
 
-  for (let m=0; m<MODELS.length; m++) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[m]}:generateContent?key=${API_KEY}`;
-      
-      const payload = { 
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json"
+  console.log("Insights AI: Attempting OPENROUTER...");
+  let responseText = fetchUniversalAI(prompt, 'OPENROUTER');
+  if (!responseText) {
+    console.log("Insights AI: OPENROUTER failed. Falling back to GEMINI...");
+    responseText = fetchUniversalAI(prompt, 'GEMINI');
+  }
+
+  if (responseText) {
+      try {
+        let cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+        const firstBrace = cleanText.indexOf('{');
+        const lastBrace = cleanText.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1) {
+            cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+            finalResult = JSON.parse(cleanText);
+            if (finalResult.market_events && finalResult.market_events.length > 0) {
+              cache.put(AI_CACHE_KEY, JSON.stringify(finalResult), 21600); 
+            }
         }
-      };
-      
-      const options = { 
-        method: "post", 
-        contentType: "application/json", 
-        payload: JSON.stringify(payload), 
-        muteHttpExceptions: true 
-      };
-      
-      const response = UrlFetchApp.fetch(url, options);
-      
-      if (response.getResponseCode() === 200) {
-        let txt = JSON.parse(response.getContentText()).candidates[0].content.parts[0].text;
-        txt = txt.replace(/```json/g, "").replace(/```/g, "").trim();
-        finalResult = JSON.parse(txt);
-        
-        // Save to cache on successful parse
-        if (finalResult.market_events && finalResult.market_events.length > 0) {
-          cache.put(AI_CACHE_KEY, JSON.stringify(finalResult), 21600); // 6 Hours
-        }
-        break;
-      }
-    } catch(err) { console.warn("AI Err: " + err); }
+      } catch(e) { console.warn("Insights JSON Parse Error: ", e); }
   }
 
   return {
@@ -430,25 +368,20 @@ C. EVENTS & CATALYSTS: Provide EVERY significant event (Macro and Portfolio-spec
 
 /**
  * Automates the nightly email dispatch of the Market Insights report.
- * Checks for weekdays (Mon-Fri) to ensure it only runs on trading days.
  */
 function sendNightlyMarketReport() {
   const recipient = "alessandro.saladino01@gmail.com";
   const today = new Date();
-  const day = today.getDay(); // 0 = Sunday, 6 = Saturday
+  const day = today.getDay(); 
 
-  // Execute only on Weekdays (Monday=1 to Friday=5)
   if (day === 0 || day === 6) {
     console.log("Weekend: Skipping nightly report.");
     return;
   }
 
   try {
-    // Force fresh analysis (false) to get the latest data
     const insights = getMarketInsightsData(false);
 
-    // Prepare HTML Email Body
-    // Using safe access to properties to prevent crashes if AI fails
     const macroAnalysis = insights.analysis ? insights.analysis.macro : "No Macro Data";
     const portAnalysis = insights.analysis ? insights.analysis.portfolio : "No Portfolio Data";
     const sentimentLabel = insights.sentiment ? insights.sentiment.label : "N/A";
@@ -489,19 +422,12 @@ function sendNightlyMarketReport() {
 
   } catch (e) {
     console.error("Failed to send nightly report: " + e.toString());
-    MailApp.sendEmail({
-      to: recipient,
-      subject: "⚠️ Error: Market Report Failed",
-      body: "The nightly generation failed. Error: " + e.toString()
-    });
   }
 }
 
 /**
  * Performs a deep-dive "Chief Risk Officer" assessment.
- * UPGRADE: Enhanced Analytical Prompt for Asset Allocation & Correlation.
- * Checks for "Fake Diversification" and specific hedging strategies.
- * Now uses Native JSON Mode for 100% parsing reliability.
+ * Uses Universal AI Router.
  *
  * @param {boolean} forceRefresh - If true, bypasses cache and forces new AI analysis.
  */
@@ -509,13 +435,11 @@ function getPortfolioRiskAnalysis(forceRefresh) {
   const CACHE_KEY = "GEMINI_RISK_DEEP_V2"; 
   const cache = CacheService.getScriptCache();
   
-  // 1. CACHE CHECK (Skipped if forceRefresh is true)
   if (!forceRefresh) {
       const cachedResult = cache.get(CACHE_KEY);
       if (cachedResult) return JSON.parse(cachedResult);
   }
 
-  // 2. DATA AGGREGATION
   const dash = getDashboardData();
   const portfolio = getLivePortfolio();
   
@@ -548,7 +472,6 @@ function getPortfolioRiskAnalysis(forceRefresh) {
   const topStocks = cleanList(portfolio.stocks);
   const topCrypto = cleanList(portfolio.crypto);
 
-  // 3. THE "ELITE CRO" PROMPT (XML STRUCTURED)
   const prompt = `
 <role>
 You are the Chief Risk Officer (CRO) of a Top-Tier Multi-Family Office.
@@ -575,16 +498,16 @@ Conduct a forensic analysis of the Asset Allocation quality. Don't just read the
 
 <key_analytical_tasks>
 1. "FAKE DIVERSIFICATION" CHECK:
-   - Do I own different names that act the same? (e.g. Tech Stocks + Nasdaq ETF + Crypto = 100% Correlation).
+   - Do I own different names that act the same?
    - Identify the "Single Point of Failure" (The one factor that kills the portfolio).
 
 2. EFFICIENCY & SIZING:
    - Is the Cash drag too high given inflation?
-   - Is the Crypto allocation reckless (>5-10%) or strategic?
+   - Is the Crypto allocation reckless or strategic?
    - Is there Home Country Bias?
 
 3. STRESS TEST SIMULATION:
-   - Calculate expected drawdown based on the weight of High-Beta assets (Crypto/Tech) vs Low-Beta (Cash/Bonds).
+   - Calculate expected drawdown based on the weight of High-Beta assets vs Low-Beta.
 </key_analytical_tasks>
 
 <output_guidelines>
@@ -598,80 +521,60 @@ Conduct a forensic analysis of the Asset Allocation quality. Don't just read the
   "riskScore": "1-100", 
   "riskLevel": "Basso/Medio/Alto/Estremo",
   "summary": "1 brutal sentence on the portfolio's main weakness.",
-  "concentration": "Detailed analysis. Discuss Correlation, Sector Overlap, and 'Fake Diversification'. Be specific about which assets are overlapping.",
+  "concentration": "Detailed analysis. Discuss Correlation, Sector Overlap, and 'Fake Diversification'.",
   "stressTest": {
     "marketCrash": "Est. Portfolio Drawdown if S&P500 falls 20% (e.g. -12%). Explain logic briefly.",
     "cryptoWinter": "Est. Portfolio Drawdown if Bitcoin falls 50% (e.g. -5%)."
   },
   "suggestions": [
-    "Rebalancing Action 1 (Specific % move, e.g. 'Cut Tech by 10%')",
-    "Hedging Strategy (e.g. 'Buy Gold/Bonds to de-correlate')",
-    "Optimization (e.g. 'Deploy Cash into Dividend Aristocrats')"
+    "Rebalancing Action 1",
+    "Hedging Strategy",
+    "Optimization"
   ]
 }
 </output_format>
   `;
 
-  const API_KEY = GEMINI_API_KEY; 
-  const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
-  
   let finalResult = { 
     riskLevel: "N/A", riskScore: 0, summary: "AI unavailable", 
     stressTest: { marketCrash: "--%", cryptoWinter: "--%" },
     concentration: "No data", suggestions: ["Retry later"]
   };
 
-  for (let m = 0; m < MODELS.length; m++) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[m]}:generateContent?key=${API_KEY}`;
-      
-      const payload = { 
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" } // CRITICAL: Force JSON mode
-      };
-      
-      const res = UrlFetchApp.fetch(url, {
-        method: "post", 
-        contentType: "application/json", 
-        payload: JSON.stringify(payload), 
-        muteHttpExceptions: true
-      });
-      
-      if (res.getResponseCode() === 200) {
-        let text = JSON.parse(res.getContentText()).candidates[0].content.parts[0].text;
-        
-        // No regex cleanup needed, parse safely directly
-        finalResult = JSON.parse(text);
-        
-        // Save to cache for 12 hours
-        cache.put(CACHE_KEY, JSON.stringify(finalResult), 43200); 
-        break; 
-      }
-    } catch (e) { 
-      console.error("Risk AI Error: " + e.toString()); 
-    }
+  console.log("Risk AI: Attempting OPENROUTER...");
+  let responseText = fetchUniversalAI(prompt, 'OPENROUTER');
+  if (!responseText) {
+    console.log("Risk AI: OPENROUTER failed. Falling back to GEMINI...");
+    responseText = fetchUniversalAI(prompt, 'GEMINI');
+  }
+
+  if (responseText) {
+      try {
+        let cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+        const firstBrace = cleanText.indexOf('{');
+        const lastBrace = cleanText.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1) {
+            cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+            finalResult = JSON.parse(cleanText);
+            cache.put(CACHE_KEY, JSON.stringify(finalResult), 43200); 
+        }
+      } catch(e) { console.warn("Risk JSON Parse Error: ", e); }
   }
 
   return finalResult;
 }
+
 /**
  * Estimates annual dividend income using AI.
- * Uses PropertiesService to store data PERMANENTLY until manually reset.
- * Cleans European number formats, fetches current dividend yields/payment months via Gemini.
- *
- * @return {Object} Total yearly estimate and a detailed list of paying assets.
+ * Uses Universal Router and stores permanently in PropertiesService.
  */
 function fetchDividendData() {
   const PROPERTY_KEY = "DIVIDEND_ESTIMATES_PERSISTENT_V1";
   const props = PropertiesService.getScriptProperties();
   
-  // 1. Check if persistent data exists
   const savedData = props.getProperty(PROPERTY_KEY);
-  if (savedData) {
-    return JSON.parse(savedData); // Return immediately if found
-  }
+  if (savedData) return JSON.parse(savedData); 
 
-  // --- 2. START OF HEAVY LOGIC (Executed only if Property is empty) ---
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const port = getLivePortfolio();
   const assets = [...port.stocks, ...port.etfs];
@@ -696,8 +599,6 @@ function fetchDividendData() {
   if (assetList.length === 0) return { totalYearly: 0, items: [] };
 
   const assetString = assetList.map(a => a.ticker).join(", ");
-  const API_KEY = GEMINI_API_KEY; 
-  const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
   
   const prompt = `
 <role>You are an expert Financial Data Analyst.</role>
@@ -724,26 +625,23 @@ Estimate the current Annual Dividend Yield (as a decimal) and the Next Payment M
 
   let aiData = [];
 
-  for (let m=0; m<MODELS.length; m++) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[m]}:generateContent?key=${API_KEY}`;
-      const payload = { 
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
-      };
-      
-      const options = { 
-        method: "post", contentType: "application/json", 
-        payload: JSON.stringify(payload), muteHttpExceptions: true 
-      };
-      
-      const res = UrlFetchApp.fetch(url, options);
-      if (res.getResponseCode() === 200) {
-        let text = JSON.parse(res.getContentText()).candidates[0].content.parts[0].text;
-        aiData = JSON.parse(text);
-        break; 
-      }
-    } catch(e) { console.warn("Dividend AI Model Error:", e); }
+  console.log("Dividend AI: Attempting OPENROUTER...");
+  let responseText = fetchUniversalAI(prompt, 'OPENROUTER');
+  if (!responseText) {
+    console.log("Dividend AI: OPENROUTER failed. Falling back to GEMINI...");
+    responseText = fetchUniversalAI(prompt, 'GEMINI');
+  }
+
+  if (responseText) {
+      try {
+        let cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+        const firstBrace = cleanText.indexOf('[');
+        const lastBrace = cleanText.lastIndexOf(']');
+        if (firstBrace !== -1 && lastBrace !== -1) {
+            cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+            aiData = JSON.parse(cleanText);
+        }
+      } catch(e) { console.warn("Dividend JSON Parse Error: ", e); }
   }
 
   let totalYearly = 0;
@@ -765,33 +663,17 @@ Estimate the current Annual Dividend Yield (as a decimal) and the Next Payment M
   });
 
   finalItems.sort((a,b) => b.estAmount - a.estAmount);
-
   const finalResult = { totalYearly: totalYearly, items: finalItems };
 
-  // 3. Save permanently to PropertiesService before returning
   props.setProperty(PROPERTY_KEY, JSON.stringify(finalResult));
-  
   return finalResult;
 }
 
 /**
  * "Stock Battle" module: Compares two assets side-by-side.
- * Resolves ticker names (e.g., "Ferrari" -> "RACE") and scores them based on 
- * Valuation, Growth, Profitability, and Momentum.
- * * @param {string} inputA - Name or Ticker of the first asset.
- * @param {string} inputB - Name or Ticker of the second asset.
- * @return {Object} JSON comparison result including the winner, scores, and a verdict.
+ * Uses Universal AI Router.
  */
 function runStockBattle(inputA, inputB) {
-  const API_KEY = GEMINI_API_KEY; 
-  
-  const MODELS = [
-    "gemini-2.0-flash",      
-    "gemini-1.5-flash",      
-    "gemini-flash-latest"    
-  ];
-  
-  // English Prompt
   const prompt = `
     You are a Senior Equity Analyst on Wall Street.
     
@@ -830,26 +712,23 @@ function runStockBattle(inputA, inputB) {
     verdict: "Analysis unavailable." 
   };
 
-  for (let m=0; m<MODELS.length; m++) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[m]}:generateContent?key=${API_KEY}`;
-      const payload = { contents: [{ parts: [{ text: prompt }] }] };
-      const options = { method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true };
-      
-      const res = UrlFetchApp.fetch(url, options);
-      if (res.getResponseCode() === 200) {
-        let txt = JSON.parse(res.getContentText()).candidates[0].content.parts[0].text;
-        txt = txt.replace(/```json/g, "").replace(/```/g, "").trim();
-        
-        const firstBrace = txt.indexOf('{');
-        const lastBrace = txt.lastIndexOf('}');
+  console.log("Battle AI: Attempting OPENROUTER...");
+  let responseText = fetchUniversalAI(prompt, 'OPENROUTER');
+  if (!responseText) {
+    console.log("Battle AI: OPENROUTER failed. Falling back to GEMINI...");
+    responseText = fetchUniversalAI(prompt, 'GEMINI');
+  }
+
+  if (responseText) {
+      try {
+        let cleanText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+        const firstBrace = cleanText.indexOf('{');
+        const lastBrace = cleanText.lastIndexOf('}');
         if (firstBrace !== -1 && lastBrace !== -1) {
-            txt = txt.substring(firstBrace, lastBrace + 1);
-            result = JSON.parse(txt);
-            break; 
+            cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+            result = JSON.parse(cleanText);
         }
-      }
-    } catch(e) { console.warn(`Error with ${MODELS[m]}: ${e}`); }
+      } catch(e) { console.warn("Battle JSON Parse Error: ", e); }
   }
 
   return result;
@@ -857,78 +736,44 @@ function runStockBattle(inputA, inputB) {
 
 /**
  * Advanced Asset Analysis Module (Investor AI).
- * NOW WITH JSON-BASED SMART TICKER RESOLUTION.
- * Fixes "Netflix" issues by forcing strict JSON output for ticker identification.
- * * @param {string} inputName - The name or ticker (e.g., "Netflix" or "NFLX").
- * @param {number|string} [currentPrice] - Optional real-time price.
- * @return {string} The formatted HTML/Markdown analysis.
+ * Uses Universal Router for robust generation.
  */
 function analyzeAsset(inputName, currentPrice) {
-  const API_KEY = GEMINI_API_KEY; 
-  
-  // --- 1. CONTEXT: DATE & TIME ---
   const today = new Date().toLocaleDateString('it-IT', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  
-  // --- 2. SMART TICKER & PRICE RESOLUTION ---
   let resolvedTicker = inputName;
   
   if (!currentPrice) {
-    // A. Try fetching with input as is
     currentPrice = fetchPriceYahoo(inputName);
 
-    // B. If failed, ask AI to find the Ticker using STRICT JSON
     if (!currentPrice) {
        console.log(`Price miss for '${inputName}'. Resolving ticker via AI...`);
-       try {
-         const tickerPrompt = `
+       const tickerPrompt = `
            Identify the financial ticker for "${inputName}".
            Return a STRICT JSON object: {"symbol": "THE_TICKER"}.
            If it is a crypto, append "-USD" (e.g. "BTC-USD").
            Example: {"symbol": "NFLX"}
            ONLY JSON. NO TEXT.
-         `;
-         
-         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
-         const payload = { contents: [{ parts: [{ text: tickerPrompt }] }] };
-         const response = UrlFetchApp.fetch(url, {
-           method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true
-         });
-         
-         if (response.getResponseCode() === 200) {
-            let text = JSON.parse(response.getContentText()).candidates[0].content.parts[0].text;
-            
-            // --- FIX ROBUSTEZZA JSON ---
-            // Cerca la prima parentesi graffa aperta e l'ultima chiusa
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
-            
-            if (jsonMatch) {
-                const json = JSON.parse(jsonMatch[0]); // Parla solo la parte JSON
-                const aiTicker = json.symbol;
-                
-                console.log(`✅ AI Resolved '${inputName}' to '${aiTicker}'`);
-                
-                // C. Retry fetch with the clean resolved ticker
-                const priceCheck = fetchPriceYahoo(aiTicker);
-                
-                // Aggiorna sempre il ticker risolto
-                resolvedTicker = aiTicker;
+       `;
+       
+       let tickerResponse = fetchUniversalAI(tickerPrompt, 'OPENROUTER') || fetchUniversalAI(tickerPrompt, 'GEMINI');
 
-                if (priceCheck) {
-                  currentPrice = priceCheck; 
-                }
-            } else {
-                console.warn("AI response did not contain valid JSON: " + text);
-            }
-            // ---------------------------
-         }
-       } catch(e) {
-         console.warn("Ticker resolution failed: " + e);
+       if (tickerResponse) {
+           try {
+             let cleanText = tickerResponse.replace(/```json/gi, "").replace(/```/g, "").trim();
+             const firstBrace = cleanText.indexOf('{');
+             const lastBrace = cleanText.lastIndexOf('}');
+             if (firstBrace !== -1 && lastBrace !== -1) {
+                 const json = JSON.parse(cleanText.substring(firstBrace, lastBrace + 1));
+                 resolvedTicker = json.symbol;
+                 console.log(`✅ AI Resolved '${inputName}' to '${resolvedTicker}'`);
+                 const priceCheck = fetchPriceYahoo(resolvedTicker);
+                 if (priceCheck) currentPrice = priceCheck; 
+             }
+           } catch(e) { console.warn("Ticker parse error: ", e); }
        }
     }
   }
 
-  // --- 3. PRICE ANCHORING CONTEXT ---
-  // Header injection to verify data source visibly
   const statusHeader = currentPrice 
           ? `✅ **DATI DI MERCATO VERIFICATI**\n> **Asset:** ${resolvedTicker}\n> **Prezzo:** $${currentPrice}\n> **Data:** ${today}\n\n---\n\n`
           : `⚠️ **DATI DI MERCATO NON DISPONIBILI**\n> Prezzo non trovato per "${resolvedTicker}". L'analisi si basa su stime.\n\n---\n\n`;
@@ -936,11 +781,6 @@ function analyzeAsset(inputName, currentPrice) {
   const priceContext = currentPrice 
     ? `REAL-TIME MARKET DATA (Verified): Price for ${resolvedTicker} is ${currentPrice}. USE THIS PRICE as t0 for all valuation models.` 
     : "REAL-TIME PRICE: UNAVAILABLE. You MUST estimate valuation based on the LAST KNOWN CLOSING PRICE you assume, but explicitly flag it as an estimate.";
-
-  // Model Sequence
-  const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
-
-  // --- 4. SYSTEM PROMPTS (ORIGINAL TEXT) ---
 
   const INVESTOR_PROMPT_STOCK = `
 ROLE: You are an Elite Global Macro Strategist & Senior Equity Research Analyst. 
@@ -957,7 +797,6 @@ TONE: Professional, Direct, Educational, Data-Driven.
 1. **Use Markdown:** Use **Bold** for key numbers and headers. Use Tables for data comparison.
 2. **Educational Overlay:** Whenever you mention a complex metric (e.g., ROIC, Z-Score, SBC), you MUST provide a micro-explanation in parentheses explaining WHY it matters.
    - *Example:* "ROIC: 15% (Creating Value: Returns exceed cost of capital)."
-   - *Example:* "Altman Z-Score: 1.2 (Distress Zone: High bankruptcy risk)."
 3. **Structure:** Break the text into short paragraphs and bullet points. No walls of text.
 
 --- ANALYSIS FRAMEWORK (CHAIN OF THOUGHT) ---
@@ -1047,7 +886,6 @@ PHASE 5: 🗳️ GOVERNANCE & EXIT STRATEGY
 BONUS: Staking/Yield opportunities for this specific token.
 `;
 
-  // --- ROUTER (Classify Asset) ---
   const ROUTER_PROMPT = `
     Classify the financial asset "${resolvedTicker}".
     Return ONLY one word: "STOCK" or "CRYPTO".
@@ -1056,38 +894,23 @@ BONUS: Staking/Yield opportunities for this specific token.
   `;
   
   let assetType = "STOCK";
-  try {
-    const routerPayload = { contents: [{ parts: [{ text: ROUTER_PROMPT }] }] };
-    const routerRes = UrlFetchApp.fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
-      { method: "post", contentType: "application/json", payload: JSON.stringify(routerPayload), muteHttpExceptions: true }
-    );
-    if(routerRes.getResponseCode() === 200) {
-      const txt = JSON.parse(routerRes.getContentText()).candidates[0].content.parts[0].text.trim().toUpperCase();
-      if(txt.includes("CRYPTO")) assetType = "CRYPTO";
-    }
-  } catch(e) {}
+  let typeResponse = fetchUniversalAI(ROUTER_PROMPT, 'OPENROUTER') || fetchUniversalAI(ROUTER_PROMPT, 'GEMINI');
+  
+  if (typeResponse && typeResponse.toUpperCase().includes("CRYPTO")) {
+      assetType = "CRYPTO";
+  }
 
   const finalPrompt = (assetType === "CRYPTO") ? INVESTOR_PROMPT_CRYPTO : INVESTOR_PROMPT_STOCK;
 
-  // --- GENERATION LOOP ---
-  for (let m = 0; m < MODELS.length; m++) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[m]}:generateContent?key=${API_KEY}`;
-      const payload = { 
-        contents: [{ parts: [{ text: finalPrompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 8000 }
-      };
-      
-      const response = UrlFetchApp.fetch(url, {
-        method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true
-      });
+  console.log("Analysis AI: Attempting OPENROUTER...");
+  let finalResponse = fetchUniversalAI(finalPrompt, 'OPENROUTER');
+  if (!finalResponse) {
+    console.log("Analysis AI: OPENROUTER failed. Falling back to GEMINI...");
+    finalResponse = fetchUniversalAI(finalPrompt, 'GEMINI');
+  }
 
-      if (response.getResponseCode() === 200) {
-        let text = JSON.parse(response.getContentText()).candidates[0].content.parts[0].text;
-        return statusHeader + text; 
-      }
-    } catch (e) { console.error(`Model ${MODELS[m]} failed: ${e}`); }
+  if (finalResponse) {
+      return statusHeader + finalResponse;
   }
 
   return "⚠️ Error: AI models overloaded.";
@@ -1095,19 +918,15 @@ BONUS: Staking/Yield opportunities for this specific token.
 
 /**
  * MASTER PRICE FETCHER
- * Strategy:
- * 1. Try Yahoo Finance v7 (Fastest).
- * 2. If blocked (401/403) or fails, fallback to GOOGLEFINANCE (Rock solid for Stocks).
  */
 function fetchPriceYahoo(ticker) {
   let price = null;
 
-  // --- ATTEMPT 1: YAHOO FINANCE (v7 Quote) ---
   try {
     const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`;
     const params = {
       muteHttpExceptions: true,
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" }
+      headers: { "User-Agent": "Mozilla/5.0" }
     };
     const response = UrlFetchApp.fetch(url, params);
     const code = response.getResponseCode();
@@ -1117,20 +936,12 @@ function fetchPriceYahoo(ticker) {
       if (json.quoteResponse && json.quoteResponse.result && json.quoteResponse.result.length > 0) {
         const data = json.quoteResponse.result[0];
         price = data.regularMarketPrice || data.postMarketPrice || data.preMarketPrice;
-        console.log(`✅ Price found via Yahoo: ${price}`);
         return price;
       }
-    } else {
-      console.warn(`Yahoo Blocked (${code}) for ${ticker}. Switching to fallback...`);
     }
-  } catch (e) {
-    console.warn("Yahoo Fetch Crash: " + e);
-  }
+  } catch (e) {}
 
-  // --- ATTEMPT 2: GOOGLE FINANCE FALLBACK (The "Sheet Bridge") ---
-  // Only triggers if Yahoo fails. 100% success rate for Stocks/ETFs.
   if (!price) {
-     console.log(`🔄 Yahoo failed. Attempting Google Finance fallback for '${ticker}'...`);
      price = fetchPriceGoogle(ticker);
   }
 
@@ -1138,45 +949,207 @@ function fetchPriceYahoo(ticker) {
 }
 
 /**
- * Fallback function that uses the actual Spreadsheet to calculate the price.
- * Uses the 'Config' sheet to perform a temporary calculation.
+ * Fallback function using Google Finance
  */
 function fetchPriceGoogle(ticker) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    // Use the "Config" sheet (which surely exists in your setup)
     let sheet = ss.getSheetByName("Config"); 
-    if (!sheet) {
-      // If missing, use the first available sheet
-      sheet = ss.getSheets()[0]; 
-    }
+    if (!sheet) sheet = ss.getSheets()[0]; 
 
-    // Use a distant, safe cell (e.g., Z100) to avoid overwriting data
     const cell = sheet.getRange("Z100"); 
-    
-    // 1. Write the native Google Sheets formula
     cell.setFormula(`=GOOGLEFINANCE("${ticker}"; "price")`);
-    
-    // 2. Force immediate sheet update
     SpreadsheetApp.flush();
-    
-    // 3. Read the calculated value
     const val = cell.getValue();
-    
-    // 4. Clear the cell (leave no traces)
     cell.clearContent();
-    SpreadsheetApp.flush(); // Commit the cleanup
+    SpreadsheetApp.flush(); 
 
-    // Check if it is a valid number
-    if (typeof val === 'number' && !isNaN(val)) {
-      console.log(`✅ Price found via GoogleFinance Bridge: ${val}`);
-      return val;
-    } else {
-      console.warn(`GoogleFinance returned invalid data: ${val} (Is ticker correct?)`);
-    }
-
-  } catch (e) {
-    console.warn("Google Finance Fallback Failed: " + e);
-  }
+    if (typeof val === 'number' && !isNaN(val)) return val;
+  } catch (e) {}
   return null;
+}
+
+// =========================================================================
+// UNIVERSAL AI ROUTER 
+// Centralized engine for handling OpenRouter, Anthropic, Gemini and OpenAI
+// =========================================================================
+
+/**
+ * Ultimate Universal AI router.
+ * Features cascading model fallbacks for OpenRouter, Anthropic, and Gemini.
+ * ORDERED BY INTELLIGENCE: Heaviest/Smartest models first, Lite models last.
+ * * @param {string} prompt - The user prompt.
+ * @param {string} provider - 'OPENROUTER', 'ANTHROPIC', 'GEMINI', or 'OPENAI'.
+ * @param {boolean} useWebSearch - Web search capability (currently Gemini only).
+ */
+function fetchUniversalAI(prompt, provider = 'GEMINI', useWebSearch = false) {
+  let url, payload, headers;
+
+  // ==========================================
+  // 🟢 OPENROUTER (The Ultimate Aggregator)
+  // ==========================================
+  if (provider === 'OPENROUTER') {
+    const apiKey = typeof OPENROUTER_API_KEY !== 'undefined' ? OPENROUTER_API_KEY : null;
+    if (!apiKey) { console.warn("Missing OPENROUTER_API_KEY"); return null; }
+    
+    url = 'https://openrouter.ai/api/v1/chat/completions';
+    headers = { 
+      'Authorization': 'Bearer ' + apiKey,
+      'HTTP-Referer': 'https://github.com/alessandro-sal', 
+      'X-Title': 'WealthApp' 
+    };
+
+    // Cascade: SMARTEST FIRST
+    const orModels = [
+      "anthropic/claude-3.5-sonnet",       // 1. Top Tier: Best reasoning
+      "openai/gpt-4o",                     // 2. Top Tier: OpenAI Flagship
+      "deepseek/deepseek-chat",            // 3. Top Tier: DeepSeek V3
+      "meta-llama/llama-3.3-70b-instruct", // 4. Mid Tier: Best Open Source
+      "openai/gpt-4o-mini"                 // 5. Fallback: Fast and cheap
+    ];
+
+    for (let i = 0; i < orModels.length; i++) {
+      payload = {
+        model: orModels[i],
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+        max_tokens: 1500 // Prevents Error 402 on low balance accounts
+      };
+      
+      console.log(`Attempting OpenRouter: ${orModels[i]}...`);
+      const response = executeFetch(url, headers, payload, 'OPENROUTER');
+      if (response) return response;
+    }
+    return null;
+  } 
+
+  // ==========================================
+  // 🟣 ANTHROPIC (Native API)
+  // ==========================================
+  else if (provider === 'ANTHROPIC') {
+    const apiKey = typeof ANTHROPIC_API_KEY !== 'undefined' ? ANTHROPIC_API_KEY : null;
+    if (!apiKey) { console.warn("Missing ANTHROPIC_API_KEY"); return null; }
+    
+    url = 'https://api.anthropic.com/v1/messages';
+    headers = { 
+      'x-api-key': apiKey, 
+      'anthropic-version': '2023-06-01' 
+    };
+
+    // Cascade: SMARTEST FIRST
+    const claudeModels = [
+      "claude-3-5-sonnet-20241022", // Heavy
+      "claude-3-5-haiku-20241022"   // Light
+    ];
+
+    for (let i = 0; i < claudeModels.length; i++) {
+      payload = {
+        model: claudeModels[i],
+        max_tokens: 1500,
+        messages: [{ role: 'user', content: prompt }]
+      };
+      
+      console.log(`Attempting Anthropic: ${claudeModels[i]}...`);
+      const response = executeFetch(url, headers, payload, 'ANTHROPIC');
+      if (response) return response;
+    }
+    return null;
+  } 
+
+  // ==========================================
+  // 🔵 GEMINI (Native Google API)
+  // ==========================================
+  else if (provider === 'GEMINI') {
+    const apiKey = typeof GEMINI_API_KEY !== 'undefined' ? GEMINI_API_KEY : null;
+    if (!apiKey) { console.warn("Missing GEMINI_API_KEY"); return null; }
+
+    // --- EXHAUSTIVE CASCADE ORDERED BY INTELLIGENCE ---
+    const geminiModels = [
+      // 1. THE HEAVYWEIGHTS (Pro Models for Deep Reasoning)
+      "gemini-3.1-pro-preview",
+      "gemini-3-pro-preview",
+      "gemini-2.5-pro",
+      "gemini-pro-latest",
+      
+      // 2. THE SMART SPRINTERS (Flash Models)
+      "gemini-2.5-flash",
+      "gemini-3-flash-preview",
+      "gemini-2.0-flash",
+      "gemini-flash-latest",
+      
+      // 3. THE LIGHTWEIGHTS (Lite Models for fast fallback)
+      "gemini-2.5-flash-lite",
+      "gemini-2.0-flash-lite",
+      "gemini-flash-lite-latest",
+      
+      // 4. EXPERIMENTAL & ALIASES
+      "gemini-3.1-pro-preview-customtools",
+      "gemini-2.5-flash-lite-preview-09-2025",
+      "nano-banana-pro-preview",
+      "deep-research-pro-preview-12-2025",
+      "gemini-2.0-flash-001",
+      "gemini-2.0-flash-lite-001",
+      
+      // 5. OPEN WEIGHTS (Ultimate Fallbacks)
+      "gemma-3-27b-it",
+      "gemma-3-12b-it",
+      "gemma-3-4b-it",
+      "gemma-3-1b-it",
+      "gemma-3n-e4b-it",
+      "gemma-3n-e2b-it"
+    ];
+
+    for (let i = 0; i < geminiModels.length; i++) {
+      url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModels[i]}:generateContent?key=${apiKey}`;
+      payload = { contents: [{ parts: [{ text: prompt }] }] };
+      if (useWebSearch) payload.tools = [{ googleSearch: {} }];
+
+      console.log(`Attempting Gemini: ${geminiModels[i]}...`);
+      const response = executeFetch(url, {}, payload, 'GEMINI');
+      if (response) {
+          console.log(`✅ Success with: ${geminiModels[i]}`);
+          return response;
+      }
+    }
+    return null;
+  }
+}
+
+/**
+ * Executes HTTP requests and parses the response based on the provider's specific JSON structure.
+ */
+function executeFetch(url, headers, payload, providerName) {
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    headers: headers,
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  try {
+    const res = UrlFetchApp.fetch(url, options);
+    const code = res.getResponseCode();
+    const data = JSON.parse(res.getContentText());
+
+    if (code === 200) {
+      // Parse output based on provider standard
+      if (providerName === 'OPENROUTER' || providerName === 'OPENAI') {
+        return data.choices[0].message.content;
+      } 
+      else if (providerName === 'ANTHROPIC') {
+        return data.content[0].text;
+      } 
+      else if (providerName === 'GEMINI') {
+        return data.candidates[0].content.parts[0].text;
+      }
+    } else {
+      console.warn(`[${providerName}] Error ${code}: ${res.getContentText()}`);
+      if (code === 429) Utilities.sleep(2000); // Back-off for rate limits
+      return null;
+    }
+  } catch (e) {
+    console.error(`Fetch Exception on ${providerName}:`, e);
+    return null;
+  }
 }
