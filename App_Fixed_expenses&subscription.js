@@ -2,31 +2,139 @@
  * --- SUBSCRIPTION CONFIGURATION ---
  * Defines the list of recurring expenses (Subscriptions).
  * 'bankCol' refers to the specific column index where the amount should be written.
- * Note: Categories ('cat') are kept in Italian to match Spreadsheet validation rules.
+ * New Optional Properties:
+ * - payDay {number}: Day of the month the payment occurs (e.g., 15)
+ * - startDate {string}: Format 'YYYY-MM-DD'
+ * - endDate {string}: Format 'YYYY-MM-DD' (if present, treats as installment)
  */
 /*function _getSubsData() {
   return [
-    { 
-      id: 0, 
-      cat: 'Alloggio', 
-      note: 'Affitto (Wallet)', 
-      isSplit: true, 
-      splits: [{ col: 5, amt: 800 }]
-    }, 
-    { id: 1, cat: 'Free-Time', note: 'Prime Video', amt: 4.99, bankCol: 9 }, 
-    { id: 2, cat: 'Necessità', note: 'iCloud', amt: 50.22, bankCol: 9 }, 
-    { id: 3, cat: 'Necessità', note: 'Phone Top-up', amt: 9.99, bankCol: 6 },  
-    { id: 4, cat: 'Free-Time', note: 'Spotify', amt: 6.49, bankCol: 6 },
-    { id: 5, cat: 'Altro', note: 'Corso', amt: 300, bankCol: 5 },
-    { id: 6, cat: 'Altro', note: 'Corso Inglese', amt: 300, bankCol: 5 }
+    { id: 0, cat: 'Alloggio', note: 'Affitto', isSplit: true, splits: [{ col: 5, amt: 800 }], payDay: 5 }, 
+    { id: 1, cat: 'Free-Time', note: 'Prime Video', amt: 4.99, bankCol: 9, payDay: 15 }, 
+    // Installment Example (Corso Inglese):
+    { id: 6, cat: 'Altro', note: 'Corso Inglese', amt: 300, bankCol: 5, payDay: 27, startDate: '2025-10-01', endDate: '2026-10-01' }
   ];
 }*/
 
-/**
- * Public getter for the subscription list.
- * @return {Array<Object>} The array of subscription objects.
- */
 function getSubsList() { return _getSubsData(); }
+
+// ... [mantieni qui la tua funzione addSelectedSubs intatta] ...
+
+/**
+ * Calculates the total monthly fixed expenses sum.
+ * Filters out subscriptions that are expired or not yet active.
+ * @return {number} Total monthly amount.
+ */
+function getMonthlyFixedCost() {
+  const subs = _getSubsData();
+  let total = 0;
+  const today = new Date();
+  
+  subs.forEach(sub => {
+    let isActive = true;
+    if (sub.startDate && today < new Date(sub.startDate)) isActive = false;
+    if (sub.endDate && today > new Date(sub.endDate)) isActive = false;
+
+    if (isActive) {
+        if (sub.isSplit && sub.splits) {
+          sub.splits.forEach(s => total += s.amt);
+        } else if (sub.amt) {
+          total += sub.amt;
+        }
+    }
+  });
+  
+  return total;
+}
+
+/**
+ * Generates a status report for all subscriptions.
+ * Calculates remaining payments, sets alerts, and sorts by closest payment date.
+ * @return {Array<Object>} Sorted list of subscription statuses.
+ */
+function getSubsStatus() {
+  const subs = _getSubsData();
+  const today = new Date();
+  const statuses = [];
+
+  // Helper to get total days in the current month
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+
+  subs.forEach(sub => {
+    let totalAmt = 0;
+    if (sub.isSplit && sub.splits) {
+      totalAmt = sub.splits.reduce((acc, s) => acc + s.amt, 0);
+    } else {
+      totalAmt = sub.amt;
+    }
+
+   let status = {
+      note: sub.note,
+      amount: totalAmt,
+      payDay: sub.payDay || null,
+      startDate: sub.startDate || null, // Added to pass to UI
+      endDate: sub.endDate || null,     // Added to pass to UI
+      isInstallment: !!sub.endDate,
+      isActive: true,
+      remainingAmount: 0,
+      remainingMonths: 0,
+      progressPct: 0,
+      alert: false,
+      daysUntilNext: 999 
+    };
+    // Check if subscription has started
+    if (sub.startDate) {
+        const start = new Date(sub.startDate);
+        if (today < start) status.isActive = false;
+    }
+
+    // Calculate days until next payment for sorting
+    if (sub.payDay && status.isActive) {
+        if (today.getDate() <= sub.payDay) {
+            status.daysUntilNext = sub.payDay - today.getDate();
+        } else {
+            // Payment for this month has passed, calculate days until next month's payment
+            status.daysUntilNext = (daysInMonth - today.getDate()) + sub.payDay;
+        }
+    }
+
+    // Handle installments (endDate logic)
+    if (sub.endDate && status.isActive) {
+      const end = new Date(sub.endDate);
+      const start = sub.startDate ? new Date(sub.startDate) : new Date();
+      
+      if (today > end) {
+        status.isActive = false; // Expired installment
+      } else {
+        const totalMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
+        const monthsPassed = (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth()) + (today.getDate() >= sub.payDay ? 1 : 0);
+        
+        status.remainingMonths = Math.max(0, totalMonths - monthsPassed);
+        status.remainingAmount = status.remainingMonths * totalAmt;
+        status.progressPct = Math.min(100, (monthsPassed / totalMonths) * 100);
+        
+        // Alert for ending installments
+        if (status.remainingMonths <= 2 && status.remainingMonths > 0) status.alert = "Ending soon!";
+      }
+    } 
+    
+    // Standard alert for upcoming payments (if no other alert is active)
+    if (status.isActive && !status.alert && sub.payDay) {
+        if (status.daysUntilNext === 0) {
+            status.alert = "Due today";
+        } else if (status.daysUntilNext <= 3) {
+            status.alert = "Due in " + status.daysUntilNext + "d";
+        }
+    }
+
+    if (status.isActive) statuses.push(status);
+  });
+
+  // Sort by days until next payment (ascending order)
+  statuses.sort((a, b) => a.daysUntilNext - b.daysUntilNext);
+
+  return statuses;
+}
 
 /**
  * Adds selected subscriptions to the "Expenses Tracker" sheet.

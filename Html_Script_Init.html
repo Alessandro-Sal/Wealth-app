@@ -24,6 +24,7 @@ async function initApp() {
   setTodayDate();
   setupInputValidation();
   fetchBalances();
+  fetchSubsStatus();
 
   const splash = document.getElementById('splash-screen');
   const cachedFast = localStorage.getItem('cache_fast');
