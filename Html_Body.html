@@ -1369,6 +1369,31 @@
    .dash-grid > div:nth-child(4) { animation-delay: 0.25s; }
    .dash-list-wrapper > div:nth-child(1) { animation-delay: 0.2s; }
    .dash-list-wrapper > div:nth-child(2) { animation-delay: 0.3s; }
+
+   /* --- ADVANCED PRIVACY MODE PER NUMERI GIGANTI --- */
+    /* Crea un effetto "Pillola Censurata" (Stile Revolut/N26) */
+
+    body.privacy-mode .dash-hero .sensitive span {
+        color: transparent !important;
+        text-shadow: none !important;
+        background: rgba(255, 255, 255, 0.4) !important;
+        border-radius: 12px !important;
+        filter: none !important; /* Rimuove il blur che creerebbe un alone sporco */
+        user-select: none !important;
+    }
+
+    body.privacy-mode #div-total.sensitive,
+    body.privacy-mode #pension-total.sensitive,
+    body.privacy-mode #runway-val.sensitive {
+        color: transparent !important;
+        text-shadow: none !important;
+        background: rgba(142, 142, 147, 0.2) !important; /* Grigio elegante */
+        border-radius: 10px !important;
+        filter: none !important;
+        user-select: none !important;
+        display: inline-block !important; 
+        padding: 0 10px !important;
+    }
 </style>
 
 <div id="p-recap" class="page" style="padding-top: 0;">
@@ -1470,7 +1495,7 @@
    </div>
 </div>
             
-            <div class="dash-widget span-2 span-pc-4" id="risk-card" style="flex-direction: row; align-items: center; background: linear-gradient(135deg, var(--section-bg) 0%, var(--white) 100%);">
+            <div class="dash-widget span-2 span-pc-4" id="risk-card" style="flex-direction: row; align-items: center; background: linear-gradient(135deg, rgba(118, 75, 162, 0.08) 0%, var(--white) 100%); border: 1px solid rgba(118, 75, 162, 0.15);">
                 <div style="flex:1;">
                     <div class="widget-title"><div class="badge-icon bg-dark">🤖</div> AI Risk Assessment</div>
                     <div id="risk-level" class="sensitive" style="font-size:20px; font-weight:800; color:var(--text-main);">Click 🔄 to calc</div>
