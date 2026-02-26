@@ -104,9 +104,9 @@ function normalizeData(dates, security, actions, quantity, priceCol, spentCol, t
   return cleanData;
 }
 
-// --- 3. ENGINE A: PORTFOLIO DASHBOARD (WITH SELL METRICS) ---
+// --- 3. ENGINE A: PORTFOLIO DASHBOARD (WITH SELL METRICS & XIRR) ---
 
-function calculatePortfolioStats(allData) {
+function calculatePortfolioStats(allData, currentPrices = new Map()) {
   let portfolio = new Map(); 
   let stats = new Map();     
   
@@ -114,7 +114,6 @@ function calculatePortfolioStats(allData) {
   allData.sort((a, b) => a.date - b.date);
 
   // --- PHASE 1: PROCESS TRANSACTIONS ---
-  // 
   for (let trade of allData) {
     let ticker = trade.ticker;
     let precision = (trade.type === "Crypto") ? 8 : 5;
@@ -126,18 +125,16 @@ function calculatePortfolioStats(allData) {
         tradingPnL: 0, 
         dividends: 0, 
         totalInvestedHistorical: 0,
-        // Buy Metrics
         firstBuyDate: null,
         firstBuyPrice: 0,
         minBuyPrice: Infinity, 
         maxBuyPrice: 0,
-        // Sell Metrics (NEW)
         maxSellPrice: 0,
         totalSoldShares: 0,
         totalSoldRevenue: 0,
-        // Behavioral Metrics
         tradeCount: 0,
-        lastActionDate: null
+        lastActionDate: null,
+        cashFlows: [] // Store cash flows for XIRR
       });
     }
     let s = stats.get(ticker);
@@ -148,6 +145,7 @@ function calculatePortfolioStats(allData) {
     // Dividend Handling
     if (trade.action === "Dividend" || trade.action === "Dividends") {
       s.dividends += trade.totalSpent;
+      s.cashFlows.push({ date: trade.date, amount: trade.totalSpent }); 
       continue;
     }
 
@@ -163,18 +161,21 @@ function calculatePortfolioStats(allData) {
       }
       s.totalInvestedHistorical += trade.totalSpent;
       
+      s.cashFlows.push({ date: trade.date, amount: -trade.totalSpent }); 
+      
       let lot = { shares: trade.qty, price: trade.unitPrice, date: trade.date };
       if (!portfolio.has(ticker)) portfolio.set(ticker, [lot]);
       else portfolio.get(ticker).push(lot);
     }
     // Sell Handling
     else if (trade.action === "Sell") {
-      
-      // --- SELL METRICS LOGIC (NEW) ---
       if (trade.unitPrice > s.maxSellPrice) s.maxSellPrice = trade.unitPrice;
       s.totalSoldShares += trade.qty;
-      s.totalSoldRevenue += (trade.qty * trade.unitPrice);
-      // ----------------------------------------
+      
+      let revenue = (trade.type === "Crypto" && trade.totalSpent > 0) ? trade.totalSpent : (trade.qty * trade.unitPrice);
+      s.totalSoldRevenue += revenue;
+      
+      s.cashFlows.push({ date: trade.date, amount: revenue }); 
 
       if (!portfolio.has(ticker)) continue;
       let activeTrades = portfolio.get(ticker);
@@ -193,8 +194,8 @@ function calculatePortfolioStats(allData) {
         if (oldestTrade.shares === 0) activeTrades.shift();
 
         let costBasis = sharesTaken * oldestTrade.price;
-        let revenue = sharesTaken * salePrice;
-        s.tradingPnL += (revenue - costBasis);
+        let revLot = sharesTaken * salePrice;
+        s.tradingPnL += (revLot - costBasis);
       }
       if (activeTrades.length === 0) portfolio.delete(ticker);
     }
@@ -247,59 +248,73 @@ function calculatePortfolioStats(allData) {
     if (status === "OPEN" && tv.activeSince) {
       let timeDiff = today.getTime() - tv.activeSince.getTime();
       daysHeld = Math.floor(timeDiff / (1000 * 3600 * 24));
+    } else if (status === "CLOSED" && s.firstBuyDate && s.lastActionDate) {
+      // Approximate days held for closed positions
+      let timeDiff = s.lastActionDate.getTime() - s.firstBuyDate.getTime();
+      daysHeld = Math.floor(timeDiff / (1000 * 3600 * 24));
     }
 
     let finalMinPrice = (s.minBuyPrice === Infinity) ? 0 : s.minBuyPrice;
-    
-    // Calculate Average Sell Price
     let avgSellPrice = (s.totalSoldShares > 0) ? (s.totalSoldRevenue / s.totalSoldShares) : 0;
 
-    // --- AUTO-ANALYSIS LOGIC ---
+    // Auto-Analysis Logic
     let analysisNotes = [];
-
     if (tradingRoiPct < -0.01 && totalRoiPct > 0) analysisNotes.push("🐮 Cash Cow: Gain via Divs.");
     if (tradingRoiPct > 0.05 && (totalRoiPct - tradingRoiPct) < 0.01) analysisNotes.push("📈 Pure Trading.");
     if (finalMinPrice > 0 && finalMinPrice < (s.firstBuyPrice * 0.85)) analysisNotes.push("📉 Good DCA.");
     if (status === "OPEN" && avgPrice > (s.maxBuyPrice * 0.95) && s.tradeCount > 1) analysisNotes.push("⚠️ High Load Price.");
     if (status === "OPEN" && daysHeld > 730 && totalRoiPct < 0) analysisNotes.push("💤 Dead Money.");
-    
-    // New Note: Selling higher than buy max
     if (avgSellPrice > s.maxBuyPrice && avgSellPrice > 0) analysisNotes.push("💰 Sniper: Selling higher than buying.");
 
     let finalNote = analysisNotes.join(" | ");
 
+    // --- XIRR CALCULATION PER ASSET ---
+    let assetXIRR = 0;
+    let tickerCashFlows = [...s.cashFlows]; 
+    
+    let currentMarketPrice = currentPrices.has(ticker) ? currentPrices.get(ticker) : avgPrice; 
+    let finalMarketValue = tv.shares * currentMarketPrice;
+
+    if (tv.shares > 0.000001) {
+       tickerCashFlows.push({ date: today, amount: finalMarketValue });
+    }
+
+    if (tickerCashFlows.length > 1) {
+       assetXIRR = calculateInternalXIRR(tickerCashFlows);
+       if (typeof assetXIRR === 'string') assetXIRR = 0; 
+    }
+
+    // --- NEW: XIRR VS ROI EXPLANATION LOGIC ---
+    let xirrExplanation = "";
+    if (typeof assetXIRR === 'number' && assetXIRR !== 0) {
+      let roiStr = (totalRoiPct * 100).toFixed(1) + "%";
+      let xirrStr = (assetXIRR * 100).toFixed(1) + "%";
+      
+      if (daysHeld > 0 && daysHeld < 365 && assetXIRR > totalRoiPct) {
+        xirrExplanation = `Short hold (${daysHeld} days): ${roiStr} ROI projected over 1 year accelerates XIRR to ${xirrStr}.`;
+      } else if (daysHeld >= 365 && assetXIRR < totalRoiPct) {
+        xirrExplanation = `Long hold (${daysHeld} days): ${roiStr} ROI diluted over multiple years reduces annual XIRR to ${xirrStr}.`;
+      } else if (daysHeld >= 365 && assetXIRR > (totalRoiPct + 0.05)) {
+        xirrExplanation = `Recent heavy capital: Recent buys/dividends performed well, pushing XIRR (${xirrStr}) above historic ROI (${roiStr}).`;
+      } else {
+        xirrExplanation = `XIRR (${xirrStr}) and ROI (${roiStr}) are naturally aligned.`;
+      }
+    } else {
+      xirrExplanation = "Insufficient data or neutral performance.";
+    }
+
     output.push([
-      ticker, 
-      s.type, 
-      status, 
-      tv.shares, 
-      avgPrice, 
-      s.totalInvestedHistorical, 
-      s.tradingPnL, 
-      s.dividends, 
-      totalRealizedPnL, 
-      breakEven,
-      tv.bookVal,     
-      allocationPct,  
-      tradingRoiPct,  
-      totalRoiPct,    
-      s.firstBuyDate, 
-      s.firstBuyPrice,
-      finalMinPrice,  
-      s.maxBuyPrice,
-      // NEW COLUMNS
-      s.maxSellPrice, // Col S
-      avgSellPrice,   // Col T
-      // -----------
-      daysHeld,       // U
-      s.lastActionDate,// V
-      s.tradeCount,   // W
-      finalNote       // X
+      ticker, s.type, status, tv.shares, avgPrice, s.totalInvestedHistorical, 
+      s.tradingPnL, s.dividends, totalRealizedPnL, breakEven, tv.bookVal,     
+      allocationPct, tradingRoiPct, totalRoiPct, s.firstBuyDate, s.firstBuyPrice,
+      finalMinPrice, s.maxBuyPrice, s.maxSellPrice, avgSellPrice, daysHeld,       
+      s.lastActionDate, s.tradeCount, finalNote, 
+      assetXIRR, // Column Y
+      xirrExplanation // NEW COLUMN Z: Automated Explanation
     ]);
   }
   return output;
 }
-
 
 // --- 4. ENGINE B: DETAILED FISCAL REPORT (Reference Error Fix) ---
 // Renamed from calculateFiscalReport to calculateFiscalReportDetails for consistency
@@ -505,12 +520,24 @@ function calculateZainettoReport(allData) {
 /**
  * PORTFOLIO DASHBOARD
  * Always shows everything (Stocks + Crypto)
+ * @param {Array<Array>} currentPricesRange - OPTIONAL: Range with [Ticker, Current Market Price].
  * @customfunction
  */
-function PORTFOLIO_DASHBOARD(sDate, sSec, sAct, sQty, sPrice, sType, cDate, cSec, cAct, cQty, cPriceUnit, cSpent) {
+function PORTFOLIO_DASHBOARD(sDate, sSec, sAct, sQty, sPrice, sType, cDate, cSec, cAct, cQty, cPriceUnit, cSpent, currentPricesRange) {
   let stockData = normalizeData(sDate, sSec, sAct, sQty, sPrice, null, sType, false);
   let cryptoData = normalizeData(cDate, cSec, cAct, cQty, cPriceUnit, cSpent, null, true);
-  return calculatePortfolioStats(stockData.concat(cryptoData));
+  
+  let currentPrices = new Map();
+  if (currentPricesRange && Array.isArray(currentPricesRange)) {
+    for (let r = 0; r < currentPricesRange.length; r++) {
+      let row = currentPricesRange[r];
+      if (row && row[0] && row[1] !== undefined && row[1] !== "") {
+        currentPrices.set(row[0].toString(), cleanNumber(row[1]));
+      }
+    }
+  }
+
+  return calculatePortfolioStats(stockData.concat(cryptoData), currentPrices);
 }
 
 /**
@@ -709,4 +736,91 @@ function PORTFOLIO_FLUSSI(sDate, sSec, sAct, sQty, sPrice, sType, cDate, cSec, c
   }
 
   return output;
+}
+
+
+// --- 9. ENGINE D: MONEY-WEIGHTED RETURN (XIRR) ---
+
+/**
+ * Calculates the annualized Money-Weighted Return (XIRR) of the whole portfolio.
+ * Uses the exact same data structure as the other reports, treating Buys as outflows
+ * and Sells/Dividends as inflows, closing with the current portfolio value.
+ * * @customfunction
+ */
+function PORTFOLIO_XIRR(sDate, sSec, sAct, sQty, sPrice, sType, cDate, cSec, cAct, cQty, cPriceUnit, cSpent, currentPortfolioValue, evalDate) {
+  // 1. Merge and Normalize Data using existing common utilities
+  let stockData = normalizeData(sDate, sSec, sAct, sQty, sPrice, null, sType, false);
+  let cryptoData = normalizeData(cDate, cSec, cAct, cQty, cPriceUnit, cSpent, null, true);
+  let allData = stockData.concat(cryptoData);
+  
+  if (allData.length === 0) return "No data";
+  
+  let cashFlows = [];
+  
+  // 2. Process all transactions to build the cash flow array
+  for (let trade of allData) {
+    if (!trade.date) continue;
+    
+    // Outflows (Negative): Committing capital to the market
+    if (["Buy", "DRIP", "REWARD", "STAKING", "MINING", "MINT"].includes(trade.action) || trade.action.toUpperCase().includes("BUY")) {
+      cashFlows.push({ date: trade.date, amount: -trade.totalSpent });
+    }
+    // Inflows (Positive): Extracting capital from the market
+    else if (trade.action === "Sell") {
+      // Use totalSpent for Crypto if available, otherwise qty * unitPrice
+      let revenue = (trade.type === "Crypto" && trade.totalSpent > 0) ? trade.totalSpent : (trade.qty * trade.unitPrice);
+      cashFlows.push({ date: trade.date, amount: revenue });
+    }
+    // Inflows (Positive): Receiving cash dividends
+    else if (trade.action === "Dividend" || trade.action === "Dividends") {
+      cashFlows.push({ date: trade.date, amount: trade.totalSpent });
+    }
+  }
+  
+  // 3. Add the Current Portfolio Value as the final simulated inflow
+  // This represents liquidating the entire portfolio today
+  let finalDate = evalDate ? parseDate(evalDate) : new Date();
+  let finalValue = cleanNumber(currentPortfolioValue);
+  
+  cashFlows.push({ date: finalDate, amount: Math.abs(finalValue) });
+  
+  // 4. Sort chronologically to ensure the mathematical model works correctly
+  cashFlows.sort((a, b) => a.date - b.date);
+  
+  // 5. Calculate and return XIRR
+  return calculateInternalXIRR(cashFlows);
+}
+
+/**
+ * Helper: Newton-Raphson method for calculating Internal Rate of Return.
+ */
+function calculateInternalXIRR(cashFlows, guess = 0.1) {
+  if (cashFlows.length < 2) return 0;
+  
+  const maxIterations = 100;
+  const tolerance = 0.000001;
+  let rate = guess;
+  let startDate = cashFlows[0].date;
+  
+  for (let i = 0; i < maxIterations; i++) {
+    let fValue = 0;
+    let fDerivative = 0;
+    
+    for (let j = 0; j < cashFlows.length; j++) {
+      let cf = cashFlows[j];
+      let days = (cf.date - startDate) / (1000 * 60 * 60 * 24);
+      let years = days / 365.0;
+      
+      fValue += cf.amount / Math.pow(1 + rate, years);
+      fDerivative -= (years * cf.amount) / Math.pow(1 + rate, years + 1);
+    }
+    
+    let newRate = rate - fValue / fDerivative;
+    
+    if (Math.abs(newRate - rate) < tolerance) {
+      return newRate; // Successfully converged
+    }
+    rate = newRate;
+  }
+  return "XIRR Error: Did not converge"; 
 }
