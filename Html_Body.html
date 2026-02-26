@@ -834,6 +834,10 @@
     body.dark-mode #p-market .calendar-day { background: #2c2c2e; }
     #p-market .calendar-day.selected { background: var(--primary) !important; color: white !important; box-shadow: 0 4px 10px rgba(0,122,255,0.3); }
     #p-market .event-details-box { background: var(--section-bg) !important; border-radius: 14px !important; border: none !important; padding: 15px !important; margin-top: 15px !important; word-wrap: break-word; }
+    #p-market .dash-widget {
+    margin-bottom: 20px !important;
+    display: block; /* Overrides any flexbox squash effect */
+}
 
     /* Testi Analyst AI - Niente bordature fuori controllo */
     .ai-text-box {
@@ -1227,6 +1231,11 @@
         gap: 15px;
         margin-bottom: 25px;
     }
+
+#p-recap .dash-widget {
+    margin-bottom: 0 !important;
+}
+
     .dash-widget {
         background: var(--white);
         border-radius: 24px;

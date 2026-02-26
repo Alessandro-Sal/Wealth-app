@@ -36,8 +36,9 @@ function parseDate(dateVal) {
 /**
  * Normalizes raw spreadsheet data into a standardized object array.
  * Shared by all reporting engines.
+ * @param {Boolean} keepCash - If true, prevents filtering out "Cash" or "EUR" rows.
  */
-function normalizeData(dates, security, actions, quantity, priceCol, spentCol, typeCol, isCryptoMode) {
+function normalizeData(dates, security, actions, quantity, priceCol, spentCol, typeCol, isCryptoMode, keepCash = false) {
   let cleanData = [];
   
   const flatDates = dates ? dates.map(r => r[0]) : [];
@@ -53,8 +54,9 @@ function normalizeData(dates, security, actions, quantity, priceCol, spentCol, t
     if (!flatSec[i] || flatSec[i] === "") continue;
 
     let ticker = flatSec[i].toString();
-    // Exclude Cash rows
-    if (ticker.toUpperCase().includes("CASH") || ticker.toUpperCase().includes("EUR")) continue;
+    
+    // SKIP CASH ROWS ONLY IF keepCash IS FALSE
+    if (!keepCash && (ticker.toUpperCase().includes("CASH") || ticker.toUpperCase().includes("EUR"))) continue;
 
     let action = flatAct[i] ? flatAct[i].toString() : "Buy";
     let qty = cleanNumber(flatQty[i]);
@@ -69,20 +71,16 @@ function normalizeData(dates, security, actions, quantity, priceCol, spentCol, t
       assetType = "Crypto";
       let rawSpent = cleanNumber(flatSpent[i]); 
       
-      // SMART LOGIC FOR CRYPTO:
-      // If unit price is missing but we have Total Spent & Qty, calculate Unit Price
       if (unitPrice === 0 && qty !== 0 && rawSpent !== 0) unitPrice = rawSpent / qty;
 
       if (rawSpent === 0 && qty !== 0 && unitPrice !== 0) totalSpent = qty * unitPrice;
       else totalSpent = rawSpent;
 
     } else {
-      // STOCK LOGIC
       if (flatType.length > i && flatType[i]) assetType = flatType[i].toString();
       
       totalSpent = unitPrice * qty;
       
-      // Handle Dividends (spent column = dividend amount)
       if (action === "Dividend" || action === "Dividends") {
          totalSpent = unitPrice; 
          qty = 0; 
@@ -742,85 +740,116 @@ function PORTFOLIO_FLUSSI(sDate, sSec, sAct, sQty, sPrice, sType, cDate, cSec, c
 // --- 9. ENGINE D: MONEY-WEIGHTED RETURN (XIRR) ---
 
 /**
- * Calculates the annualized Money-Weighted Return (XIRR) of the whole portfolio.
- * Uses the exact same data structure as the other reports, treating Buys as outflows
- * and Sells/Dividends as inflows, closing with the current portfolio value.
- * * @customfunction
+ * Calculates the annualized Money-Weighted Return (XIRR).
+ * Uses ONLY external account deposits and withdrawals where the Ticker is strictly "Cash".
+ * @param {String} portfolioTarget - "ALL" (default), "STOCKS", or "CRYPTO" to calculate separately.
+ * @customfunction
  */
-function PORTFOLIO_XIRR(sDate, sSec, sAct, sQty, sPrice, sType, cDate, cSec, cAct, cQty, cPriceUnit, cSpent, currentPortfolioValue, evalDate) {
-  // 1. Merge and Normalize Data using existing common utilities
-  let stockData = normalizeData(sDate, sSec, sAct, sQty, sPrice, null, sType, false);
-  let cryptoData = normalizeData(cDate, cSec, cAct, cQty, cPriceUnit, cSpent, null, true);
-  let allData = stockData.concat(cryptoData);
+function PORTFOLIO_XIRR(sDate, sSec, sAct, sQty, sPrice, sType, cDate, cSec, cAct, cQty, cPriceUnit, cSpent, currentPortfolioValue, evalDate, portfolioTarget = "ALL") {
+  // 1. Normalize Data
+  let stockData = normalizeData(sDate, sSec, sAct, sQty, sPrice, null, sType, false, true);
+  let cryptoData = normalizeData(cDate, cSec, cAct, cQty, cPriceUnit, cSpent, null, true, true);
+  
+  // 2. Filter based on the target portfolio
+  let allData = [];
+  let target = portfolioTarget ? portfolioTarget.toString().toUpperCase().trim() : "ALL";
+
+  if (target === "STOCKS") {
+    allData = stockData;
+  } else if (target === "CRYPTO") {
+    allData = cryptoData;
+  } else {
+    allData = stockData.concat(cryptoData); // Combine both if "ALL" or empty
+  }
   
   if (allData.length === 0) return "No data";
   
   let cashFlows = [];
   
-  // 2. Process all transactions to build the cash flow array
+  // 3. Process external bank transfers ONLY if the ticker is strictly "Cash"
   for (let trade of allData) {
     if (!trade.date) continue;
     
-    // Outflows (Negative): Committing capital to the market
-    if (["Buy", "DRIP", "REWARD", "STAKING", "MINING", "MINT"].includes(trade.action) || trade.action.toUpperCase().includes("BUY")) {
-      cashFlows.push({ date: trade.date, amount: -trade.totalSpent });
-    }
-    // Inflows (Positive): Extracting capital from the market
-    else if (trade.action === "Sell") {
-      // Use totalSpent for Crypto if available, otherwise qty * unitPrice
-      let revenue = (trade.type === "Crypto" && trade.totalSpent > 0) ? trade.totalSpent : (trade.qty * trade.unitPrice);
-      cashFlows.push({ date: trade.date, amount: revenue });
-    }
-    // Inflows (Positive): Receiving cash dividends
-    else if (trade.action === "Dividend" || trade.action === "Dividends") {
-      cashFlows.push({ date: trade.date, amount: trade.totalSpent });
+    let tickerStr = trade.ticker.toString().toLowerCase().trim();
+    let actionStr = trade.action.toString().toLowerCase().trim();
+    
+    // Strict constraint: Ticker must be "Cash"
+    if (tickerStr === "cash") {
+      // Outflows: Deposit into the broker/exchange
+      if (actionStr === "deposit" || actionStr === "deposito") {
+        cashFlows.push({ date: trade.date, amount: -Math.abs(trade.totalSpent) });
+      }
+      // Inflows: Withdrawal back to the bank
+      else if (actionStr === "withdrawal" || actionStr === "prelievo") {
+        cashFlows.push({ date: trade.date, amount: Math.abs(trade.totalSpent) });
+      }
     }
   }
   
-  // 3. Add the Current Portfolio Value as the final simulated inflow
-  // This represents liquidating the entire portfolio today
+  // 4. Add the Current Portfolio Value for the specific target
   let finalDate = evalDate ? parseDate(evalDate) : new Date();
   let finalValue = cleanNumber(currentPortfolioValue);
   
   cashFlows.push({ date: finalDate, amount: Math.abs(finalValue) });
   
-  // 4. Sort chronologically to ensure the mathematical model works correctly
+  // 5. Sort and Calculate
   cashFlows.sort((a, b) => a.date - b.date);
-  
-  // 5. Calculate and return XIRR
   return calculateInternalXIRR(cashFlows);
 }
 
 /**
  * Helper: Newton-Raphson method for calculating Internal Rate of Return.
+ * Upgraded with multi-guess for high volatility (Crypto) and validation.
  */
-function calculateInternalXIRR(cashFlows, guess = 0.1) {
-  if (cashFlows.length < 2) return 0;
+function calculateInternalXIRR(cashFlows) {
+  if (cashFlows.length < 2) return "Errore: Dati insufficienti (Meno di 2 flussi)";
   
+  // 1. Check if we have both negative (Deposits) and positive (Final Value/Withdrawals) flows
+  let hasPositive = false;
+  let hasNegative = false;
+  for (let cf of cashFlows) {
+    if (cf.amount > 0) hasPositive = true;
+    if (cf.amount < 0) hasNegative = true;
+  }
+  
+  if (!hasNegative) return "Errore: Nessun Deposito trovato in 'Cash'";
+  if (!hasPositive) return "Errore: Valore Attuale (B2) a zero o mancante";
+
+  // 2. Newton-Raphson Setup
   const maxIterations = 100;
   const tolerance = 0.000001;
-  let rate = guess;
+  // Test multiple starting guesses to handle extreme Crypto volatility
+  let guesses = [0.1, -0.1, 0.5, -0.5, 0.0, -0.9, 1.0, 5.0]; 
   let startDate = cashFlows[0].date;
   
-  for (let i = 0; i < maxIterations; i++) {
-    let fValue = 0;
-    let fDerivative = 0;
+  for (let guess of guesses) {
+    let rate = guess;
+    let converged = false;
     
-    for (let j = 0; j < cashFlows.length; j++) {
-      let cf = cashFlows[j];
-      let days = (cf.date - startDate) / (1000 * 60 * 60 * 24);
-      let years = days / 365.0;
+    for (let i = 0; i < maxIterations; i++) {
+      let fValue = 0;
+      let fDerivative = 0;
       
-      fValue += cf.amount / Math.pow(1 + rate, years);
-      fDerivative -= (years * cf.amount) / Math.pow(1 + rate, years + 1);
+      for (let j = 0; j < cashFlows.length; j++) {
+        let cf = cashFlows[j];
+        let days = (cf.date - startDate) / (1000 * 60 * 60 * 24);
+        let years = days / 365.0;
+        
+        fValue += cf.amount / Math.pow(1 + rate, years);
+        fDerivative -= (years * cf.amount) / Math.pow(1 + rate, years + 1);
+      }
+      
+      if (fDerivative === 0) break; // Avoid division by zero
+      
+      let newRate = rate - fValue / fDerivative;
+      
+      // If the difference is smaller than the tolerance, the algorithm has converged
+      if (Math.abs(newRate - rate) < tolerance) {
+        return newRate; 
+      }
+      rate = newRate;
     }
-    
-    let newRate = rate - fValue / fDerivative;
-    
-    if (Math.abs(newRate - rate) < tolerance) {
-      return newRate; // Successfully converged
-    }
-    rate = newRate;
   }
+  
   return "XIRR Error: Did not converge"; 
 }
