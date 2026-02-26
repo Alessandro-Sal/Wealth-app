@@ -416,21 +416,33 @@ function startDashboardPolling() {
                         dashboardPage.style.display !== 'none' && 
                         !dashboardPage.classList.contains('hidden');
 
+      // --- NEW: Check Selected Year ---
+      // Get the currently selected year from the dropdown
+      const yearBox = document.getElementById('trendYear');
+      const currentYear = new Date().getFullYear().toString();
+      const selectedYear = yearBox ? yearBox.value : currentYear;
+
       if (isVisible) {
-          console.log("🔄 Polling Dashboard Data...");
-          
-          // Refresh Dashboard/Recap numbers seamlessly
-          google.script.run.withSuccessHandler(data => {
-              if(data && !data.error) {
-                  // Update cache
-                  localStorage.setItem('dashboard_cache', JSON.stringify(data));
-                  // Update UI without full page refresh
-                  updateDashboardDOM(data);
-              }
-          }).getDashboardData();
-          
-          // Optional: You can also refresh bank balances here if needed
-          // fetchBalances();
+          // Only perform the update if the user is looking at the CURRENT year
+          if (selectedYear === currentYear) {
+              console.log("🔄 Polling Dashboard Data...");
+              
+              // Refresh Dashboard/Recap numbers seamlessly
+              google.script.run.withSuccessHandler(data => {
+                  if(data && !data.error) {
+                      // Update cache
+                      localStorage.setItem('dashboard_cache', JSON.stringify(data));
+                      // Update UI without full page refresh
+                      updateDashboardDOM(data);
+                  }
+              }).getDashboardData();
+              
+              // Optional: You can also refresh bank balances here if needed
+              // fetchBalances();
+          } else {
+              // Skip polling so historical data isn't overwritten
+              console.log("⏸️ Dashboard Polling skipped: viewing historical year (" + selectedYear + ")");
+          }
           
       } else {
           // If page is hidden but interval is running, stop it to save resources

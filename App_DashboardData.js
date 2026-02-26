@@ -8,6 +8,47 @@ function getDashboardData() {
   const sheet = ss.getSheetByName("Net Worth OGGI");
   if (!sheet) return { error: "Sheet 'Net Worth OGGI' not found" };
 
+  // --- ULTIMATE FIX: FORCE CALCULATION & CATCH "0" ---
+  // 1. Force Google Sheets to apply any pending formulas immediately
+  SpreadsheetApp.flush(); 
+
+  // 2. Check if it's calculating (Errors, "Loading", or even temporarily "0")
+  const isCalculating = (rawVal, displayVal) => {
+    const str = String(displayVal).toUpperCase();
+    const hasErrorString = str === "" || str.includes("#") || str.includes("LOAD") || str.includes("ERROR") || str.includes("N/A");
+    
+    // Many crypto formulas (like IFERROR) return 0 while loading from CoinGecko/Binance.
+    // We treat 0 as a "temporary" state and wait a few seconds just to be sure.
+    const isTemporaryZero = (rawVal === 0 || rawVal === "0" || str === "€ 0,00" || str === "0,00 €");
+    
+    return hasErrorString || isTemporaryZero;
+  };
+
+  let cryptoRaw = sheet.getRange(6, 2).getValue();
+  let cryptoStr = sheet.getRange(6, 2).getDisplayValue();
+  let retries = 0;
+  
+  // Wait up to 6 seconds for APIs to resolve
+  while (isCalculating(cryptoRaw, cryptoStr) && retries < 6) {
+    Utilities.sleep(1000); 
+    SpreadsheetApp.flush(); // Force refresh at each tick to get fresh API data
+    cryptoRaw = sheet.getRange(6, 2).getValue();
+    cryptoStr = sheet.getRange(6, 2).getDisplayValue();
+    retries++;
+  }
+
+  // If it's still showing an ERROR string after 6s, abort to protect UI.
+  // (Note: If it's still '0' after 6 seconds, we accept it, because you might genuinely have 0 balance)
+  const isStillError = (displayVal) => {
+     const str = String(displayVal).toUpperCase();
+     return str === "" || str.includes("#") || str.includes("LOAD") || str.includes("ERROR") || str.includes("N/A");
+  };
+
+  if (isStillError(cryptoStr)) {
+    console.log("Crypto values are in error state. Skipping update.");
+    return { error: "Sheet is recalculating or API down. Skipping update." };
+  }
+
   // Helper to read Value (Col B=2) and Percentage (Col C=3) for top tables
   const getRowData = (row) => {
     const val = sheet.getRange(row, 2).getDisplayValue(); 
@@ -38,8 +79,6 @@ function getDashboardData() {
   };
 
   return {
-    // --- MAPPING CORRECTION ---
-    
     // Liquid NW at Row 26 (Col A=1 EUR, Col B=2 USD)
     liquidNetWorth: sheet.getRange(26, 1).getDisplayValue(),    
     liquidNetWorthUSD: sheet.getRange(26, 2).getDisplayValue(), 
@@ -47,8 +86,6 @@ function getDashboardData() {
     // Total NW at Row 24 (Col A=1 EUR, Col B=2 USD)
     totalNetWorth: sheet.getRange(24, 1).getDisplayValue(),     
     totalNetWorthUSD: sheet.getRange(24, 2).getDisplayValue(),  
-
-    // ----------------------------
 
     summary: { 
       etfs: getRowData(2),      

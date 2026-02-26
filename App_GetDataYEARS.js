@@ -295,8 +295,8 @@ function getHistoricalNetWorthTrend() {
     labels: [],
     totalNW: [],
     liquidNW: [],
-    totalNW_USD: [], // Added Total USD
-    liquidNW_USD: [], // Added Liquid USD
+    totalNW_USD: [], 
+    liquidNW_USD: [], 
     stocks: [],
     etfs: [],
     crypto: [],
@@ -319,10 +319,14 @@ function getHistoricalNetWorthTrend() {
     
     result.labels.push(labelStr);
 
-    // Retrieve values mapping the correct rows
+    // --- DIRECT READING OF TOTAL ROWS FROM SPREADSHEET ---
+    // Note: The array index is always (Row Number - 1)
+    let valLiquidEur = parseVal(data[1][c]); // Row 2 -> index 1
     let valLiquidUsd = parseVal(data[3][c]); // Row 4 -> index 3
+    let valTotalEur  = parseVal(data[5][c]); // Row 6 -> index 5 (Assuming Total NW EUR is here)
     let valTotalUsd  = parseVal(data[7][c]); // Row 8 -> index 7
 
+    // Retrieve specific asset values mapping the correct rows
     let vStocks = parseVal(data[43][c]);     // Row 44 -> index 43
     let vEtfs = parseVal(data[34][c]);       // Row 35 -> index 34
     let vCrypto = parseVal(data[15][c]);     // Row 16 -> index 15
@@ -330,16 +334,13 @@ function getHistoricalNetWorthTrend() {
     let vCashEq = parseVal(data[11][c]);     // Row 12 -> index 11
     let vPension = parseVal(data[75][c]);    // Row 76 -> index 75
 
-    // 1) Liquid NW Calculation = Cash + Stocks + Crypto + Etfs
-    let calcLiquidNW = vCash + vStocks + vCrypto + vEtfs;
-
-    // 2) Total NW Calculation = Cash + Cash Eq + Stocks + Crypto + Etfs + Pension
-    let calcTotalNW = vCashEq + vStocks + vCrypto + vEtfs + vPension;
-
-    result.totalNW.push(calcTotalNW);
-    result.liquidNW.push(calcLiquidNW);
+    // Push the spreadsheet's fixed data directly to the chart array
+    result.totalNW.push(valTotalEur);
+    result.liquidNW.push(valLiquidEur);
     result.totalNW_USD.push(valTotalUsd);
     result.liquidNW_USD.push(valLiquidUsd);
+    
+    // Asset breakdown for tooltips/bars
     result.stocks.push(vStocks);
     result.etfs.push(vEtfs);
     result.crypto.push(vCrypto);
