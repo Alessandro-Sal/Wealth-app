@@ -46,7 +46,11 @@ function changeTab(tab) {
       
       checkMarketStatus(); 
   }
-  
+
+  if (tab === 'news') {
+    loadNews();
+  }
+
   if (tab === 'invest') {
       fetchInvestHistory();
   }

@@ -365,8 +365,26 @@
          <div style="height: 50px;"></div>
       </div>
    </div>
-   <div id="app-content" style="display:none;">
-      <div id="p-add" class="page active-page">
+      <div id="app-content" style="display:none;"></div>
+   <div id="p-news" class="page active-page">
+         <div class="page-header">
+            <h3 style="margin:0">Market News</h3>
+            
+            <div class="header-actions">
+               <button type="button" class="mini-theme-btn" onclick="loadNews()" style="font-size: 18px; background:var(--section-bg); border:none; width:36px; height:36px; cursor:pointer;">🔄</button>
+            </div>
+         </div>
+         
+         <div class="card" style="padding: 20px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background: white; margin-bottom: 20px;">
+            <div id="news-container" class="news-grid">
+               <div class="loader" style="text-align: center; color: var(--gray); padding: 20px;">
+                  Loading latest news...
+               </div>
+            </div>
+         </div>
+      </div>
+
+      <div id="p-add" class="page">
         <form id="txForm">
             <div class="page-header">
                 <h3 style="margin:0">New Movement</h3>
@@ -1791,9 +1809,12 @@
 
     </div> 
 </div>
-      <div class="nav-bar-container">
+<div class="nav-bar-container">
    <div class="nav-bar">
-      <div class="nav-btn active" id="btn-add" onclick="changeTab('add')">
+          <div class="nav-btn active" id="btn-news" onclick="changeTab('news')">
+         <i>📰</i><span>News</span>
+      </div>
+      <div class="nav-btn" id="btn-add" onclick="changeTab('add')">
          <i>✏️</i><span>Exp</span>
       </div>
       <div class="nav-btn" id="btn-invest" onclick="changeTab('invest')">

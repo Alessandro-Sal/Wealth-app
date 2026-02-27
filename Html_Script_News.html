@@ -1,0 +1,52 @@
+<script>
+/**
+ * Triggers the backend function to fetch news data and handles the UI loading state.
+ */
+function loadNews() {
+  const container = document.getElementById('news-container');
+  container.innerHTML = '<div class="loader">Loading latest news...</div>';
+
+  google.script.run
+    .withSuccessHandler(renderNews)
+    .withFailureHandler(function(error) {
+      console.error("Failed to load news: ", error);
+      container.innerHTML = '<p class="error-msg">Could not load news at this time. Please try again later.</p>';
+    })
+    .getMarketNews();
+}
+
+/**
+ * Parses the news data and renders HTML cards into the DOM.
+ * * @param {Array} newsData - Array of objects containing news details.
+ */
+function renderNews(newsData) {
+  const container = document.getElementById('news-container');
+  container.innerHTML = ''; // Clear loading indicator
+
+  if (!newsData || newsData.length === 0) {
+    container.innerHTML = '<p>No news available right now.</p>';
+    return;
+  }
+
+  newsData.forEach(function(item) {
+    // Create a new card element for each news item
+    const newsCard = document.createElement('div');
+    newsCard.className = 'card news-card';
+    
+    // Format the date for better readability
+    const formattedDate = new Date(item.date).toLocaleDateString();
+
+    newsCard.innerHTML = `
+      <h3 class="news-title">
+        <a href="${item.link}" target="_blank" rel="noopener noreferrer">${item.title}</a>
+      </h3>
+      <div class="news-meta">
+        <span class="news-source">${item.source}</span>
+        <span class="news-date">${formattedDate}</span>
+      </div>
+    `;
+    
+    container.appendChild(newsCard);
+  });
+}
+</script>
