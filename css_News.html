@@ -1,42 +1,137 @@
 <style>
-/* Styling for the news grid layout */
+/* Horizontal scrollable category pills */
+.news-cat-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 5px 0 20px 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+}
+.news-cat-scroll::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+/* Category Buttons */
+.news-cat-btn {
+  background: var(--section-bg);
+  border: 1px solid var(--row-border);
+  color: var(--gray);
+  padding: 10px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.news-cat-btn.active {
+  background: var(--text-main);
+  color: var(--bg);
+  border-color: var(--text-main);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+body.dark-mode .news-cat-btn.active {
+  background: var(--white);
+  color: #000;
+}
+
+/* Grid Layout */
 .news-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 20px;
-  margin-top: 20px;
+  padding-bottom: 40px;
 }
 
-/* Styling for individual news cards */
+/* Premium News Card */
 .news-card {
-  padding: 15px;
-  border-left: 4px solid #4CAF50; /* Adjust color to match your app theme */
-  transition: transform 0.2s ease-in-out;
+  background: var(--white);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+  border: 1px solid var(--row-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  text-decoration: none; /* Since the whole card will be clickable */
 }
 
-.news-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+body.dark-mode .news-card {
+  background: #1c1c1e;
+  border: 1px solid rgba(255,255,255,0.05);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+.news-card:active {
+  transform: scale(0.97);
+}
+
+@media (min-width: 768px) {
+  .news-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+  }
+}
+
+.news-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.news-badge {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(0, 122, 255, 0.1);
+  color: #007aff;
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
+.news-date {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gray);
 }
 
 .news-title {
-  margin: 0 0 10px 0;
-  font-size: 1.1em;
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.4;
+  color: var(--text-main);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.news-title a {
-  text-decoration: none;
-  color: #333; /* Adjust link color */
-}
-
-.news-title a:hover {
-  text-decoration: underline;
-}
-
-.news-meta {
+.news-footer {
   display: flex;
-  justify-content: space-between;
-  font-size: 0.85em;
-  color: #666;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gray);
+  border-top: 1px dashed var(--row-border);
+  padding-top: 12px;
+}
+
+.news-source-icon {
+  width: 18px;
+  height: 18px;
+  background: var(--section-bg);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
 }
 </style>

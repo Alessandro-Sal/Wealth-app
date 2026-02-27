@@ -16,6 +16,16 @@
 async function initApp() {
   console.log("🚀 App Launch: Skeleton First...");
   
+  setTimeout(() => {
+    try {
+      if (typeof loadNews === 'function') {
+        loadNews('market'); 
+      }
+    } catch(e) {
+      console.error("Errore avvio News:", e);
+    }
+  }, 100);
+  
   // Theme Setup
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme === 'dark') toggleTheme();
@@ -86,6 +96,8 @@ async function initApp() {
           loadMarketInsights(false); 
           
       });
+      // Start Live Market Updates & Background Fetches
+      if (typeof loadNews === 'function') loadNews('market'); // Avvia il download delle news all'apertura dell'app
           
       // Start Live Market Updates
       fetchWatchlist();

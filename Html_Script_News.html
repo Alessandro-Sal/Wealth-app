@@ -1,52 +1,116 @@
 <script>
+let currentNewsCategory = 'market';
+
 /**
- * Triggers the backend function to fetch news data and handles the UI loading state.
+ * Handles clicks on category buttons, updates UI, and fetches new data.
  */
-function loadNews() {
+function setNewsCategory(category, buttonElement) {
+  const buttons = document.querySelectorAll('.news-cat-btn');
+  buttons.forEach(btn => btn.classList.remove('active'));
+  buttonElement.classList.add('active');
+  
+  currentNewsCategory = category;
+  loadNews(currentNewsCategory);
+}
+
+/**
+ * Triggers the backend function to fetch news data based on category.
+ * @param {string} category 
+ */
+function loadNews(category = 'market') {
   const container = document.getElementById('news-container');
-  container.innerHTML = '<div class="loader">Loading latest news...</div>';
+  // Se non esiste il container (es. non siamo ancora in quella pagina), esce per evitare errori
+  if (!container) return; 
+  
+  container.innerHTML = '<div class="loader" style="text-align: center; color: var(--gray); padding: 40px; grid-column: 1 / -1;">Loading insights...</div>';
 
   google.script.run
     .withSuccessHandler(renderNews)
     .withFailureHandler(function(error) {
       console.error("Failed to load news: ", error);
-      container.innerHTML = '<p class="error-msg">Could not load news at this time. Please try again later.</p>';
+      if (container) {
+          container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--danger); grid-column: 1 / -1;">Could not load news at this time. Please try again later.</div>';
+      }
     })
-    .getMarketNews();
+    .getMarketNews(category);
 }
 
 /**
- * Parses the news data and renders HTML cards into the DOM.
- * * @param {Array} newsData - Array of objects containing news details.
+ * Parses the news data and renders premium HTML cards into the DOM.
+ * @param {Object} response - Object containing { articles: [], tickers: [] }.
  */
-function renderNews(newsData) {
+function renderNews(response) {
   const container = document.getElementById('news-container');
-  container.innerHTML = ''; // Clear loading indicator
+  if (!container) return;
+  
+  container.innerHTML = ''; 
 
-  if (!newsData || newsData.length === 0) {
-    container.innerHTML = '<p>No news available right now.</p>';
+  const newsData = response.articles || [];
+  const fetchedTickers = response.tickers || [];
+
+  // If Portfolio category, show a banner to confirm which tickers were actually used
+  if (currentNewsCategory === 'portfolio' && fetchedTickers.length > 0) {
+    const tickerBanner = document.createElement('div');
+    tickerBanner.style.gridColumn = '1 / -1';
+    tickerBanner.style.background = 'rgba(52, 199, 89, 0.1)';
+    tickerBanner.style.border = '1px solid rgba(52, 199, 89, 0.2)';
+    tickerBanner.style.borderRadius = '12px';
+    tickerBanner.style.padding = '12px 15px';
+    tickerBanner.style.fontSize = '12px';
+    tickerBanner.style.color = 'var(--text-main)';
+    tickerBanner.style.marginBottom = '10px';
+    tickerBanner.innerHTML = `<span style="font-weight:800; color:#34c759; text-transform:uppercase; font-size:10px; display:block; margin-bottom:4px;">🎯 Tracking your assets</span> <b>${fetchedTickers.join(', ')}</b>`;
+    container.appendChild(tickerBanner);
+  }
+
+  if (newsData.length === 0) {
+    container.innerHTML += '<div style="text-align:center; padding:30px; color:var(--gray); grid-column: 1 / -1; font-weight:600;">No articles available for this category right now.</div>';
     return;
   }
 
   newsData.forEach(function(item) {
-    // Create a new card element for each news item
-    const newsCard = document.createElement('div');
-    newsCard.className = 'card news-card';
+    const dateObj = new Date(item.date);
+    const options = { month: 'short', day: 'numeric', year: 'numeric' };
+    const formattedDate = dateObj.toLocaleDateString(undefined, options);
     
-    // Format the date for better readability
-    const formattedDate = new Date(item.date).toLocaleDateString();
+    let badgeColor = 'rgba(0, 122, 255, 0.1)';
+    let badgeText = '#007aff';
+    
+    if (item.category === 'portfolio') { badgeColor = 'rgba(52, 199, 89, 0.1)'; badgeText = '#34c759'; }
+    else if (item.category === 'world') { badgeColor = 'rgba(88, 86, 214, 0.1)'; badgeText = '#5856d6'; }
+    else if (item.category === 'politics') { badgeColor = 'rgba(255, 59, 48, 0.1)'; badgeText = '#ff3b30'; }
+    else if (item.category === 'science' || item.category === 'tech') { badgeColor = 'rgba(255, 149, 0, 0.1)'; badgeText = '#ff9500'; }
 
+    const newsCard = document.createElement('a');
+    newsCard.href = item.link;
+    newsCard.target = '_blank';
+    newsCard.rel = 'noopener noreferrer';
+    newsCard.className = 'news-card';
+    
     newsCard.innerHTML = `
-      <h3 class="news-title">
-        <a href="${item.link}" target="_blank" rel="noopener noreferrer">${item.title}</a>
-      </h3>
-      <div class="news-meta">
-        <span class="news-source">${item.source}</span>
-        <span class="news-date">${formattedDate}</span>
+      <div>
+        <div class="news-card-header">
+          <span class="news-badge" style="background:${badgeColor}; color:${badgeText};">${item.category}</span>
+          <span class="news-date">${formattedDate}</span>
+        </div>
+        <h3 class="news-title">${item.title}</h3>
+      </div>
+      <div class="news-footer">
+        <div class="news-source-icon">🗞️</div>
+        <span>${item.source}</span>
       </div>
     `;
     
     container.appendChild(newsCard);
   });
 }
+
+// Fallback to load news automatically
+setTimeout(function() {
+  const container = document.getElementById('news-container');
+  if (container && container.innerHTML.includes('Loading insights')) {
+    loadNews('market');
+  }
+}, 500);
+
 </script>
