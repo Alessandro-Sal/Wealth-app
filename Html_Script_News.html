@@ -1,10 +1,21 @@
 <script>
 let currentNewsCategory = 'market';
-let allFetchedNews = [];      // Stores ALL articles returned by the server
-let filteredNews = [];        // Stores articles after applying the search filter
-let lastFetchedTickers = [];  // Stores the tickers loaded for the portfolio banner
-let displayedNewsCount = 0;   // Tracks how many articles are currently in the DOM
-const CHUNK_SIZE = 15;        // Number of articles to load per click
+let allFetchedNews = [];      
+let filteredNews = [];        
+let lastFetchedTickers = [];  
+let displayedNewsCount = 0;   
+const CHUNK_SIZE = 15;        
+
+/**
+ * Utility: Converte il Markdown generato dall'AI in HTML pulito
+ */
+function cleanAIMarkdown(text) {
+  if (!text) return "";
+  let cleaned = text.replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--text-main);">$1</strong>'); // Grassetto
+  cleaned = cleaned.replace(/\n/g, '<br>'); // A capo
+  cleaned = cleaned.replace(/(<br>|^)\s*\*\s/g, '$1• '); // Liste puntate
+  return cleaned;
+}
 
 /**
  * Handles clicks on category buttons, updates UI, and fetches new data.
@@ -54,7 +65,6 @@ function renderNews(response) {
   allFetchedNews = response.articles || [];
   lastFetchedTickers = response.tickers || [];
   
-  // Start the render process by triggering the filter (which resets view and counts)
   filterNewsItems();
 }
 
@@ -68,21 +78,19 @@ function filterNewsItems() {
   if (!filterText) {
     filteredNews = [...allFetchedNews];
   } else {
-    // Search within title, summary, source and related tickers
     filteredNews = allFetchedNews.filter(item => {
       const textToSearch = (item.title + " " + item.summary + " " + item.source + " " + (item.relatedTickers ? item.relatedTickers.join(' ') : '')).toLowerCase();
       return textToSearch.includes(filterText);
     });
   }
   
-  displayedNewsCount = 0; // Reset pagination
+  displayedNewsCount = 0; 
   
   const container = document.getElementById('news-container');
   if (!container) return;
   
-  container.innerHTML = ''; // Clear everything
+  container.innerHTML = ''; 
   
-  // Re-draw portfolio banner if applicable
   if (currentNewsCategory === 'portfolio' && lastFetchedTickers.length > 0) {
     const tickerBanner = document.createElement('div');
     tickerBanner.style.gridColumn = '1 / -1';
@@ -97,7 +105,6 @@ function filterNewsItems() {
     container.appendChild(tickerBanner);
   }
 
-  // Handle Empty States
   if (filteredNews.length === 0) {
     let emptyMsg = filterText ? 'No articles match your search.' : 'No articles available right now.';
     if (currentNewsCategory === 'saved' && !filterText) emptyMsg = "You haven't saved any articles yet.<br><br>Tap the 🔖 icon on any news to read it later.";
@@ -106,7 +113,6 @@ function filterNewsItems() {
     return;
   }
 
-  // Start rendering the first chunk
   renderNextChunk();
 }
 
@@ -129,7 +135,6 @@ function renderNextChunk() {
     const dateObj = new Date(item.date);
     const formattedDate = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     
-    // Generate a consistent pseudo-random read time based on title length
     const readTime = Math.max(2, Math.floor(item.title.length / 20) % 5 + 1);
     
     let badgeColor = 'rgba(0, 122, 255, 0.1)';
@@ -155,7 +160,6 @@ function renderNextChunk() {
     newsCard.rel = 'noopener noreferrer';
     newsCard.className = 'news-card';
     
-    // Added AI button and hidden summary box
     newsCard.innerHTML = `
       <div class="news-card-actions">
          <div class="ai-btn" onclick="summarizeArticle(${absoluteIndex}, event, this)" title="AI Insight">✨</div>
@@ -163,9 +167,9 @@ function renderNextChunk() {
          <div class="${bookmarkClass}" onclick="toggleBookmark(${absoluteIndex}, event)" title="Save">🔖</div>
       </div>
       <div>
-        <div class="news-card-header" style="padding-right: 110px;">
+        <div class="news-card-header" style="padding-right: 145px; flex-wrap: wrap; gap: 5px;">
           <span class="news-badge" style="background:${badgeColor}; color:${badgeText};">${item.category}</span>
-          <span class="news-read-time">⏱️ ${readTime} min</span>
+          <span class="news-read-time" style="white-space: nowrap;">⏱️ ${readTime} min</span>
         </div>
         <h3 class="news-title">${item.title}</h3>
         ${item.summary ? `<p class="news-summary">${item.summary}</p>` : ''}
@@ -233,7 +237,6 @@ function shareArticle(url, title, event) {
       url: url
     }).catch(console.error);
   } else {
-    // Fallback: Copy to clipboard
     navigator.clipboard.writeText(url);
     const btn = event.currentTarget;
     const oldHtml = btn.innerHTML;
@@ -252,7 +255,6 @@ function requestAIBriefing() {
       return;
   }
   
-  // Create or select AI briefing card
   let aiCard = document.getElementById('ai-briefing-box');
   if (!aiCard) {
       aiCard = document.createElement('div');
@@ -261,16 +263,14 @@ function requestAIBriefing() {
       container.insertBefore(aiCard, container.firstChild);
   }
   
-  // Show loading state
   aiCard.innerHTML = `
       <div class="ai-briefing-header">✨ AI Morning Briefing</div>
       <div class="ai-briefing-content" style="color:var(--gray);"><span class="loader" style="display:inline-block; border-width:2px; width:12px; height:12px; margin-right:5px;"></span> AI is analyzing the markets...</div>
   `;
   
-  // Request AI Summary from Backend
   google.script.run
       .withSuccessHandler(function(summary) {
-          const aiContent = summary.replace(/\n/g, '<br>');
+          const aiContent = cleanAIMarkdown(summary);
           aiCard.innerHTML = `
               <div class="ai-briefing-header">✨ AI Morning Briefing</div>
               <div class="ai-briefing-content">${aiContent}</div>
@@ -287,9 +287,6 @@ function requestAIBriefing() {
 
 /**
  * Calls backend AI to analyze a single article and expands the card to show it.
- * @param {number} absoluteIndex - Index of the article in filteredNews
- * @param {Event} event - The click event
- * @param {HTMLElement} btnElement - The button clicked
  */
 function summarizeArticle(absoluteIndex, event, btnElement) {
   event.preventDefault(); 
@@ -301,20 +298,17 @@ function summarizeArticle(absoluteIndex, event, btnElement) {
   const summaryBox = document.getElementById(`ai-summary-box-${absoluteIndex}`);
   if (!summaryBox) return;
   
-  // Toggle visibility if already loaded
   if (summaryBox.innerHTML !== '') {
     summaryBox.style.display = summaryBox.style.display === 'none' ? 'block' : 'none';
     return;
   }
   
-  // Show loading state and expand box
   summaryBox.style.display = 'block';
   summaryBox.innerHTML = '<span class="loader" style="width:10px; height:10px; border-width:2px; display:inline-block; margin-right:5px;"></span> <i>Analisi AI in corso...</i>';
   
-  // Fetch AI insight
   google.script.run
     .withSuccessHandler(function(response) {
-      const formattedResponse = response.replace(/\n/g, '<br>');
+      const formattedResponse = cleanAIMarkdown(response);
       summaryBox.innerHTML = `<strong>✨ AI Insight:</strong><br>${formattedResponse}`;
     })
     .withFailureHandler(function(err) {
@@ -322,6 +316,7 @@ function summarizeArticle(absoluteIndex, event, btnElement) {
     })
     .getSingleArticleAISummary(article.title, article.summary);
 }
+
 setTimeout(function() {
   const container = document.getElementById('news-container');
   if (container && container.innerHTML.includes('Loading insights')) {

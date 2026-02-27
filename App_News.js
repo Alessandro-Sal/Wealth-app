@@ -68,7 +68,7 @@ function getMarketNews(category = 'market') {
     const items = channel.getChildren('item');
     const newsList = [];
     
-    // 👉 MODIFICA QUI: Scarichiamo fino a 50 notizie per permettere lo scorrimento
+    // Scarichiamo fino a 50 notizie per permettere lo scorrimento
     const maxItems = Math.min(items.length, 50); 
     
     let sourceName = "Yahoo Finance";
@@ -113,10 +113,13 @@ function getMarketNews(category = 'market') {
     return { articles: newsList, tickers: allTickers };
     
   } catch (error) {
+    console.error("News fetch error:", error);
     return { articles: [], tickers: [] };
   }
+}
 
-  /**
+
+/**
  * Generates an AI summary of the current top news using the universal AI router.
  * @param {Array} newsList - Array of fetched news objects.
  * @returns {string} AI generated summary in Italian.
@@ -145,6 +148,8 @@ function getNewsAIBriefing(newsList) {
     return "⚠️ An error occurred while generating the summary.";
   }
 }
+
+
 /**
  * Generates an AI analysis/context for a single article based on its title and summary.
  * @param {string} title - The article title
@@ -167,5 +172,4 @@ function getSingleArticleAISummary(title, summary) {
     console.error("Error generating single article insight: " + error.toString());
     return "⚠️ An error occurred during analysis.";
   }
-}
 }
