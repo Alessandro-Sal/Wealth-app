@@ -134,4 +134,296 @@ body.dark-mode .news-card {
   justify-content: center;
   font-size: 10px;
 }
+
+/* News Summary / Preview */
+.news-summary {
+  font-size: 13px;
+  color: var(--gray);
+  margin-top: 8px;
+  margin-bottom: 15px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3; /* Truncates the text after 3 lines */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Adjust title margin to look good with the new summary */
+.news-title {
+  margin: 0 0 5px 0;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.4;
+  color: var(--text-main);
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* Allow only 2 lines for title if there is a summary */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* Ticker Pills for Portfolio News */
+.ticker-pill-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.ticker-pill {
+  font-size: 10px;
+  font-weight: 800;
+  background: var(--section-bg);
+  border: 1px solid var(--row-border);
+  color: var(--text-main);
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+body.dark-mode .ticker-pill {
+  background: #2c2c2e;
+  border-color: #3a3a3c;
+}
+
+/* Search Bar Styles */
+.news-search-container {
+  position: relative;
+  margin: 5px 0 15px 0;
+  width: 100%;
+}
+
+#newsSearchInput {
+  width: 100%;
+  padding: 12px 15px 12px 40px;
+  border-radius: 12px;
+  border: 1px solid var(--row-border);
+  background: var(--section-bg);
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+#newsSearchInput::placeholder {
+  color: var(--gray);
+  opacity: 0.7;
+}
+
+#newsSearchInput:focus {
+  border-color: var(--text-main);
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.05);
+}
+
+body.dark-mode #newsSearchInput:focus {
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.1);
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  pointer-events: none;
+  opacity: 0.7;
+}
+/* Bookmark Button */
+.news-card {
+  position: relative; /* Necessario per posizionare il segnalibro */
+}
+
+.bookmark-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: var(--section-bg);
+  border: 1px solid var(--row-border);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  z-index: 2; /* Sta sopra al link della card */
+  opacity: 0.6;
+}
+
+body.dark-mode .bookmark-btn {
+  background: #2c2c2e;
+  border-color: #3a3a3c;
+}
+
+.bookmark-btn:hover {
+  transform: scale(1.1);
+  opacity: 1;
+}
+
+.bookmark-btn.bookmarked {
+  background: var(--text-main);
+  border-color: var(--text-main);
+  opacity: 1;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+body.dark-mode .bookmark-btn.bookmarked {
+  background: var(--white);
+}
+
+/* Fix per non far sovrapporre il segnalibro al titolo lungo */
+.news-card-header {
+  padding-right: 35px;
+}
+
+/* Load More Button */
+.load-more-btn {
+  grid-column: 1 / -1;
+  background: transparent;
+  border: 1px solid var(--text-main);
+  color: var(--text-main);
+  padding: 12px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  margin: 10px auto 30px auto;
+  display: block;
+  transition: all 0.2s ease;
+  width: 100%;
+  max-width: 300px;
+}
+
+.load-more-btn:hover {
+  background: var(--text-main);
+  color: var(--bg);
+}
+
+body.dark-mode .load-more-btn:hover {
+  color: #000;
+}
+
+/* AI Briefing Card */
+.ai-briefing-card {
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0.05), rgba(88, 86, 214, 0.05));
+  border: 1px solid rgba(0, 122, 255, 0.2);
+  border-radius: 16px;
+  padding: 15px;
+  margin-bottom: 20px;
+  grid-column: 1 / -1;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+}
+.ai-briefing-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  color: #007aff;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+.ai-briefing-content {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-main);
+}
+
+/* Card Actions (Bookmark & Share) */
+.news-card-actions {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  display: flex;
+  gap: 8px;
+  z-index: 2;
+}
+
+/* Revert old absolute positioning of bookmark-btn */
+.bookmark-btn {
+  position: static; 
+}
+
+/* Share Button */
+.share-btn {
+  background: var(--section-bg);
+  border: 1px solid var(--row-border);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0.6;
+}
+body.dark-mode .share-btn {
+  background: #2c2c2e;
+  border-color: #3a3a3c;
+}
+.share-btn:hover {
+  transform: scale(1.1);
+  opacity: 1;
+}
+
+/* Read Time Tag */
+.news-read-time {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* AI Single Article Button */
+.ai-btn {
+  background: var(--section-bg);
+  border: 1px solid var(--row-border);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0.8;
+}
+
+body.dark-mode .ai-btn {
+  background: #2c2c2e;
+  border-color: #3a3a3c;
+}
+
+.ai-btn:hover {
+  transform: scale(1.1);
+  opacity: 1;
+  border-color: #007aff;
+}
+
+/* Expanded AI Summary Box inside the card */
+.ai-article-summary {
+  background: rgba(0, 122, 255, 0.05);
+  border-left: 3px solid #007aff;
+  padding: 10px 12px;
+  margin-top: 12px;
+  border-radius: 4px 8px 8px 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-main);
+  line-height: 1.5;
+  display: none; /* Hidden by default */
+}
+
+body.dark-mode .ai-article-summary {
+  background: rgba(0, 122, 255, 0.1);
+}
 </style>

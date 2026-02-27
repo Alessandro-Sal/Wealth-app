@@ -18,11 +18,11 @@ async function initApp() {
   
   setTimeout(() => {
     try {
-      if (typeof loadNews === 'function') {
-        loadNews('market'); 
+      if (typeof changeTab === 'function') {
+        changeTab('news'); 
       }
     } catch(e) {
-      console.error("Errore avvio News:", e);
+      console.error("Errore avvio navigazione:", e);
     }
   }, 100);
   

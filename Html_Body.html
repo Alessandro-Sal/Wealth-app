@@ -366,7 +366,7 @@
       </div>
    </div>
       <div id="app-content" style="display:none;"></div>
- <div id="p-news" class="page" style="padding-top: 0;">
+<div id="p-news" class="page active-page" style="padding-top: 0;">
       <div class="pc-wrapper">
          <div class="market-header-container">
             <div>
@@ -381,7 +381,18 @@
             </div>
          </div>
 
+         <div class="news-search-container" style="display: flex; gap: 10px;">
+            <div style="position: relative; flex: 1;">
+               <span class="search-icon">🔍</span>
+               <input type="text" id="newsSearchInput" placeholder="Search articles, tickers or topics..." onkeyup="filterNewsItems()">
+            </div>
+            <button type="button" onclick="requestAIBriefing()" class="ai-brief-btn" style="background: linear-gradient(135deg, #007aff, #5856d6); color: white; border: none; border-radius: 12px; padding: 0 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: transform 0.2s; box-shadow: 0 4px 10px rgba(0, 122, 255, 0.2);">
+               ✨ AI
+            </button>
+         </div>
+
          <div class="news-cat-scroll">
+            <button class="news-cat-btn" onclick="setNewsCategory('saved', this)">🔖 Saved</button>
             <button class="news-cat-btn active" onclick="setNewsCategory('market', this)">📊 Markets</button>
             <button class="news-cat-btn" onclick="setNewsCategory('portfolio', this)">💼 My Portfolio</button>
             <button class="news-cat-btn" onclick="setNewsCategory('world', this)">🌍 World</button>
