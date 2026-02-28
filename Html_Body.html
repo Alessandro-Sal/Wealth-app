@@ -1387,6 +1387,12 @@
         align-items: center;
         gap: 8px;
     }
+    /* 8. Tax Section */
+    .tax-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--row-border); }
+    .tax-row:last-child { border-bottom: none; }
+    .tax-label { font-size: 13px; font-weight: 700; color: var(--text-main); }
+    .tax-val { font-size: 15px; font-weight: 800; color: var(--text-main); text-align: right; }
+    .tax-desc { font-size: 11px; color: var(--gray); margin-top: 2px;}
 
     /* Specific Colored Badges */
     .badge-icon {
@@ -1750,6 +1756,25 @@
                 </div>
                 <div style="position: relative; height: 400px; width: 100%; z-index: 10;">
                     <canvas id="nwTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="dash-section-title">🏛️ Tax Optimization & Harvesting</div>
+        <div class="dash-grid">
+            <div class="dash-widget span-2 span-pc-2">
+                <div class="widget-title"><div class="badge-icon bg-blue">🏛️</div> Tax Bill Simulator</div>
+                <div id="tax-bill-container">
+                    <div style="text-align:center; color:var(--gray); padding: 20px;">Loading tax data...</div>
+                </div>
+            </div>
+            <div class="dash-widget span-2 span-pc-2">
+                <div class="widget-title"><div class="badge-icon bg-green">✂️</div> Tax Loss Harvesting</div>
+                <div id="tax-harvest-container" style="max-height: 280px; overflow-y: auto;">
+                    <div style="text-align:center; color:var(--gray); padding: 20px;">Loading harvesting data...</div>
+                </div>
+                <div style="margin-top: 15px; border-top: 1px dashed var(--row-border); padding-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 11px; font-weight: 800; color: var(--gray); text-transform: uppercase;">Total Potential Offset</span>
+                    <span id="tax-harvest-total" class="sensitive" style="font-size: 18px; font-weight: 900; color: var(--success);">€ 0.00</span>
                 </div>
             </div>
         </div>

@@ -102,6 +102,7 @@ async function initApp() {
       // Start Live Market Updates
       fetchWatchlist();
       fetchAnalyticsData();
+      fetchTaxOptimizationData();
       setTimeout(() => {
           if (typeof renderNetWorthTrendChart === 'function') {
               renderNetWorthTrendChart();
@@ -372,6 +373,7 @@ function fetchDashboard() {
   fetchCategoryBreakdown(year);
   fetchRunway(year);
   fetchYearlyTotals(year);
+  fetchTaxOptimizationData();
   google.script.run.withSuccessHandler(f => {
       document.getElementById('flow-in').innerText = "€ " + f.income;
       document.getElementById('flow-out').innerText = "€ " + f.expenses;
@@ -639,5 +641,62 @@ function renderHistoricalNWDOM(data) {
 
 function fetchHistoricalNW(year) {
   google.script.run.withSuccessHandler(renderHistoricalNWDOM).getHistoryNWData(year);
+}
+
+function fetchTaxOptimizationData() {
+    showSkeleton('tax-bill-container', 4, '30px');
+    showSkeleton('tax-harvest-container', 3, '40px');
+    google.script.run.withSuccessHandler(renderTaxOptimization).getTaxOptimizationData();
+}
+
+function renderTaxOptimization(data) {
+    if(!data || data.error) {
+        document.getElementById('tax-bill-container').innerHTML = '<div style="color:var(--danger); text-align:center; padding: 20px;">Data not available</div>';
+        document.getElementById('tax-harvest-container').innerHTML = '<div style="color:var(--danger); text-align:center; padding: 20px;">Data not available</div>';
+        return;
+    }
+    
+    // Render Tax Bill
+    let billHtml = '';
+    data.bill.forEach(item => {
+        let valColor = "var(--text-main)";
+        if(item.metric.includes("Gains")) valColor = "var(--success)";
+        if(item.metric.includes("Losses") || item.metric.includes("TAX DUE") || item.metric.includes("TAXABLE")) valColor = "var(--danger)";
+        
+        let valFmt = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.value);
+        
+        billHtml += `
+        <div class="tax-row">
+            <div>
+                <div class="tax-label">${item.metric}</div>
+                <div class="tax-desc">${item.desc}</div>
+            </div>
+            <div class="tax-val sensitive" style="color: ${valColor};">€ ${valFmt}</div>
+        </div>`;
+    });
+    document.getElementById('tax-bill-container').innerHTML = billHtml || '<div style="text-align:center; color:var(--gray); padding: 20px;">No tax data</div>';
+    
+    // Render Harvesting
+    let harvHtml = '';
+    data.harvesting.forEach(item => {
+        let pnlFmt = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.unrealized);
+        let minusFmt = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.minus);
+        
+        harvHtml += `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding: 12px 0; border-bottom: 1px solid var(--row-border);">
+            <div>
+                <div style="font-weight: 800; font-size: 14px; color: var(--text-main);">${item.ticker} <span style="font-size:11px; font-weight:600; color:var(--gray); background:var(--section-bg); padding:2px 6px; border-radius:6px; margin-left:6px;">${item.qty} units</span></div>
+                <div style="font-size: 11px; color: var(--gray); margin-top:4px;">${item.note}</div>
+            </div>
+            <div style="text-align:right;">
+                <div class="sensitive" style="font-size: 14px; font-weight: 800; color: var(--danger);">-€ ${pnlFmt.replace('-','')}</div>
+                <div class="sensitive" style="font-size: 11px; font-weight: 700; color: var(--success); margin-top:2px;">+€ ${minusFmt} offset</div>
+            </div>
+        </div>`;
+    });
+    document.getElementById('tax-harvest-container').innerHTML = harvHtml || '<div style="text-align:center; color:var(--gray); padding: 20px;">No losing positions found.</div>';
+    
+    let totFmt = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(data.totalPotential);
+    document.getElementById('tax-harvest-total').innerText = "€ " + totFmt;
 }
 </script>
