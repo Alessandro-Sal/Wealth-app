@@ -42,23 +42,82 @@ function sendMonthlyWealthReport() {
     portfolioHighlights = extractPortfolioMovers(rawPort);
   } catch(e) { console.warn("Error reading portfolio details: " + e); }
 
-  // 4. Advanced AI Analysis Generation
-  const aiAnalysis = generateReportAI_Advanced(monthlyData, market, portfolioHighlights);
+  // 4. Transactions History (B/S Stocks & Crypto for the target month)
+  const transactionsHistory = getMonthlyTransactionsForReporting(monthlyData.targetDate);
 
-  // 5. Create HTML Template
+  // 5. Advanced AI Analysis Generation
+  const aiAnalysis = generateReportAI_Advanced(monthlyData, market, portfolioHighlights, transactionsHistory);
+
+  // 6. Create HTML Template
   const emailHtml = createEmailTemplate(aiAnalysis, monthlyData);
 
-  // 6. SEND EMAIL
+  // 7. SEND EMAIL
   MailApp.sendEmail({
     to: "alessandro.saladino01@gmail.com", // ⚠️ Insert your email here
     subject: `${REPORT_CONFIG.emailSubject} - ${monthlyData.currentMonthName}`,
     htmlBody: emailHtml
   });
   
-  // 7. SAVE TO DRIVE (PDF) AND LINK TO SHEET
+  // 8. SAVE TO DRIVE (PDF) AND LINK TO SHEET
   saveReportToDriveAndLink(sheet, monthlyData, emailHtml);
   
   console.log("✅ Report Sent, Saved as PDF on Drive, and Linked in Sheet.");
+}
+
+/**
+ * Scans the History sheets to grab transactions performed during the target month.
+ */
+function getMonthlyTransactionsForReporting(targetDate) {
+  if (!targetDate) return "Nessuna data di riferimento trovata.";
+  
+  const targetMonth = targetDate.getMonth();
+  const targetYear = targetDate.getFullYear();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetsToScan = ["History B/S Stocks", "History B/S Crypto"];
+  
+  let historyText = "\n=== STORICO TRANSAZIONI DEL MESE (Depositi, Acquisti, Vendite) ===\n";
+  let transactionCount = 0;
+
+  sheetsToScan.forEach(sheetName => {
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return;
+    
+    const data = sheet.getDataRange().getValues();
+    let sheetHistory = [];
+    
+    // Loop through rows skipping the header (row 0)
+    for (let i = 1; i < data.length; i++) {
+      const rowDate = data[i][0]; // Col A
+      
+      // Basic date check
+      if (rowDate && (rowDate instanceof Date || !isNaN(new Date(rowDate).getTime()))) {
+         const d = new Date(rowDate);
+         
+         // Match Month and Year
+         if (d.getMonth() === targetMonth && d.getFullYear() === targetYear) {
+           const ticker = data[i][1]; // Col B (Ticker / Cash)
+           const action = data[i][2]; // Col C (Action)
+           const qty = data[i][3];    // Col D (Quantity)
+           const total = data[i][7];  // Col H (Total amount)
+           
+           let formattedDate = Utilities.formatDate(d, Session.getScriptTimeZone() || "GMT", "dd/MM/yyyy");
+           let formatAmt = formatMoney(parseFinanceValue(total));
+           
+           sheetHistory.push(`- [${sheetName}] Data: ${formattedDate} | Ticker: ${ticker} | Azione: ${action} | Qty: ${qty} | Totale: ${formatAmt}`);
+           transactionCount++;
+         }
+      }
+    }
+    
+    if (sheetHistory.length > 0) {
+      historyText += sheetHistory.join("\n") + "\n";
+    }
+  });
+
+  if (transactionCount === 0) {
+    return historyText + "Nessuna transazione registrata per questo mese.\n";
+  }
+  return historyText;
 }
 
 /**
@@ -66,9 +125,8 @@ function sendMonthlyWealthReport() {
  */
 function saveReportToDriveAndLink(sheet, data, htmlContent) {
   try {
-    const fileName = `Report ${data.currentMonthName}.pdf`; // Changed extension to .pdf
+    const fileName = `Report ${data.currentMonthName}.pdf`; 
     
-    // A. Handle Drive Folder
     const folders = DriveApp.getFoldersByName(REPORT_CONFIG.driveFolderName);
     let folder;
     if (folders.hasNext()) {
@@ -77,19 +135,13 @@ function saveReportToDriveAndLink(sheet, data, htmlContent) {
       folder = DriveApp.createFolder(REPORT_CONFIG.driveFolderName);
     }
 
-    // B. Create/Overwrite File as PDF
-    // 1. Convert HTML string to a Blob
     const htmlBlob = Utilities.newBlob(htmlContent, "text/html", "temp.html");
-    // 2. Convert Blob to PDF
     const pdfBlob = htmlBlob.getAs(MimeType.PDF).setName(fileName);
 
-    // Check if file exists to update or create new
     const existingFiles = folder.getFilesByName(fileName);
     let file;
     
     if (existingFiles.hasNext()) {
-      // Drive doesn't allow direct content overwrite for PDFs easily, 
-      // so we trash the old one and create a new one to ensure latest version.
       const oldFile = existingFiles.next();
       oldFile.setTrashed(true);
     }
@@ -97,7 +149,6 @@ function saveReportToDriveAndLink(sheet, data, htmlContent) {
     file = folder.createFile(pdfBlob);
     const fileUrl = file.getUrl();
 
-    // C. Find the "Report AI" row in the sheet
     const lastRow = sheet.getLastRow();
     const labels = sheet.getRange(1, 1, lastRow, 1).getDisplayValues();
     let targetRow = -1;
@@ -109,13 +160,11 @@ function saveReportToDriveAndLink(sheet, data, htmlContent) {
       }
     }
 
-    // If row not found, create it at the end
     if (targetRow === -1) {
       targetRow = lastRow + 1;
       sheet.getRange(targetRow, 1).setValue(REPORT_CONFIG.reportRowLabel).setFontWeight("bold");
     }
 
-    // D. Paste the link in the correct column
     const targetCol = data.currentColIndex; 
     if (targetCol) {
       const cell = sheet.getRange(targetRow, targetCol);
@@ -129,13 +178,9 @@ function saveReportToDriveAndLink(sheet, data, htmlContent) {
 }
 
 /**
- * Forensic Prompt with Increased Memory (8k Tokens)
- * Note: The prompt text remains in Italian to ensure the output report is in Italian.
+ * Forensic Prompt relying on the new Universal AI Router.
  */
-function generateReportAI_Advanced(data, market, portfolioDetails) {
-  const API_KEY = GEMINI_API_KEY; 
-  const MODELS = ["gemini-2.0-flash", "gemini-flash-latest", "gemini-2.0-flash-lite"];
-
+function generateReportAI_Advanced(data, market, portfolioDetails, transactionsHistory) {
   const prompt = `
     RUOLO: Sei un Analista Finanziario Forense (Hedge Fund Risk Manager).
     Il tuo compito NON è fare un riassunto, ma individuare le CAUSE ESATTE delle variazioni patrimoniali.
@@ -148,56 +193,48 @@ function generateReportAI_Advanced(data, market, portfolioDetails) {
     
     A) CONTESTO MACRO ECONOMICO:
     - S&P 500: ${market.spx}% | VIX: ${market.vix} | Crypto Trend: ${market.cryptoTrend}
-    (Usa questo per dire se il portafoglio ha sovraperformato o sottoperformato il mercato).
 
-    B) VARIAZIONI MENSILI (Totali):
+    B) VARIAZIONI MENSILI (Strutturate per Sezione):
+    ATTENZIONE: 
+    1. I dati sono raggruppati in categorie (es. [Stock Market], [ETFs]).
+    2. La categoria [Market Indices (For Comparison)] contiene SOLO indici di mercato (S&P 500, NASDAQ, Oro, VIX). NON sono asset che l'utente possiede. Usali UNICAMENTE per confrontare la performance del portafoglio (es. "Il mercato ha fatto +5%, ma il portafoglio ha reso il +3%").
+    
     ${data.csv}
 
     C) DETTAGLIO ASSET SPECIFICI (I "Colpevoli"):
     ${portfolioDetails}
 
+    D) STORICO TRANSAZIONI DEL MESE (Operatività):
+    Contiene gli acquisti, vendite, e depositi/prelievi (Cash) fatti nel mese analizzato.
+    Usa questi dati per spiegare ESATTAMENTE dove è andata la liquidità e giustificare i Cash Flow.
+    ${transactionsHistory}
+
     OBIETTIVO DEL REPORT (In Italiano, Formato HTML pulito <div><p>):
     
     1. 🚨 **L'Headline (Il Verdetto)**: 
-       Analizza subito la riga "Liquid NW". È salito o sceso?
-       Esempio: "Il Patrimonio Investibile è sceso del 3% (€ -4.500) questo mese."
+       Analizza subito la riga "Liquid NW". È salito o sceso rispetto al mese scorso?
     
     2. 🕵️ **Analisi Forense (Perché è successo?)**:
-       Devi collegare i totali ai singoli asset.
-       - SE "Stock Market" è sceso E nel dettaglio vedi "AAPL -30%", DEVI SCRIVERE: "Il calo dell'azionario è trainato principalmente dal crollo di Apple (-30%)..."
-       - SE "Cryptocurrency" è sceso E vedi "BTC -10%", scrivilo.
-       - Distingui tra calo di mercato (Performance) e flussi di cassa (Ho speso troppo).
+       Devi collegare i totali ai singoli asset e allo Storico Transazioni.
+       - SE "[Stock Market]" è sceso E nel dettaglio vedi "AAPL -30%", scrivilo.
+       - Giustifica i movimenti di liquidità o l'aumento dei capitali investiti usando la sezione D (es. "L'aumento della liquidità è dovuto alla vendita di Apple e a un deposito di 1000€").
     
     3. 📊 **Performance vs Mercato**:
-       Il portafoglio ha retto meglio dell'S&P500 o peggio? Perché? (Es. "Troppa esposizione Crypto ha aumentato la volatilità").
+       Il portafoglio ha retto meglio dell'S&P500 o peggio? Usa la sezione [Market Indices (For Comparison)] per dare contesto (es. "Il mercato Nasdaq è sceso, trascinando il portafoglio").
 
     4. 💡 **Cash Flow & Risparmio**:
-       Analizza "Income", "Expenses" e "Savings". Il risparmio mensile ha compensato le perdite di mercato?
+       Analizza rigorosamente le sezioni [Income] (Entrate), [Expenses] (Uscite) e [Savings] (Risparmi). Il risparmio mensile ha compensato le perdite di mercato o viceversa? Hai speso più di quanto hai guadagnato?
        
     FORMATTAZIONE:
-    - Usa grassetto (<b>) per i numeri e i nomi degli asset (es. <b>Apple</b>).
+    - Usa grassetto (<b>) per i numeri, le macro-sezioni e i nomi degli asset (es. <b>Apple</b> o <b>Stock Market</b>).
     - Sii diretto, brutale e specifico. Niente giri di parole.
   `;
 
-  const payload = { 
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: {
-      maxOutputTokens: 8192, // Max tokens to avoid truncated text
-      temperature: 0.7
-    }
-  };
-  
-  const options = { method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true };
+  // Routes the prompt to the new Universal AI configuration.
+  const aiResponse = fetchUniversalAI(prompt, 'OPENROUTER', false);
 
-  for (let i = 0; i < MODELS.length; i++) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[i]}:generateContent?key=${API_KEY}`;
-      const response = UrlFetchApp.fetch(url, options);
-      if (response.getResponseCode() === 200) {
-        let text = JSON.parse(response.getContentText()).candidates[0].content.parts[0].text;
-        return text.replace(/```html/g, "").replace(/```/g, "").trim();
-      }
-    } catch (e) { console.warn(`Model ${MODELS[i]} failed.`); }
+  if (aiResponse) {
+    return aiResponse.replace(/```html/g, "").replace(/```/g, "").trim();
   }
   
   return "<p>Error: AI Analysis failed.</p>";
@@ -229,6 +266,7 @@ function extractPortfolioMovers(portfolio) {
 
 /**
  * Robust DATE Logic (Past + Current Month).
+ * Modified to accurately track Sections and isolate Market Indices.
  */
 function getLastTwoMonthsComparison(sheet) {
   const lastCol = sheet.getLastColumn();
@@ -248,10 +286,8 @@ function getLastTwoMonthsComparison(sheet) {
   let validCols = [];
   const today = new Date();
   today.setHours(0,0,0,0);
-
-  const isCurrentMonth = (d) => {
-    return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-  };
+  
+  const isFirstDayOfMonth = today.getDate() === 1;
 
   for (let i = 1; i < lastCol; i++) {
     let headerStr = String(headers[i]).trim();
@@ -269,8 +305,16 @@ function getLastTwoMonthsComparison(sheet) {
     }
 
     if (colDate && !isNaN(colDate.getTime())) {
-      // ACCEPT IF: Past Date OR Current Month (even if future day e.g. 28/02 vs 16/02)
-      if (colDate <= today || isCurrentMonth(colDate)) {
+      let isCurrentMonthCol = colDate.getMonth() === today.getMonth() && colDate.getFullYear() === today.getFullYear();
+      let isValidDate = false;
+
+      if (isFirstDayOfMonth) {
+        isValidDate = (colDate < today) && !isCurrentMonthCol;
+      } else {
+        isValidDate = colDate <= today;
+      }
+
+      if (isValidDate) {
         let hasData = (val !== "" && val !== null && val !== undefined);
         if (hasData) {
           validCols.push({ index: i + 1, name: headerStr, date: colDate });
@@ -282,7 +326,7 @@ function getLastTwoMonthsComparison(sheet) {
   validCols.sort((a, b) => a.date - b.date);
 
   if (validCols.length < 2) {
-    console.warn(`Only found ${validCols.length} valid periods. Need at least Prev and Curr Month.`);
+    console.warn(`Only found ${validCols.length} valid periods.`);
     return null; 
   }
 
@@ -291,35 +335,55 @@ function getLastTwoMonthsComparison(sheet) {
 
   console.log(`Selected Comparison: ${prev.name} vs ${current.name}`);
 
-  const lastRow = sheet.getLastRow();
-  const rangeA = sheet.getRange(1, 1, lastRow, 1).getDisplayValues();
-  const rangePrev = sheet.getRange(1, prev.index, lastRow, 1).getDisplayValues();
-  const rangeCurr = sheet.getRange(1, current.index, lastRow, 1).getDisplayValues();
+  const maxRows = Math.max(100, sheet.getLastRow());
+  const rangeA = sheet.getRange(1, 1, maxRows, 1).getDisplayValues();
+  const rangePrev = sheet.getRange(1, prev.index, maxRows, 1).getDisplayValues();
+  const rangeCurr = sheet.getRange(1, current.index, maxRows, 1).getDisplayValues();
 
-  let csvData = "METRIC | " + prev.name + " | " + current.name + " | DELTA\n";
+  const mainSections = [
+    "Cryptocurrency", "Stock Market", "ETFs", "Stocks", 
+    "Cumulated Pension", "Expenses", "Income", "Savings"
+  ];
+  const marketIndicesMatches = [
+    "NYSEARCA:GLD", "VIX", "TNX", "S&P 500", "NASDAQ", "Dow Jones", "Russel 2000"
+  ];
+  
+  let currentSection = "General Net Worth";
+  let csvData = "SECTION | METRIC | " + prev.name + " | " + current.name + " | DELTA\n";
 
-  for (let i = 0; i < lastRow; i++) {
-    let label = rangeA[i][0];
-    let valPrevStr = rangePrev[i][0];
-    let valCurrStr = rangeCurr[i][0];
-
+  for (let i = 1; i < maxRows; i++) {
+    let label = rangeA[i][0].trim();
     if (!label || label === "") continue;
+    if (label === "(V)") continue; // Remove useless spacer rows
+
+    // Detect sections or indices
+    if (mainSections.includes(label)) {
+      currentSection = label;
+    } else if (marketIndicesMatches.some(idx => label.includes(idx))) {
+      currentSection = "Market Indices (For Comparison)";
+    }
+
+    let valPrevStr = rangePrev[i][0].trim();
+    let valCurrStr = rangeCurr[i][0].trim();
 
     let valPrev = parseFinanceValue(valPrevStr);
     let valCurr = parseFinanceValue(valCurrStr);
     
-    if (valPrev !== 0 || valCurr !== 0) {
-       let diff = valCurr - valPrev;
-       let diffStr = diff > 0 ? "+" + formatMoney(diff) : formatMoney(diff);
-       csvData += `${label} | ${valPrevStr} | ${valCurrStr} | ${diffStr}\n`;
-    }
+    let diff = valCurr - valPrev;
+    let diffStr = "";
+    if (diff > 0) diffStr = "+" + formatMoney(diff);
+    else if (diff < 0) diffStr = formatMoney(diff);
+    else diffStr = "€ 0";
+
+    csvData += `[${currentSection}] | ${label} | ${valPrevStr || '-'} | ${valCurrStr || '-'} | ${diffStr}\n`;
   }
 
   return { 
     csv: csvData, 
     currentMonthName: current.name, 
     prevMonthName: prev.name,
-    currentColIndex: current.index // Essential index for linking!
+    currentColIndex: current.index,
+    targetDate: current.date // Export Date to fetch B/S history
   };
 }
 

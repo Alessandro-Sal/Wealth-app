@@ -138,3 +138,42 @@ function fetchUniversalAI(prompt, provider = 'GEMINI', useWebSearch = false) {
     return null;
   }
 }
+
+/**
+ * Executes HTTP requests and parses the response based on the provider's specific JSON structure.
+ */
+function executeFetch(url, headers, payload, providerName) {
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    headers: headers,
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  try {
+    const res = UrlFetchApp.fetch(url, options);
+    const code = res.getResponseCode();
+    const data = JSON.parse(res.getContentText());
+
+    if (code === 200) {
+      // Parse output based on provider standard
+      if (providerName === 'OPENROUTER' || providerName === 'OPENAI') {
+        return data.choices[0].message.content;
+      } 
+      else if (providerName === 'ANTHROPIC') {
+        return data.content[0].text;
+      } 
+      else if (providerName === 'GEMINI') {
+        return data.candidates[0].content.parts[0].text;
+      }
+    } else {
+      console.warn(`[${providerName}] Error ${code}: ${res.getContentText()}`);
+      if (code === 429) Utilities.sleep(2000); // Back-off for rate limits
+      return null;
+    }
+  } catch (e) {
+    console.error(`Fetch Exception on ${providerName}:`, e);
+    return null;
+  }
+}
