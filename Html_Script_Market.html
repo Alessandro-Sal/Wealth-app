@@ -479,7 +479,7 @@ function openPortfolioModal(type, index) {
             </div>
           `;
 
-          // CARD 2: FINANCIAL PERFORMANCE (Già sensitive)
+         // CARD 2: FINANCIAL PERFORMANCE
           let block2Content = '';
           
           block2Content += `
@@ -513,6 +513,27 @@ function openPortfolioModal(type, index) {
             </div>`;
           }
 
+          if (hasData(item.expectedDividend)) {
+             block2Content += `
+            <div style="${rowStyle}">
+                <span style="${labelStyle}">Expected Div.</span>
+                <div style="text-align:right;">
+                    <span style="${valStyle} color:var(--primary, #007aff);" class="sensitive">${item.expectedDividend}</span>
+                </div>
+            </div>`;
+          }
+
+          if (hasData(item.xirr)) {
+             block2Content += `
+            <div style="${rowStyle}">
+                <span style="${labelStyle}">XIRR</span>
+                <div style="text-align:right;">
+                    <span style="${valStyle} ${fmtCol(item.xirr)}" class="sensitive">${item.xirr}</span>
+                    ${hasData(item.xirrNote) ? `<div style="font-size:10px; font-weight:600; color:var(--gray); opacity:0.7;">${item.xirrNote}</div>` : ''}
+                </div>
+            </div>`;
+          }
+
           block2Content += `
             <div style="${rowStyle} border-bottom:none; border-top: 1px dashed rgba(128,128,128,0.2); margin-top:5px; padding-top:12px;">
                 <span style="${labelStyle} font-weight:700; color:var(--text-main);">Total Balance</span>
@@ -523,7 +544,6 @@ function openPortfolioModal(type, index) {
             </div>`;
 
           let block2 = `<div style="${groupStyle}"><div style="padding: 8px 0 0 0; font-size:11px; font-weight:800; text-transform:uppercase; color:var(--gray); letter-spacing:1px; opacity:0.7;">Performance</div>${block2Content}</div>`;
-
           // CARD 3: TRADING STATS (Tutto sensitive)
           let block3 = '';
           if (hasData(item.firstBuyDate) || hasData(item.daysHeld) || hasData(item.tradeCount)) {

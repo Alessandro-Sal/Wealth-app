@@ -1,7 +1,7 @@
 /**
  * Retrieves live portfolio data including detailed metrics for Stocks, ETFs, and Crypto.
- * Reads extended data points from the "Stocks" sheet (Cols A-AT).
- * Reads extended data points from the "Crypto" sheet (Cols A-S).
+ * Reads extended data points from the "Stocks" sheet (Cols A-AW).
+ * Reads extended data points from the "Crypto" sheet (Cols A-AD).
  * Fetches daily global performance from the Dashboard.
  * @return {Object} Structured data object: { stocks, etfs, crypto, dayChange }.
  */
@@ -14,9 +14,8 @@ function getLivePortfolio() {
   let etfs = [];
   
   if (sheet && sheet.getLastRow() >= 3) {
-    // MODIFICA: Leggiamo ora 46 colonne (da A ad AT) invece di 40
-    // A=1 ... AJ=36 ... AT=46
-    const data = sheet.getRange(3, 1, sheet.getLastRow() - 2, 46).getDisplayValues();
+    // Read 49 columns (up to AW)
+    const data = sheet.getRange(3, 1, sheet.getLastRow() - 2, 49).getDisplayValues();
     
     const allItems = data.map(r => {
       // Skip empty rows or assets with 0 value
@@ -61,8 +60,8 @@ function getLivePortfolio() {
         yearL: r[34],     // AI: 52w Low
         beta: r[35],      // AJ: Beta
         
-        // --- NEW TRADING DATA (Columns AL-AT) ---
-        // AK (index 36) skipped/unused based on your request
+        // --- TRADING DATA ---
+        // AK (index 36) skipped
         firstBuyDate: r[37], // AL: First Buy Date
         firstPrice: r[38],   // AM: First Price
         minBuy: r[39],       // AN: Min Buy Price
@@ -71,7 +70,12 @@ function getLivePortfolio() {
         avgSell: r[42],      // AQ: Avg Sell Price
         daysHeld: r[43],     // AR: Days Held
         lastActivity: r[44], // AS: Last Activity
-        tradeCount: r[45]    // AT: Trade Count
+        tradeCount: r[45],   // AT: Trade Count
+        
+        // --- NEW METRICS (Columns AU-AW) ---
+        expectedDividend: r[46], // AU: Expected Dividend
+        xirr: r[47],             // AV: XIRR
+        xirrNote: r[48]          // AW: Note XIRR
       };
     }).filter(i => i !== null);
 
@@ -84,8 +88,8 @@ function getLivePortfolio() {
   let cryptoData = [];
   const cSheet = ss.getSheetByName("Crypto");
   if(cSheet && cSheet.getLastRow() >= 3) {
-      // Read up to column S (Index 18) -> reading 20 cols to be safe
-      cryptoData = cSheet.getRange(3, 1, cSheet.getLastRow()-2, 20).getDisplayValues()
+      // Read up to column AD (Index 29) -> reading 30 cols total
+      cryptoData = cSheet.getRange(3, 1, cSheet.getLastRow()-2, 30).getDisplayValues()
         .map(r => {
             if(!r[0]) return null; // Skip if no ticker
             
@@ -110,8 +114,22 @@ function getLivePortfolio() {
                 bep: r[17],           // R: BreakEven Point
                 delta: r[18],         // S: Delta
                 
+                // --- TRADING & XIRR DATA (Columns T-AD) ---
+                firstBuyDate: r[19],  // T: First Buy Date
+                firstPrice: r[20],    // U: First Price
+                minBuy: r[21],        // V: Min Buy Price
+                maxBuy: r[22],        // W: Max Buy Price
+                maxSell: r[23],       // X: Max Sell Price
+                avgSell: r[24],       // Y: Avg Sell Price
+                daysHeld: r[25],      // Z: Days Held
+                lastActivity: r[26],  // AA: Last Activity
+                tradeCount: r[27],    // AB: Trade Count
+                xirr: r[28],          // AC: XIRR
+                xirrNote: r[29],      // AD: Note XIRR
+                
                 // --- METADATA (Defaulting) ---
                 div: "",              // No dividends column specified
+                expectedDividend: "", 
                 curr: "EUR",          
                 name: r[0]            // Use Ticker as Name if not available
             };
