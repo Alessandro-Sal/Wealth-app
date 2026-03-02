@@ -240,3 +240,82 @@ function getSingleArticleAISummary(title, summary) {
     return "⚠️ An error occurred during analysis.";
   }
 }
+
+/**
+ * Fetches saved news from a dedicated Google Sheet ('Saved_News').
+ * Creates the sheet automatically if it doesn't exist yet.
+ * @returns {Array<Object>} List of saved articles.
+ */
+function getCloudSavedNews() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('Saved_News');
+  
+  if (!sheet) {
+    sheet = ss.insertSheet('Saved_News');
+    sheet.appendRow(['Link', 'Title', 'Summary', 'Date', 'Source', 'Category', 'ImageUrl', 'RelatedTickers']);
+    sheet.setFrozenRows(1);
+    sheet.getRange("A1:H1").setFontWeight("bold").setBackground("#f3f4f6");
+    return [];
+  }
+  
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+
+  const savedNews = [];
+  for (let i = 1; i < data.length; i++) {
+    let row = data[i];
+    savedNews.push({
+      link: row[0],
+      title: row[1],
+      summary: row[2],
+      date: row[3],
+      source: row[4],
+      category: row[5],
+      imageUrl: row[6],
+      relatedTickers: row[7] ? JSON.parse(row[7]) : []
+    });
+  }
+  // Return reversed to show the newest saved at the top
+  return savedNews.reverse();
+}
+
+/**
+ * Toggles an article's saved status in the 'Saved_News' sheet.
+ * @param {Object} article - The news article object.
+ * @returns {boolean} True if added, false if removed.
+ */
+function toggleCloudSavedNews(article) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('Saved_News');
+  if (!sheet) {
+      sheet = ss.insertSheet('Saved_News');
+      sheet.appendRow(['Link', 'Title', 'Summary', 'Date', 'Source', 'Category', 'ImageUrl', 'RelatedTickers']);
+  }
+
+  const data = sheet.getDataRange().getValues();
+  let foundIndex = -1;
+  
+  for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === article.link) {
+          foundIndex = i + 1; // arrays are 0-indexed, sheet rows are 1-indexed
+          break;
+      }
+  }
+
+  if (foundIndex !== -1) {
+      sheet.deleteRow(foundIndex);
+      return false; // Removed
+  } else {
+      sheet.appendRow([
+          article.link,
+          article.title,
+          article.summary,
+          article.date,
+          article.source,
+          article.category,
+          article.imageUrl || '',
+          JSON.stringify(article.relatedTickers || [])
+      ]);
+      return true; // Added
+  }
+}
