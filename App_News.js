@@ -1,6 +1,6 @@
 /**
- * Fetches real-time news from various RSS feeds based on category.
- * NOW INCLUDES: Image Extraction from XML feeds.
+ * Fetches real-time news from MULTIPLE RSS feeds concurrently based on category.
+ * Aggregates Italian and International sources, extracts images, and sorts by date.
  * @param {string} category - The category of news to fetch.
  * @returns {Object} An object containing the articles array and the used tickers.
  */
@@ -13,12 +13,8 @@ function getMarketNews(category = 'market') {
     if (category === 'portfolio') {
       const portfolio = getLivePortfolio();
       
-      if (portfolio.stocks) {
-        portfolio.stocks.forEach(item => { if (item.t) allTickers.push(item.t); });
-      }
-      if (portfolio.etfs) {
-        portfolio.etfs.forEach(item => { if (item.t) allTickers.push(item.t); });
-      }
+      if (portfolio.stocks) portfolio.stocks.forEach(item => { if (item.t) allTickers.push(item.t); });
+      if (portfolio.etfs) portfolio.etfs.forEach(item => { if (item.t) allTickers.push(item.t); });
       
       if (portfolio.crypto) {
         portfolio.crypto.forEach(item => {
@@ -40,126 +36,147 @@ function getMarketNews(category = 'market') {
       }
     }
 
+   // --- MULTI-SOURCE FEED AGGREGATOR (EXPANDED) ---
+    // Each category now holds an array of highly reliable international and Italian feeds.
     const feeds = {
-      'market': 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC,%5EDJI,BTC-USD&region=US&lang=en-US',
-      'portfolio': portfolioUrl,
-      'world': 'http://feeds.bbci.co.uk/news/world/rss.xml',
-      'politics': 'http://feeds.bbci.co.uk/news/politics/rss.xml',
-      'science': 'http://feeds.bbci.co.uk/news/science_and_environment/rss.xml',
-      'culture': 'http://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml'
+      'market': [
+        { url: 'https://feeds.a.dj.com/rss/RSSMarketsMain.xml', source: 'Wall Street Journal' },
+        { url: 'https://www.ilsole24ore.com/rss/finanza.xml', source: 'Il Sole 24 Ore' },
+        { url: 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10001147', source: 'CNBC' },
+        { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Business.xml', source: 'New York Times' },
+        { url: 'https://www.repubblica.it/rss/economia/rss2.0.xml', source: 'La Repubblica' },
+        { url: 'https://www.teleborsa.it/rss/news.xml', source: 'Teleborsa' }
+      ],
+      'portfolio': [
+        // Portfolio remains dynamically generated via Yahoo to track your specific tickers
+        { url: portfolioUrl, source: 'Yahoo Finance' }
+      ],
+      'world': [
+        { url: 'http://feeds.bbci.co.uk/news/world/rss.xml', source: 'BBC Global' },
+        { url: 'https://www.ansa.it/sito/notizie/mondo/mondo_rss.xml', source: 'ANSA Mondo' },
+        { url: 'https://www.theguardian.com/world/rss', source: 'The Guardian' },
+        { url: 'http://xml2.corriereobjects.it/rss/esteri.xml', source: 'Corriere Esteri' }
+      ],
+      'politics': [
+        { url: 'http://feeds.bbci.co.uk/news/politics/rss.xml', source: 'BBC Politics' },
+        { url: 'https://www.ansa.it/sito/notizie/politica/politica_rss.xml', source: 'ANSA Politica' },
+        { url: 'https://www.repubblica.it/rss/politica/rss2.0.xml', source: 'Repubblica Politica' }
+      ],
+      'science': [
+        { url: 'https://techcrunch.com/feed/', source: 'TechCrunch' },
+        { url: 'https://www.theverge.com/rss/index.xml', source: 'The Verge' },
+        { url: 'https://www.ansa.it/sito/notizie/tecnologia/tecnologia_rss.xml', source: 'ANSA Tech' },
+        { url: 'https://www.wired.it/feed/rss', source: 'Wired IT' }
+      ],
+      'culture': [
+        { url: 'http://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml', source: 'BBC Culture' },
+        { url: 'http://xml2.corriereobjects.it/rss/spettacoli.xml', source: 'Corriere Spettacoli' },
+        { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Arts.xml', source: 'NYT Arts' }
+      ]
     };
 
-    const url = feeds[category] || feeds['market'];
-    const options = { 'method': 'get', 'muteHttpExceptions': true };
-    const response = UrlFetchApp.fetch(url, options);
+    const selectedFeeds = feeds[category] || feeds['market'];
     
-    if (response.getResponseCode() !== 200) {
-      console.error("Failed to fetch RSS feed");
-      return { articles: [], tickers: allTickers };
-    }
+    // Prepare parallel requests for maximum performance
+    const requests = selectedFeeds.map(feed => ({
+      url: feed.url,
+      method: 'get',
+      muteHttpExceptions: true
+    }));
 
-    const xml = response.getContentText();
-    const document = XmlService.parse(xml);
-    const root = document.getRootElement();
-    const channel = root.getChild('channel');
-    
-    if (!channel) return { articles: [], tickers: allTickers };
-
-    const items = channel.getChildren('item');
-    const newsList = [];
-    
-    // Download up to 50 items for pagination
-    const maxItems = Math.min(items.length, 50); 
-    
-    let sourceName = "Yahoo Finance";
-    if (category !== 'market' && category !== 'portfolio') {
-      sourceName = "BBC Global";
-    }
-
-    // Set up XML namespaces for media parsing
+    // Fetch all feeds at exactly the same time
+    const responses = UrlFetchApp.fetchAll(requests);
+    let newsList = [];
     const mediaNamespace = XmlService.getNamespace('media', 'http://search.yahoo.com/mrss/');
-    
-    for (let i = 0; i < maxItems; i++) {
-      const title = items[i].getChildText('title') || "No Title";
-      const link = items[i].getChildText('link') || "#";
-      
-      let description = items[i].getChildText('description') || "";
-      let rawDescription = description; // Save raw to extract potential img tags later
-      
-      description = description.replace(/(<([^>]+)>)/gi, "").trim(); 
-      description = description.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&'); 
-      
-      const pubDateRaw = items[i].getChildText('pubDate');
-      const dateObj = new Date(pubDateRaw);
-      const isoDate = !isNaN(dateObj.getTime()) ? dateObj.toISOString() : new Date().toISOString();
-      
-      // --- IMAGE EXTRACTION LOGIC ---
-      let imageUrl = null;
-      
-      // 1. Try <media:content> (Standard Yahoo Format)
-      const mediaContent = items[i].getChild('content', mediaNamespace);
-      if (mediaContent && mediaContent.getAttribute('url')) {
-          imageUrl = mediaContent.getAttribute('url').getValue();
-      }
-      
-      // 2. Try <media:thumbnail> (Standard BBC Format)
-      if (!imageUrl) {
-          const mediaThumbnail = items[i].getChild('thumbnail', mediaNamespace);
-          if (mediaThumbnail && mediaThumbnail.getAttribute('url')) {
-              imageUrl = mediaThumbnail.getAttribute('url').getValue();
-          }
-      }
 
-      // 3. Try <enclosure> (Standard Podcast/Generic RSS Format)
-      if (!imageUrl) {
-          const enclosure = items[i].getChild('enclosure');
-          if (enclosure && enclosure.getAttribute('type') && enclosure.getAttribute('type').getValue().startsWith('image')) {
-              imageUrl = enclosure.getAttribute('url').getValue();
+    // Process each feed response
+    responses.forEach((response, index) => {
+      if (response.getResponseCode() !== 200) return;
+      
+      const sourceName = selectedFeeds[index].source;
+      const xml = response.getContentText();
+      
+      try {
+        const document = XmlService.parse(xml);
+        const root = document.getRootElement();
+        const channel = root.getChild('channel');
+        if (!channel) return;
+
+        const items = channel.getChildren('item');
+        // Take up to 20 articles from EACH source to mix them well
+        const maxItems = Math.min(items.length, 20); 
+        
+        for (let i = 0; i < maxItems; i++) {
+          const title = items[i].getChildText('title') || "No Title";
+          const link = items[i].getChildText('link') || "#";
+          
+          let description = items[i].getChildText('description') || "";
+          let rawDescription = description; 
+          
+          description = description.replace(/(<([^>]+)>)/gi, "").trim(); 
+          description = description.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&'); 
+          
+          const pubDateRaw = items[i].getChildText('pubDate');
+          const dateObj = new Date(pubDateRaw);
+          const isoDate = !isNaN(dateObj.getTime()) ? dateObj.toISOString() : new Date().toISOString();
+          
+          // --- IMAGE EXTRACTION ---
+          let imageUrl = null;
+          const mediaContent = items[i].getChild('content', mediaNamespace);
+          if (mediaContent && mediaContent.getAttribute('url')) imageUrl = mediaContent.getAttribute('url').getValue();
+          
+          if (!imageUrl) {
+              const mediaThumbnail = items[i].getChild('thumbnail', mediaNamespace);
+              if (mediaThumbnail && mediaThumbnail.getAttribute('url')) imageUrl = mediaThumbnail.getAttribute('url').getValue();
           }
+          if (!imageUrl) {
+              const enclosure = items[i].getChild('enclosure');
+              if (enclosure && enclosure.getAttribute('type') && enclosure.getAttribute('type').getValue().startsWith('image')) {
+                  imageUrl = enclosure.getAttribute('url').getValue();
+              }
+          }
+          if (!imageUrl && rawDescription) {
+              const imgMatch = rawDescription.match(/<img[^>]+src="([^">]+)"/);
+              if (imgMatch) imageUrl = imgMatch[1];
+          }
+          if (imageUrl && imageUrl.startsWith('http://')) {
+              imageUrl = imageUrl.replace('http://', 'https://');
+          }
+          
+          // --- PORTFOLIO TICKER MATCHING ---
+          let articleTickers = [];
+          if (category === 'portfolio' && allTickers.length > 0) {
+            allTickers.forEach(ticker => {
+               let cleanTicker = ticker.replace('-USD', '');
+               let regex = new RegExp("\\b" + cleanTicker + "\\b", "i");
+               if (regex.test(title) || regex.test(description) || link.toUpperCase().includes(cleanTicker.toUpperCase())) {
+                  articleTickers.push(cleanTicker.toUpperCase());
+               }
+            });
+          }
+          
+          newsList.push({
+            title: title,
+            summary: description,
+            link: link,
+            date: isoDate,
+            source: sourceName,
+            category: category,
+            relatedTickers: articleTickers,
+            imageUrl: imageUrl
+          });
+        }
+      } catch (e) {
+        console.error(`Error parsing XML for ${sourceName}:`, e);
       }
-      
-      // 4. Fallback: Parse the raw description for an HTML <img> tag
-      if (!imageUrl && rawDescription) {
-          const imgMatch = rawDescription.match(/<img[^>]+src="([^">]+)"/);
-          if (imgMatch) imageUrl = imgMatch[1];
-      }
-      // -----------------------------
-      
-      let articleTickers = [];
-      if (category === 'portfolio' && allTickers.length > 0) {
-        allTickers.forEach(ticker => {
-           let cleanTicker = ticker.replace('-USD', '');
-           let regex = new RegExp("\\b" + cleanTicker + "\\b", "i");
-           if (regex.test(title) || regex.test(description) || link.toUpperCase().includes(cleanTicker.toUpperCase())) {
-              articleTickers.push(cleanTicker.toUpperCase());
-           }
-        });
-      }
-      
-      // 4. Fallback: Parse the raw description for an HTML <img> tag
-      if (!imageUrl && rawDescription) {
-          const imgMatch = rawDescription.match(/<img[^>]+src="([^">]+)"/);
-          if (imgMatch) imageUrl = imgMatch[1];
-      }
-      
-      // --- NEW FIX: Force HTTPS to prevent Mixed Content blocking in Apps Script ---
-      if (imageUrl && imageUrl.startsWith('http://')) {
-          imageUrl = imageUrl.replace('http://', 'https://');
-      }
-      // -----------------------------
-      
-      let articleTickers = [];
-      newsList.push({
-        title: title,
-        summary: description,
-        link: link,
-        date: isoDate,
-        source: sourceName,
-        category: category,
-        relatedTickers: articleTickers,
-        imageUrl: imageUrl // Pass the extracted image URL to frontend
-      });
-    }
+    });
+
+    // --- SORT & LIMIT ---
+    // Sort all aggregated news from newest to oldest across all sources
+    newsList.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    // Keep the top 60 most recent articles overall
+    newsList = newsList.slice(0, 60);
     
     return { articles: newsList, tickers: allTickers };
     

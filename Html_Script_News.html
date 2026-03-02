@@ -34,12 +34,13 @@ function setNewsCategory(category, buttonElement) {
 
 /**
  * Triggers the backend function to fetch news data, or loads from local storage.
- * Includes Soft Reload and Skeleton UI for premium loading experience.
+ * NOW INCLUDES: Race Condition protection via withUserObject.
  */
 function loadNews(category = 'market') {
   const container = document.getElementById('news-container');
   if (!container) return; 
   
+  // Instant load for saved articles
   if (category === 'saved') {
     const savedArticles = JSON.parse(localStorage.getItem('saved_news') || '[]');
     container.style.opacity = '1';
@@ -72,12 +73,22 @@ function loadNews(category = 'market') {
 
   // Fetch data
   google.script.run
-    .withSuccessHandler(function(response) {
+    .withUserObject(category) // Attach the requested category as an ID ticket
+    .withSuccessHandler(function(response, requestedCategory) {
+        // RACE CONDITION PREVENTER: If user changed category while waiting, discard this response
+        if (requestedCategory !== currentNewsCategory) {
+            console.log("Discarding outdated response for:", requestedCategory);
+            return; 
+        }
+        
         container.style.opacity = '1';
         container.style.pointerEvents = 'auto';
         renderNews(response);
     })
-    .withFailureHandler(function(error) {
+    .withFailureHandler(function(error, requestedCategory) {
+        // RACE CONDITION PREVENTER
+        if (requestedCategory !== currentNewsCategory) return;
+        
         console.error("Failed to load news: ", error);
         container.style.opacity = '1';
         container.style.pointerEvents = 'auto';
@@ -85,7 +96,6 @@ function loadNews(category = 'market') {
     })
     .getMarketNews(category);
 }
-
 /**
  * Receives data from server, resets states, and applies filters to start rendering.
  */
