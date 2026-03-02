@@ -1,6 +1,6 @@
 /**
  * Fetches real-time news from various RSS feeds based on category.
- * Dynamically loads portfolio tickers if category is 'portfolio' and tags articles with matched tickers.
+ * NOW INCLUDES: Image Extraction from XML feeds.
  * @param {string} category - The category of news to fetch.
  * @returns {Object} An object containing the articles array and the used tickers.
  */
@@ -68,25 +68,62 @@ function getMarketNews(category = 'market') {
     const items = channel.getChildren('item');
     const newsList = [];
     
-    // Scarichiamo fino a 50 notizie per permettere lo scorrimento
+    // Download up to 50 items for pagination
     const maxItems = Math.min(items.length, 50); 
     
     let sourceName = "Yahoo Finance";
     if (category !== 'market' && category !== 'portfolio') {
       sourceName = "BBC Global";
     }
+
+    // Set up XML namespaces for media parsing
+    const mediaNamespace = XmlService.getNamespace('media', 'http://search.yahoo.com/mrss/');
     
     for (let i = 0; i < maxItems; i++) {
       const title = items[i].getChildText('title') || "No Title";
       const link = items[i].getChildText('link') || "#";
       
       let description = items[i].getChildText('description') || "";
+      let rawDescription = description; // Save raw to extract potential img tags later
+      
       description = description.replace(/(<([^>]+)>)/gi, "").trim(); 
       description = description.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&'); 
       
       const pubDateRaw = items[i].getChildText('pubDate');
       const dateObj = new Date(pubDateRaw);
       const isoDate = !isNaN(dateObj.getTime()) ? dateObj.toISOString() : new Date().toISOString();
+      
+      // --- IMAGE EXTRACTION LOGIC ---
+      let imageUrl = null;
+      
+      // 1. Try <media:content> (Standard Yahoo Format)
+      const mediaContent = items[i].getChild('content', mediaNamespace);
+      if (mediaContent && mediaContent.getAttribute('url')) {
+          imageUrl = mediaContent.getAttribute('url').getValue();
+      }
+      
+      // 2. Try <media:thumbnail> (Standard BBC Format)
+      if (!imageUrl) {
+          const mediaThumbnail = items[i].getChild('thumbnail', mediaNamespace);
+          if (mediaThumbnail && mediaThumbnail.getAttribute('url')) {
+              imageUrl = mediaThumbnail.getAttribute('url').getValue();
+          }
+      }
+
+      // 3. Try <enclosure> (Standard Podcast/Generic RSS Format)
+      if (!imageUrl) {
+          const enclosure = items[i].getChild('enclosure');
+          if (enclosure && enclosure.getAttribute('type') && enclosure.getAttribute('type').getValue().startsWith('image')) {
+              imageUrl = enclosure.getAttribute('url').getValue();
+          }
+      }
+      
+      // 4. Fallback: Parse the raw description for an HTML <img> tag
+      if (!imageUrl && rawDescription) {
+          const imgMatch = rawDescription.match(/<img[^>]+src="([^">]+)"/);
+          if (imgMatch) imageUrl = imgMatch[1];
+      }
+      // -----------------------------
       
       let articleTickers = [];
       if (category === 'portfolio' && allTickers.length > 0) {
@@ -99,6 +136,19 @@ function getMarketNews(category = 'market') {
         });
       }
       
+      // 4. Fallback: Parse the raw description for an HTML <img> tag
+      if (!imageUrl && rawDescription) {
+          const imgMatch = rawDescription.match(/<img[^>]+src="([^">]+)"/);
+          if (imgMatch) imageUrl = imgMatch[1];
+      }
+      
+      // --- NEW FIX: Force HTTPS to prevent Mixed Content blocking in Apps Script ---
+      if (imageUrl && imageUrl.startsWith('http://')) {
+          imageUrl = imageUrl.replace('http://', 'https://');
+      }
+      // -----------------------------
+      
+      let articleTickers = [];
       newsList.push({
         title: title,
         summary: description,
@@ -106,7 +156,8 @@ function getMarketNews(category = 'market') {
         date: isoDate,
         source: sourceName,
         category: category,
-        relatedTickers: articleTickers
+        relatedTickers: articleTickers,
+        imageUrl: imageUrl // Pass the extracted image URL to frontend
       });
     }
     
@@ -117,7 +168,6 @@ function getMarketNews(category = 'market') {
     return { articles: [], tickers: [] };
   }
 }
-
 
 /**
  * Generates an AI summary of the current top news using the universal AI router.

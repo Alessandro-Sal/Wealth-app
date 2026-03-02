@@ -157,7 +157,7 @@ function renderNextChunk() {
   const chunk = filteredNews.slice(displayedNewsCount, displayedNewsCount + CHUNK_SIZE);
   const savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
 
-  chunk.forEach((item, chunkIndex) => {
+chunk.forEach((item, chunkIndex) => {
     const absoluteIndex = displayedNewsCount + chunkIndex;
     
     const dateObj = new Date(item.date);
@@ -182,6 +182,15 @@ function renderNextChunk() {
     const isSaved = savedNews.some(savedItem => savedItem.link === item.link);
     const bookmarkClass = isSaved ? 'bookmark-btn bookmarked' : 'bookmark-btn';
 
+    // Build Image HTML if available
+    // FIX: Removed loading="lazy" for iframe compatibility and added fallback for broken links
+    let imageHtml = '';
+    if (item.imageUrl) {
+        imageHtml = `<div class="news-thumbnail-wrapper">
+                        <img src="${item.imageUrl}" alt="News Image" onerror="this.parentElement.style.display='none'">
+                     </div>`;
+    }
+
     const newsCard = document.createElement('a');
     newsCard.href = item.link;
     newsCard.target = '_blank';
@@ -194,16 +203,22 @@ function renderNextChunk() {
          <div class="share-btn" onclick="shareArticle('${item.link}', '${item.title.replace(/'/g, "\\'")}', event)" title="Share">📤</div>
          <div class="${bookmarkClass}" onclick="toggleBookmark(${absoluteIndex}, event)" title="Save">🔖</div>
       </div>
-      <div>
-        <div class="news-card-header" style="padding-right: 125px; flex-wrap: wrap; gap: 5px;">
-          <span class="news-badge" style="background:${badgeColor}; color:${badgeText};">${item.category}</span>
-          <span class="news-read-time" style="white-space: nowrap;">⏱️ ${readTime} min</span>
-        </div>
-        <h3 class="news-title">${item.title}</h3>
-        ${item.summary ? `<p class="news-summary">${item.summary}</p>` : ''}
-        ${tickersHtml}
-        <div id="ai-summary-box-${absoluteIndex}" class="ai-article-summary"></div>
+      
+      <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+          <div style="flex: 1; min-width: 0;">
+              <div class="news-card-header" style="padding-right: 170px; flex-direction: column; align-items: flex-start; gap: 6px;">
+                  <span class="news-badge" style="background:${badgeColor}; color:${badgeText};">${item.category}</span>
+                  <span class="news-read-time" style="white-space: nowrap;">⏱️ ${readTime} min</span>
+              </div>
+              <h3 class="news-title">${item.title}</h3>
+              ${item.summary ? `<p class="news-summary">${item.summary}</p>` : ''}
+              ${tickersHtml}
+          </div>
+          ${imageHtml}
       </div>
+      
+      <div id="ai-summary-box-${absoluteIndex}" class="ai-article-summary"></div>
+      
       <div class="news-footer">
         <div class="news-source-icon">🗞️</div>
         <span>${item.source} • ${formattedDate}</span>
