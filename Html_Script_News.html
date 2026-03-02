@@ -166,7 +166,7 @@ function renderNextChunk() {
   const chunk = filteredNews.slice(displayedNewsCount, displayedNewsCount + CHUNK_SIZE);
   const savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
 
-chunk.forEach((item, chunkIndex) => {
+  chunk.forEach((item, chunkIndex) => {
     const absoluteIndex = displayedNewsCount + chunkIndex;
     
     const dateObj = new Date(item.date);
@@ -192,7 +192,6 @@ chunk.forEach((item, chunkIndex) => {
     const bookmarkClass = isSaved ? 'bookmark-btn bookmarked' : 'bookmark-btn';
 
     // Build Image HTML if available
-    // FIX: Removed loading="lazy" for iframe compatibility and added fallback for broken links
     let imageHtml = '';
     if (item.imageUrl) {
         imageHtml = `<div class="news-thumbnail-wrapper">
@@ -200,11 +199,17 @@ chunk.forEach((item, chunkIndex) => {
                      </div>`;
     }
 
-    const newsCard = document.createElement('a');
-    newsCard.href = item.link;
-    newsCard.target = '_blank';
-    newsCard.rel = 'noopener noreferrer';
+    // --- CHANGED: Use a DIV instead of A tag so we can intercept the click ---
+    const newsCard = document.createElement('div');
     newsCard.className = 'news-card';
+    newsCard.style.cursor = 'pointer';
+    
+    // Intercept clicks to open the modal
+    newsCard.onclick = function(e) {
+        // Prevent modal if user clicks on action buttons or the AI summary box
+        if (e.target.closest('.news-card-actions') || e.target.closest('.ai-article-summary')) return; 
+        openNewsModal(absoluteIndex);
+    };
     
     newsCard.innerHTML = `
       <div class="news-card-actions">
@@ -388,4 +393,74 @@ setTimeout(function() {
     loadNews('market');
   }
 }, 500);
+
+/**
+ * Opens the reader modal for a specific news article
+ */
+function openNewsModal(index) {
+    try {
+        const article = filteredNews[index];
+        if (!article) return;
+
+        // 1. Populate basic text data
+        document.getElementById('nr-source').innerText = article.source || 'News';
+        document.getElementById('nr-btn-source').innerText = article.source || 'Source';
+        document.getElementById('nr-title').innerText = article.title || 'No Title';
+        
+        // 2. Handle Image
+        const imgContainer = document.getElementById('nr-image-container');
+        const imgEl = document.getElementById('nr-image');
+        if (article.imageUrl) {
+            imgEl.src = article.imageUrl;
+            imgContainer.style.display = 'block';
+        } else {
+            imgContainer.style.display = 'none';
+        }
+
+        // 3. Handle Date
+        if (article.date) {
+            const dateObj = new Date(article.date);
+            document.getElementById('nr-date').innerText = dateObj.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        } else {
+            document.getElementById('nr-date').innerText = '';
+        }
+
+        // 4. Handle Summary
+        document.getElementById('nr-summary').innerHTML = article.summary || "No summary available for this article.";
+
+        // 5. Handle Tickers
+        const tickersContainer = document.getElementById('nr-tickers');
+        tickersContainer.innerHTML = '';
+        if (article.relatedTickers && article.relatedTickers.length > 0) {
+            let tickersHtml = '<div class="ticker-pill-container" style="margin-top:0;">';
+            article.relatedTickers.forEach(t => { 
+                tickersHtml += `<span class="ticker-pill" style="background:var(--section-bg); border:none;">📈 ${t}</span>`; 
+            });
+            tickersHtml += '</div>';
+            tickersContainer.innerHTML = tickersHtml;
+        }
+
+        // 6. Set external link button
+        document.getElementById('nr-full-link').href = article.link || '#';
+
+        // 7. Handle AI Insight injection if previously generated
+        const aiBox = document.getElementById('nr-ai-box');
+        const existingSummaryBox = document.getElementById(`ai-summary-box-${index}`);
+        
+        if (existingSummaryBox && existingSummaryBox.innerHTML.includes('✨')) {
+            // Strip the title and grab the text
+            const aiText = existingSummaryBox.innerHTML.replace(/<strong>.*?<\/strong><br>/, '');
+            document.getElementById('nr-ai-content').innerHTML = aiText;
+            aiBox.style.display = 'block';
+        } else {
+            aiBox.style.display = 'none';
+        }
+
+        // 8. Open the modal (using flex to align center)
+        document.getElementById('news-reader-modal').style.display = 'flex';
+        
+    } catch (err) {
+        console.error("Error opening news modal:", err);
+    }
+}
 </script>
