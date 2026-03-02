@@ -402,6 +402,22 @@ function openNewsModal(index) {
         const article = filteredNews[index];
         if (!article) return;
 
+        // Set the current index for modal actions
+        currentModalArticleIndex = index;
+        
+        // Update the bookmark button UI inside the modal
+        if (typeof updateModalBookmarkUI === 'function') {
+            updateModalBookmarkUI(article);
+        }
+
+        // Reset TTS Audio UI if opening a new article
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            isSpeaking = false;
+            const btnText = document.getElementById('nr-listen-text');
+            if (btnText) btnText.innerText = "Listen";
+        }
+
         // 1. Populate basic text data
         document.getElementById('nr-source').innerText = article.source || 'News';
         document.getElementById('nr-btn-source').innerText = article.source || 'Source';
@@ -428,13 +444,14 @@ function openNewsModal(index) {
         // 4. Handle Summary
         document.getElementById('nr-summary').innerHTML = article.summary || "No summary available for this article.";
 
-        // 5. Handle Tickers
+        // 5. Handle Tickers (NOW CLICKABLE!)
         const tickersContainer = document.getElementById('nr-tickers');
         tickersContainer.innerHTML = '';
         if (article.relatedTickers && article.relatedTickers.length > 0) {
             let tickersHtml = '<div class="ticker-pill-container" style="margin-top:0;">';
             article.relatedTickers.forEach(t => { 
-                tickersHtml += `<span class="ticker-pill" style="background:var(--section-bg); border:none;">📈 ${t}</span>`; 
+                // Added cursor:pointer and onclick event
+                tickersHtml += `<span class="ticker-pill" style="background:var(--section-bg); border:none; cursor:pointer;" onclick="searchTickerFromNews('${t}')">📈 ${t}</span>`; 
             });
             tickersHtml += '</div>';
             tickersContainer.innerHTML = tickersHtml;
@@ -448,7 +465,6 @@ function openNewsModal(index) {
         const existingSummaryBox = document.getElementById(`ai-summary-box-${index}`);
         
         if (existingSummaryBox && existingSummaryBox.innerHTML.includes('✨')) {
-            // Strip the title and grab the text
             const aiText = existingSummaryBox.innerHTML.replace(/<strong>.*?<\/strong><br>/, '');
             document.getElementById('nr-ai-content').innerHTML = aiText;
             aiBox.style.display = 'block';
@@ -456,11 +472,188 @@ function openNewsModal(index) {
             aiBox.style.display = 'none';
         }
 
-        // 8. Open the modal (using flex to align center)
+        // 8. Open the modal
         document.getElementById('news-reader-modal').style.display = 'flex';
         
     } catch (err) {
         console.error("Error opening news modal:", err);
+    }
+}
+// Global variable to track the currently opened article in the modal
+let currentModalArticleIndex = -1;
+
+/**
+ * Updates the save button UI inside the modal
+ */
+function updateModalBookmarkUI(article) {
+    const savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
+    const isSaved = savedNews.some(savedItem => savedItem.link === article.link);
+    const btnSave = document.getElementById('nr-btn-save');
+    
+    if (isSaved) {
+        btnSave.style.background = 'var(--primary)';
+        btnSave.style.color = 'white';
+    } else {
+        btnSave.style.background = '#f2f2f7';
+        btnSave.style.color = 'inherit';
+    }
+}
+
+/**
+ * Toggles the bookmark state directly from the modal
+ */
+function toggleModalBookmark(event) {
+    if (currentModalArticleIndex === -1) return;
+    
+    // Call the existing function to toggle the bookmark
+    toggleBookmark(currentModalArticleIndex, event);
+    
+    // Immediately update the modal UI to reflect the change
+    const article = filteredNews[currentModalArticleIndex];
+    updateModalBookmarkUI(article);
+}
+
+/**
+ * Shares the article directly from the modal
+ */
+function shareModalArticle(event) {
+    if (currentModalArticleIndex === -1) return;
+    const article = filteredNews[currentModalArticleIndex];
+    
+    // Call the existing share function
+    shareArticle(article.link, article.title.replace(/'/g, "\\'"), event);
+}
+
+/**
+ * Cleanly closes the modal and stops any ongoing audio
+ */
+function closeNewsModal() {
+    document.getElementById('news-reader-modal').style.display = 'none';
+    currentModalArticleIndex = -1;
+    // Optional: Stop speech synthesis if it was playing
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+    }
+}
+
+// --- TTS AND NAVIGATION LOGIC ---
+
+let isSpeaking = false;
+let currentUtterance = null;
+
+/**
+ * Toggles the Text-To-Speech functionality for the article summary
+ */
+function toggleSpeech() {
+    const textToRead = document.getElementById('nr-summary').innerText;
+    const btnText = document.getElementById('nr-listen-text');
+    
+    if (!textToRead || !('speechSynthesis' in window)) {
+        alert("Text-to-speech non supportato dal tuo browser o nessun testo disponibile.");
+        return;
+    }
+
+    if (isSpeaking) {
+        // Stop speaking
+        window.speechSynthesis.cancel();
+        isSpeaking = false;
+        if (btnText) btnText.innerText = "Listen";
+    } else {
+        // Start speaking
+        currentUtterance = new SpeechSynthesisUtterance(textToRead);
+        currentUtterance.lang = 'it-IT'; // Using Italian as default for app language
+        currentUtterance.rate = 1.0;
+        
+        currentUtterance.onend = function() {
+            isSpeaking = false;
+            if (btnText) btnText.innerText = "Listen";
+        };
+        
+        window.speechSynthesis.speak(currentUtterance);
+        isSpeaking = true;
+        if (btnText) btnText.innerText = "Stop";
+    }
+}
+
+/**
+ * Handles clicks on ticker pills inside the modal.
+ * Navigates to the Market tab and searches for the ticker in Watchlist or Portfolio.
+ */
+function searchTickerFromNews(ticker) {
+    // 1. Close the current news modal
+    closeNewsModal();
+    
+    // 2. Switch to the Market tab
+    if (typeof changeTab === 'function') {
+        changeTab('market');
+    }
+    
+    // 3. Wait for the tab transition, then find and open the modal
+    setTimeout(() => {
+        let found = false;
+        
+        // A. Search in Watchlist Data
+        if (typeof myWatchlistData !== 'undefined' && myWatchlistData) {
+            // Find the index of the ticker in the array
+            let idx = myWatchlistData.findIndex(item => item.ticker === ticker || item.t === ticker);
+            if (idx !== -1) {
+                if (typeof openWlModal === 'function') {
+                    openWlModal(idx);
+                    found = true;
+                }
+            }
+        }
+        
+        // B. Search in Live Portfolio Data (if not in Watchlist)
+        if (!found && typeof currentPortfolioData !== 'undefined' && currentPortfolioData) {
+            const assetTypes = ['stocks', 'etfs', 'crypto'];
+            for (const type of assetTypes) {
+                if (currentPortfolioData[type]) {
+                    let idx = currentPortfolioData[type].findIndex(item => item.ticker === ticker || item.t === ticker);
+                    if (idx !== -1) {
+                        if (typeof openPortfolioModal === 'function') {
+                            openPortfolioModal(type, idx);
+                            found = true;
+                            break; // Stop searching once found
+                        }
+                    }
+                }
+            }
+        }
+        
+        // C. Fallback if the ticker is NOT tracked in the app yet
+        if (!found) {
+            alert("The ticker " + ticker + " is not currently in your Watchlist or Portfolio. Add it to view its chart.");
+            
+            // Optionally, automatically open the add to watchlist input
+            if (typeof toggleWatchlistInput === 'function') {
+                const box = document.getElementById('wl-add-box');
+                if (box && box.style.display === 'none') {
+                    toggleWatchlistInput();
+                }
+                const input = document.getElementById('wlTickerInput');
+                if (input) {
+                    input.value = ticker;
+                }
+            }
+        }
+        
+    }, 350); // 350ms delay to ensure the UI is ready after tab switch
+}
+
+/**
+ * Cleanly closes the modal and stops any ongoing audio
+ */
+function closeNewsModal() {
+    document.getElementById('news-reader-modal').style.display = 'none';
+    currentModalArticleIndex = -1;
+    
+    // Stop speech synthesis if it was playing
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        isSpeaking = false;
+        const btnText = document.getElementById('nr-listen-text');
+        if (btnText) btnText.innerText = "Listen";
     }
 }
 </script>
