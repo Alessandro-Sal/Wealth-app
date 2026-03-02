@@ -528,7 +528,7 @@ function openPortfolioModal(type, index) {
             <div style="${rowStyle}">
                 <span style="${labelStyle}">XIRR</span>
                 <div style="text-align:right;">
-                    <span style="${valStyle} ${fmtCol(item.xirr)}" class="sensitive">${item.xirr}</span>
+                    <span style="${valStyle} ${fmtCol(item.xirr)}">${item.xirr}</span>
                     ${hasData(item.xirrNote) ? `<div style="font-size:10px; font-weight:600; color:var(--gray); opacity:0.7;">${item.xirrNote}</div>` : ''}
                 </div>
             </div>`;
@@ -549,10 +549,10 @@ function openPortfolioModal(type, index) {
           if (hasData(item.firstBuyDate) || hasData(item.daysHeld) || hasData(item.tradeCount)) {
             let b3Content = '';
             
-            if (hasData(item.firstBuyDate)) b3Content += `<div style="${rowStyle}"><span style="${labelStyle}">First Buy</span><span style="${valStyle} color:var(--text-main);" class="sensitive">${item.firstBuyDate}</span></div>`;
-            if (hasData(item.daysHeld)) b3Content += `<div style="${rowStyle}"><span style="${labelStyle}">Days Held</span><span style="${valStyle} color:var(--text-main);" class="sensitive">${item.daysHeld}</span></div>`;
-            if (hasData(item.lastActivity)) b3Content += `<div style="${rowStyle}"><span style="${labelStyle}">Last Activity</span><span style="${valStyle} color:var(--text-main);" class="sensitive">${item.lastActivity}</span></div>`;
-            if (hasData(item.tradeCount)) b3Content += `<div style="${rowStyle}"><span style="${labelStyle}">Total Trades</span><span style="${valStyle} color:var(--text-main);" class="sensitive">${item.tradeCount}</span></div>`;
+            if (hasData(item.firstBuyDate)) b3Content += `<div style="${rowStyle}"><span style="${labelStyle}">First Buy</span><span style="${valStyle} color:var(--text-main);">${item.firstBuyDate}</span></div>`;
+            if (hasData(item.daysHeld)) b3Content += `<div style="${rowStyle}"><span style="${labelStyle}">Days Held</span><span style="${valStyle} color:var(--text-main);">${item.daysHeld}</span></div>`;
+            if (hasData(item.lastActivity)) b3Content += `<div style="${rowStyle}"><span style="${labelStyle}">Last Activity</span><span style="${valStyle} color:var(--text-main);">${item.lastActivity}</span></div>`;
+            if (hasData(item.tradeCount)) b3Content += `<div style="${rowStyle}"><span style="${labelStyle}">Total Trades</span><span style="${valStyle} color:var(--text-main);">${item.tradeCount}</span></div>`;
             
             // Trading Prices Subsection
             if (hasData(item.minBuy) || hasData(item.maxSell)) {
@@ -1083,4 +1083,53 @@ function performInvestSearch() {
       resCont.innerHTML = html;
   }).searchInvestHistory(query, type, year);
 }
+
+/**
+ * Toggles the visibility of the custom dropdown menu.
+ * Closes any other open dropdowns first.
+ */
+function toggleCustomDropdown(menuId) {
+    // Close all other dropdowns
+    document.querySelectorAll('.dropdown-menu').forEach(menu => {
+        if (menu.id !== menuId) menu.classList.remove('show');
+    });
+    // Toggle the target one
+    document.getElementById(menuId).classList.toggle('show');
+}
+
+/**
+ * Handles the selection of a custom dropdown option.
+ * Updates the hidden input, the UI label, highlights the active item, and triggers the chart update.
+ */
+function selectCustomOption(inputId, value, label, menuId, element) {
+    // Update hidden input value
+    document.getElementById(inputId).value = value;
+    
+    // Update UI label text
+    document.getElementById('label-' + inputId).innerText = label;
+    
+    // Remove active class from all items in this menu
+    const menu = document.getElementById(menuId);
+    menu.querySelectorAll('.dropdown-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    // Add active class (and checkmark via CSS) to the clicked item
+    element.classList.add('active');
+    
+    // Close menu
+    menu.classList.remove('show');
+    
+    // Trigger your existing chart update function
+    updateAnalyticsChart();
+}
+
+// Close dropdowns automatically if the user clicks outside of them
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.custom-dropdown')) {
+        document.querySelectorAll('.dropdown-menu').forEach(menu => {
+            menu.classList.remove('show');
+        });
+    }
+});
 </script>
