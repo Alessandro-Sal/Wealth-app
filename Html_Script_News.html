@@ -34,13 +34,12 @@ function setNewsCategory(category, buttonElement) {
 
 /**
  * Triggers the backend function to fetch news data, or loads from local storage.
- * NOW INCLUDES: Soft Reload to prevent screen flickering/jumping.
+ * Includes Soft Reload and Skeleton UI for premium loading experience.
  */
 function loadNews(category = 'market') {
   const container = document.getElementById('news-container');
   if (!container) return; 
   
-  // Instant load for saved articles
   if (category === 'saved') {
     const savedArticles = JSON.parse(localStorage.getItem('saved_news') || '[]');
     container.style.opacity = '1';
@@ -49,36 +48,42 @@ function loadNews(category = 'market') {
     return;
   }
   
-  // --- SOFT RELOAD LOGIC ---
-  // If there are already news displayed, dim them instead of clearing the screen
-  if (container.innerHTML.trim() !== "" && !container.innerHTML.includes("loader")) {
+  // --- SOFT RELOAD & SKELETON LOGIC ---
+  if (container.innerHTML.trim() !== "" && !container.innerHTML.includes("skeleton-card")) {
       container.style.opacity = '0.5'; 
       container.style.transition = 'opacity 0.3s ease';
-      container.style.pointerEvents = 'none'; // Prevent interaction while loading
+      container.style.pointerEvents = 'none'; 
   } else {
-      // First time loading (empty container)
-      container.innerHTML = '<div class="loader" style="text-align: center; color: var(--gray); padding: 40px; grid-column: 1 / -1;">Loading insights...</div>';
+      // First time loading: inject 4 Skeleton Cards
+      let skeletonHtml = '';
+      for(let i=0; i<4; i++) {
+          skeletonHtml += `
+          <div class="skeleton-card">
+              <div class="skeleton-element skel-badge"></div>
+              <div class="skeleton-element skel-title"></div>
+              <div class="skeleton-element skel-title-short"></div>
+              <div class="skeleton-element skel-text"></div>
+              <div class="skeleton-element skel-text-short"></div>
+              <div class="skeleton-element skel-footer"></div>
+          </div>`;
+      }
+      container.innerHTML = skeletonHtml;
   }
 
-  // Call the correct backend function: getMarketNews
+  // Fetch data
   google.script.run
     .withSuccessHandler(function(response) {
-        // Restore opacity and interaction once data is received
         container.style.opacity = '1';
         container.style.pointerEvents = 'auto';
-        
-        // Pass the response to your existing render logic
         renderNews(response);
     })
     .withFailureHandler(function(error) {
         console.error("Failed to load news: ", error);
         container.style.opacity = '1';
         container.style.pointerEvents = 'auto';
-        if (container) {
-            container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--danger); grid-column: 1 / -1;">Could not load news at this time. Please try again later.</div>';
-        }
+        container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--danger); grid-column: 1 / -1;">Could not load news at this time. Please try again later.</div>';
     })
-    .getMarketNews(category); // <--- FIX: This must match the name in App_News.js
+    .getMarketNews(category);
 }
 
 /**

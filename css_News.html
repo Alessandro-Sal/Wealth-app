@@ -426,4 +426,39 @@ body.dark-mode .ai-btn {
 body.dark-mode .ai-article-summary {
   background: rgba(0, 122, 255, 0.1);
 }
+
+/* --- SKELETON LOADER ANIMATION --- */
+@keyframes shimmer {
+  0% { background-position: -468px 0; }
+  100% { background-position: 468px 0; }
+}
+
+.skeleton-card {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 15px;
+  border: 1px solid rgba(0,0,0,0.04);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+}
+
+.skeleton-element {
+  background: #f6f7f8;
+  background-image: linear-gradient(to right, #f6f7f8 0%, #edeef1 20%, #f6f7f8 40%, #f6f7f8 100%);
+  background-repeat: no-repeat;
+  background-size: 800px 100%;
+  animation-duration: 1.5s;
+  animation-fill-mode: forwards;
+  animation-iteration-count: infinite;
+  animation-name: shimmer;
+  animation-timing-function: linear;
+  border-radius: 8px;
+}
+
+.skel-badge { height: 20px; width: 80px; margin-bottom: 12px; }
+.skel-title { height: 20px; width: 90%; margin-bottom: 8px; }
+.skel-title-short { height: 20px; width: 60%; margin-bottom: 15px; }
+.skel-text { height: 12px; width: 100%; margin-bottom: 6px; }
+.skel-text-short { height: 12px; width: 80%; margin-bottom: 15px; }
+.skel-footer { height: 14px; width: 120px; }
 </style>
