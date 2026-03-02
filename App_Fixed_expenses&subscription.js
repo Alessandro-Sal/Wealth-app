@@ -50,12 +50,42 @@ function getMonthlyFixedCost() {
 /**
  * Generates a status report for all subscriptions.
  * Calculates remaining payments, sets alerts, and sorts by closest payment date.
+ * NOW DYNAMIC: Checks the 'Expenses Tracker' to see if the sub was already paid this month.
  * @return {Array<Object>} Sorted list of subscription statuses.
  */
 function getSubsStatus() {
   const subs = _getSubsData();
   const today = new Date();
   const statuses = [];
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth();
+
+  // --- 1. Find fixed expenses already paid this month ---
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  // Dynamically build the sheet name (e.g., "Expenses Tracker 2026")
+  const sheet = ss.getSheetByName("Expenses Tracker " + currentYear);
+  let paidNotes = [];
+
+  if (sheet) {
+    const lastRow = sheet.getLastRow();
+    if (lastRow >= 20) { // Data starts from row 20
+      // Read Date (Col A), Type (Col B), Category (Col C), Note (Col D)
+      const data = sheet.getRange(20, 1, lastRow - 19, 4).getValues();
+      data.forEach(row => {
+        let dateVal = row[0];
+        let typeVal = row[1];
+        let noteVal = row[3];
+        
+        // If the row has a valid date belonging to the current month
+        if (dateVal instanceof Date && dateVal.getMonth() === currentMonth && dateVal.getFullYear() === currentYear) {
+          if (typeVal === "Expense") {
+            // Save the note converted to lowercase to avoid case-sensitivity issues
+            paidNotes.push(String(noteVal).trim().toLowerCase());
+          }
+        }
+      });
+    }
+  }
 
   // Helper to get total days in the current month
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
@@ -68,32 +98,37 @@ function getSubsStatus() {
       totalAmt = sub.amt;
     }
 
-   let status = {
+    // --- 2. Check if the expense has been paid ---
+    const subNoteLower = String(sub.note).trim().toLowerCase();
+    const isPaid = paidNotes.includes(subNoteLower);
+
+    let status = {
       note: sub.note,
       amount: totalAmt,
       payDay: sub.payDay || null,
-      startDate: sub.startDate || null, // Added to pass to UI
-      endDate: sub.endDate || null,     // Added to pass to UI
+      startDate: sub.startDate || null, 
+      endDate: sub.endDate || null,     
       isInstallment: !!sub.endDate,
       isActive: true,
       remainingAmount: 0,
       remainingMonths: 0,
       progressPct: 0,
       alert: false,
-      daysUntilNext: 999 
+      daysUntilNext: 999,
+      isPaid: isPaid // <-- NEW PROPERTY EXPORTED TO FRONTEND
     };
+
     // Check if subscription has started
     if (sub.startDate) {
         const start = new Date(sub.startDate);
         if (today < start) status.isActive = false;
     }
 
-    // Calculate days until next payment for sorting
+    // Calculate days until next payment
     if (sub.payDay && status.isActive) {
         if (today.getDate() <= sub.payDay) {
             status.daysUntilNext = sub.payDay - today.getDate();
         } else {
-            // Payment for this month has passed, calculate days until next month's payment
             status.daysUntilNext = (daysInMonth - today.getDate()) + sub.payDay;
         }
     }
@@ -113,24 +148,26 @@ function getSubsStatus() {
         status.remainingAmount = status.remainingMonths * totalAmt;
         status.progressPct = Math.min(100, (monthsPassed / totalMonths) * 100);
         
-        // Alert for ending installments
         if (status.remainingMonths <= 2 && status.remainingMonths > 0) status.alert = "Ending soon!";
       }
     } 
     
-    // Standard alert for upcoming payments (if no other alert is active)
-    if (status.isActive && !status.alert && sub.payDay) {
+    // --- 3. Dynamic Alert Logic (Modified for Paid status) ---
+    if (isPaid) {
+        status.alert = "Pagato ✅";
+        status.daysUntilNext = 9999; // Push to the bottom of the list for better ordering
+    } else if (status.isActive && !status.alert && sub.payDay) {
         if (status.daysUntilNext === 0) {
-            status.alert = "Due today";
+            status.alert = "Due today ⚠️";
         } else if (status.daysUntilNext <= 3) {
-            status.alert = "Due in " + status.daysUntilNext + "d";
+            status.alert = "Due in " + status.daysUntilNext + "d ⏳";
         }
     }
 
     if (status.isActive) statuses.push(status);
   });
 
-  // Sort by days until next payment (ascending order)
+  // Sort by days until next payment (ascending order), "Paid" ones will drop to the bottom (9999 days)
   statuses.sort((a, b) => a.daysUntilNext - b.daysUntilNext);
 
   return statuses;

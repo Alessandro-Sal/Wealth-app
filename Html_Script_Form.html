@@ -796,6 +796,7 @@ function fetchCategoryBreakdown(year) {
 /**
  * Fetches and renders the status of active subscriptions and installments.
  * Called automatically when switching to Recap tab.
+ * NOW INCLUDES: Subtle green visual feedback for subscriptions already paid.
  */
 function fetchSubsStatus() {
     const container = document.getElementById('subs-status-list');
@@ -812,9 +813,19 @@ function fetchSubsStatus() {
 
         let html = '';
         data.forEach(sub => {
-            // Build the Alert Badge
+            // Apply a subtle green background if paid, otherwise standard white
+            const bgStyle = sub.isPaid 
+                ? 'background: rgba(52, 199, 89, 0.05); border: 1px solid rgba(52, 199, 89, 0.2);' 
+                : 'background: var(--white); border: 1px solid rgba(0,0,0,0.04);';
+            
+            // A slight opacity reduction for paid items to make them recede visually
+            const opacityStyle = sub.isPaid ? 'opacity: 0.85; transition: 0.3s;' : 'opacity: 1;';
+
+            // Build the Alert Badge (Prioritize 'Paid' status over other alerts)
             let alertHtml = '';
-            if (sub.alert) {
+            if (sub.isPaid) {
+                alertHtml = `<span style="font-size:9px; background:rgba(52, 199, 89, 0.15); color:var(--success); padding:3px 8px; border-radius:8px; font-weight:800; margin-left:8px; text-transform:uppercase; letter-spacing: 0.5px;">✅ Paid</span>`;
+            } else if (sub.alert) {
                 alertHtml = `<span style="font-size:9px; background:rgba(255, 59, 48, 0.1); color:var(--danger); padding:3px 8px; border-radius:8px; font-weight:800; margin-left:8px; text-transform:uppercase; letter-spacing: 0.5px;">⚠️ ${sub.alert}</span>`;
             }
 
@@ -832,15 +843,15 @@ function fetchSubsStatus() {
                     dateStr = `<div style="font-size:11px; color:var(--gray); font-weight:600; margin-top:4px; display:flex; align-items:center; gap:4px;">🗓️ ${sFmt} <span style="font-size:8px;">➔</span> ${eFmt}</div>`;
                 }
 
-                // Premium UI Card for Installments (Now including dayIcon)
+                // Premium UI Card for Installments
                 html += `
-                <div style="background:var(--white); padding:16px; border-radius:18px; margin-bottom:12px; box-shadow:0 4px 15px rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.04);">
+                <div style="${bgStyle} padding:16px; border-radius:18px; margin-bottom:12px; box-shadow:0 4px 15px rgba(0,0,0,0.03); ${opacityStyle}">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
                         <div style="display:flex; align-items:flex-start; gap:12px;">
                             ${dayIcon}
                             <div>
                                 <div style="font-size:14px; font-weight:800; color:var(--text-main); display:flex; align-items:center;">
-                                    ${sub.note} ${alertHtml}
+                                    <span>${sub.note}</span> ${alertHtml}
                                 </div>
                                 ${dateStr}
                             </div>
@@ -860,13 +871,15 @@ function fetchSubsStatus() {
                     </div>
                 </div>`;
             } else {
-                // Sleek UI for Standard Subscriptions (Netflix, Gym, etc.)
+                // Sleek UI for Standard Subscriptions
                 html += `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 12px; background:var(--white); border-radius:16px; margin-bottom:8px; box-shadow:0 2px 10px rgba(0,0,0,0.02); border:1px solid rgba(0,0,0,0.03);">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 12px; ${bgStyle} border-radius:16px; margin-bottom:8px; box-shadow:0 2px 10px rgba(0,0,0,0.02); ${opacityStyle}">
                     <div style="display:flex; align-items:center; gap:12px;">
                         ${dayIcon}
                         <div style="font-size:14px; font-weight:700; color:var(--text-main); display:flex; flex-direction:column;">
-                            <div style="display:flex; align-items:center;">${sub.note} ${alertHtml}</div>
+                            <div style="display:flex; align-items:center;">
+                                <span>${sub.note}</span> ${alertHtml}
+                            </div>
                             <span style="font-size:10px; color:var(--gray); font-weight:600; margin-top:2px;">Recurring</span>
                         </div>
                     </div>
