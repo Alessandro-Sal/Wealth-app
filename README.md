@@ -96,37 +96,118 @@ Distributed under the GPL-3.0 license. See `LICENSE.md` for more information.
 
 > **⚠️ Disclaimer:** This tool is for **informational purposes only**. Always verify tax calculations with a professional accountant. The authors are not responsible for financial losses or fiscal errors.
 
-```mermaid
-graph TD
-    %% Frontend Layer (UI & Styles)
-    subgraph Frontend [Frontend / UI Layer]
-        Index(Html_Index.html)
-        Body(Html_Body.html)
-        Scripts(Html_Script_*.html)
-        CSS(css_*.html)
+graph LR
+    %% -------------------------------------
+    %% FRONTEND LAYER (Browser)
+    %% -------------------------------------
+    subgraph Frontend ["🖥️ Frontend / UI Layer (Client-side)"]
+        direction TB
+        Index("Html_Index.html (Entry Point)")
+        Body("Html_Body.html (Layout)")
+
+        subgraph Styles ["🎨 CSS Stylesheets"]
+            CSSMain("css_Main")
+            CSSComp("css_Components / Modals")
+            CSSSpec("css_Market / News")
+        end
+
+        subgraph ClientJS ["⚙️ Client Logic (JS)"]
+            JSInit("Html_Script_Init / Navigation")
+            JSUI("Html_Script_Module / Form")
+            JSSpec("Html_Script_Chart / AI / Market / News")
+        end
+
+        Index --> |includes| Body
+        Index --> |loads| Styles
+        Index --> |loads| ClientJS
     end
 
-    %% Backend Layer (GAS Controllers)
-    subgraph Backend [Backend Controllers / App_*.js]
-        AppMain(App.js)
-        AppCore(Business Logic Modules)
-        AppAI(App_AI.js & AI_Config.js)
+    %% -------------------------------------
+    %% BACKEND LAYER (Apps Script)
+    %% -------------------------------------
+    subgraph Backend ["⚙️ Backend Controllers (Server-side Apps Script)"]
+        direction TB
+        AppMain("App.js (Main Router / doGet)")
+
+        subgraph Core ["🛠️ Core & Security"]
+            AppUtils("App_Utils.js")
+            AppSec("App_Security.js")
+            AppCache("App_Cache.js")
+            AIConf("AI_Config.js")
+        end
+
+        subgraph ReadOps ["🔍 Data Fetching"]
+            Dash("App_DashboardData.js")
+            Years("App_GetDataYEARS.js")
+            Live("App_GetLivePortfolio.js")
+            Analytics("App_AnalyticsChart.js")
+        end
+
+        subgraph WriteOps ["📝 Data Mutation"]
+            InvDB("App_InvestmentsToDB.js")
+            TransDB("App_TransactionsToDB.js")
+            DelRow("App_DeleteRowToSpreadsheets.js")
+        end
+
+        subgraph AppModules ["🧩 App Modules"]
+            AI("App_AI.js")
+            Budget("App_BudgetGuardian / BudgetStatus")
+            Tax("App_TaxOptimization.js")
+            News("App_News.js")
+            Misc("App_Trips / App_Pension / App_Watchlist")
+        end
+
+        subgraph Triggers ["⏰ Automations & Cron Jobs"]
+            Briefing("App_MondayBriefing.js")
+            Alerts("App_SniperAlert.js")
+            Mails("App_MarketMail / App_DividendsMail")
+        end
+
+        AppMain -.-> Core
     end
 
-    %% Database Layer (Google Sheets Interfaces)
-    subgraph Database [Database Access / Sheets_*.js]
-        SheetsCore(Data Handling Modules)
-        SheetsTrading(Sheets_Trading.js)
+    %% -------------------------------------
+    %% DATABASE LAYER (Google Sheets)
+    %% -------------------------------------
+    subgraph Database ["📊 Database Layer (Google Sheets)"]
+        direction TB
+        SheetUtils("Sheets_Utils.js (DB Connector)")
+
+        subgraph Managers ["🗂️ Sheet Managers"]
+            Trd("Sheets_Trading.js")
+            RAssets("Sheets_RealAssets.js")
+            TaxSh("Sheets_Taxes & RealGains.js")
+            CacheFin("Sheets_Cachefinance.js")
+        end
+
+        subgraph DBMaintenance ["🧹 Maintenance Ops"]
+            Bkp("Sheets_Backup.js")
+            Arch("Sheets_Archive.js")
+            Auto("Sheets_Automation.js")
+        end
+
+        SheetUtils --> Managers
+        SheetUtils --> DBMaintenance
     end
 
-    %% External APIs
-    Gemini[Google Gemini API]
+    %% -------------------------------------
+    %% RELATIONS & DEPENDENCIES
+    %% -------------------------------------
+    
+    %% Client to Server calls
+    ClientJS ==>|google.script.run| AppMain
+    ClientJS ==>|google.script.run API calls| ReadOps
+    ClientJS ==>|google.script.run API calls| WriteOps
+    ClientJS ==>|google.script.run API calls| AppModules
 
-    %% Dependencies and Data Flow
-    Index --> |loads| Body
-    Index --> |loads| CSS
-    Index --> |loads| Scripts
-    Scripts --> |google.script.run| Backend
-    AppMain --> |routes| AppCore
-    AppCore --> |reads/writes| Database
-    AppAI --> |API Calls| Gemini
+    %% Server to Core
+    ReadOps -.->|uses| Core
+    WriteOps -.->|uses| Core
+    AppModules -.->|uses| Core
+    AppModules -->|configs| AIConf
+
+    %% Server to DB Layer
+    ReadOps ==>|calls| SheetUtils
+    WriteOps ==>|calls| SheetUtils
+    AppModules ==>|reads/writes| SheetUtils
+    Triggers ==>|scheduled query| SheetUtils
