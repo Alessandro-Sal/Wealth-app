@@ -702,6 +702,20 @@
     #p-market {
         overscroll-behavior-x: none;
     }
+    /* Force full width for the Market page wrapper */
+    #p-market .pc-wrapper {
+        max-width: 100%;
+        width: 100%;
+        padding-left: 15px;
+        padding-right: 15px;
+        box-sizing: border-box;
+    }
+
+    /* Adjust header margins to match the new full-width container */
+    #p-market .market-header-container {
+        margin-left: -15px;
+        margin-right: -15px;
+    }
 
     /* 2. Header FISSATO IN ALTO (Sticky) con bottoni */
     .market-header-container {
@@ -1483,6 +1497,20 @@
         display: inline-block !important; 
         padding: 0 10px !important;
     }
+    /* Force full width for the Recap page wrapper */
+    #p-recap .pc-wrapper {
+        max-width: 100%;
+        width: 100%;
+        padding-left: 15px;
+        padding-right: 15px;
+        box-sizing: border-box;
+    }
+
+    /* Adjust header margins to match the new full-width container in Recap */
+    #p-recap .recap-header-container {
+        margin-left: -15px;
+        margin-right: -15px;
+    }
 </style>
 
 <div id="p-recap" class="page" style="padding-top: 0;">
@@ -1584,7 +1612,7 @@
    </div>
 </div>
             
-            <div class="dash-widget span-2 span-pc-4" id="risk-card" style="flex-direction: row; align-items: center; background: linear-gradient(135deg, rgba(118, 75, 162, 0.08) 0%, var(--white) 100%); border: 1px solid rgba(118, 75, 162, 0.15);">
+            <div class="dash-widget span-2 span-pc-4" id="risk-card" style="flex-direction: row; align-items: center;">
                 <div style="flex:1;">
                     <div class="widget-title"><div class="badge-icon bg-dark">🤖</div> AI Risk Assessment</div>
                     <div id="risk-level" class="sensitive" style="font-size:20px; font-weight:800; color:var(--text-main);">Click 🔄 to calc</div>

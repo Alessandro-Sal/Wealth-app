@@ -1,4 +1,32 @@
 <style>
+  /* Force full width for the News page wrapper */
+    #p-news .pc-wrapper {
+        max-width: 100%;
+        width: 100%;
+        padding-left: 15px;
+        padding-right: 15px;
+        box-sizing: border-box;
+    }
+
+   /* Fix for News Header layout on PC */
+    #p-news .market-header-container {
+        position: -webkit-sticky !important;
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 1000 !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        margin: -15px -15px 25px -15px !important; /* Forza i margini corretti, incluso lo spazio sotto */
+        padding: 15px 20px !important;
+    }
+
+    /* Force buttons to stay inline and not float over content */
+    #p-news .market-header-container .header-actions {
+        position: relative !important;
+        top: auto !important;
+        right: auto !important;
+    }
 /* Horizontal scrollable category pills */
 .news-cat-scroll {
   display: flex;
@@ -38,10 +66,10 @@ body.dark-mode .news-cat-btn.active {
   color: #000;
 }
 
-/* Grid Layout */
+/* Allarghiamo la dimensione minima della card su PC per farla respirare */
 .news-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); /* Cambiato da 320px a 360px */
   gap: 20px;
   padding-bottom: 40px;
 }
@@ -333,13 +361,11 @@ body.dark-mode .load-more-btn:hover {
   color: var(--text-main);
 }
 
-/* Card Actions (Bookmark & Share) */
+/* Card Actions (Bookmark, Share, AI) */
 .news-card-actions {
-  position: absolute;
-  top: 15px;
-  right: 170px; /* Increased from 15px to 25px to move buttons to the left */
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
   z-index: 2;
 }
 

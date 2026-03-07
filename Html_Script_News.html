@@ -4,7 +4,7 @@ let allFetchedNews = [];
 let filteredNews = [];        
 let lastFetchedTickers = [];  
 let displayedNewsCount = 0;   
-const CHUNK_SIZE = 15;        
+const CHUNK_SIZE = 30;        
 
 /**
  * Utility: Converte il Markdown generato dall'AI in HTML pulito
@@ -211,19 +211,25 @@ function renderNextChunk() {
         openNewsModal(absoluteIndex);
     };
     
-    newsCard.innerHTML = `
-      <div class="news-card-actions">
-         <div class="ai-btn" onclick="summarizeArticle(${absoluteIndex}, event, this)" title="AI Insight">✨</div>
-         <div class="share-btn" onclick="shareArticle('${item.link}', '${item.title.replace(/'/g, "\\'")}', event)" title="Share">📤</div>
-         <div class="${bookmarkClass}" onclick="toggleBookmark(${absoluteIndex}, event)" title="Save">🔖</div>
-      </div>
-      
+   newsCard.innerHTML = `
       <div style="display: flex; align-items: flex-start; justify-content: space-between;">
           <div style="flex: 1; min-width: 0;">
-              <div class="news-card-header" style="padding-right: 170px; flex-direction: column; align-items: flex-start; gap: 6px;">
-                  <span class="news-badge" style="background:${badgeColor}; color:${badgeText};">${item.category}</span>
+              
+              <div class="news-card-header" style="display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 12px; padding-right: 10px; gap: 6px;">
+                  
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                      <span class="news-badge" style="background:${badgeColor}; color:${badgeText};">${item.category}</span>
+                      
+                      <div class="news-card-actions">
+                         <div class="ai-btn" onclick="summarizeArticle(${absoluteIndex}, event, this)" title="AI Insight">✨</div>
+                         <div class="share-btn" onclick="shareArticle('${item.link}', '${item.title.replace(/'/g, "\\'")}', event)" title="Share">📤</div>
+                         <div class="${bookmarkClass}" onclick="toggleBookmark(${absoluteIndex}, event)" title="Save">🔖</div>
+                      </div>
+                  </div>
+                  
                   <span class="news-read-time" style="white-space: nowrap;">⏱️ ${readTime} min</span>
               </div>
+              
               <h3 class="news-title">${item.title}</h3>
               ${item.summary ? `<p class="news-summary">${item.summary}</p>` : ''}
               ${tickersHtml}
@@ -240,7 +246,7 @@ function renderNextChunk() {
     `;
     
     container.appendChild(newsCard);
-  });
+      });
 
   displayedNewsCount += chunk.length;
 

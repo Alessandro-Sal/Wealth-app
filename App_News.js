@@ -103,8 +103,8 @@ function getMarketNews(category = 'market') {
         if (!channel) return;
 
         const items = channel.getChildren('item');
-        // Take up to 20 articles from EACH source to mix them well
-        const maxItems = Math.min(items.length, 20); 
+        // Take up to 30 articles from EACH source to mix them well
+        const maxItems = Math.min(items.length, 30); 
         
         for (let i = 0; i < maxItems; i++) {
           const title = items[i].getChildText('title') || "No Title";
@@ -176,7 +176,7 @@ function getMarketNews(category = 'market') {
     newsList.sort((a, b) => new Date(b.date) - new Date(a.date));
     
     // Keep the top 60 most recent articles overall
-    newsList = newsList.slice(0, 60);
+    newsList = newsList.slice(0, 100);
     
     return { articles: newsList, tickers: allTickers };
     

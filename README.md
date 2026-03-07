@@ -46,6 +46,15 @@ An advanced, mobile-first Single Page Application (SPA) built on **Google Apps S
   - [SweetAlert2](https://sweetalert2.github.io/) (Modals & Alerts)
   - [Google Gemini API](https://deepmind.google/technologies/gemini/) (AI)
 
+## 🏗️ Architecture & File Structure
+
+The project follows a strict naming convention to separate concerns between Frontend (UI), Backend (Logic), and Database (Google Sheets):
+
+* `Html_*.html` & `css_*.html`: View layer and client-side scripts.
+* `App_*.js`: Server-side controllers and business logic.
+* `Sheets_*.js`: Data access layer handling reads/writes to Google Sheets.
+
+
 ## 🚀 Installation & Setup
 
 1.  **Create a Google Sheet:**
@@ -86,3 +95,38 @@ Contributions are welcome! Please read the [contribution guidelines](CONTRIBUTIN
 Distributed under the GPL-3.0 license. See `LICENSE.md` for more information.
 
 > **⚠️ Disclaimer:** This tool is for **informational purposes only**. Always verify tax calculations with a professional accountant. The authors are not responsible for financial losses or fiscal errors.
+
+```mermaid
+graph TD
+    %% Frontend Layer (UI & Styles)
+    subgraph Frontend [Frontend / UI Layer]
+        Index(Html_Index.html)
+        Body(Html_Body.html)
+        Scripts(Html_Script_*.html)
+        CSS(css_*.html)
+    end
+
+    %% Backend Layer (GAS Controllers)
+    subgraph Backend [Backend Controllers / App_*.js]
+        AppMain(App.js)
+        AppCore(Business Logic Modules)
+        AppAI(App_AI.js & AI_Config.js)
+    end
+
+    %% Database Layer (Google Sheets Interfaces)
+    subgraph Database [Database Access / Sheets_*.js]
+        SheetsCore(Data Handling Modules)
+        SheetsTrading(Sheets_Trading.js)
+    end
+
+    %% External APIs
+    Gemini[Google Gemini API]
+
+    %% Dependencies and Data Flow
+    Index --> |loads| Body
+    Index --> |loads| CSS
+    Index --> |loads| Scripts
+    Scripts --> |google.script.run| Backend
+    AppMain --> |routes| AppCore
+    AppCore --> |reads/writes| Database
+    AppAI --> |API Calls| Gemini
