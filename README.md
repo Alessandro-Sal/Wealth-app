@@ -97,118 +97,75 @@ Distributed under the GPL-3.0 license. See `LICENSE.md` for more information.
 > **⚠️ Disclaimer:** This tool is for **informational purposes only**. Always verify tax calculations with a professional accountant. The authors are not responsible for financial losses or fiscal errors.
 
 ```mermaid
-graph LR
-    %% -------------------------------------
-    %% FRONTEND LAYER (Browser)
-    %% -------------------------------------
-    subgraph Frontend ["🖥️ Frontend / UI Layer (Client-side)"]
+flowchart TD
+    %% --- Styles ---
+    classDef frontend fill:#e1f5fe,stroke:#0288d1,stroke-width:2px,color:#01579b
+    classDef backend fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c
+    classDef database fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#1b5e20
+    classDef trigger fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#e65100
+
+    %% --- 1. FRONTEND LAYER ---
+    subgraph Frontend ["🖥️ FRONTEND LAYER (Browser UI)"]
         direction TB
-        Index("Html_Index.html (Entry Point)")
-        Body("Html_Body.html (Layout)")
-
-        subgraph Styles ["🎨 CSS Stylesheets"]
-            CSSMain("css_Main")
-            CSSComp("css_Components / Modals")
-            CSSSpec("css_Market / News")
-        end
-
-        subgraph ClientJS ["⚙️ Client Logic (JS)"]
-            JSInit("Html_Script_Init / Navigation")
-            JSUI("Html_Script_Module / Form")
-            JSSpec("Html_Script_Chart / AI / Market / News")
-        end
-
-        Index --> |includes| Body
-        Index --> |loads| Styles
-        Index --> |loads| ClientJS
+        UI["Html_Index / Html_Body"]:::frontend
+        CSS["Styles (css_Main, css_Modals, css_Market)"]:::frontend
+        JS["Client JS (Init, Navigation, Forms, AI, Charts)"]:::frontend
+        
+        UI --- CSS
+        UI --- JS
     end
 
-    %% -------------------------------------
-    %% BACKEND LAYER (Apps Script)
-    %% -------------------------------------
-    subgraph Backend ["⚙️ Backend Controllers (Server-side Apps Script)"]
+    %% --- 2. BACKEND LAYER ---
+    subgraph Backend ["⚙️ BACKEND CONTROLLERS (Apps Script)"]
         direction TB
-        AppMain("App.js (Main Router / doGet)")
-
-        subgraph Core ["🛠️ Core & Security"]
-            AppUtils("App_Utils.js")
-            AppSec("App_Security.js")
-            AppCache("App_Cache.js")
-            AIConf("AI_Config.js")
-        end
-
-        subgraph ReadOps ["🔍 Data Fetching"]
-            Dash("App_DashboardData.js")
-            Years("App_GetDataYEARS.js")
-            Live("App_GetLivePortfolio.js")
-            Analytics("App_AnalyticsChart.js")
-        end
-
-        subgraph WriteOps ["📝 Data Mutation"]
-            InvDB("App_InvestmentsToDB.js")
-            TransDB("App_TransactionsToDB.js")
-            DelRow("App_DeleteRowToSpreadsheets.js")
-        end
-
-        subgraph AppModules ["🧩 App Modules"]
-            AI("App_AI.js")
-            Budget("App_BudgetGuardian / BudgetStatus")
-            Tax("App_TaxOptimization.js")
-            News("App_News.js")
-            Misc("App_Trips / App_Pension / App_Watchlist")
-        end
-
-        subgraph Triggers ["⏰ Automations & Cron Jobs"]
-            Briefing("App_MondayBriefing.js")
-            Alerts("App_SniperAlert.js")
-            Mails("App_MarketMail / App_DividendsMail")
-        end
-
-        AppMain -.-> Core
+        Router["App.js (Main Router & doGet)"]:::backend
+        Core["Core & Config (App_Utils, Security, Cache, AI_Config)"]:::backend
+        
+        ReadOps["🔍 Data Fetching Controllers
+        (DashboardData, LivePortfolio, GetDataYEARS)"]:::backend
+        
+        WriteOps["📝 Data Mutation Controllers
+        (InvestmentsToDB, TransactionsToDB, DeleteRow)"]:::backend
+        
+        Modules["🧩 Feature Modules
+        (App_AI, TaxOptimization, BudgetGuardian, News)"]:::backend
     end
 
-    %% -------------------------------------
-    %% DATABASE LAYER (Google Sheets)
-    %% -------------------------------------
-    subgraph Database ["📊 Database Layer (Google Sheets)"]
+    %% --- AUTOMATIONS ---
+    Automations["⏰ Time-Driven Triggers
+    (MondayBriefing, SniperAlert, MarketMail)"]:::trigger
+
+    %% --- 3. DATABASE LAYER ---
+    subgraph Database ["📊 DATABASE LAYER (Google Sheets)"]
         direction TB
-        SheetUtils("Sheets_Utils.js (DB Connector)")
-
-        subgraph Managers ["🗂️ Sheet Managers"]
-            Trd("Sheets_Trading.js")
-            RAssets("Sheets_RealAssets.js")
-            TaxSh("Sheets_Taxes & RealGains.js")
-            CacheFin("Sheets_Cachefinance.js")
-        end
-
-        subgraph DBMaintenance ["🧹 Maintenance Ops"]
-            Bkp("Sheets_Backup.js")
-            Arch("Sheets_Archive.js")
-            Auto("Sheets_Automation.js")
-        end
-
-        SheetUtils --> Managers
-        SheetUtils --> DBMaintenance
+        Connector["Sheets_Utils.js (DB Connector)"]:::database
+        
+        Sheets["🗂️ Sheet Managers
+        (Trading, RealAssets, Taxes & Gains)"]:::database
+        
+        Maintenance["🧹 Maintenance
+        (Backup, Archive, Automation)"]:::database
+        
+        Connector --> Sheets
+        Connector --> Maintenance
     end
 
-    %% -------------------------------------
-    %% RELATIONS & DEPENDENCIES
-    %% -------------------------------------
+    %% --- RELATIONS & DATA FLOW ---
     
     %% Client to Server calls
-    ClientJS ==>|google.script.run| AppMain
-    ClientJS ==>|google.script.run API calls| ReadOps
-    ClientJS ==>|google.script.run API calls| WriteOps
-    ClientJS ==>|google.script.run API calls| AppModules
+    JS == "google.script.run" ==> Router
+    JS -. "Async fetch calls" .-> ReadOps
+    JS -. "Submit forms" .-> WriteOps
+    JS -. "Module requests" .-> Modules
 
-    %% Server to Core
-    ReadOps -.->|uses| Core
-    WriteOps -.->|uses| Core
-    AppModules -.->|uses| Core
-    AppModules -->|configs| AIConf
+    %% Internal Backend logic
+    Router -.-> Core
+    ReadOps -. "uses" .-> Core
+    WriteOps -. "uses" .-> Core
+    Modules -. "uses" .-> Core
 
-    %% Server to DB Layer
-    ReadOps ==>|calls| SheetUtils
-    WriteOps ==>|calls| SheetUtils
-    AppModules ==>|reads/writes| SheetUtils
-    Triggers ==>|scheduled query| SheetUtils
+    %% Server to Database calls
+    ReadOps == "Reads data" ==> Connector
+    WriteOps == "Writes data" ==> Connector
+    Modules == "Queries" ==> Connector
+    Automations == "Scheduled execution" ==> Connector
