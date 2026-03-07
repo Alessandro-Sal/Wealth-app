@@ -96,6 +96,7 @@ Distributed under the GPL-3.0 license. See `LICENSE.md` for more information.
 
 > **⚠️ Disclaimer:** This tool is for **informational purposes only**. Always verify tax calculations with a professional accountant. The authors are not responsible for financial losses or fiscal errors.
 
+```mermaid
 graph LR
     %% -------------------------------------
     %% FRONTEND LAYER (Browser)
