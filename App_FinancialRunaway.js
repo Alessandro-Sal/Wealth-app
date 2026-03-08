@@ -162,86 +162,119 @@ function getYearlyProjection(year) {
  * FIRE (Financial Independence, Retire Early) Progress Tracker.
  * Calculates progress % based on Historical/Liquid Net Worth vs. Annual Expenses.
  * Formula: Progress = Capital / (AnnualExpenses * 25)
- * * @param {number|string} year - The reference year.
+ * @param {number|string} year - The reference year.
  * @return {Object} FIRE metrics including Current NW, Target, %, and Bar width.
  */
 function getFireProgress(year) {
+  console.log("--- STARTING getFireProgress FOR YEAR: " + year + " ---");
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let fireCapital = 0;
+  const currentYear = new Date().getFullYear();
 
-  // --- 1. RETRIEVE CAPITAL (Historical from "NW analitico") ---
+  // --- 1. RETRIEVE CAPITAL (Strictly Historical from "NW analitico") ---
   const nwSheet = ss.getSheetByName("NW analitico");
   
   if (nwSheet) {
     const headers = nwSheet.getRange(1, 1, 1, nwSheet.getLastColumn()).getValues()[0];
     
-    // Find column index for the requested year
-    let colIndex = headers.indexOf(String(year));
-    if (colIndex === -1) colIndex = headers.findIndex(h => String(h).includes(String(year)));
+    // Strict match to find the exact year column (ignoring monthly date objects)
+    let colIndex = headers.findIndex(h => {
+      if (!h) return false;
+      let headerStr = String(h).trim();
+      return headerStr === String(year);
+    });
+
+    console.log("DEBUG: Exact Column Index for year " + year + " is:", colIndex);
 
     if (colIndex > -1) {
-       // Read Row 2 (Index 2)
-       // use colIndex + 1 because getRange is 1-based
        let val = nwSheet.getRange(2, colIndex + 1).getValue(); 
+       console.log("DEBUG: Raw NW value from sheet (Row 2, Col " + (colIndex + 1) + "):", val);
        
        // Clean data if string formatted
        if (typeof val === 'string') {
          val = parseFloat(val.replace(/[^0-9.,-]/g, '').replace(/\./g, '').replace(',', '.'));
        }
-       fireCapital = (typeof val === 'number') ? val : 0;
+       fireCapital = (typeof val === 'number' && !isNaN(val)) ? val : 0;
     } 
+  } else {
+    console.log("DEBUG: Sheet 'NW analitico' NOT FOUND!");
   }
 
-  // --- FALLBACK: LIVE DATA (Only if Current Year and historical data missing) ---
-  const currentYear = new Date().getFullYear();
-  if ((fireCapital === 0 || !fireCapital) && String(year) === String(currentYear)) {
-     const sheetOggi = ss.getSheetByName("Net Worth OGGI");
-     if (sheetOggi) {
-        // Row 26 = Liquid Net Worth (EUR) LIVE
-        let val = sheetOggi.getRange(26, 1).getValue(); 
-        fireCapital = (typeof val === 'number') ? val : 0;
-     }
-  }
+  console.log("DEBUG: FINAL fireCapital to be used:", fireCapital);
 
   // --- 2. CALCULATE ANNUAL EXPENSES ---
-  const expSheet = ss.getSheetByName("Expenses Tracker " + year);
+  // Try to use past year for a stable FIRE target
+  let expenseYear = String(year) === String(currentYear) ? parseInt(year) - 1 : parseInt(year);
+  let expSheet = ss.getSheetByName("Expenses Tracker " + expenseYear);
+  let isFallbackYear = false;
+
+  console.log("DEBUG: Trying to fetch expenses for year:", expenseYear);
+
+  // Fallback: If the past year's sheet doesn't exist, use requested year
+  if (!expSheet) {
+      console.log("DEBUG: Sheet 'Expenses Tracker " + expenseYear + "' NOT FOUND. Falling back to current year.");
+      expenseYear = parseInt(year);
+      expSheet = ss.getSheetByName("Expenses Tracker " + expenseYear);
+      isFallbackYear = true;
+  }
+
   let annualExpenses = 0;
-  let currentExpense = 0; // Scope variable correctly
+  let currentExpense = 0;
+  let activeMonths = new Set();
   
   if (expSheet && expSheet.getLastRow() >= 20) {
     const data = expSheet.getRange(20, 1, expSheet.getLastRow() - 19, 10).getValues();
-    let activeMonths = new Set();
 
     data.forEach(row => {
       if (!row[0]) return;
+      
       let d = new Date(row[0]);
-      if (d.getFullYear() != year) return; 
+      // Validate date object and check if it matches the target year
+      if (isNaN(d.getTime()) || d.getFullYear() != expenseYear) return; 
       
       let type = String(row[1]).toLowerCase();
       
       if (type.includes('expense') || type.includes('spesa')) {
-         let rowSum = 0;
+         let rowAmount = 0;
+         
+         // Sum columns E to J (Indices 4 to 9) allowing positive/negative netting
          for (let j = 4; j <= 9; j++) {
-           let v = parseFloat(row[j]);
-           if (!isNaN(v)) rowSum += Math.abs(v);
+           let val = row[j];
+           
+           if (typeof val === 'string') {
+               let cleanStr = val.replace(/[^0-9.,-]/g, '');
+               if (cleanStr.includes(',') && cleanStr.includes('.')) {
+                   cleanStr = cleanStr.replace(/\./g, '').replace(',', '.'); 
+               } else if (cleanStr.includes(',')) {
+                   cleanStr = cleanStr.replace(',', '.');
+               }
+               val = parseFloat(cleanStr);
+           }
+           if (typeof val === 'number' && !isNaN(val)) {
+               rowAmount += val; 
+           }
          }
-         if (rowSum > 0) {
-           currentExpense += rowSum;
-           activeMonths.add(d.getMonth());
+         
+         // Apply absolute value AFTER the row is summed (Matches getYearlyTotals logic)
+         if (rowAmount !== 0) {
+            currentExpense += Math.abs(rowAmount);
+            activeMonths.add(d.getMonth());
          }
       }
     });
 
-    let months = activeMonths.size || 1;
-    
-    // Projection Logic:
-    // If Current Year -> Project expenses to 12 months based on run rate.
-    // If Past Year -> Use actual total expenses.
-    if (String(year) === String(currentYear)) {
+    console.log("DEBUG: Total raw expenses found:", currentExpense, "| Active months:", activeMonths.size);
+
+    if (isFallbackYear && String(year) === String(currentYear)) {
+        let months = activeMonths.size || 1;
         annualExpenses = (currentExpense / months) * 12;
+        console.log("DEBUG: Projected annual expenses (Run Rate):", annualExpenses);
     } else {
         annualExpenses = currentExpense;
+        console.log("DEBUG: Historical annual expenses:", annualExpenses);
     }
+  } else {
+    console.log("DEBUG: Expense sheet missing or empty!");
   }
 
   if (annualExpenses === 0) annualExpenses = 1; // Prevent division by zero
@@ -252,6 +285,10 @@ function getFireProgress(year) {
 
   // Cap bar at 100% for UI purposes
   let barPct = progressPct > 100 ? 100 : progressPct;
+
+  console.log("DEBUG: Final FIRE Target:", fireNumber);
+  console.log("DEBUG: Final Progress %:", progressPct);
+  console.log("--- END getFireProgress ---");
 
   return {
     currentNW: fireCapital,
