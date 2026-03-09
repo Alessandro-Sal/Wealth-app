@@ -947,10 +947,34 @@
             <div class="dash-widget">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
                     <div class="widget-title" style="margin:0;"><span class="live-dot"></span> Portfolio Live</div>
+                    <button id="btn-toggle-view" onclick="togglePortfolioView()" style="background:var(--section-bg); border:none; border-radius:8px; width:32px; height:32px; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 5px rgba(0,0,0,0.05);">🗂️</button>
                 </div>
                 
                 <div id="live-day-change"></div>
-                
+    <div id="terminal-toolbar" class="term-toolbar" style="display:none;">
+    <div class="term-filters" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <div class="term-chip active" onclick="setTermFilter('all', this)">All</div>
+        <div class="term-chip" onclick="setTermFilter('profit', this)">🟢 Profit</div>
+        <div class="term-chip" onclick="setTermFilter('loss', this)">🔴 Loss</div>
+        <div class="term-chip" onclick="setTermFilter('eur', this)">🇪🇺 EUR</div>
+        <div class="term-chip" onclick="setTermFilter('usd', this)">🇺🇸 USD</div>
+        
+        <select id="term-adv-filter" onchange="setAdvFilter(this.value)" class="term-select">
+            <option value="">⚙️ All Categories</option>
+            </select>
+
+        <select id="term-group-by" onchange="setTermGroupBy(this.value)" class="term-select" style="border-color: var(--primary); color: var(--primary);">
+            <option value="">🗂️ No Grouping</option>
+            <option value="sector">🗂️ Group by Sector</option>
+            <option value="ind">🗂️ Group by Industry</option>
+            <option value="ctry">🗂️ Group by Country</option>
+            <option value="curr">🗂️ Group by Currency</option>
+        </select>
+    </div>
+    <div class="term-actions">
+        <button class="term-action-btn" onclick="exportTerminalCSV()">📥 Export Full CSV</button>
+    </div>
+</div>
                 <div class="live-asset-group">
                     <div class="live-asset-title">
                         <div style="font-size:14px; font-weight:800; color:var(--text-main);">📈 STOCKS</div>

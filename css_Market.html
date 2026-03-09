@@ -142,4 +142,193 @@
 .dropdown-item.active { color: var(--primary); font-weight: 800; background: rgba(0, 122, 255, 0.05); }
 .dropdown-item.active::after { content: '✓'; font-weight: 900; }
 @keyframes popIn { 0% { opacity: 0; transform: translateY(-10px) scale(0.98); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+
+/* --- BLOOMBERG TERMINAL VIEW --- */
+.terminal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Inter', var(--font-mono, monospace);
+    font-size: 11px;
+}
+
+.terminal-table th {
+    text-align: right;
+    padding: 8px 10px;
+    color: var(--gray);
+    border-bottom: 2px solid var(--row-border);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    background: var(--section-bg);
+}
+
+/* Category Dividers */
+.term-group-divider {
+    border-left: 1px solid rgba(142, 142, 147, 0.3) !important;
+}
+
+.terminal-table td {
+    text-align: right;
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(0,0,0,0.02);
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    white-space: nowrap;
+}
+body.dark-mode .terminal-table td { border-bottom: 1px solid rgba(255,255,255,0.02); }
+
+/* Sticky first column (Ticker) */
+.terminal-table th:first-child,
+.terminal-table td:first-child {
+    text-align: left;
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--white);
+    font-weight: 800;
+    border-right: 1px solid rgba(142, 142, 147, 0.3);
+}
+body.dark-mode .terminal-table th:first-child,
+body.dark-mode .terminal-table td:first-child { background: #1c1c1e; }
+
+.terminal-table th:first-child { background: var(--section-bg); z-index: 3; }
+
+/* Colors for positive/negative */
+.term-pos { color: var(--stocks-bg, #34c759) !important; font-weight: 800; }
+.term-neg { color: var(--danger, #ff3b30) !important; font-weight: 800; }
+.term-neu { color: var(--gray, #8e8e93) !important; }
+
+.terminal-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--white);
+    border-radius: 12px;
+    padding: 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+    border: 1px solid var(--row-border);
+}
+body.dark-mode .terminal-container { background: #1c1c1e; }
+
+/* --- ADVANCED TERMINAL TOOLBAR & FEATURES --- */
+.term-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 5px;
+    margin-bottom: 5px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.term-filters {
+    display: flex;
+    gap: 8px;
+}
+.term-chip {
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    background: var(--section-bg);
+    color: var(--gray);
+    border: 1px solid rgba(0,0,0,0.05);
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+.term-chip.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+.term-actions {
+    display: flex;
+    gap: 8px;
+}
+.term-action-btn {
+    padding: 6px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    background: var(--white);
+    color: var(--text-main);
+    border: 1px solid var(--row-border);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+}
+/* Quick Trade & Alerts buttons inside terminal rows */
+.row-action-btn {
+    background: transparent;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+    padding: 0 4px;
+}
+.row-action-btn:hover { opacity: 1; transform: scale(1.1); }
+
+/* --- ADVANCED TERMINAL FILTER SELECT --- */
+.term-select {
+    padding: 6px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--white);
+    color: var(--text-main);
+    border: 1px solid var(--row-border);
+    outline: none;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+}
+body.dark-mode .term-select {
+    background: #2c2c2e;
+    color: white;
+    border-color: rgba(255,255,255,0.1);
+}
+
+/* --- TERMINAL HEATMAP & PIVOT STYLES --- */
+
+/* Heatmap base cell */
+.term-heatmap {
+    transition: background-color 0.2s;
+    border-radius: 4px;
+}
+
+/* Pivot / Group Header Row */
+.term-group-header td {
+    background: var(--section-bg);
+    color: var(--text-main);
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 10px;
+    border-top: 2px solid var(--row-border);
+    border-bottom: 2px solid var(--row-border);
+    text-align: left !important;
+    position: sticky;
+    left: 0;
+}
+body.dark-mode .term-group-header td {
+    background: #2c2c2e;
+}
+
+/* Subtotal highlights inside the group header */
+.term-subtotal {
+    background: var(--white);
+    padding: 2px 8px;
+    border-radius: 6px;
+    margin-left: 10px;
+    font-size: 11px;
+    color: var(--gray);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+body.dark-mode .term-subtotal { background: #1c1c1e; }
+.term-subtotal b { color: var(--text-main); font-weight: 800; font-variant-numeric: tabular-nums; }
 </style>
