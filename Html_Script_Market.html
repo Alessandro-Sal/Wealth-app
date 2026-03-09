@@ -409,46 +409,37 @@ function openPortfolioModal(type, index) {
       }
 
       // --- ADVANCED PORTFOLIO STATS SECTION ---
-      // Check if container exists, otherwise create it dynamically
       let statsContainer = document.getElementById('portfolio-advanced-stats');
       if (!statsContainer) {
           statsContainer = document.createElement('div');
           statsContainer.id = 'portfolio-advanced-stats';
           statsContainer.style.marginTop = "20px";
           statsContainer.style.marginBottom = "20px";
-          // Insert after the value container
           if (valContainer && valContainer.parentNode) {
               valContainer.parentNode.parentNode.insertBefore(statsContainer, valContainer.parentNode.nextSibling);
           }
       }
 
       if (statsContainer) {
-          // Helper: Color logic
+          // Format Helpers
           const fmtCol = (val) => {
              if(!val) return 'color:var(--text-main);';
              if(String(val).includes('-')) return 'color:var(--danger, #ff3b30);';
              return 'color:var(--stocks-bg, #34c759);';
           };
-          
           const hasData = (v) => (v && v !== "" && v !== "0" && v !== "-" && v !== "€ 0,00");
-
-          // --- YIELD ON COST CALCULATION ---
-          let divYieldOnCost = null;
-          if (hasData(item.div) && hasData(item.avgPrice) && hasData(item.qty)) {
-              let smartParse = (v) => {
-                  let s = String(v).replace(/[^0-9.,-]/g, '');
-                  if (s.indexOf(',') > -1 && s.indexOf('.') > -1) s = s.replace(/\./g, '').replace(',', '.');
-                  else if (s.indexOf(',') > -1) s = s.replace(',', '.');
-                  return parseFloat(s) || 0;
-              };
-              let cDiv = smartParse(item.div);
-              let cAvg = smartParse(item.avgPrice);
-              let cQty = smartParse(item.qty);
-              let totalInvested = cAvg * cQty;
-              if (totalInvested > 0 && cDiv > 0) {
-                  divYieldOnCost = ((cDiv / totalInvested) * 100).toFixed(2) + "%";
-              }
-          }
+          const formatPct = (val) => {
+              let s = String(val);
+              if (s.includes('%')) return s; 
+              let n = parseFloat(s.replace(',', '.'));
+              if (isNaN(n)) return val;
+              return (n * 100).toFixed(2) + '%';
+          };
+          const formatNum = (val) => {
+              let n = parseFloat(String(val).replace(',', '.'));
+              if (isNaN(n)) return val;
+              return n.toFixed(2);
+          };
 
           // IN-LINE CSS STYLES
           const rowStyle = "display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.05);";
@@ -456,7 +447,7 @@ function openPortfolioModal(type, index) {
           const valStyle = "font-size: 14px; font-weight: 700; font-family: var(--font-mono, monospace); letter-spacing: -0.5px;";
           const groupStyle = "background: var(--card-bg, #fff); border-radius: 16px; padding: 5px 15px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.03);";
 
-          // CARD 1: TECHNICAL STATS (AGGIUNTO "sensitive" a Quantity, Avg, BEP, Delta)
+          // CARD 1: TECHNICAL STATS 
           let block1 = `
             <div style="${groupStyle}">
                 <div style="${rowStyle}">
@@ -509,7 +500,7 @@ function openPortfolioModal(type, index) {
                 <span style="${labelStyle}">Dividends</span>
                 <div style="text-align:right;">
                     <span style="${valStyle} color:var(--primary, #007aff);" class="sensitive">${item.div}</span>
-                    ${divYieldOnCost ? `<div style="font-size:10px; font-weight:600; color:var(--primary); opacity:0.7;">${divYieldOnCost} Yield</div>` : ''}
+                    ${hasData(item.yoc) ? `<div style="font-size:10px; font-weight:600; color:var(--primary); opacity:0.7;">Yield on Cost: ${formatPct(item.yoc)}</div>` : ''}
                 </div>
             </div>`;
           }
@@ -524,13 +515,34 @@ function openPortfolioModal(type, index) {
             </div>`;
           }
 
-          if (hasData(item.xirr)) {
+          if (hasData(item.xirrUnrealized)) {
              block2Content += `
             <div style="${rowStyle}">
-                <span style="${labelStyle}">XIRR</span>
+                <span style="${labelStyle}">Unrealized XIRR</span>
                 <div style="text-align:right;">
-                    <span style="${valStyle} ${fmtCol(item.xirr)}">${item.xirr}</span>
-                    ${hasData(item.xirrNote) ? `<div style="font-size:10px; font-weight:600; color:var(--gray); opacity:0.7;">${item.xirrNote}</div>` : ''}
+                    <span style="${valStyle} ${fmtCol(item.xirrUnrealized)}">${formatPct(item.xirrUnrealized)}</span>
+                    ${hasData(item.xirrUnrealizedNote) ? `<div style="font-size:10px; font-weight:600; color:var(--gray); opacity:0.7; max-width:200px; white-space:normal; line-height:1.2; text-align:right; float:right; margin-top:2px;">${item.xirrUnrealizedNote}</div>` : ''}
+                </div>
+            </div>`;
+          }
+
+          if (hasData(item.xirrRealized)) {
+             block2Content += `
+            <div style="${rowStyle}">
+                <span style="${labelStyle}">Realized XIRR</span>
+                <div style="text-align:right;">
+                    <span style="${valStyle} ${fmtCol(item.xirrRealized)}">${formatPct(item.xirrRealized)}</span>
+                    ${hasData(item.xirrRealizedNote) ? `<div style="font-size:10px; font-weight:600; color:var(--gray); opacity:0.7; max-width:200px; white-space:normal; line-height:1.2; text-align:right; float:right; margin-top:2px;">${item.xirrRealizedNote}</div>` : ''}
+                </div>
+            </div>`;
+          }
+
+          if (hasData(item.twr)) {
+             block2Content += `
+            <div style="${rowStyle}">
+                <span style="${labelStyle}">TWR (Mod. Dietz)</span>
+                <div style="text-align:right;">
+                    <span style="${valStyle} ${fmtCol(item.twr)}">${formatPct(item.twr)}</span>
                 </div>
             </div>`;
           }
@@ -545,7 +557,8 @@ function openPortfolioModal(type, index) {
             </div>`;
 
           let block2 = `<div style="${groupStyle}"><div style="padding: 8px 0 0 0; font-size:11px; font-weight:800; text-transform:uppercase; color:var(--gray); letter-spacing:1px; opacity:0.7;">Performance</div>${block2Content}</div>`;
-          // CARD 3: TRADING STATS (Tutto sensitive)
+          
+          // CARD 3: TRADING STATS 
           let block3 = '';
           if (hasData(item.firstBuyDate) || hasData(item.daysHeld) || hasData(item.tradeCount)) {
             let b3Content = '';
@@ -558,10 +571,30 @@ function openPortfolioModal(type, index) {
             // Trading Prices Subsection
             if (hasData(item.minBuy) || hasData(item.maxSell)) {
                b3Content += `<div style="background:#f9f9f9; padding:8px; border-radius:8px; margin-top:8px;">`;
-               if (hasData(item.minBuy)) b3Content += `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;"><span style="color:#666;">Min Buy:</span> <b class="sensitive">${item.minBuy}</b></div>`;
-               if (hasData(item.maxBuy)) b3Content += `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;"><span style="color:#666;">Max Buy:</span> <b class="sensitive">${item.maxBuy}</b></div>`;
-               if (hasData(item.avgSell)) b3Content += `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:#ff9500;"><span style="color:#666;">Avg Sell:</span> <b class="sensitive">${item.avgSell}</b></div>`;
-               if (hasData(item.maxSell)) b3Content += `<div style="display:flex; justify-content:space-between; font-size:11px; color:#ff9500;"><span style="color:#666;">Max Sell:</span> <b class="sensitive">${item.maxSell}</b></div>`;
+               if (hasData(item.minBuy)) b3Content += `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;"><span style="color:var(--gray);">Min Buy:</span> <b class="sensitive">${item.minBuy}</b></div>`;
+               if (hasData(item.maxBuy)) b3Content += `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;"><span style="color:var(--gray);">Max Buy:</span> <b class="sensitive">${item.maxBuy}</b></div>`;
+               if (hasData(item.avgSell)) b3Content += `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:#ff9500;"><span style="color:var(--gray);">Avg Sell:</span> <b class="sensitive">${item.avgSell}</b></div>`;
+               if (hasData(item.maxSell)) b3Content += `<div style="display:flex; justify-content:space-between; font-size:11px; color:#ff9500;"><span style="color:var(--gray);">Max Sell:</span> <b class="sensitive">${item.maxSell}</b></div>`;
+               b3Content += `</div>`;
+            }
+
+            // New Advanced Trading Stats Subsection
+            if (hasData(item.winRate) || hasData(item.profitFactor) || hasData(item.drawdown)) {
+               b3Content += `<div style="background:rgba(88, 86, 214, 0.05); border:1px solid rgba(88, 86, 214, 0.1); padding:8px; border-radius:8px; margin-top:8px;">`;
+               if (hasData(item.winRate)) {
+                   let wrNum = parseFloat(String(item.winRate).replace(',','.'));
+                   let wrCol = wrNum >= 0.5 ? 'color:var(--stocks-bg);' : 'color:var(--danger);';
+                   b3Content += `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;"><span style="color:var(--gray);">Win Rate:</span> <b class="sensitive" style="${wrCol}">${formatPct(item.winRate)}</b></div>`;
+               }
+               if (hasData(item.profitFactor)) {
+                   let pfNum = parseFloat(String(item.profitFactor).replace(',','.'));
+                   let pfCol = pfNum >= 1 ? 'color:var(--stocks-bg);' : 'color:var(--danger);';
+                   let pfText = pfNum == 999 ? 'Perfect' : formatNum(item.profitFactor) + 'x';
+                   b3Content += `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;"><span style="color:var(--gray);">Profit Factor:</span> <b class="sensitive" style="${pfCol}">${pfText}</b></div>`;
+               }
+               if (hasData(item.drawdown)) {
+                   b3Content += `<div style="display:flex; justify-content:space-between; font-size:11px;"><span style="color:var(--gray);">Drawdown:</span> <b class="sensitive" style="color:var(--danger);">${formatPct(item.drawdown)}</b></div>`;
+               }
                b3Content += `</div>`;
             }
             

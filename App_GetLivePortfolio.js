@@ -1,7 +1,7 @@
 /**
  * Retrieves live portfolio data including detailed metrics for Stocks, ETFs, and Crypto.
- * Reads extended data points from the "Stocks" sheet (Cols A-AW).
- * Reads extended data points from the "Crypto" sheet (Cols A-AD).
+ * Reads extended data points from the "Stocks" sheet (Cols A-BD).
+ * Reads extended data points from the "Crypto" sheet (Cols A-AK).
  * Fetches daily global performance from the Dashboard.
  * @return {Object} Structured data object: { stocks, etfs, crypto, dayChange }.
  */
@@ -14,8 +14,8 @@ function getLivePortfolio() {
   let etfs = [];
   
   if (sheet && sheet.getLastRow() >= 3) {
-    // Read 49 columns (up to AW)
-    const data = sheet.getRange(3, 1, sheet.getLastRow() - 2, 49).getDisplayValues();
+    // Read 56 columns (up to BD)
+    const data = sheet.getRange(3, 1, sheet.getLastRow() - 2, 56).getDisplayValues();
     
     const allItems = data.map(r => {
       // Skip empty rows or assets with 0 value
@@ -72,10 +72,18 @@ function getLivePortfolio() {
         lastActivity: r[44], // AS: Last Activity
         tradeCount: r[45],   // AT: Trade Count
         
-        // --- NEW METRICS (Columns AU-AW) ---
         expectedDividend: r[46], // AU: Expected Dividend
-        xirr: r[47],             // AV: XIRR
-        xirrNote: r[48]          // AW: Note XIRR
+        
+        // --- NEW ADVANCED METRICS (Columns AV-BD) ---
+        xirrUnrealized: r[47],     // AV: XIRR Unrealized
+        xirrUnrealizedNote: r[48], // AW: Note Unrealized
+        xirrRealized: r[49],       // AX: XIRR Realized
+        xirrRealizedNote: r[50],   // AY: Note Realized
+        twr: r[51],                // AZ: TWR (Modified Dietz)
+        yoc: r[52],                // BA: Yield on Cost
+        winRate: r[53],            // BB: Win Rate
+        profitFactor: r[54],       // BC: Profit Factor
+        drawdown: r[55]            // BD: Drawdown
       };
     }).filter(i => i !== null);
 
@@ -88,8 +96,8 @@ function getLivePortfolio() {
   let cryptoData = [];
   const cSheet = ss.getSheetByName("Crypto");
   if(cSheet && cSheet.getLastRow() >= 3) {
-      // Read up to column AD (Index 29) -> reading 30 cols total
-      cryptoData = cSheet.getRange(3, 1, cSheet.getLastRow()-2, 30).getDisplayValues()
+      // Read up to column AK (Index 36) -> reading 37 cols total
+      cryptoData = cSheet.getRange(3, 1, cSheet.getLastRow()-2, 37).getDisplayValues()
         .map(r => {
             if(!r[0]) return null; // Skip if no ticker
             
@@ -114,7 +122,7 @@ function getLivePortfolio() {
                 bep: r[17],           // R: BreakEven Point
                 delta: r[18],         // S: Delta
                 
-                // --- TRADING & XIRR DATA (Columns T-AD) ---
+                // --- TRADING DATA (Columns T-AB) ---
                 firstBuyDate: r[19],  // T: First Buy Date
                 firstPrice: r[20],    // U: First Price
                 minBuy: r[21],        // V: Min Buy Price
@@ -124,8 +132,17 @@ function getLivePortfolio() {
                 daysHeld: r[25],      // Z: Days Held
                 lastActivity: r[26],  // AA: Last Activity
                 tradeCount: r[27],    // AB: Trade Count
-                xirr: r[28],          // AC: XIRR
-                xirrNote: r[29],      // AD: Note XIRR
+                
+                // --- NEW ADVANCED METRICS (Columns AC-AK) ---
+                xirrUnrealized: r[28],     // AC: XIRR Unrealized
+                xirrUnrealizedNote: r[29], // AD: Note Unrealized
+                xirrRealized: r[30],       // AE: XIRR Realized
+                xirrRealizedNote: r[31],   // AF: Note Realized
+                twr: r[32],                // AG: TWR (Modified Dietz)
+                yoc: r[33],                // AH: Yield on Cost
+                winRate: r[34],            // AI: Win Rate
+                profitFactor: r[35],       // AJ: Profit Factor
+                drawdown: r[36],           // AK: Drawdown
                 
                 // --- METADATA (Defaulting) ---
                 div: "",              // No dividends column specified
