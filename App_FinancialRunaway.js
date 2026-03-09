@@ -171,8 +171,8 @@ function getFireProgress(year) {
   let fireCapital = 0;
   const currentYear = new Date().getFullYear();
 
-  // --- 1. RETRIEVE CAPITAL (Strictly Historical from "NW analitico") ---
-  const nwSheet = ss.getSheetByName("NW analitico");
+  // --- 1. RETRIEVE CAPITAL (Strictly Historical from "NW Analitico") ---
+  const nwSheet = ss.getSheetByName("NW Analitico");
   
   if (nwSheet) {
     const headers = nwSheet.getRange(1, 1, 1, nwSheet.getLastColumn()).getValues()[0];

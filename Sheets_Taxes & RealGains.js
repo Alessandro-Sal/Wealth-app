@@ -102,7 +102,7 @@ function normalizeData(dates, security, actions, quantity, priceCol, spentCol, t
   return cleanData;
 }
 
-// --- 3. ENGINE A: PORTFOLIO DASHBOARD (WITH SELL METRICS & XIRR) ---
+// --- 3. ENGINE A: PORTFOLIO DASHBOARD (WITH METRICS, XIRR, TWR & EFFICIENCY) ---
 
 function calculatePortfolioStats(allData, currentPrices = new Map()) {
   let portfolio = new Map(); 
@@ -116,7 +116,7 @@ function calculatePortfolioStats(allData, currentPrices = new Map()) {
     let ticker = trade.ticker;
     let precision = (trade.type === "Crypto") ? 8 : 5;
 
-    // Initialize Stats Object
+    // Initialize Stats Object with extended efficiency metrics
     if (!stats.has(ticker)) {
       stats.set(ticker, { 
         type: trade.type, 
@@ -132,7 +132,11 @@ function calculatePortfolioStats(allData, currentPrices = new Map()) {
         totalSoldRevenue: 0,
         tradeCount: 0,
         lastActionDate: null,
-        cashFlows: [] // Store cash flows for XIRR
+        cashFlows: [], 
+        winningTrades: 0, // Efficiency Metric
+        losingTrades: 0,  // Efficiency Metric
+        grossProfit: 0,   // Efficiency Metric
+        grossLoss: 0      // Efficiency Metric
       });
     }
     let s = stats.get(ticker);
@@ -180,7 +184,9 @@ function calculatePortfolioStats(allData, currentPrices = new Map()) {
       let sharesToSell = Number(trade.qty.toFixed(precision));
       let salePrice = trade.unitPrice;
       
-      // FIFO Loop to close lots
+      let sellPnL = 0; // Track PnL for this specific Sell execution
+
+      // FIFO Loop to close lots (determines Unrealized basis)
       while (sharesToSell > 0 && activeTrades.length > 0) {
         let oldestTrade = activeTrades[0];
         let availableShares = Number(oldestTrade.shares.toFixed(precision));
@@ -193,8 +199,21 @@ function calculatePortfolioStats(allData, currentPrices = new Map()) {
 
         let costBasis = sharesTaken * oldestTrade.price;
         let revLot = sharesTaken * salePrice;
-        s.tradingPnL += (revLot - costBasis);
+        
+        let lotPnL = (revLot - costBasis);
+        s.tradingPnL += lotPnL;
+        sellPnL += lotPnL; 
       }
+      
+      // Update Trading Efficiency Metrics
+      if (sellPnL > 0) {
+          s.winningTrades += 1;
+          s.grossProfit += sellPnL;
+      } else if (sellPnL < 0) {
+          s.losingTrades += 1;
+          s.grossLoss += Math.abs(sellPnL);
+      }
+
       if (activeTrades.length === 0) portfolio.delete(ticker);
     }
   }
@@ -247,7 +266,6 @@ function calculatePortfolioStats(allData, currentPrices = new Map()) {
       let timeDiff = today.getTime() - tv.activeSince.getTime();
       daysHeld = Math.floor(timeDiff / (1000 * 3600 * 24));
     } else if (status === "CLOSED" && s.firstBuyDate && s.lastActionDate) {
-      // Approximate days held for closed positions
       let timeDiff = s.lastActionDate.getTime() - s.firstBuyDate.getTime();
       daysHeld = Math.floor(timeDiff / (1000 * 3600 * 24));
     }
@@ -255,7 +273,6 @@ function calculatePortfolioStats(allData, currentPrices = new Map()) {
     let finalMinPrice = (s.minBuyPrice === Infinity) ? 0 : s.minBuyPrice;
     let avgSellPrice = (s.totalSoldShares > 0) ? (s.totalSoldRevenue / s.totalSoldShares) : 0;
 
-    // Auto-Analysis Logic
     let analysisNotes = [];
     if (tradingRoiPct < -0.01 && totalRoiPct > 0) analysisNotes.push("🐮 Cash Cow: Gain via Divs.");
     if (tradingRoiPct > 0.05 && (totalRoiPct - tradingRoiPct) < 0.01) analysisNotes.push("📈 Pure Trading.");
@@ -266,52 +283,151 @@ function calculatePortfolioStats(allData, currentPrices = new Map()) {
 
     let finalNote = analysisNotes.join(" | ");
 
-    // --- XIRR CALCULATION PER ASSET ---
-    let assetXIRR = 0;
-    let tickerCashFlows = [...s.cashFlows]; 
-    
     let currentMarketPrice = currentPrices.has(ticker) ? currentPrices.get(ticker) : avgPrice; 
     let finalMarketValue = tv.shares * currentMarketPrice;
 
-    if (tv.shares > 0.000001) {
-       tickerCashFlows.push({ date: today, amount: finalMarketValue });
-    }
-
-    if (tickerCashFlows.length > 1) {
-       assetXIRR = calculateInternalXIRR(tickerCashFlows);
-       if (typeof assetXIRR === 'string') assetXIRR = 0; 
-    }
-
-    // --- NEW: XIRR VS ROI EXPLANATION LOGIC ---
-    let xirrExplanation = "";
-    if (typeof assetXIRR === 'number' && assetXIRR !== 0) {
-      let roiStr = (totalRoiPct * 100).toFixed(1) + "%";
-      let xirrStr = (assetXIRR * 100).toFixed(1) + "%";
+    // --- 3A. UNREALIZED XIRR (Only open lots) ---
+    let assetXirrUnrealized = 0;
+    let noteUnrealized = status === "CLOSED" ? "Position closed. No Unrealized XIRR." : "Insufficient data.";
+    
+    if (status === "OPEN" && portfolio.has(ticker)) {
+      let unrealizedCashFlows = [];
+      let lots = portfolio.get(ticker);
       
-      if (daysHeld > 0 && daysHeld < 365 && assetXIRR > totalRoiPct) {
-        xirrExplanation = `Short hold (${daysHeld} days): ${roiStr} ROI projected over 1 year accelerates XIRR to ${xirrStr}.`;
-      } else if (daysHeld >= 365 && assetXIRR < totalRoiPct) {
-        xirrExplanation = `Long hold (${daysHeld} days): ${roiStr} ROI diluted over multiple years reduces annual XIRR to ${xirrStr}.`;
-      } else if (daysHeld >= 365 && assetXIRR > (totalRoiPct + 0.05)) {
-        xirrExplanation = `Recent heavy capital: Recent buys/dividends performed well, pushing XIRR (${xirrStr}) above historic ROI (${roiStr}).`;
-      } else {
-        xirrExplanation = `XIRR (${xirrStr}) and ROI (${roiStr}) are naturally aligned.`;
+      for (let lot of lots) {
+        unrealizedCashFlows.push({ date: lot.date, amount: -(lot.shares * lot.price) });
       }
-    } else {
-      xirrExplanation = "Insufficient data or neutral performance.";
+      if (tv.shares > 0.000001) {
+        unrealizedCashFlows.push({ date: today, amount: finalMarketValue });
+      }
+
+      if (unrealizedCashFlows.length > 1) {
+        assetXirrUnrealized = calculateInternalXIRR(unrealizedCashFlows);
+        if (typeof assetXirrUnrealized === 'string') {
+            noteUnrealized = assetXirrUnrealized;
+            assetXirrUnrealized = 0;
+        } else {
+            let unrealizedRoiPct = tv.bookVal > 0 ? (finalMarketValue - tv.bookVal) / tv.bookVal : 0;
+            let roiStr = (unrealizedRoiPct * 100).toFixed(1) + "%";
+            let xirrStr = (assetXirrUnrealized * 100).toFixed(1) + "%";
+            
+            if (daysHeld > 0 && daysHeld < 365 && assetXirrUnrealized > unrealizedRoiPct) {
+              noteUnrealized = `Short hold (${daysHeld} days): ${roiStr} Unrealized ROI accelerates XIRR to ${xirrStr}.`;
+            } else if (daysHeld >= 365 && assetXirrUnrealized < unrealizedRoiPct) {
+              noteUnrealized = `Long hold (${daysHeld} days): ${roiStr} Unrealized ROI diluted over years reduces XIRR to ${xirrStr}.`;
+            } else {
+              noteUnrealized = `Unrealized XIRR (${xirrStr}) naturally aligned with ROI (${roiStr}).`;
+            }
+        }
+      }
     }
 
+    // --- 3B. REALIZED XIRR (Lifetime History) ---
+    let assetXirrRealized = 0;
+    let noteRealized = "Insufficient data.";
+    let realizedCashFlows = [...s.cashFlows]; 
+    
+    if (tv.shares > 0.000001) {
+       realizedCashFlows.push({ date: today, amount: finalMarketValue });
+    }
+
+    if (realizedCashFlows.length > 1) {
+      assetXirrRealized = calculateInternalXIRR(realizedCashFlows);
+      if (typeof assetXirrRealized === 'string') {
+          noteRealized = assetXirrRealized;
+          assetXirrRealized = 0;
+      } else {
+          let roiStr = (totalRoiPct * 100).toFixed(1) + "%";
+          let xirrStr = (assetXirrRealized * 100).toFixed(1) + "%";
+          noteRealized = `Lifetime XIRR: ${xirrStr} vs Total Historical ROI: ${roiStr}.`;
+      }
+    }
+
+    // --- 3C. NEW ADVANCED METRICS ---
+
+    // 1. TWR (Modified Dietz) Annualized
+    let dietzTWR = calculateModifiedDietz(s.cashFlows, finalMarketValue, s.firstBuyDate, today);
+    
+    // 2. Yield on Cost (Estimated Annualized)
+    let yoc = 0;
+    if (s.dividends > 0 && daysHeld > 0 && tv.bookVal > 0) {
+        let annualDivs = s.dividends / (daysHeld / 365.25);
+        yoc = annualDivs / tv.bookVal;
+    }
+
+    // 3. Trading Efficiency: Win Rate
+    let totalClosedTrades = s.winningTrades + s.losingTrades;
+    let winRate = totalClosedTrades > 0 ? (s.winningTrades / totalClosedTrades) : 0;
+
+    // 4. Trading Efficiency: Profit Factor
+    let profitFactor = s.grossLoss > 0 ? (s.grossProfit / s.grossLoss) : (s.grossProfit > 0 ? 999 : 0); 
+
+    // 5. Drawdown
+    let maxKnownPrice = Math.max(s.maxBuyPrice, s.maxSellPrice);
+    let drawdown = (maxKnownPrice > 0 && currentMarketPrice < maxKnownPrice) 
+                   ? (currentMarketPrice - maxKnownPrice) / maxKnownPrice 
+                   : 0;
+
+    // --- PUSH OUTPUT ---
     output.push([
       ticker, s.type, status, tv.shares, avgPrice, s.totalInvestedHistorical, 
       s.tradingPnL, s.dividends, totalRealizedPnL, breakEven, tv.bookVal,     
       allocationPct, tradingRoiPct, totalRoiPct, s.firstBuyDate, s.firstBuyPrice,
       finalMinPrice, s.maxBuyPrice, s.maxSellPrice, avgSellPrice, daysHeld,       
       s.lastActionDate, s.tradeCount, finalNote, 
-      assetXIRR, // Column Y
-      xirrExplanation // NEW COLUMN Z: Automated Explanation
+      assetXirrUnrealized,  // Y
+      noteUnrealized,       // Z
+      assetXirrRealized,    // AA
+      noteRealized,         // AB
+      dietzTWR,             // AC (NEW: Modified Dietz TWR)
+      yoc,                  // AD (NEW: Yield on Cost)
+      winRate,              // AE (NEW: Win Rate)
+      profitFactor,         // AF (NEW: Profit Factor)
+      drawdown              // AG (NEW: Drawdown)
     ]);
   }
   return output;
+}
+
+/**
+ * Helper: Calculates Annualized Modified Dietz Return (Proxy for TWR)
+ * Evaluates the performance independent of timing and magnitude of cash flows.
+ */
+function calculateModifiedDietz(cashFlows, finalValue, startDate, endDate) {
+  if (!startDate || !endDate || cashFlows.length === 0) return 0;
+  
+  let totalDays = (endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24);
+  if (totalDays <= 0) return 0;
+
+  let netCF = 0;
+  let weightedCF = 0;
+
+  for (let cf of cashFlows) {
+    // Invert sign: Buys (negative in original cashFlows) become positive injections into the asset
+    let amount = -cf.amount; 
+    netCF += amount;
+
+    let daysFromStart = (cf.date.getTime() - startDate.getTime()) / (1000 * 3600 * 24);
+    let weight = (totalDays - daysFromStart) / totalDays;
+    weight = Math.max(0, Math.min(1, weight)); // Safety cap
+
+    weightedCF += (amount * weight);
+  }
+
+  let denominator = weightedCF;
+  if (denominator === 0) return 0; // Avoid division by zero
+
+  let dietzReturn = (finalValue - netCF) / denominator;
+  
+  let years = totalDays / 365.25;
+  if (years <= 0) return 0;
+
+  // Annualize the return
+  if (dietzReturn > -1) {
+     return Math.pow(1 + dietzReturn, 1 / years) - 1;
+  } else {
+     return -1; // Represents -100% loss
+  }
 }
 
 // --- 4. ENGINE B: DETAILED FISCAL REPORT (Reference Error Fix) ---
@@ -740,17 +856,15 @@ function PORTFOLIO_FLUSSI(sDate, sSec, sAct, sQty, sPrice, sType, cDate, cSec, c
 // --- 9. ENGINE D: MONEY-WEIGHTED RETURN (XIRR) ---
 
 /**
- * Calculates the annualized Money-Weighted Return (XIRR).
+ * Calculates the REALIZED annualized Money-Weighted Return (XIRR).
  * Uses ONLY external account deposits and withdrawals where the Ticker is strictly "Cash".
  * @param {String} portfolioTarget - "ALL" (default), "STOCKS", or "CRYPTO" to calculate separately.
  * @customfunction
  */
 function PORTFOLIO_XIRR(sDate, sSec, sAct, sQty, sPrice, sType, cDate, cSec, cAct, cQty, cPriceUnit, cSpent, currentPortfolioValue, evalDate, portfolioTarget = "ALL") {
-  // 1. Normalize Data
   let stockData = normalizeData(sDate, sSec, sAct, sQty, sPrice, null, sType, false, true);
   let cryptoData = normalizeData(cDate, cSec, cAct, cQty, cPriceUnit, cSpent, null, true, true);
   
-  // 2. Filter based on the target portfolio
   let allData = [];
   let target = portfolioTarget ? portfolioTarget.toString().toUpperCase().trim() : "ALL";
 
@@ -759,42 +873,122 @@ function PORTFOLIO_XIRR(sDate, sSec, sAct, sQty, sPrice, sType, cDate, cSec, cAc
   } else if (target === "CRYPTO") {
     allData = cryptoData;
   } else {
-    allData = stockData.concat(cryptoData); // Combine both if "ALL" or empty
+    allData = stockData.concat(cryptoData); 
   }
   
   if (allData.length === 0) return "No data";
   
-  let cashFlows = [];
+  let realizedCashFlows = [];
   
-  // 3. Process external bank transfers ONLY if the ticker is strictly "Cash"
   for (let trade of allData) {
     if (!trade.date) continue;
-    
     let tickerStr = trade.ticker.toString().toLowerCase().trim();
     let actionStr = trade.action.toString().toLowerCase().trim();
     
+    let spent = parseFloat(trade.totalSpent);
+    if (isNaN(spent) || spent === 0) {
+        spent = Math.abs(parseFloat(trade.qty || 0)) * Math.abs(parseFloat(trade.price || 0));
+    }
+    
     // Strict constraint: Ticker must be "Cash"
     if (tickerStr === "cash") {
-      // Outflows: Deposit into the broker/exchange
       if (actionStr === "deposit" || actionStr === "deposito") {
-        cashFlows.push({ date: trade.date, amount: -Math.abs(trade.totalSpent) });
-      }
-      // Inflows: Withdrawal back to the bank
-      else if (actionStr === "withdrawal" || actionStr === "prelievo") {
-        cashFlows.push({ date: trade.date, amount: Math.abs(trade.totalSpent) });
+        realizedCashFlows.push({ date: trade.date, amount: -Math.abs(spent) });
+      } else if (actionStr === "withdrawal" || actionStr === "prelievo") {
+        realizedCashFlows.push({ date: trade.date, amount: Math.abs(spent) });
       }
     }
   }
   
-  // 4. Add the Current Portfolio Value for the specific target
   let finalDate = evalDate ? parseDate(evalDate) : new Date();
   let finalValue = cleanNumber(currentPortfolioValue);
   
-  cashFlows.push({ date: finalDate, amount: Math.abs(finalValue) });
+  realizedCashFlows.push({ date: finalDate, amount: Math.abs(finalValue) });
+  realizedCashFlows.sort((a, b) => a.date - b.date);
   
-  // 5. Sort and Calculate
-  cashFlows.sort((a, b) => a.date - b.date);
-  return calculateInternalXIRR(cashFlows);
+  return calculateInternalXIRR(realizedCashFlows);
+}
+
+/**
+ * Calculates the UNREALIZED annualized Money-Weighted Return (XIRR).
+ * Reconstructs open positions using FIFO logic and compares against current portfolio value.
+ * @param {String} portfolioTarget - "ALL" (default), "STOCKS", or "CRYPTO" to calculate separately.
+ * @customfunction
+ */
+function PORTFOLIO_XIRR_U(sDate, sSec, sAct, sQty, sPrice, sType, cDate, cSec, cAct, cQty, cPriceUnit, cSpent, currentPortfolioValue, evalDate, portfolioTarget = "ALL") {
+  let stockData = normalizeData(sDate, sSec, sAct, sQty, sPrice, null, sType, false, true);
+  let cryptoData = normalizeData(cDate, cSec, cAct, cQty, cPriceUnit, cSpent, null, true, true);
+  
+  let allData = [];
+  let target = portfolioTarget ? portfolioTarget.toString().toUpperCase().trim() : "ALL";
+
+  if (target === "STOCKS") {
+    allData = stockData;
+  } else if (target === "CRYPTO") {
+    allData = cryptoData;
+  } else {
+    allData = stockData.concat(cryptoData); 
+  }
+  
+  if (allData.length === 0) return "No data";
+  
+  let finalDate = evalDate ? parseDate(evalDate) : new Date();
+  let finalValue = cleanNumber(currentPortfolioValue);
+  
+  let unrealizedCashFlows = [];
+  let tradesByTicker = {};
+  
+  for (let trade of allData) {
+    if (!trade.date) continue;
+    let tStr = trade.ticker.toString().toUpperCase().trim();
+    if (tStr === "CASH" || tStr === "") continue; 
+    
+    if (!tradesByTicker[tStr]) tradesByTicker[tStr] = [];
+    tradesByTicker[tStr].push(trade);
+  }
+  
+  for (let ticker in tradesByTicker) {
+    let trades = tradesByTicker[ticker];
+    trades.sort((a, b) => a.date - b.date); 
+    
+    let openLots = [];
+    
+    for (let trade of trades) {
+      let actionStr = trade.action.toString().toLowerCase().trim();
+      let qty = Math.abs(parseFloat(trade.qty) || 0);
+      let spent = parseFloat(trade.totalSpent);
+      if (isNaN(spent) || spent === 0) spent = qty * Math.abs(parseFloat(trade.price) || 0);
+      
+      if (qty === 0) continue;
+      
+      if (actionStr === "buy" || actionStr === "acquisto") {
+        openLots.push({ date: trade.date, qty: qty, amount: spent });
+      } else if (actionStr === "sell" || actionStr === "vendita") {
+        let qtyToSell = qty;
+        while (qtyToSell > 0 && openLots.length > 0) {
+          let firstLot = openLots[0];
+          if (firstLot.qty <= qtyToSell) {
+            qtyToSell -= firstLot.qty;
+            openLots.shift(); 
+          } else {
+            let proportion = qtyToSell / firstLot.qty;
+            firstLot.qty -= qtyToSell;
+            firstLot.amount -= firstLot.amount * proportion;
+            qtyToSell = 0;
+          }
+        }
+      }
+    }
+    
+    for (let lot of openLots) {
+      unrealizedCashFlows.push({ date: lot.date, amount: -Math.abs(lot.amount) });
+    }
+  }
+  
+  unrealizedCashFlows.push({ date: finalDate, amount: Math.abs(finalValue) });
+  unrealizedCashFlows.sort((a, b) => a.date - b.date);
+  
+  return calculateInternalXIRR(unrealizedCashFlows);
 }
 
 /**
@@ -802,9 +996,8 @@ function PORTFOLIO_XIRR(sDate, sSec, sAct, sQty, sPrice, sType, cDate, cSec, cAc
  * Upgraded with multi-guess for high volatility (Crypto) and validation.
  */
 function calculateInternalXIRR(cashFlows) {
-  if (cashFlows.length < 2) return "Errore: Dati insufficienti (Meno di 2 flussi)";
+  if (cashFlows.length < 2) return "Error: Insufficient data (< 2 flows)";
   
-  // 1. Check if we have both negative (Deposits) and positive (Final Value/Withdrawals) flows
   let hasPositive = false;
   let hasNegative = false;
   for (let cf of cashFlows) {
@@ -812,19 +1005,16 @@ function calculateInternalXIRR(cashFlows) {
     if (cf.amount < 0) hasNegative = true;
   }
   
-  if (!hasNegative) return "Errore: Nessun Deposito trovato in 'Cash'";
-  if (!hasPositive) return "Errore: Valore Attuale (B2) a zero o mancante";
+  if (!hasNegative) return "Error: No investments or deposits found";
+  if (!hasPositive) return "Error: Current value is zero or missing";
 
-  // 2. Newton-Raphson Setup
   const maxIterations = 100;
   const tolerance = 0.000001;
-  // Test multiple starting guesses to handle extreme Crypto volatility
   let guesses = [0.1, -0.1, 0.5, -0.5, 0.0, -0.9, 1.0, 5.0]; 
   let startDate = cashFlows[0].date;
   
   for (let guess of guesses) {
     let rate = guess;
-    let converged = false;
     
     for (let i = 0; i < maxIterations; i++) {
       let fValue = 0;
@@ -839,11 +1029,10 @@ function calculateInternalXIRR(cashFlows) {
         fDerivative -= (years * cf.amount) / Math.pow(1 + rate, years + 1);
       }
       
-      if (fDerivative === 0) break; // Avoid division by zero
+      if (fDerivative === 0) break; 
       
       let newRate = rate - fValue / fDerivative;
       
-      // If the difference is smaller than the tolerance, the algorithm has converged
       if (Math.abs(newRate - rate) < tolerance) {
         return newRate; 
       }

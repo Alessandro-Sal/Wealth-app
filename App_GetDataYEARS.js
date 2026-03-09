@@ -148,9 +148,9 @@ function getYearlyTotals(year) {
  */
 function getHistoryNWData(year) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("NW analitico");
+  const sheet = ss.getSheetByName("NW Analitico");
   
-  if (!sheet) return { error: "Sheet 'NW analitico' not found" };
+  if (!sheet) return { error: "Sheet 'NW Analitico' not found" };
 
   const data = sheet.getDataRange().getDisplayValues(); 
   const headers = data[0]; 
