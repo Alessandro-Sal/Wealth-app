@@ -1224,22 +1224,42 @@ function renderTickerNews(ticker) {
     container.style.display = 'block';
 }
 
-// --- Live Portfolio State & Advanced Features ---
+// ============================================================================
+// --- LIVE PORTFOLIO MODULE (CARDS & TERMINAL) ---
+// ============================================================================
+
 let portfolioViewMode = 'cards'; 
-let termSubView = 'overview'; // 'overview', 'fundamentals', 'trading'
+let termSubView = 'overview'; 
 let termSortCol = 'val';    
 let termSortAsc = false;    
 let termActiveFilter = 'all'; 
 let termAdvFilterValue = '';  
 let termGroupByKey = ''; 
 
-function togglePortfolioView() {
-    portfolioViewMode = portfolioViewMode === 'cards' ? 'terminal' : 'cards';
-    const btn = document.getElementById('btn-toggle-view');
+function fetchLivePortfolio(isUpdate = false) {
+    if (!isUpdate) {
+        showSkeleton('live-stocks', 3, '70px', true);
+        showSkeleton('live-etfs', 3, '70px', true);
+        showSkeleton('live-crypto', 3, '70px', true);
+    }
+    google.script.run.withSuccessHandler(renderLivePortfolio).getLivePortfolio();
+}
+
+function switchPortfolioMode(mode) {
+    portfolioViewMode = mode;
+    const btnCards = document.getElementById('btn-view-cards');
+    const btnTerm = document.getElementById('btn-view-term');
     const toolbar = document.getElementById('terminal-toolbar');
     
-    if(btn) btn.innerHTML = portfolioViewMode === 'cards' ? '🗂️' : '📊';
-    if(toolbar) toolbar.style.display = portfolioViewMode === 'cards' ? 'none' : 'flex';
+    if (mode === 'cards') {
+        if(btnCards) { btnCards.style.background = 'var(--white)'; btnCards.style.color = 'var(--text-main)'; btnCards.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; btnCards.style.fontWeight = '800'; }
+        if(btnTerm) { btnTerm.style.background = 'transparent'; btnTerm.style.color = 'var(--gray)'; btnTerm.style.boxShadow = 'none'; btnTerm.style.fontWeight = '700'; }
+        if(toolbar) toolbar.style.display = 'none';
+    } else {
+        if(btnTerm) { btnTerm.style.background = 'var(--white)'; btnTerm.style.color = 'var(--text-main)'; btnTerm.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; btnTerm.style.fontWeight = '800'; }
+        if(btnCards) { btnCards.style.background = 'transparent'; btnCards.style.color = 'var(--gray)'; btnCards.style.boxShadow = 'none'; btnCards.style.fontWeight = '700'; }
+        if(toolbar) toolbar.style.display = 'flex';
+    }
     
     if(typeof currentPortfolioData !== 'undefined' && currentPortfolioData && currentPortfolioData.stocks) {
         renderLivePortfolio(currentPortfolioData);
@@ -1248,12 +1268,34 @@ function togglePortfolioView() {
     }
 }
 
+// NUOVA FUNZIONE: RESETTA TUTTI I FILTRI DEL TERMINALE
+function resetTerminalFilters() {
+    termActiveFilter = 'all';
+    termAdvFilterValue = '';
+    termGroupByKey = '';
+    termSortCol = 'val';
+    termSortAsc = false;
+
+    // Resetta interfaccia Chip
+    document.querySelectorAll('.term-chip').forEach(c => c.classList.remove('active'));
+    let allChip = Array.from(document.querySelectorAll('.term-chip')).find(el => el.textContent.trim() === 'All');
+    if(allChip) allChip.classList.add('active');
+
+    // Resetta Select
+    const advFilter = document.getElementById('term-adv-filter');
+    if (advFilter) advFilter.value = '';
+    const groupBy = document.getElementById('term-group-by');
+    if (groupBy) groupBy.value = '';
+
+    if (currentPortfolioData && currentPortfolioData.stocks) {
+        renderLivePortfolio(currentPortfolioData);
+    }
+}
+
 function setTermSubView(view, btnElement) {
     termSubView = view;
-    // Update active button style
     document.querySelectorAll('.term-view-btn').forEach(btn => btn.classList.remove('active'));
     btnElement.classList.add('active');
-    
     if (currentPortfolioData && currentPortfolioData.stocks) renderLivePortfolio(currentPortfolioData);
 }
 
@@ -1284,10 +1326,8 @@ function setTermGroupBy(val) {
 function populateTerminalFilters(data) {
     const select = document.getElementById('term-adv-filter');
     if (!select) return;
-    
     let currentVal = select.value;
     let sectors = new Set(), industries = new Set(), countries = new Set();
-    
     const extractCategories = (list) => {
         if(!list) return;
         list.forEach(item => {
@@ -1296,7 +1336,6 @@ function populateTerminalFilters(data) {
             if (item.ctry && item.ctry !== "#N/A") countries.add(item.ctry);
         });
     };
-    
     extractCategories(data.stocks);
     extractCategories(data.etfs);
     
@@ -1304,7 +1343,6 @@ function populateTerminalFilters(data) {
     if (sectors.size > 0) { html += '<optgroup label="Sectors">'; Array.from(sectors).sort().forEach(s => html += `<option value="sector||${s}">${s}</option>`); html += '</optgroup>'; }
     if (industries.size > 0) { html += '<optgroup label="Industries">'; Array.from(industries).sort().forEach(i => html += `<option value="industry||${i}">${i}</option>`); html += '</optgroup>'; }
     if (countries.size > 0) { html += '<optgroup label="Countries">'; Array.from(countries).sort().forEach(c => html += `<option value="country||${c}">${c}</option>`); html += '</optgroup>'; }
-    
     select.innerHTML = html;
     select.value = currentVal;
 }
@@ -1327,7 +1365,7 @@ function quickTrade(ticker, assetClass) {
     setTimeout(() => { 
         document.getElementById('invTicker').value = ticker; 
         document.getElementById('invType').value = assetClass; 
-        setTodayDate(); 
+        if(typeof setTodayDate === 'function') setTodayDate(); 
         window.scrollTo(0,0); 
     }, 100);
 }
@@ -1378,7 +1416,6 @@ function exportTerminalCSV() {
             csvContent += row + "\n";
         });
     };
-    
     processCategory(currentPortfolioData.stocks, "Stock");
     processCategory(currentPortfolioData.etfs, "ETF");
     processCategory(currentPortfolioData.crypto, "Crypto");
@@ -1393,10 +1430,18 @@ function exportTerminalCSV() {
 }
 
 function renderLivePortfolio(data) {
-  currentPortfolioData = data;
+  // FIX CRITICO: Salva gli indici originali una sola volta per mantenere le modali funzionanti
+  // senza dover distruggere o sovrascrivere l'array dati con i filtri.
+  if (!data._indexed) {
+      if (data.stocks) data.stocks.forEach((item, i) => item._originalIndex = i);
+      if (data.etfs) data.etfs.forEach((item, i) => item._originalIndex = i);
+      if (data.crypto) data.crypto.forEach((item, i) => item._originalIndex = i);
+      data._indexed = true;
+  }
+  
+  currentPortfolioData = data; 
   populateTerminalFilters(data);
 
-  // --- DAY CHANGE WIDGET ---
   const dcContainer = document.getElementById('live-day-change');
   if (dcContainer && data.dayChange) {
       const val = data.dayChange.val; const pct = data.dayChange.pct; 
@@ -1406,8 +1451,7 @@ function renderLivePortfolio(data) {
       dcContainer.innerHTML = `<div style="background:var(--white); border-radius:12px; padding:12px; margin: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center; gap:10px;"><div style="width:40px; height:40px; border-radius:50%; ${bgStyle} display:flex; align-items:center; justify-content:center; font-size:20px;">${(isNeg ? '📉' : '📈')}</div><div><div style="font-size:12px; font-weight:600; color:var(--gray); text-transform:uppercase;">Day Change</div><div class="sensitive" style="font-size:18px; font-weight:800; color:var(--text-main);">${val}</div></div></div><div style="font-size:14px; font-weight:700; ${colorStyle} padding:4px 8px; border-radius:6px; ${bgStyle}">${pct}</div></div>`;
   }
 
-  // --- HELPER: ORIGINAL CARDS VIEW ---
-  const createTickerCard = (item, type, index) => {
+  const createTickerCard = (item, type) => {
       const isCrypto = (type === 'crypto'); 
       let pctHtml = '';
       if (item.pct) { 
@@ -1432,24 +1476,25 @@ function renderLivePortfolio(data) {
           else if (state === 'PRE_MARKET') { borderStyle = 'border-left: 4px solid #007aff;'; opacityStyle = 'opacity: 0.9;'; statusIcon = '<span style="font-size:8px; margin-left:4px;">🔵</span>'; } 
       }
       
-      return `<div class="ticker-card" onclick="openPortfolioModal('${type}', ${index})" style="${borderStyle} ${opacityStyle} transition: all 0.3s ease; position:relative; cursor:pointer;"><div class="tc-top"><div style="display:flex; align-items:center;"><span class="tc-symbol">${item.t}</span>${statusIcon}</div>${pctHtml}</div><div class="tc-val-big" style="font-weight:800; line-height:1.1;">${item.price}</div>${dayChangeHtml}<div class="tc-val-sub"><span class="sensitive">Tot: ${item.val}</span></div></div>`;
+      // Usa l'indice originale per aprire la modale
+      return `<div class="ticker-card" onclick="openPortfolioModal('${type}', ${item._originalIndex})" style="${borderStyle} ${opacityStyle} cursor:pointer;"><div class="tc-top"><div style="display:flex; align-items:center;"><span class="tc-symbol">${item.t}</span>${statusIcon}</div>${pctHtml}</div><div class="tc-val-big sensitive" style="font-weight:800; line-height:1.1;">${item.price}</div>${dayChangeHtml}<div class="tc-val-sub"><span class="sensitive">Tot: ${item.val}</span></div></div>`;
   };
 
- // --- HELPER: TERMINAL ROWS (PULITO DAI MOUSEOVER) ---
   const th = (label, colKey, isDivider = false) => {
       let arrow = termSortCol === colKey ? (termSortAsc ? ' <span style="color:var(--primary); font-size:12px;">↑</span>' : ' <span style="color:var(--primary); font-size:12px;">↓</span>') : '';
       let cls = isDivider ? 'class="term-group-divider"' : '';
       return `<th ${cls} onclick="sortTerminal('${colKey}')" style="cursor:pointer; user-select:none;">${label}${arrow}</th>`;
   };
 
-  const createTerminalRow = (item, type, index) => {
+  const createTerminalRow = (item, type) => {
       const fmtVal = (val) => (val && val !== "-" && val !== "" && val !== "#N/A") ? val : "-";
       let qType = type === 'crypto' ? 'Crypto' : (type === 'etfs' ? 'ETF' : 'Stocks');
 
+      // Usa l'indice originale per aprire la modale
       let rowHtml = `
-        <tr onclick="openPortfolioModal('${type}', ${index})" style="cursor:pointer;">
+        <tr onclick="openPortfolioModal('${type}', ${item._originalIndex})" style="cursor:pointer;">
             <td>
-                <div style="display:flex; align-items:center; gap:6px;">
+                <div style="display:flex; align-items:center; gap:6px; white-space:nowrap;">
                     ${fmtVal(item.t)}
                     <button class="row-action-btn" onclick="quickTrade('${item.t}', '${qType}')" title="Quick Trade">⚡</button>
                     <button class="row-action-btn" onclick="openSniperAlert('${item.t}', '${item.price}')" title="Price Alert">🎯</button>
@@ -1461,7 +1506,7 @@ function renderLivePortfolio(data) {
           rowHtml += `
             <td><span class="sensitive">${fmtVal(item.qty)}</span></td>
             <td>${fmtVal(item.avgPrice)}</td>
-            <td class="term-group-divider">${fmtVal(item.price)}</td>
+            <td class="term-group-divider sensitive">${fmtVal(item.price)}</td>
             <td class="term-heatmap" style="${getHeatmapStyle(item.pct, true)}">${fmtVal(item.pct)}</td>
             <td class="term-heatmap" style="${getHeatmapStyle(item.dCh, false)}"><span class="sensitive">${fmtVal(item.dCh)}</span></td>
             <td><span class="sensitive" style="font-weight:800;">${fmtVal(item.val)}</span></td>
@@ -1499,10 +1544,10 @@ function renderLivePortfolio(data) {
             <td class="term-group-divider">${fmtVal(item.firstBuyDate)}</td>
             <td>${fmtVal(item.daysHeld)}</td>
             <td>${fmtVal(item.tradeCount)}</td>
-            <td class="term-group-divider">${fmtVal(item.minBuy)}</td>
-            <td>${fmtVal(item.maxBuy)}</td>
-            <td>${fmtVal(item.maxSell)}</td>
-            <td>${fmtVal(item.avgSell)}</td>
+            <td class="term-group-divider"><span class="sensitive">${fmtVal(item.minBuy)}</span></td>
+            <td><span class="sensitive">${fmtVal(item.maxBuy)}</span></td>
+            <td><span class="sensitive">${fmtVal(item.maxSell)}</span></td>
+            <td><span class="sensitive">${fmtVal(item.avgSell)}</span></td>
           `;
       }
       
@@ -1510,7 +1555,6 @@ function renderLivePortfolio(data) {
       return rowHtml;
   };
 
-  // --- MAIN RENDER LOGIC ---
   const renderCont = (id, list, type) => {
       const c = document.getElementById(id); 
       if(!c) return;
@@ -1530,12 +1574,10 @@ function renderLivePortfolio(data) {
           });
 
           if (portfolioViewMode === 'cards') {
-              // RIPRISTINATA CORRETTAMENTE LA VISTA CARDS!
               let sorted = typeof sortTickerData === 'function' ? sortTickerData(filteredList) : filteredList;
               c.className = "live-scroll";
-              c.innerHTML = sorted.map((item, i) => createTickerCard(item, type, i)).join('');
+              c.innerHTML = sorted.map((item) => createTickerCard(item, type)).join('');
           } else {
-              // TERMINAL VIEW
               let thead = `<tr>${th('TICKER', 't')}`;
               
               if (termSubView === 'overview') {
@@ -1560,8 +1602,6 @@ function renderLivePortfolio(data) {
               }
               thead += `</tr>`;
 
-              let finalHtml = `<table class="terminal-table"><thead>${thead}</thead><tbody>`;
-
               let sorted = [...filteredList].sort((a, b) => {
                   let valA = parseForSort(a[termSortCol]);
                   let valB = parseForSort(b[termSortCol]);
@@ -1569,8 +1609,10 @@ function renderLivePortfolio(data) {
                   return termSortAsc ? (valA - valB) : (valB - valA);
               });
 
+              let finalHtml = `<table class="terminal-table"><thead>${thead}</thead><tbody>`;
+
               if (sorted.length === 0) {
-                  finalHtml += '<tr><td colspan="20" style="text-align:center; padding:20px;">No assets match your filters 🔍</td></tr>';
+                  finalHtml += '<tr><td colspan="15" style="text-align:center; padding:20px;">No assets match your filters 🔍</td></tr>';
               } else if (termGroupByKey) {
                   let grouped = {};
                   sorted.forEach(item => {
@@ -1594,10 +1636,10 @@ function renderLivePortfolio(data) {
                             <span class="term-subtotal sensitive">P&L: <b style="${pnlColor}">${pnlSign}€ ${g.totalPnl.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</b></span>
                         </td></tr>
                       `;
-                      finalHtml += g.items.map((item, i) => createTerminalRow(item, type, i)).join('');
+                      finalHtml += g.items.map((item) => createTerminalRow(item, type)).join('');
                   }
               } else {
-                  finalHtml += sorted.map((item, i) => createTerminalRow(item, type, i)).join('');
+                  finalHtml += sorted.map((item) => createTerminalRow(item, type)).join('');
               }
 
               finalHtml += `</tbody></table>`;

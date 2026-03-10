@@ -944,42 +944,49 @@
                 </div>
             </div>
 
-            <div class="dash-widget">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-                    <div class="widget-title" style="margin:0;"><span class="live-dot"></span> Portfolio Live</div>
-                    <button id="btn-toggle-view" onclick="togglePortfolioView()" style="background:var(--section-bg); border:none; border-radius:8px; width:32px; height:32px; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 5px rgba(0,0,0,0.05);">🗂️</button>
-                </div>
-                
-                <div id="live-day-change"></div>
-    <div id="terminal-toolbar" class="term-toolbar" style="display:none; flex-wrap:wrap; gap:10px;">
+     <div class="dash-widget">
     
-    <div class="term-view-toggle">
-        <button class="term-view-btn active" onclick="setTermSubView('overview', this)">📊 Overview</button>
-        <button class="term-view-btn" onclick="setTermSubView('fundamentals', this)">🏢 Fundamentals</button>
-        <button class="term-view-btn" onclick="setTermSubView('trading', this)">⚡ Trading Data</button>
-    </div>
-
-    <div class="term-filters" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-        <div class="term-chip active" onclick="setTermFilter('all', this)">All</div>
-        <div class="term-chip" onclick="setTermFilter('profit', this)">🟢 Profit</div>
-        <div class="term-chip" onclick="setTermFilter('loss', this)">🔴 Loss</div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+        <div class="widget-title" style="margin:0;"><span class="live-dot"></span> Portfolio Live</div>
         
-        <select id="term-adv-filter" onchange="setAdvFilter(this.value)" class="term-select">
-            <option value="">⚙️ All Categories</option>
-        </select>
+        <div style="display:flex; background:var(--section-bg); border-radius:10px; padding:4px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.03);">
+            <button id="btn-view-cards" onclick="switchPortfolioMode('cards')" style="background:var(--white); color:var(--text-main); border:none; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:800; cursor:pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition:all 0.2s;">🗂️ Cards</button>
+            <button id="btn-view-term" onclick="switchPortfolioMode('terminal')" style="background:transparent; color:var(--gray); border:none; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s;">📊 Terminal</button>
+        </div>
+    </div>
 
-        <select id="term-group-by" onchange="setTermGroupBy(this.value)" class="term-select" style="border-color: var(--primary); color: var(--primary);">
-            <option value="">🗂️ No Grouping</option>
-            <option value="sector">🗂️ Group by Sector</option>
-            <option value="ind">🗂️ Group by Industry</option>
-            <option value="curr">🗂️ Group by Currency</option>
-        </select>
+    <div id="terminal-toolbar" style="display:none; flex-direction:column; gap:12px; margin-bottom:15px; background:var(--section-bg); padding:12px; border-radius:12px; border: 1px solid var(--row-border);">
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div class="term-view-toggle" style="background:rgba(0,0,0,0.05); padding:4px; border-radius:8px; display:flex; gap:4px;">
+                <button class="term-view-btn active" onclick="setTermSubView('overview', this)">📊 Overview</button>
+                <button class="term-view-btn" onclick="setTermSubView('fundamentals', this)">🏢 Fundamentals</button>
+                <button class="term-view-btn" onclick="setTermSubView('trading', this)">⚡ Trading</button>
+            </div>
+            <button class="term-action-btn" onclick="exportTerminalCSV()" style="box-shadow: 0 1px 3px rgba(0,0,0,0.05);">📥 Export CSV</button>
+        </div>
+        
+        <div style="height:1px; width:100%; background:var(--row-border); opacity:0.6;"></div>
+        
+        <div class="term-filters" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <div class="term-chip active" onclick="setTermFilter('all', this)">All</div>
+            <div class="term-chip" onclick="setTermFilter('profit', this)">🟢 Profit</div>
+            <div class="term-chip" onclick="setTermFilter('loss', this)">🔴 Loss</div>
+            
+            <select id="term-adv-filter" onchange="setAdvFilter(this.value)" class="term-select" style="min-width:140px;">
+                <option value="">⚙️ All Categories</option>
+            </select>
+            
+            <select id="term-group-by" onchange="setTermGroupBy(this.value)" class="term-select" style="min-width:140px; border-color:var(--primary); color:var(--primary); background:rgba(0,122,255,0.05);">
+                <option value="">🗂️ Group By...</option>
+                <option value="sector">Sector</option>
+                <option value="ind">Industry</option>
+                <option value="curr">Currency</option>
+            </select>
+
+            <button onclick="resetTerminalFilters()" class="term-action-btn" style="background: rgba(255,59,48,0.1); color: var(--danger); border:none; padding: 6px 10px; box-shadow:none;">✖ Reset Filters</button>
+        </div>
     </div>
-    
-    <div class="term-actions">
-        <button class="term-action-btn" onclick="exportTerminalCSV()">📥 Export Full CSV</button>
-    </div>
-</div>
                 <div class="live-asset-group">
                     <div class="live-asset-title">
                         <div style="font-size:14px; font-weight:800; color:var(--text-main);">📈 STOCKS</div>
