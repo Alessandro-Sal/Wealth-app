@@ -1407,13 +1407,23 @@ function renderLivePortfolio(data) {
             <td class="term-heatmap" style="${getHeatmapStyle(item.pct, true)}">${fmtVal(item.pct)}</td>
             <td class="term-heatmap" style="${getHeatmapStyle(item.dCh, false)}"><span class="sensitive">${fmtVal(item.dCh)}</span></td>
             <td><span class="sensitive" style="font-weight:800;">${fmtVal(item.val)}</span></td>
+            
             <td class="term-group-divider term-heatmap" style="${getHeatmapStyle(item.unrealizedEur, false)}"><span class="sensitive">${fmtVal(item.unrealizedEur)}</span></td>
             <td class="term-heatmap" style="${getHeatmapStyle(item.unrealizedPct, true)}">${fmtVal(item.unrealizedPct)}</td>
-            <td class="term-heatmap" style="${getHeatmapStyle(item.realizedEur, false)}"><span class="sensitive">${fmtVal(item.realizedEur)}</span></td>
-            <td class="term-heatmap" style="${getHeatmapStyle(item.balEur, false)}"><span class="sensitive">${fmtVal(item.balEur)}</span></td>
+            
+            <td class="term-group-divider term-heatmap" style="${getHeatmapStyle(item.realizedEur, false)}"><span class="sensitive">${fmtVal(item.realizedEur)}</span></td>
+            <td class="term-heatmap" style="${getHeatmapStyle(item.realizedPct, true)}">${fmtVal(item.realizedPct)}</td>
+            
+            <td class="term-group-divider term-heatmap" style="${getHeatmapStyle(item.balEur, false)}"><span class="sensitive">${fmtVal(item.balEur)}</span></td>
+            <td class="term-heatmap" style="${getHeatmapStyle(item.balPct, true)}">${fmtVal(item.balPct)}</td>
+            
             <td class="term-group-divider term-heatmap" style="${getHeatmapStyle(item.div, false)}"><span class="sensitive">${fmtVal(item.div)}</span></td>
-            <td>${fmtVal(item.xirrUnrealized)}</td>
-            <td>${fmtVal(item.twr)}</td>
+            <td class="term-heatmap" style="${getHeatmapStyle(item.expectedDividend, false)}"><span class="sensitive">${fmtVal(item.expectedDividend)}</span></td>
+            <td class="term-heatmap" style="${getHeatmapStyle(item.yoc, true)}">${fmtVal(item.yoc)}</td>
+            
+            <td class="term-group-divider term-heatmap" style="${getHeatmapStyle(item.xirrUnrealized, true)}">${fmtVal(item.xirrUnrealized)}</td>
+            <td class="term-heatmap" style="${getHeatmapStyle(item.xirrRealized, true)}">${fmtVal(item.xirrRealized)}</td>
+            <td class="term-heatmap" style="${getHeatmapStyle(item.twr, true)}">${fmtVal(item.twr)}</td>
           `;
       } else if (termSubView === 'fundamentals') {
           rowHtml += `
@@ -1481,8 +1491,11 @@ function renderLivePortfolio(data) {
                   thead += `
                     ${th('QTY', 'qty')} ${th('AVG P', 'avgPrice')}
                     ${th('MKT P', 'price', true)} ${th('24H %', 'pct')} ${th('24H €', 'dCh')} ${th('VALUE', 'val')}
-                    ${th('UNREAL €', 'unrealizedEur', true)} ${th('UNREAL %', 'unrealizedPct')} ${th('REALIZED €', 'realizedEur')} ${th('TOT BAL', 'balEur')}
-                    ${th('DIVS', 'div', true)} ${th('XIRR', 'xirrUnrealized')} ${th('TWR', 'twr')}
+                    ${th('UNREAL €', 'unrealizedEur', true)} ${th('UNREAL %', 'unrealizedPct')}
+                    ${th('REAL €', 'realizedEur', true)} ${th('REAL %', 'realizedPct')}
+                    ${th('TOT BAL', 'balEur', true)} ${th('TOT BAL %', 'balPct')}
+                    ${th('DIVS', 'div', true)} ${th('EXP DIV', 'expectedDividend')} ${th('YOC', 'yoc')}
+                    ${th('XIRR UNREAL', 'xirrUnrealized', true)} ${th('XIRR REAL', 'xirrRealized')} ${th('TWR', 'twr')}
                   `;
               } else if (termSubView === 'fundamentals') {
                   thead += `
