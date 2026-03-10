@@ -1442,27 +1442,32 @@ function renderLivePortfolio(data) {
   currentPortfolioData = data; 
   populateTerminalFilters(data);
 
+  // --- WIDGET DAY CHANGE (FIX CRASH NUMERICO) ---
   const dcContainer = document.getElementById('live-day-change');
   if (dcContainer && data.dayChange) {
-      const val = data.dayChange.val; const pct = data.dayChange.pct; 
+      // Converte forzatamente in stringa per evitare il crash di .includes()
+      const val = String(data.dayChange.val || '0'); 
+      const pct = String(data.dayChange.pct || '0%'); 
       const isNeg = val.includes('-') || pct.includes('-');
       const colorStyle = isNeg ? 'color:var(--danger);' : 'color:var(--stocks-bg);'; 
       const bgStyle = isNeg ? 'background:rgba(255, 59, 48, 0.1);' : 'background:rgba(40, 167, 69, 0.1);';
-      dcContainer.innerHTML = `<div style="background:var(--white); border-radius:12px; padding:12px; margin: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center; gap:10px;"><div style="width:40px; height:40px; border-radius:50%; ${bgStyle} display:flex; align-items:center; justify-content:center; font-size:20px;">${(isNeg ? '📉' : '📈')}</div><div><div style="font-size:12px; font-weight:600; color:var(--gray); text-transform:uppercase;">Day Change</div><div class="sensitive" style="font-size:18px; font-weight:800; color:var(--text-main);">${val}</div></div></div><div style="font-size:14px; font-weight:700; ${colorStyle} padding:4px 8px; border-radius:6px; ${bgStyle}">${pct}</div></div>`;
+      
+      dcContainer.innerHTML = `<div style="background:var(--white); border-radius:12px; padding:12px; margin: 5px 0 15px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.03); display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center; gap:10px;"><div style="width:40px; height:40px; border-radius:50%; ${bgStyle} display:flex; align-items:center; justify-content:center; font-size:20px;">${(isNeg ? '📉' : '📈')}</div><div><div style="font-size:12px; font-weight:600; color:var(--gray); text-transform:uppercase;">Day Change</div><div style="font-size:18px; font-weight:800; color:var(--text-main);"><span class="sensitive">${val}</span></div></div></div><div style="font-size:14px; font-weight:700; ${colorStyle} padding:4px 8px; border-radius:6px; ${bgStyle}"><span class="sensitive">${pct}</span></div></div>`;
   }
 
+  // --- HELPER: ORIGINAL CARDS VIEW (FIX PRIVACY SPAN) ---
   const createTickerCard = (item, type) => {
       const isCrypto = (type === 'crypto'); 
       let pctHtml = '';
       if (item.pct) { 
           let badgeClass = parseFloat(String(item.pct).replace('%', '').trim().replace(',', '.')) >= 0 ? 'pos-change' : 'neg-change'; 
-          pctHtml = `<span class="tc-change ${badgeClass}">${item.pct}</span>`; 
+          pctHtml = `<span class="tc-change ${badgeClass} sensitive">${item.pct}</span>`; 
       }
       let dayChangeHtml = ''; 
       if (item.dCh) { 
           let floatDCh = parseFloat(String(item.dCh).replace(/[€$%]/g, '').trim().replace(',', '.')); 
           let color = floatDCh >= 0 ? '#34c759' : '#ff3b30'; 
-          dayChangeHtml = `<div class="sensitive" style="font-size:10px; font-weight:600; color:${color}; margin-top:2px;">${floatDCh > 0 ? '+' : ''}${item.dCh} (24h)</div>`; 
+          dayChangeHtml = `<div style="font-size:10px; font-weight:600; color:${color}; margin-top:2px;"><span class="sensitive">${floatDCh > 0 ? '+' : ''}${item.dCh} (24h)</span></div>`; 
       }
       
       let borderStyle = isCrypto ? 'border-left: 4px solid #ffc107;' : 'border-left: 2px solid #e5e5ea;'; 
@@ -1476,8 +1481,7 @@ function renderLivePortfolio(data) {
           else if (state === 'PRE_MARKET') { borderStyle = 'border-left: 4px solid #007aff;'; opacityStyle = 'opacity: 0.9;'; statusIcon = '<span style="font-size:8px; margin-left:4px;">🔵</span>'; } 
       }
       
-      // Usa l'indice originale per aprire la modale
-      return `<div class="ticker-card" onclick="openPortfolioModal('${type}', ${item._originalIndex})" style="${borderStyle} ${opacityStyle} cursor:pointer;"><div class="tc-top"><div style="display:flex; align-items:center;"><span class="tc-symbol">${item.t}</span>${statusIcon}</div>${pctHtml}</div><div class="tc-val-big sensitive" style="font-weight:800; line-height:1.1;">${item.price}</div>${dayChangeHtml}<div class="tc-val-sub"><span class="sensitive">Tot: ${item.val}</span></div></div>`;
+      return `<div class="ticker-card" onclick="openPortfolioModal('${type}', ${item._originalIndex})" style="${borderStyle} ${opacityStyle} cursor:pointer;"><div class="tc-top"><div style="display:flex; align-items:center;"><span class="tc-symbol">${item.t}</span>${statusIcon}</div>${pctHtml}</div><div class="tc-val-big" style="font-weight:800; line-height:1.1;"><span class="sensitive">${item.price}</span></div>${dayChangeHtml}<div class="tc-val-sub"><span class="sensitive">Tot: ${item.val}</span></div></div>`;
   };
 
   const th = (label, colKey, isDivider = false) => {
