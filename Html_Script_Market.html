@@ -6,108 +6,6 @@
  * ======================================================================================
  */
 
-// --- Live Portfolio ---
-
-/**
- * Fetches real-time portfolio data from the server.
- * Triggers skeleton loading ONLY on initial load, not during updates.
- */
-function fetchLivePortfolio(isUpdate = false) {
-  if (!isUpdate) {
-      showSkeleton('live-stocks', 3, '70px', true);
-      showSkeleton('live-etfs', 3, '70px', true);
-      showSkeleton('live-crypto', 3, '70px', true);
-  }
-  
-  // La chiamata al server rimane invariata
-  google.script.run.withSuccessHandler(renderLivePortfolio).getLivePortfolio();
-}
-
-/**
- * Renders the Live Portfolio dashboard cards (Stocks, ETFs, Crypto).
- * Calculates daily change percentages and market status (Open/Closed).
- * 
- */
-function renderLivePortfolio(data) {
-  // Render Global Day Change Widget
-  const dcContainer = document.getElementById('live-day-change');
-  if (dcContainer && data.dayChange) {
-      const val = data.dayChange.val; 
-      const pct = data.dayChange.pct; 
-      const isNeg = val.includes('-') || pct.includes('-');
-      
-      const colorStyle = isNeg ? 'color:var(--danger);' : 'color:var(--stocks-bg);'; 
-      const bgStyle = isNeg ? 'background:rgba(255, 59, 48, 0.1);' : 'background:rgba(40, 167, 69, 0.1);';
-      
-      dcContainer.innerHTML = `<div style="background:var(--white); border-radius:12px; padding:12px; margin: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center; gap:10px;"><div style="width:40px; height:40px; border-radius:50%; ${bgStyle} display:flex; align-items:center; justify-content:center; font-size:20px;">${(isNeg ? '📉' : '📈')}</div><div><div style="font-size:12px; font-weight:600; color:var(--gray); text-transform:uppercase;">Day Change</div><div class="sensitive" style="font-size:18px; font-weight:800; color:var(--text-main);">${val}</div></div></div><div style="font-size:14px; font-weight:700; ${colorStyle} padding:4px 8px; border-radius:6px; ${bgStyle}">${pct}</div></div>`;
-  }
-
-  // Helper to create individual Ticker Cards
-  const createTickerCard = (item, type, index) => {
-      const isCrypto = (type === 'crypto'); 
-      let pctHtml = '';
-      
-      if (item.pct) { 
-          let rawPct = String(item.pct).replace('%', '').trim().replace(',', '.'); 
-          let floatPct = parseFloat(rawPct); 
-          let badgeClass = floatPct >= 0 ? 'pos-change' : 'neg-change'; 
-          pctHtml = '<span class="tc-change ' + badgeClass + '">' + item.pct + '</span>'; 
-      }
-      
-      let dayChangeHtml = ''; 
-      if (item.dCh) { 
-          let rawDCh = String(item.dCh).replace(/[€$%]/g, '').trim().replace(',', '.'); 
-          let floatDCh = parseFloat(rawDCh); 
-          let color = floatDCh >= 0 ? '#34c759' : '#ff3b30'; 
-          let sign = floatDCh > 0 ? '+' : ''; 
-          dayChangeHtml = '<div class="sensitive" style="font-size:10px; font-weight:600; color:' + color + '; margin-top:2px;">' + sign + item.dCh + ' (24h)</div>'; 
-      }
-      
-      // Market Status Indicator
-      let borderStyle = 'border-left: 2px solid #e5e5ea;'; 
-      let opacityStyle = 'opacity: 0.6; filter: grayscale(0.2);'; 
-      let statusIcon = '';
-      
-      if (isCrypto) { 
-          borderStyle = 'border-left: 4px solid #ffc107;'; 
-          opacityStyle = 'opacity: 1;'; 
-      } else { 
-          const state = getMarketState(item.ex); 
-          if (state === 'OPEN') { 
-              borderStyle = 'border-left: 4px solid #34c759;'; 
-              opacityStyle = 'opacity: 1;'; 
-          } else if (state === 'CLOSING_SOON') { 
-              borderStyle = 'border-left: 4px solid #ff9500;'; 
-              opacityStyle = 'opacity: 1;'; 
-              statusIcon = '<span style="font-size:8px; margin-left:4px;">🟠</span>'; 
-          } else if (state === 'PRE_MARKET') { 
-              borderStyle = 'border-left: 4px solid #007aff;'; 
-              opacityStyle = 'opacity: 0.9;'; 
-              statusIcon = '<span style="font-size:8px; margin-left:4px;">🔵</span>'; 
-          } 
-      }
-      
-      return `<div class="ticker-card" onclick="openPortfolioModal('${type}', ${index})" style="${borderStyle} ${opacityStyle} transition: all 0.3s ease; position:relative; cursor:pointer;"><div class="tc-top"><div style="display:flex; align-items:center;"><span class="tc-symbol">${item.t}</span>${statusIcon}</div>${pctHtml}</div><div class="tc-val-big" style="font-weight:800; line-height:1.1;">${item.price}</div>${dayChangeHtml}<div class="tc-val-sub sensitive" style="margin-top:4px;">Tot: ${item.val}</div></div>`;
-  };
-
-  const renderCont = (id, list, type) => {
-      const c = document.getElementById(id); 
-      if(!c) return;
-      if (list && list.length > 0) {
-          let sorted = list; 
-          if(typeof sortTickerData === 'function') sorted = sortTickerData(list);
-          currentPortfolioData[type] = sorted;
-          c.innerHTML = sorted.map((item, i) => createTickerCard(item, type, i)).join('');
-      } else { 
-          c.innerHTML = '<div style="padding:10px; font-size:12px;">No data</div>'; 
-      }
-  };
-
-  renderCont('live-stocks', data.stocks, 'stocks');
-  renderCont('live-etfs', data.etfs, 'etfs');
-  renderCont('live-crypto', data.crypto, 'crypto');
-}
-
 // --- Watchlist Management ---
 
 function fetchWatchlist(isUpdate = false) {
@@ -203,8 +101,7 @@ function openWlModal(index) {
       delBtn.onclick = function() { deleteFromWatchlist(item.row, item.ticker); }; 
   }
   
-  // 1. FIX IMPORTANTE: Nascondi la sezione "Advanced Stats" del Portfolio se esiste
-  // Questo impedisce che i dati del portafoglio (Gain, Balance, ecc.) appaiano nella Watchlist
+  // 1. IMPORTANT FIX: Hide the "Advanced Stats" section of the Portfolio if it exists
   const advStats = document.getElementById('portfolio-advanced-stats');
   if (advStats) {
       advStats.style.display = 'none';
@@ -256,7 +153,7 @@ function openWlModal(index) {
       return n.toFixed(2); 
   };
   
-  // UI Helper: Nasconde le righe vuote invece di mostrare "-"
+  // UI Helper: Hides empty rows instead of showing "-"
   const setText = (id, txt) => { 
       const el = document.getElementById(id); 
       if(!el) return;
@@ -265,7 +162,7 @@ function openWlModal(index) {
           if(el.parentElement) el.parentElement.style.display = 'flex';
       } else {
           el.innerText = "";
-          // Nasconde il contenitore genitore (la "scatolina" della stat)
+          // Hide parent container
           if(el.parentElement) el.parentElement.style.display = 'none';
       }
   };
@@ -273,7 +170,7 @@ function openWlModal(index) {
   setText('wl-mod-pe', item.pe); 
   setText('wl-mod-eps', item.eps); 
   
-  // Gestione speciale per Market Cap (usa fmtBig)
+  // Special handling for Market Cap (uses fmtBig)
   const mktEl = document.getElementById('wl-mod-mkt');
   if(mktEl) {
       const mktVal = fmtBig(item.mkt);
@@ -289,7 +186,7 @@ function openWlModal(index) {
   setText('wl-mod-52h', item.yearH); 
   setText('wl-mod-52l', item.yearL);
   
-  // Resetta/Pulisce i campi che potrebbero essere rimasti sporchi dal Portfolio
+  // Resets fields that might have been populated by Portfolio
   setText('wl-mod-vol', item.vol || ""); 
   setText('wl-mod-dh', item.dayH || "");
   setText('wl-mod-dl', item.dayL || "");
@@ -679,8 +576,7 @@ function closeWlModal() { document.getElementById('wl-modal').style.display = 'n
 
 /**
  * Embeds a TradingView Mini Chart Widget dynamically.
- * 
- */
+ * */
 function renderChartWidget(ticker) {
   var chartContainer = document.getElementById('wl-chart-wrapper');
   chartContainer.innerHTML = ""; 
@@ -1268,7 +1164,7 @@ function switchPortfolioMode(mode) {
     }
 }
 
-// NUOVA FUNZIONE: RESETTA TUTTI I FILTRI DEL TERMINALE
+// RESETTA TUTTI I FILTRI DEL TERMINALE
 function resetTerminalFilters() {
     termActiveFilter = 'all';
     termAdvFilterValue = '';
@@ -1430,8 +1326,7 @@ function exportTerminalCSV() {
 }
 
 function renderLivePortfolio(data) {
-  // FIX CRITICO: Salva gli indici originali una sola volta per mantenere le modali funzionanti
-  // senza dover distruggere o sovrascrivere l'array dati con i filtri.
+  // Save original indices once to keep modals functioning
   if (!data._indexed) {
       if (data.stocks) data.stocks.forEach((item, i) => item._originalIndex = i);
       if (data.etfs) data.etfs.forEach((item, i) => item._originalIndex = i);
@@ -1442,26 +1337,25 @@ function renderLivePortfolio(data) {
   currentPortfolioData = data; 
   populateTerminalFilters(data);
 
-  // --- WIDGET DAY CHANGE (FIX CRASH NUMERICO) ---
+  // --- GLOBAL DAY CHANGE WIDGET ---
   const dcContainer = document.getElementById('live-day-change');
   if (dcContainer && data.dayChange) {
-      // Converte forzatamente in stringa per evitare il crash di .includes()
       const val = String(data.dayChange.val || '0'); 
       const pct = String(data.dayChange.pct || '0%'); 
       const isNeg = val.includes('-') || pct.includes('-');
       const colorStyle = isNeg ? 'color:var(--danger);' : 'color:var(--stocks-bg);'; 
       const bgStyle = isNeg ? 'background:rgba(255, 59, 48, 0.1);' : 'background:rgba(40, 167, 69, 0.1);';
       
-      dcContainer.innerHTML = `<div style="background:var(--white); border-radius:12px; padding:12px; margin: 5px 0 15px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.03); display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center; gap:10px;"><div style="width:40px; height:40px; border-radius:50%; ${bgStyle} display:flex; align-items:center; justify-content:center; font-size:20px;">${(isNeg ? '📉' : '📈')}</div><div><div style="font-size:12px; font-weight:600; color:var(--gray); text-transform:uppercase;">Day Change</div><div style="font-size:18px; font-weight:800; color:var(--text-main);"><span class="sensitive">${val}</span></div></div></div><div style="font-size:14px; font-weight:700; ${colorStyle} padding:4px 8px; border-radius:6px; ${bgStyle}"><span class="sensitive">${pct}</span></div></div>`;
+      dcContainer.innerHTML = `<div style="background:var(--white); border-radius:12px; padding:12px; margin: 5px 0 15px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.03); display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center; gap:10px;"><div style="width:40px; height:40px; border-radius:50%; ${bgStyle} display:flex; align-items:center; justify-content:center; font-size:20px;">${(isNeg ? '📉' : '📈')}</div><div><div style="font-size:12px; font-weight:600; color:var(--gray); text-transform:uppercase;">Day Change</div><div style="font-size:18px; font-weight:800; color:var(--text-main);"><span class="sensitive">${val}</span></div></div></div><div style="font-size:14px; font-weight:700; ${colorStyle} padding:4px 8px; border-radius:6px; ${bgStyle}"><span>${pct}</span></div></div>`;
   }
 
-  // --- HELPER: ORIGINAL CARDS VIEW (FIX PRIVACY SPAN) ---
+  // --- HELPER: ORIGINAL CARDS VIEW ---
   const createTickerCard = (item, type) => {
       const isCrypto = (type === 'crypto'); 
       let pctHtml = '';
       if (item.pct) { 
           let badgeClass = parseFloat(String(item.pct).replace('%', '').trim().replace(',', '.')) >= 0 ? 'pos-change' : 'neg-change'; 
-          pctHtml = `<span class="tc-change ${badgeClass} sensitive">${item.pct}</span>`; 
+          pctHtml = `<span class="tc-change ${badgeClass}">${item.pct}</span>`; 
       }
       let dayChangeHtml = ''; 
       if (item.dCh) { 
@@ -1481,7 +1375,7 @@ function renderLivePortfolio(data) {
           else if (state === 'PRE_MARKET') { borderStyle = 'border-left: 4px solid #007aff;'; opacityStyle = 'opacity: 0.9;'; statusIcon = '<span style="font-size:8px; margin-left:4px;">🔵</span>'; } 
       }
       
-      return `<div class="ticker-card" onclick="openPortfolioModal('${type}', ${item._originalIndex})" style="${borderStyle} ${opacityStyle} cursor:pointer;"><div class="tc-top"><div style="display:flex; align-items:center;"><span class="tc-symbol">${item.t}</span>${statusIcon}</div>${pctHtml}</div><div class="tc-val-big" style="font-weight:800; line-height:1.1;"><span class="sensitive">${item.price}</span></div>${dayChangeHtml}<div class="tc-val-sub"><span class="sensitive">Tot: ${item.val}</span></div></div>`;
+      return `<div class="ticker-card" onclick="openPortfolioModal('${type}', ${item._originalIndex})" style="${borderStyle} ${opacityStyle} cursor:pointer;"><div class="tc-top"><div style="display:flex; align-items:center;"><span class="tc-symbol">${item.t}</span>${statusIcon}</div>${pctHtml}</div><div class="tc-val-big" style="font-weight:800; line-height:1.1;"><span>${item.price}</span></div>${dayChangeHtml}<div class="tc-val-sub"><span class="sensitive">Tot: ${item.val}</span></div></div>`;
   };
 
   const th = (label, colKey, isDivider = false) => {
@@ -1494,7 +1388,6 @@ function renderLivePortfolio(data) {
       const fmtVal = (val) => (val && val !== "-" && val !== "" && val !== "#N/A") ? val : "-";
       let qType = type === 'crypto' ? 'Crypto' : (type === 'etfs' ? 'ETF' : 'Stocks');
 
-      // Usa l'indice originale per aprire la modale
       let rowHtml = `
         <tr onclick="openPortfolioModal('${type}', ${item._originalIndex})" style="cursor:pointer;">
             <td>
@@ -1510,7 +1403,7 @@ function renderLivePortfolio(data) {
           rowHtml += `
             <td><span class="sensitive">${fmtVal(item.qty)}</span></td>
             <td>${fmtVal(item.avgPrice)}</td>
-            <td class="term-group-divider sensitive">${fmtVal(item.price)}</td>
+            <td class="term-group-divider">${fmtVal(item.price)}</td>
             <td class="term-heatmap" style="${getHeatmapStyle(item.pct, true)}">${fmtVal(item.pct)}</td>
             <td class="term-heatmap" style="${getHeatmapStyle(item.dCh, false)}"><span class="sensitive">${fmtVal(item.dCh)}</span></td>
             <td><span class="sensitive" style="font-weight:800;">${fmtVal(item.val)}</span></td>
