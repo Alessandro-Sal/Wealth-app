@@ -951,26 +951,31 @@
                 </div>
                 
                 <div id="live-day-change"></div>
-    <div id="terminal-toolbar" class="term-toolbar" style="display:none;">
+    <div id="terminal-toolbar" class="term-toolbar" style="display:none; flex-wrap:wrap; gap:10px;">
+    
+    <div class="term-view-toggle">
+        <button class="term-view-btn active" onclick="setTermSubView('overview', this)">📊 Overview</button>
+        <button class="term-view-btn" onclick="setTermSubView('fundamentals', this)">🏢 Fundamentals</button>
+        <button class="term-view-btn" onclick="setTermSubView('trading', this)">⚡ Trading Data</button>
+    </div>
+
     <div class="term-filters" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
         <div class="term-chip active" onclick="setTermFilter('all', this)">All</div>
         <div class="term-chip" onclick="setTermFilter('profit', this)">🟢 Profit</div>
         <div class="term-chip" onclick="setTermFilter('loss', this)">🔴 Loss</div>
-        <div class="term-chip" onclick="setTermFilter('eur', this)">🇪🇺 EUR</div>
-        <div class="term-chip" onclick="setTermFilter('usd', this)">🇺🇸 USD</div>
         
         <select id="term-adv-filter" onchange="setAdvFilter(this.value)" class="term-select">
             <option value="">⚙️ All Categories</option>
-            </select>
+        </select>
 
         <select id="term-group-by" onchange="setTermGroupBy(this.value)" class="term-select" style="border-color: var(--primary); color: var(--primary);">
             <option value="">🗂️ No Grouping</option>
             <option value="sector">🗂️ Group by Sector</option>
             <option value="ind">🗂️ Group by Industry</option>
-            <option value="ctry">🗂️ Group by Country</option>
             <option value="curr">🗂️ Group by Currency</option>
         </select>
     </div>
+    
     <div class="term-actions">
         <button class="term-action-btn" onclick="exportTerminalCSV()">📥 Export Full CSV</button>
     </div>

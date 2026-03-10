@@ -212,20 +212,46 @@ body.dark-mode .terminal-table td:first-child { background: #1c1c1e; }
 }
 body.dark-mode .terminal-container { background: #1c1c1e; }
 
-/* --- ADVANCED TERMINAL TOOLBAR & FEATURES --- */
+/* --- BLOOMBERG TERMINAL VIEW & TOOLBAR --- */
 .term-toolbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 10px 5px;
-    margin-bottom: 5px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 .term-filters {
     display: flex;
+    align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
 }
+.term-view-toggle {
+    display: flex;
+    background: var(--section-bg);
+    border-radius: 8px;
+    padding: 4px;
+}
+.term-view-btn {
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gray);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.term-view-btn.active {
+    background: var(--white);
+    color: var(--text-main);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+body.dark-mode .term-view-btn.active { background: #3a3a3c; }
+
 .term-chip {
     padding: 6px 12px;
     border-radius: 16px;
@@ -238,42 +264,8 @@ body.dark-mode .terminal-container { background: #1c1c1e; }
     white-space: nowrap;
     transition: all 0.2s;
 }
-.term-chip.active {
-    background: var(--primary);
-    color: white;
-    border-color: var(--primary);
-}
-.term-actions {
-    display: flex;
-    gap: 8px;
-}
-.term-action-btn {
-    padding: 6px 10px;
-    border-radius: 10px;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    background: var(--white);
-    color: var(--text-main);
-    border: 1px solid var(--row-border);
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
-}
-/* Quick Trade & Alerts buttons inside terminal rows */
-.row-action-btn {
-    background: transparent;
-    border: none;
-    font-size: 14px;
-    cursor: pointer;
-    opacity: 0.5;
-    transition: opacity 0.2s;
-    padding: 0 4px;
-}
-.row-action-btn:hover { opacity: 1; transform: scale(1.1); }
+.term-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
 
-/* --- ADVANCED TERMINAL FILTER SELECT --- */
 .term-select {
     padding: 6px 10px;
     border-radius: 12px;
@@ -284,51 +276,104 @@ body.dark-mode .terminal-container { background: #1c1c1e; }
     border: 1px solid var(--row-border);
     outline: none;
     cursor: pointer;
+}
+body.dark-mode .term-select { background: #2c2c2e; border-color: rgba(255,255,255,0.1); color: white; }
+
+.term-action-btn {
+    padding: 6px 12px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    background: var(--white);
+    color: var(--text-main);
+    border: 1px solid var(--row-border);
+    display: flex;
+    align-items: center;
+    gap: 5px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.02);
 }
-body.dark-mode .term-select {
-    background: #2c2c2e;
-    color: white;
-    border-color: rgba(255,255,255,0.1);
+
+.terminal-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--white);
+    border-radius: 12px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+    border: 1px solid var(--row-border);
+    position: relative; /* Necessario per lo sticky */
+}
+body.dark-mode .terminal-container { background: #1c1c1e; border: 1px solid rgba(255,255,255,0.05); }
+
+.terminal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Inter', var(--font-mono, monospace);
+    font-size: 11px;
 }
 
-/* --- TERMINAL HEATMAP & PIVOT STYLES --- */
-
-/* Heatmap base cell */
-.term-heatmap {
-    transition: background-color 0.2s;
-    border-radius: 4px;
+.terminal-table th {
+    text-align: right;
+    padding: 10px 12px;
+    color: var(--gray);
+    border-bottom: 2px solid var(--row-border);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    background: var(--section-bg);
 }
+
+.terminal-table td {
+    text-align: right;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--row-border);
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* FIX PER LA COLONNA BLOCCATA A SINISTRA (TICKER) */
+.terminal-table th:first-child,
+.terminal-table td:first-child {
+    text-align: left;
+    position: sticky;
+    left: 0;
+    z-index: 2; /* Tiene il Ticker sopra i dati che scorrono */
+    background: var(--white); /* IMPORTANTE: deve essere solido, non trasparente */
+    border-right: 1px solid var(--row-border);
+}
+.terminal-table th:first-child { background: var(--section-bg); z-index: 3; }
+body.dark-mode .terminal-table td:first-child { background: #1c1c1e; }
+
+/* FIX PER L'EFFETTO HOVER PULITO (Solo con CSS) */
+.terminal-table tbody tr { transition: background-color 0.15s; }
+.terminal-table tbody tr:hover td { background-color: rgba(0, 122, 255, 0.05); }
+.terminal-table tbody tr:hover td:first-child { background-color: var(--section-bg); }
 
 /* Pivot / Group Header Row */
 .term-group-header td {
-    background: var(--section-bg);
+    background: var(--section-bg) !important;
     color: var(--text-main);
     font-size: 12px;
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 1px;
-    padding: 10px;
-    border-top: 2px solid var(--row-border);
-    border-bottom: 2px solid var(--row-border);
+    padding: 10px 12px;
     text-align: left !important;
     position: sticky;
     left: 0;
-}
-body.dark-mode .term-group-header td {
-    background: #2c2c2e;
+    z-index: 1; /* Sotto la colonna Ticker ma sopra i dati */
 }
 
-/* Subtotal highlights inside the group header */
-.term-subtotal {
-    background: var(--white);
-    padding: 2px 8px;
-    border-radius: 6px;
-    margin-left: 10px;
-    font-size: 11px;
-    color: var(--gray);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
+/* Altre utilità Terminale */
+.term-group-divider { border-left: 1px solid var(--row-border); }
+.term-heatmap { border-radius: 4px; }
+.term-subtotal { background: var(--white); padding: 2px 8px; border-radius: 6px; margin-left: 10px; font-size: 11px; color: var(--gray); }
 body.dark-mode .term-subtotal { background: #1c1c1e; }
-.term-subtotal b { color: var(--text-main); font-weight: 800; font-variant-numeric: tabular-nums; }
+.term-subtotal b { color: var(--text-main); font-weight: 800; }
+.row-action-btn { background: transparent; border: none; font-size: 13px; cursor: pointer; opacity: 0.4; transition: opacity 0.2s; padding: 0 3px; }
+.row-action-btn:hover { opacity: 1; transform: scale(1.1); }
 </style>

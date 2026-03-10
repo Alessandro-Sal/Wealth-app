@@ -1226,18 +1226,15 @@ function renderTickerNews(ticker) {
 
 // --- Live Portfolio State & Advanced Features ---
 let portfolioViewMode = 'cards'; 
+let termSubView = 'overview'; // 'overview', 'fundamentals', 'trading'
 let termSortCol = 'val';    
 let termSortAsc = false;    
 let termActiveFilter = 'all'; 
 let termAdvFilterValue = '';  
-let termGroupByKey = ''; // Used for Pivot/Grouping
+let termGroupByKey = ''; 
 
-/**
- * Toggles between Cards and Terminal View
- */
 function togglePortfolioView() {
     portfolioViewMode = portfolioViewMode === 'cards' ? 'terminal' : 'cards';
-    
     const btn = document.getElementById('btn-toggle-view');
     const toolbar = document.getElementById('terminal-toolbar');
     
@@ -1249,6 +1246,15 @@ function togglePortfolioView() {
     } else {
         fetchLivePortfolio(true);
     }
+}
+
+function setTermSubView(view, btnElement) {
+    termSubView = view;
+    // Update active button style
+    document.querySelectorAll('.term-view-btn').forEach(btn => btn.classList.remove('active'));
+    btnElement.classList.add('active');
+    
+    if (currentPortfolioData && currentPortfolioData.stocks) renderLivePortfolio(currentPortfolioData);
 }
 
 function sortTerminal(colKey) {
@@ -1318,34 +1324,36 @@ function parseForSort(val) {
 function quickTrade(ticker, assetClass) {
     event.stopPropagation();
     changeTab('invest');
-    setTimeout(() => {
-        document.getElementById('invTicker').value = ticker;
-        document.getElementById('invType').value = assetClass;
+    setTimeout(() => { 
+        document.getElementById('invTicker').value = ticker; 
+        document.getElementById('invType').value = assetClass; 
         setTodayDate(); 
-        window.scrollTo(0,0);
+        window.scrollTo(0,0); 
     }, 100);
 }
 
 function openSniperAlert(ticker, currentPrice) {
     event.stopPropagation();
     if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            title: `🎯 Set Alert for ${ticker}`,
-            text: `Current Market Price: ${currentPrice}`,
-            input: 'text',
-            inputPlaceholder: 'Enter target price...',
-            showCancelButton: true,
-            confirmButtonText: 'Set Alert',
-            confirmButtonColor: '#007aff'
-        }).then((result) => {
-            if (result.isConfirmed && result.value) {
-                Swal.fire('Alert Set!', `We will notify you when ${ticker} hits ${result.value}`, 'success');
-            }
+        Swal.fire({ title: `🎯 Set Alert for ${ticker}`, text: `Current Price: ${currentPrice}`, input: 'text', showCancelButton: true, confirmButtonText: 'Set Alert' }).then((result) => {
+            if (result.isConfirmed && result.value) Swal.fire('Alert Set!', `Target: ${result.value}`, 'success');
         });
     } else {
         let target = prompt(`Set target price for ${ticker} (Current: ${currentPrice}):`);
         if (target) alert(`Alert set for ${ticker} at ${target}`);
     }
+}
+
+function getHeatmapStyle(val, isPct = false) {
+    if (!val || val === '-' || val === '#N/A' || val === '') return '';
+    let n = parseForSort(val);
+    if (n === -Infinity || isNaN(n) || n === 0) return '';
+    let limit = isPct ? 10 : 1000;
+    let intensity = Math.min(Math.abs(n) / limit, 1);
+    let alpha = 0.05 + (intensity * 0.35);
+    if (n > 0) return `background-color: rgba(52, 199, 89, ${alpha}); color: var(--text-main); font-weight: 800;`;
+    if (n < 0) return `background-color: rgba(255, 59, 48, ${alpha}); color: var(--text-main); font-weight: 800;`;
+    return '';
 }
 
 function exportTerminalCSV() {
@@ -1384,46 +1392,21 @@ function exportTerminalCSV() {
     document.body.removeChild(link);
 }
 
-/**
- * Calculates dynamic background color for Heatmap cells based on value magnitude.
- */
-function getHeatmapStyle(val, isPct = false) {
-    if (!val || val === '-' || val === '#N/A' || val === '') return '';
-    let n = parseForSort(val);
-    if (n === -Infinity || isNaN(n)) return '';
-    if (n === 0) return '';
-
-    // Calculate intensity based on arbitrary realistic limits (e.g. max heat at 10% or 1000€)
-    let limit = isPct ? 10 : 1000;
-    let intensity = Math.min(Math.abs(n) / limit, 1);
-    
-    // Scale opacity between 0.05 (lightest) and 0.4 (darkest) to maintain readability
-    let alpha = 0.05 + (intensity * 0.35);
-
-    if (n > 0) return `background-color: rgba(52, 199, 89, ${alpha}); color: var(--text-main); font-weight: 800;`;
-    if (n < 0) return `background-color: rgba(255, 59, 48, ${alpha}); color: var(--text-main); font-weight: 800;`;
-    return '';
-}
-
-/**
- * Renders the Live Portfolio dashboard cards or terminal view.
- */
 function renderLivePortfolio(data) {
   currentPortfolioData = data;
   populateTerminalFilters(data);
 
-  // Global Day Change
+  // --- DAY CHANGE WIDGET ---
   const dcContainer = document.getElementById('live-day-change');
   if (dcContainer && data.dayChange) {
-      const val = data.dayChange.val; 
-      const pct = data.dayChange.pct; 
+      const val = data.dayChange.val; const pct = data.dayChange.pct; 
       const isNeg = val.includes('-') || pct.includes('-');
       const colorStyle = isNeg ? 'color:var(--danger);' : 'color:var(--stocks-bg);'; 
       const bgStyle = isNeg ? 'background:rgba(255, 59, 48, 0.1);' : 'background:rgba(40, 167, 69, 0.1);';
       dcContainer.innerHTML = `<div style="background:var(--white); border-radius:12px; padding:12px; margin: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center; gap:10px;"><div style="width:40px; height:40px; border-radius:50%; ${bgStyle} display:flex; align-items:center; justify-content:center; font-size:20px;">${(isNeg ? '📉' : '📈')}</div><div><div style="font-size:12px; font-weight:600; color:var(--gray); text-transform:uppercase;">Day Change</div><div class="sensitive" style="font-size:18px; font-weight:800; color:var(--text-main);">${val}</div></div></div><div style="font-size:14px; font-weight:700; ${colorStyle} padding:4px 8px; border-radius:6px; ${bgStyle}">${pct}</div></div>`;
   }
 
-  // Original Ticker Cards
+  // --- HELPER: ORIGINAL CARDS VIEW ---
   const createTickerCard = (item, type, index) => {
       const isCrypto = (type === 'crypto'); 
       let pctHtml = '';
@@ -1443,7 +1426,7 @@ function renderLivePortfolio(data) {
       let statusIcon = '';
       
       if (!isCrypto) { 
-          const state = getMarketState(item.ex); 
+          const state = typeof getMarketState === 'function' ? getMarketState(item.ex) : 'OPEN'; 
           if (state === 'OPEN') { borderStyle = 'border-left: 4px solid #34c759;'; opacityStyle = 'opacity: 1;'; } 
           else if (state === 'CLOSING_SOON') { borderStyle = 'border-left: 4px solid #ff9500;'; opacityStyle = 'opacity: 1;'; statusIcon = '<span style="font-size:8px; margin-left:4px;">🟠</span>'; } 
           else if (state === 'PRE_MARKET') { borderStyle = 'border-left: 4px solid #007aff;'; opacityStyle = 'opacity: 0.9;'; statusIcon = '<span style="font-size:8px; margin-left:4px;">🔵</span>'; } 
@@ -1452,13 +1435,19 @@ function renderLivePortfolio(data) {
       return `<div class="ticker-card" onclick="openPortfolioModal('${type}', ${index})" style="${borderStyle} ${opacityStyle} transition: all 0.3s ease; position:relative; cursor:pointer;"><div class="tc-top"><div style="display:flex; align-items:center;"><span class="tc-symbol">${item.t}</span>${statusIcon}</div>${pctHtml}</div><div class="tc-val-big" style="font-weight:800; line-height:1.1;">${item.price}</div>${dayChangeHtml}<div class="tc-val-sub"><span class="sensitive">Tot: ${item.val}</span></div></div>`;
   };
 
-  // Bloomberg Terminal Rows with Heatmap
+ // --- HELPER: TERMINAL ROWS (PULITO DAI MOUSEOVER) ---
+  const th = (label, colKey, isDivider = false) => {
+      let arrow = termSortCol === colKey ? (termSortAsc ? ' <span style="color:var(--primary); font-size:12px;">↑</span>' : ' <span style="color:var(--primary); font-size:12px;">↓</span>') : '';
+      let cls = isDivider ? 'class="term-group-divider"' : '';
+      return `<th ${cls} onclick="sortTerminal('${colKey}')" style="cursor:pointer; user-select:none;">${label}${arrow}</th>`;
+  };
+
   const createTerminalRow = (item, type, index) => {
-      const fmtVal = (val) => (val && val !== "-" && val !== "") ? val : "-";
+      const fmtVal = (val) => (val && val !== "-" && val !== "" && val !== "#N/A") ? val : "-";
       let qType = type === 'crypto' ? 'Crypto' : (type === 'etfs' ? 'ETF' : 'Stocks');
 
-      return `
-        <tr onclick="openPortfolioModal('${type}', ${index})" style="cursor:pointer; transition: background 0.2s;" onmouseover="this.style.background='var(--section-bg)'" onmouseout="this.style.background='transparent'">
+      let rowHtml = `
+        <tr onclick="openPortfolioModal('${type}', ${index})" style="cursor:pointer;">
             <td>
                 <div style="display:flex; align-items:center; gap:6px;">
                     ${fmtVal(item.t)}
@@ -1466,52 +1455,71 @@ function renderLivePortfolio(data) {
                     <button class="row-action-btn" onclick="openSniperAlert('${item.t}', '${item.price}')" title="Price Alert">🎯</button>
                 </div>
             </td>
+      `;
+
+      if (termSubView === 'overview') {
+          rowHtml += `
             <td><span class="sensitive">${fmtVal(item.qty)}</span></td>
             <td>${fmtVal(item.avgPrice)}</td>
-            
             <td class="term-group-divider">${fmtVal(item.price)}</td>
             <td class="term-heatmap" style="${getHeatmapStyle(item.pct, true)}">${fmtVal(item.pct)}</td>
             <td class="term-heatmap" style="${getHeatmapStyle(item.dCh, false)}"><span class="sensitive">${fmtVal(item.dCh)}</span></td>
             <td><span class="sensitive" style="font-weight:800;">${fmtVal(item.val)}</span></td>
-            
             <td class="term-group-divider term-heatmap" style="${getHeatmapStyle(item.unrealizedEur, false)}"><span class="sensitive">${fmtVal(item.unrealizedEur)}</span></td>
             <td class="term-heatmap" style="${getHeatmapStyle(item.unrealizedPct, true)}">${fmtVal(item.unrealizedPct)}</td>
             <td class="term-heatmap" style="${getHeatmapStyle(item.realizedEur, false)}"><span class="sensitive">${fmtVal(item.realizedEur)}</span></td>
             <td class="term-heatmap" style="${getHeatmapStyle(item.balEur, false)}"><span class="sensitive">${fmtVal(item.balEur)}</span></td>
-            <td class="term-heatmap" style="${getHeatmapStyle(item.div, false)}"><span class="sensitive">${fmtVal(item.div)}</span></td>
-            
-            <td class="term-group-divider">${fmtVal(item.xirrUnrealized)}</td>
+            <td class="term-group-divider term-heatmap" style="${getHeatmapStyle(item.div, false)}"><span class="sensitive">${fmtVal(item.div)}</span></td>
+            <td>${fmtVal(item.xirrUnrealized)}</td>
             <td>${fmtVal(item.twr)}</td>
-            <td>${fmtVal(item.yoc)}</td>
-            <td>${fmtVal(item.drawdown)}</td>
-            
+          `;
+      } else if (termSubView === 'fundamentals') {
+          rowHtml += `
+            <td class="term-group-divider">${fmtVal(item.name)}</td>
+            <td>${fmtVal(item.sector)}</td>
+            <td>${fmtVal(item.ind)}</td>
+            <td>${fmtVal(item.ctry)}</td>
+            <td>${fmtVal(item.curr)}</td>
+            <td class="term-group-divider">${fmtVal(item.pe)}</td>
+            <td>${fmtVal(item.eps)}</td>
+            <td>${fmtVal(item.mkt)}</td>
+            <td>${fmtVal(item.beta)}</td>
+            <td class="term-group-divider">${fmtVal(item.yearH)}</td>
+            <td>${fmtVal(item.yearL)}</td>
+            <td>${fmtVal(item.vol)}</td>
+            <td>${fmtVal(item.avgVol)}</td>
+          `;
+      } else if (termSubView === 'trading') {
+          rowHtml += `
             <td class="term-group-divider"><span class="sensitive">${fmtVal(item.bep)}</span></td>
             <td>${fmtVal(item.delta)}</td>
             <td>${fmtVal(item.winRate)}</td>
             <td>${fmtVal(item.profitFactor)}</td>
-        </tr>
-      `;
+            <td>${fmtVal(item.drawdown)}</td>
+            <td class="term-group-divider">${fmtVal(item.firstBuyDate)}</td>
+            <td>${fmtVal(item.daysHeld)}</td>
+            <td>${fmtVal(item.tradeCount)}</td>
+            <td class="term-group-divider">${fmtVal(item.minBuy)}</td>
+            <td>${fmtVal(item.maxBuy)}</td>
+            <td>${fmtVal(item.maxSell)}</td>
+            <td>${fmtVal(item.avgSell)}</td>
+          `;
+      }
+      
+      rowHtml += `</tr>`;
+      return rowHtml;
   };
 
-  const th = (label, colKey, isDivider = false) => {
-      let arrow = termSortCol === colKey ? (termSortAsc ? ' <span style="color:var(--primary); font-size:12px;">↑</span>' : ' <span style="color:var(--primary); font-size:12px;">↓</span>') : '';
-      let cls = isDivider ? 'class="term-group-divider"' : '';
-      return `<th ${cls} onclick="sortTerminal('${colKey}')" style="cursor:pointer; user-select:none; transition:background 0.2s;" onmouseover="this.style.background='rgba(0,122,255,0.05)'" onmouseout="this.style.background='var(--section-bg)'">${label}${arrow}</th>`;
-  };
-
+  // --- MAIN RENDER LOGIC ---
   const renderCont = (id, list, type) => {
       const c = document.getElementById(id); 
       if(!c) return;
       
       if (list && list.length > 0) {
           
-          // Apply Filters
           let filteredList = list.filter(item => {
               if (termActiveFilter === 'profit' && parseForSort(item.unrealizedEur) <= 0) return false;
               if (termActiveFilter === 'loss' && parseForSort(item.unrealizedEur) >= 0) return false;
-              if (termActiveFilter === 'eur' && String(item.curr).toUpperCase() !== 'EUR') return false;
-              if (termActiveFilter === 'usd' && String(item.curr).toUpperCase() !== 'USD') return false;
-              
               if (termAdvFilterValue) {
                   let parts = termAdvFilterValue.split('||');
                   if (parts[0] === 'sector' && item.sector !== parts[1]) return false;
@@ -1522,41 +1530,38 @@ function renderLivePortfolio(data) {
           });
 
           if (portfolioViewMode === 'cards') {
+              // RIPRISTINATA CORRETTAMENTE LA VISTA CARDS!
               let sorted = typeof sortTickerData === 'function' ? sortTickerData(filteredList) : filteredList;
               c.className = "live-scroll";
               c.innerHTML = sorted.map((item, i) => createTickerCard(item, type, i)).join('');
           } else {
-              // Terminal View Processing
-              let finalHtml = '';
-              const tableHeader = `
-                <table class="terminal-table">
-                    <thead>
-                        <tr>
-                            ${th('TICKER', 't')}
-                            ${th('QTY', 'qty')}
-                            ${th('AVG P', 'avgPrice')}
-                            ${th('MKT P', 'price', true)}
-                            ${th('24H %', 'pct')}
-                            ${th('24H €', 'dCh')}
-                            ${th('VALUE', 'val')}
-                            ${th('UNREAL €', 'unrealizedEur', true)}
-                            ${th('UNREAL %', 'unrealizedPct')}
-                            ${th('REALIZED €', 'realizedEur')}
-                            ${th('TOT BAL', 'balEur')}
-                            ${th('DIVS', 'div')}
-                            ${th('XIRR', 'xirrUnrealized', true)}
-                            ${th('TWR', 'twr')}
-                            ${th('YOC', 'yoc')}
-                            ${th('MAX DD', 'drawdown')}
-                            ${th('BEP', 'bep', true)}
-                            ${th('DELTA', 'delta')}
-                            ${th('WIN RT', 'winRate')}
-                            ${th('PRF FCT', 'profitFactor')}
-                        </tr>
-                    </thead>
-                    <tbody>`;
+              // TERMINAL VIEW
+              let thead = `<tr>${th('TICKER', 't')}`;
+              
+              if (termSubView === 'overview') {
+                  thead += `
+                    ${th('QTY', 'qty')} ${th('AVG P', 'avgPrice')}
+                    ${th('MKT P', 'price', true)} ${th('24H %', 'pct')} ${th('24H €', 'dCh')} ${th('VALUE', 'val')}
+                    ${th('UNREAL €', 'unrealizedEur', true)} ${th('UNREAL %', 'unrealizedPct')} ${th('REALIZED €', 'realizedEur')} ${th('TOT BAL', 'balEur')}
+                    ${th('DIVS', 'div', true)} ${th('XIRR', 'xirrUnrealized')} ${th('TWR', 'twr')}
+                  `;
+              } else if (termSubView === 'fundamentals') {
+                  thead += `
+                    ${th('NAME', 'name', true)} ${th('SECTOR', 'sector')} ${th('INDUSTRY', 'ind')} ${th('COUNTRY', 'ctry')} ${th('CURR', 'curr')}
+                    ${th('P/E', 'pe', true)} ${th('EPS', 'eps')} ${th('MKT CAP', 'mkt')} ${th('BETA', 'beta')}
+                    ${th('52W HIGH', 'yearH', true)} ${th('52W LOW', 'yearL')} ${th('VOLUME', 'vol')} ${th('AVG VOL', 'avgVol')}
+                  `;
+              } else if (termSubView === 'trading') {
+                  thead += `
+                    ${th('BRK EVEN', 'bep', true)} ${th('DELTA', 'delta')} ${th('WIN RT', 'winRate')} ${th('PRF FCT', 'profitFactor')} ${th('DRAWDOWN', 'drawdown')}
+                    ${th('FIRST BUY', 'firstBuyDate', true)} ${th('DAYS HELD', 'daysHeld')} ${th('TRADES', 'tradeCount')}
+                    ${th('MIN BUY', 'minBuy', true)} ${th('MAX BUY', 'maxBuy')} ${th('MAX SELL', 'maxSell')} ${th('AVG SELL', 'avgSell')}
+                  `;
+              }
+              thead += `</tr>`;
 
-              // Sort all filtered data first
+              let finalHtml = `<table class="terminal-table"><thead>${thead}</thead><tbody>`;
+
               let sorted = [...filteredList].sort((a, b) => {
                   let valA = parseForSort(a[termSortCol]);
                   let valB = parseForSort(b[termSortCol]);
@@ -1565,54 +1570,42 @@ function renderLivePortfolio(data) {
               });
 
               if (sorted.length === 0) {
-                  finalHtml = tableHeader + '<tr><td colspan="20" style="text-align:center; padding:20px;">No assets match your filters 🔍</td></tr></tbody></table>';
+                  finalHtml += '<tr><td colspan="20" style="text-align:center; padding:20px;">No assets match your filters 🔍</td></tr>';
               } else if (termGroupByKey) {
-                  // PIVOT MODE: Group items by the selected key
                   let grouped = {};
                   sorted.forEach(item => {
                       let key = item[termGroupByKey];
                       if (!key || key === "#N/A") key = "Other / Unassigned";
                       if (!grouped[key]) grouped[key] = { items: [], totalVal: 0, totalPnl: 0 };
                       grouped[key].items.push(item);
-                      
-                      let val = parseForSort(item.val);
-                      let pnl = parseForSort(item.unrealizedEur);
+                      let val = parseForSort(item.val); let pnl = parseForSort(item.unrealizedEur);
                       if(val !== -Infinity) grouped[key].totalVal += val;
                       if(pnl !== -Infinity) grouped[key].totalPnl += pnl;
                   });
 
-                  finalHtml += tableHeader;
-                  
-                  // Render each group
                   for (let groupName in grouped) {
                       let g = grouped[groupName];
                       let pnlSign = g.totalPnl > 0 ? '+' : '';
                       let pnlColor = g.totalPnl > 0 ? 'color:var(--stocks-bg)' : (g.totalPnl < 0 ? 'color:var(--danger)' : '');
-                      
-                      // Render Group Header with Subtotals
                       finalHtml += `
-                        <tr class="term-group-header">
-                            <td colspan="20">
-                                ${groupName}
-                                <span class="term-subtotal sensitive">Val: <b>€ ${g.totalVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</b></span>
-                                <span class="term-subtotal sensitive">P&L: <b style="${pnlColor}">${pnlSign}€ ${g.totalPnl.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</b></span>
-                            </td>
-                        </tr>
+                        <tr class="term-group-header"><td colspan="15">
+                            ${groupName}
+                            <span class="term-subtotal sensitive">Val: <b>€ ${g.totalVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</b></span>
+                            <span class="term-subtotal sensitive">P&L: <b style="${pnlColor}">${pnlSign}€ ${g.totalPnl.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</b></span>
+                        </td></tr>
                       `;
-                      // Render rows for this group
                       finalHtml += g.items.map((item, i) => createTerminalRow(item, type, i)).join('');
                   }
-                  finalHtml += `</tbody></table>`;
               } else {
-                  // STANDARD MODE: No grouping
-                  finalHtml = tableHeader + sorted.map((item, i) => createTerminalRow(item, type, i)).join('') + '</tbody></table>';
+                  finalHtml += sorted.map((item, i) => createTerminalRow(item, type, i)).join('');
               }
 
+              finalHtml += `</tbody></table>`;
               c.className = "terminal-container";
               c.innerHTML = finalHtml;
           }
       } else { 
-          c.className = "live-scroll";
+          c.className = "live-scroll"; 
           c.innerHTML = '<div style="padding:10px; font-size:12px;">No data</div>'; 
       }
   };
