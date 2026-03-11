@@ -39,6 +39,7 @@ function fetchWatchlist(isUpdate = false) {
 let watchlistViewMode = 'cards';
 let wlSortCol = 'ticker';
 let wlSortAsc = true;
+let previousWlPrices = {};
 
 function switchWatchlistMode(mode) {
     watchlistViewMode = mode;
@@ -80,6 +81,18 @@ function renderWatchlist() {
         return; 
     }
 
+    // 1. Calculate flashes and store old prices
+    myWatchlistData.forEach(item => {
+        let currentPrice = parseForSort(item.price);
+        let oldPrice = previousWlPrices[item.ticker || item.t];
+        item._flashClass = '';
+        if (oldPrice !== undefined && oldPrice !== -Infinity && currentPrice !== -Infinity) {
+            if (currentPrice > oldPrice) item._flashClass = 'flash-up';
+            else if (currentPrice < oldPrice) item._flashClass = 'flash-down';
+        }
+        previousWlPrices[item.ticker || item.t] = currentPrice;
+    });
+
     if (watchlistViewMode === 'cards') {
         // CARDS MODE
         cont.className = "live-scroll";
@@ -118,7 +131,8 @@ function renderWatchlist() {
             if (!isNaN(floatPct)) badgeClass = floatPct >= 0 ? 'pos-change' : 'neg-change';
             let pctHtml = '<span class="tc-change ' + badgeClass + '">' + valPct + '</span>';
             
-            return `<div class="ticker-card" onclick="openWlModal(${index})" style="${borderStyle} ${opacityStyle} cursor:pointer;"><div class="tc-top"><div style="display:flex; align-items:center;"><span class="tc-symbol">${ticker}</span>${statusIcon}</div>${pctHtml}</div><div class="tc-val-big" style="font-weight:800; line-height:1.1;">${price}</div><div class="sensitive" style="font-size:10px; color:#888; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${desc}</div></div>`;
+            // Added item._flashClass to the price div
+            return `<div class="ticker-card" onclick="openWlModal(${index})" style="${borderStyle} ${opacityStyle} cursor:pointer;"><div class="tc-top"><div style="display:flex; align-items:center;"><span class="tc-symbol">${ticker}</span>${statusIcon}</div>${pctHtml}</div><div class="tc-val-big ${item._flashClass}" style="font-weight:800; line-height:1.1;">${price}</div><div class="sensitive" style="font-size:10px; color:#888; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${desc}</div></div>`;
         }).join('');
         cont.innerHTML = htmlContent;
 
@@ -132,6 +146,7 @@ function renderWatchlist() {
             return `<th ${cls} onclick="sortWatchlistTerminal('${colKey}')" style="cursor:pointer; user-select:none;">${label}${arrow}</th>`;
         };
 
+        // 2. Updated headers to merge 52W H and 52W L into a single 52W RANGE
         let thead = `<tr>
             ${th('TICKER', 'ticker')}
             ${th('NAME', 'name')}
@@ -141,8 +156,7 @@ function renderWatchlist() {
             ${th('DAY L', 'dayL')}
             ${th('P/E', 'pe', true)}
             ${th('MKT CAP', 'mkt')}
-            ${th('52W H', 'yearH', true)}
-            ${th('52W L', 'yearL')}
+            <th colspan="2" class="term-group-divider" style="text-align:center;">52W RANGE</th>
         </tr>`;
 
         // Apply sorting based on current col and direction
@@ -162,6 +176,27 @@ function renderWatchlist() {
             // Locate original index for the modal mapping
             let origIndex = myWatchlistData.findIndex(x => x.ticker === item.ticker);
             
+            // 3. Sparkline for 52W Range logic
+            let rangeHtml = '<span style="color:var(--gray);">-</span>';
+            let curP = parseForSort(item.price);
+            let low52 = parseForSort(item.yearL);
+            let high52 = parseForSort(item.yearH);
+            
+            if (curP !== -Infinity && low52 !== -Infinity && high52 !== -Infinity && high52 > low52) {
+                let pct = ((curP - low52) / (high52 - low52)) * 100;
+                pct = Math.max(0, Math.min(100, pct)); // Clamp 0-100
+                let dotColor = pct > 80 ? '#34c759' : (pct < 20 ? '#ff3b30' : '#007aff');
+                
+                rangeHtml = `
+                <div style="display:flex; align-items:center; justify-content:center; gap:8px; min-width:120px;">
+                    <span style="font-size:9px; color:var(--gray);">${fmtVal(item.yearL)}</span>
+                    <div style="flex:1; height:4px; background:var(--row-border); border-radius:2px; position:relative;">
+                        <div style="position:absolute; top:-3px; left:${pct}%; width:10px; height:10px; background:${dotColor}; border-radius:50%; transform:translateX(-50%); box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>
+                    </div>
+                    <span style="font-size:9px; color:var(--gray);">${fmtVal(item.yearH)}</span>
+                </div>`;
+            }
+
             return `<tr onclick="openWlModal(${origIndex})" style="cursor:pointer;">
                 <td>
                     <div style="display:flex; align-items:center; gap:6px; white-space:nowrap;">
@@ -169,14 +204,13 @@ function renderWatchlist() {
                     </div>
                 </td>
                 <td>${fmtVal(item.name || item.desc)}</td>
-                <td class="term-group-divider" style="font-weight:800;">${fmtVal(item.price)}</td>
+                <td class="term-group-divider ${item._flashClass}" style="font-weight:800;">${fmtVal(item.price)}</td>
                 <td class="term-heatmap" style="${getHeatmapStyle(item.dayPct || item.pct, true)}">${fmtVal(item.dayPct || item.pct)}</td>
                 <td class="term-group-divider">${fmtVal(item.dayH)}</td>
                 <td>${fmtVal(item.dayL)}</td>
                 <td class="term-group-divider">${fmtVal(item.pe)}</td>
                 <td>${fmtVal(item.mkt)}</td>
-                <td class="term-group-divider">${fmtVal(item.yearH)}</td>
-                <td>${fmtVal(item.yearL)}</td>
+                <td colspan="2" class="term-group-divider" style="padding:0 15px;">${rangeHtml}</td>
             </tr>`;
         }).join('');
 
