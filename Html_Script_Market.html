@@ -1290,14 +1290,16 @@ function switchPortfolioMode(mode) {
     // Toggle container visibility
     const hmContainer = document.getElementById('portfolio-heatmap-container');
     const lists = ['live-stocks', 'live-etfs', 'live-crypto'];
-    const widgets = ['live-day-change', 'market-breadth-widget'];
+    
+    // Day Change widget stays ALWAYS visible. We only toggle the breadth widget.
+    const breadthWidget = document.getElementById('market-breadth-widget');
+    const dayChangeWidget = document.getElementById('live-day-change');
+    if (dayChangeWidget) dayChangeWidget.style.display = 'block'; // Ensure it's always visible
     
     if (mode === 'heatmap') {
         if(toolbar) toolbar.style.display = 'none';
         if(hmContainer) hmContainer.style.display = 'block';
-        
-        // Hide widgets
-        widgets.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+        if(breadthWidget) breadthWidget.style.display = 'none';
         
         // Hide lists AND their title groups
         lists.forEach(id => { 
@@ -1305,23 +1307,21 @@ function switchPortfolioMode(mode) {
             if(el) {
                 el.style.display = 'none';
                 if(el.parentElement && el.parentElement.classList.contains('live-asset-group')) {
-                    el.parentElement.style.display = 'none'; // Nasconde anche i titoli (STOCKS, ETF...)
+                    el.parentElement.style.display = 'none'; 
                 }
             } 
         });
     } else {
         if(hmContainer) hmContainer.style.display = 'none';
-        
-        // Show widgets
-        widgets.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = ''; });
+        if(breadthWidget) breadthWidget.style.display = mode === 'terminal' ? 'block' : 'none';
         
         // Show lists AND their title groups without breaking flexbox
         lists.forEach(id => { 
             const el = document.getElementById(id); 
             if(el) {
-                el.style.display = ''; // <-- FIX: Rimuove l'inline style ripristinando il "display: flex" del tuo CSS originale!
+                el.style.display = ''; 
                 if(el.parentElement && el.parentElement.classList.contains('live-asset-group')) {
-                    el.parentElement.style.display = ''; // Ripristina i titoli
+                    el.parentElement.style.display = ''; 
                 }
             } 
         });
