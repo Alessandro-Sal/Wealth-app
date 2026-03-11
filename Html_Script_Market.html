@@ -1530,6 +1530,52 @@ function renderLivePortfolio(data) {
       
       dcContainer.innerHTML = `<div style="background:var(--white); border-radius:12px; padding:12px; margin: 5px 0 15px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.03); display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center; gap:10px;"><div style="width:40px; height:40px; border-radius:50%; ${bgStyle} display:flex; align-items:center; justify-content:center; font-size:20px;">${(isNeg ? '📉' : '📈')}</div><div><div style="font-size:12px; font-weight:600; color:var(--gray); text-transform:uppercase;">Day Change</div><div style="font-size:18px; font-weight:800; color:var(--text-main);"><span class="sensitive">${val}</span></div></div></div><div style="font-size:14px; font-weight:700; ${colorStyle} padding:4px 8px; border-radius:6px; ${bgStyle}"><span>${pct}</span></div></div>`;
   }
+  // --- MARKET BREADTH CALCULATOR ---
+  const breadthContainer = document.getElementById('market-breadth-widget');
+  if (breadthContainer && portfolioViewMode === 'terminal') {
+      let adv = 0, dec = 0, unc = 0;
+      
+      // Calculate advancing/declining issues
+      ['stocks', 'etfs', 'crypto'].forEach(type => {
+          if (data[type]) {
+              data[type].forEach(item => {
+                  let dch = parseFloat(String(item.pct || '0').replace('%', '').replace(',', '.'));
+                  if (dch > 0) adv++;
+                  else if (dch < 0) dec++;
+                  else unc++;
+              });
+          }
+      });
+      
+      let total = adv + dec + unc;
+      if (total > 0) {
+          let pAdv = (adv / total) * 100;
+          let pDec = (dec / total) * 100;
+          let pUnc = (unc / total) * 100;
+          
+          breadthContainer.innerHTML = `
+            <div class="market-breadth-container">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:12px; font-weight:800; color:var(--gray); text-transform:uppercase;">Market Breadth</span>
+                    <span style="font-size:11px; color:var(--text-main); font-weight:600;">${total} Assets</span>
+                </div>
+                <div class="breadth-bar-wrapper">
+                    <div class="breadth-segment breadth-adv" style="width: ${pAdv}%" title="Advancing: ${adv}"></div>
+                    <div class="breadth-segment breadth-unc" style="width: ${pUnc}%" title="Unchanged: ${unc}"></div>
+                    <div class="breadth-segment breadth-dec" style="width: ${pDec}%" title="Declining: ${dec}"></div>
+                </div>
+                <div class="breadth-labels">
+                    <span style="color:#34c759;">${adv} Advancing</span>
+                    <span style="color:#8e8e93;">${unc} Unchanged</span>
+                    <span style="color:#ff3b30;">${dec} Declining</span>
+                </div>
+            </div>
+          `;
+          breadthContainer.style.display = 'block';
+      }
+  } else if (breadthContainer) {
+      breadthContainer.style.display = 'none'; // Hide in Cards mode to save space
+  }
 
   // --- HELPER: ORIGINAL CARDS VIEW ---
   const createTickerCard = (item, type) => {
@@ -1566,7 +1612,7 @@ function renderLivePortfolio(data) {
       return `<th ${cls} onclick="sortTerminal('${colKey}')" style="cursor:pointer; user-select:none;">${label}${arrow}</th>`;
   };
 
-  const createTerminalRow = (item, type) => {
+ const createTerminalRow = (item, type) => {
       const fmtVal = (val) => (val && val !== "-" && val !== "" && val !== "#N/A") ? val : "-";
       let qType = type === 'crypto' ? 'Crypto' : (type === 'etfs' ? 'ETF' : 'Stocks');
 
@@ -1579,13 +1625,12 @@ function renderLivePortfolio(data) {
           else if (currentPriceParsed < oldPrice) priceFlashClass = 'flash-down';
       }
 
+      // Added oncontextmenu trigger here. Removed inline buttons for a cleaner Bloomberg look.
       let rowHtml = `
-        <tr onclick="openPortfolioModal('${type}', ${item._originalIndex})" style="cursor:pointer;">
+        <tr onclick="openPortfolioModal('${type}', ${item._originalIndex})" oncontextmenu="showContextMenu(event, '${item.t}', '${qType}', '${item.price}')" style="cursor:pointer;">
             <td>
-                <div style="display:flex; align-items:center; gap:6px; white-space:nowrap;">
+                <div style="display:flex; align-items:center; gap:6px; white-space:nowrap; font-weight:800;">
                     ${fmtVal(item.t)}
-                    <button class="row-action-btn" onclick="quickTrade('${item.t}', '${qType}')" title="Quick Trade">⚡</button>
-                    <button class="row-action-btn" onclick="openSniperAlert('${item.t}', '${item.price}')" title="Price Alert">🎯</button>
                 </div>
             </td>
       `;
@@ -1778,4 +1823,48 @@ function renderLivePortfolio(data) {
   renderCont('live-etfs', data.etfs, 'etfs');
   renderCont('live-crypto', data.crypto, 'crypto');
 }
+// --- Custom Right-Click Menu Logic ---
+function showContextMenu(e, ticker, assetClass, price) {
+    e.preventDefault(); // Prevent default browser menu
+    
+    const menu = document.getElementById('terminal-context-menu');
+    if (!menu) return;
+
+    // Apply dark mode styling if body has dark-mode
+    if (document.body.classList.contains('dark-mode')) {
+        menu.classList.add('dark-mode');
+    } else {
+        menu.classList.remove('dark-mode');
+    }
+
+    // Populate menu data
+    document.getElementById('ctx-header').innerText = ticker + ' Actions';
+    
+    // Bind actions
+    document.getElementById('ctx-trade').onclick = () => { hideContextMenu(); quickTrade(ticker, assetClass); };
+    document.getElementById('ctx-alert').onclick = () => { hideContextMenu(); openSniperAlert(ticker, price); };
+    document.getElementById('ctx-history').onclick = () => { hideContextMenu(); searchTickerHistory(ticker); };
+    document.getElementById('ctx-news').onclick = () => { hideContextMenu(); window.open('https://www.google.com/search?q=' + encodeURIComponent(ticker + ' stock news'), '_blank'); };
+    document.getElementById('ctx-chart').onclick = () => { hideContextMenu(); window.open('https://www.tradingview.com/chart/?symbol=' + encodeURIComponent(ticker), '_blank'); };
+
+    // Position the menu
+    menu.style.display = 'block';
+    
+    // Prevent menu from going off-screen
+    let x = e.pageX;
+    let y = e.pageY;
+    if (x + menu.offsetWidth > window.innerWidth) x = window.innerWidth - menu.offsetWidth - 10;
+    if (y + menu.offsetHeight > window.innerHeight) y = window.innerHeight - menu.offsetHeight - 10;
+    
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+}
+
+function hideContextMenu() {
+    const menu = document.getElementById('terminal-context-menu');
+    if (menu) menu.style.display = 'none';
+}
+
+// Close menu when clicking anywhere else
+document.addEventListener('click', hideContextMenu);
 </script>
