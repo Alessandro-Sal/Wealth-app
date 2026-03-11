@@ -35,55 +35,153 @@ function fetchWatchlist(isUpdate = false) {
   }).getWatchlistData();
 }
 
+// --- WATCHLIST VIEW MODE & SORTING ---
+let watchlistViewMode = 'cards';
+let wlSortCol = 'ticker';
+let wlSortAsc = true;
+
+function switchWatchlistMode(mode) {
+    watchlistViewMode = mode;
+    const btnCards = document.getElementById('btn-wl-cards');
+    const btnTerm = document.getElementById('btn-wl-term');
+    
+    if (mode === 'cards') {
+        if(btnCards) { btnCards.style.background = 'var(--white)'; btnCards.style.color = 'var(--text-main)'; btnCards.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; btnCards.style.fontWeight = '800'; }
+        if(btnTerm) { btnTerm.style.background = 'transparent'; btnTerm.style.color = 'var(--gray)'; btnTerm.style.boxShadow = 'none'; btnTerm.style.fontWeight = '700'; }
+    } else {
+        if(btnTerm) { btnTerm.style.background = 'var(--white)'; btnTerm.style.color = 'var(--text-main)'; btnTerm.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; btnTerm.style.fontWeight = '800'; }
+        if(btnCards) { btnCards.style.background = 'transparent'; btnCards.style.color = 'var(--gray)'; btnCards.style.boxShadow = 'none'; btnCards.style.fontWeight = '700'; }
+    }
+    
+    if(myWatchlistData) renderWatchlist();
+}
+
+function sortWatchlistTerminal(colKey) {
+    // Toggle sort direction if same column, otherwise default to descending (except strings)
+    if (wlSortCol === colKey) { 
+        wlSortAsc = !wlSortAsc; 
+    } else { 
+        wlSortCol = colKey; 
+        wlSortAsc = false; 
+    }
+    if(myWatchlistData) renderWatchlist();
+}
+
 function renderWatchlist() {
-  const list = document.getElementById('wl-list');
-  const loader = document.getElementById('wl-loader') || document.getElementById('loader');
-  if (loader) loader.style.display = 'none';
-  if (!list) return;
-  
-  if (!myWatchlistData || myWatchlistData.length === 0) { 
-      list.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:20px; color:#999; font-size:14px;">Watchlist is empty.<br>Use the + button to add tickers.</div>'; 
-      return; 
-  }
-  
-  const htmlContent = myWatchlistData.map((item, index) => {
-      const valPct = item.dayPct || item.pct || "0%"; 
-      const ticker = item.ticker || item.t || "---"; 
-      const price = item.price || "-"; 
-      const desc = item.desc || item.name || "Stock"; 
-      const currency = item.curr || "EUR";
-      
-      let simulatedExchange = 'US'; 
-      if (currency === 'EUR') simulatedExchange = 'IT'; 
-      if (currency === 'GBP') simulatedExchange = 'UK';
-      
-      let state = 'OPEN'; 
-      if (typeof getMarketState === 'function') state = getMarketState(simulatedExchange);
-      
-      let borderStyle = 'border-left: 4px solid #34c759;'; 
-      let opacityStyle = ''; 
-      let statusIcon = '';
-      
-      if (state === 'CLOSING_SOON') { 
-          borderStyle = 'border-left: 4px solid #ff9500;'; 
-          statusIcon = '<span style="font-size:8px; margin-left:4px;">🟠</span>'; 
-      } else if (state === 'PRE_MARKET') { 
-          borderStyle = 'border-left: 4px solid #007aff;'; 
-          opacityStyle = 'opacity: 0.9;'; 
-          statusIcon = '<span style="font-size:8px; margin-left:4px;">🔵</span>'; 
-      } else if (state === 'CLOSED') { 
-          borderStyle = 'border-left: 2px solid #e5e5ea;'; 
-          opacityStyle = 'opacity: 0.6; filter: grayscale(0.2);'; 
-      }
-      
-      let badgeClass = 'neutral-change'; 
-      let floatPct = parseFloat(String(valPct).replace('%', '').replace(',', '.')); 
-      if (!isNaN(floatPct)) badgeClass = floatPct >= 0 ? 'pos-change' : 'neg-change';
-      let pctHtml = '<span class="tc-change ' + badgeClass + '">' + valPct + '</span>';
-      
-      return `<div class="ticker-card" onclick="openWlModal(${index})" style="${borderStyle} ${opacityStyle} cursor:pointer; position:relative; background:var(--card-bg, #fff); min-height:80px; margin:0;"><div class="tc-top"><div style="display:flex; align-items:center;"><span class="tc-symbol">${ticker}</span>${statusIcon}</div>${pctHtml}</div><div class="tc-val-big" style="font-weight:800; line-height:1.1;">${price}</div><div class="sensitive" style="font-size:10px; color:#888; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${desc}</div></div>`;
-  }).join('');
-  list.innerHTML = htmlContent;
+    const cont = document.getElementById('watchlist-container');
+    if (!cont) return;
+    
+    const loader = document.getElementById('wl-loader') || document.getElementById('loader');
+    if (loader) loader.style.display = 'none';
+    
+    if (!myWatchlistData || myWatchlistData.length === 0) { 
+        cont.className = "";
+        cont.innerHTML = '<div style="text-align:center; padding:20px; color:#999; font-size:14px;">Watchlist is empty.<br>Use the + button to add tickers.</div>'; 
+        return; 
+    }
+
+    if (watchlistViewMode === 'cards') {
+        // CARDS MODE
+        cont.className = "live-scroll";
+        const htmlContent = myWatchlistData.map((item, index) => {
+            const valPct = item.dayPct || item.pct || "0%"; 
+            const ticker = item.ticker || item.t || "---"; 
+            const price = item.price || "-"; 
+            const desc = item.desc || item.name || "Stock"; 
+            const currency = item.curr || "EUR";
+            
+            let simulatedExchange = 'US'; 
+            if (currency === 'EUR') simulatedExchange = 'IT'; 
+            if (currency === 'GBP') simulatedExchange = 'UK';
+            
+            let state = 'OPEN'; 
+            if (typeof getMarketState === 'function') state = getMarketState(simulatedExchange);
+            
+            let borderStyle = 'border-left: 4px solid #34c759;'; 
+            let opacityStyle = ''; 
+            let statusIcon = '';
+            
+            if (state === 'CLOSING_SOON') { 
+                borderStyle = 'border-left: 4px solid #ff9500;'; 
+                statusIcon = '<span style="font-size:8px; margin-left:4px;">🟠</span>'; 
+            } else if (state === 'PRE_MARKET') { 
+                borderStyle = 'border-left: 4px solid #007aff;'; 
+                opacityStyle = 'opacity: 0.9;'; 
+                statusIcon = '<span style="font-size:8px; margin-left:4px;">🔵</span>'; 
+            } else if (state === 'CLOSED') { 
+                borderStyle = 'border-left: 2px solid #e5e5ea;'; 
+                opacityStyle = 'opacity: 0.6; filter: grayscale(0.2);'; 
+            }
+            
+            let badgeClass = 'neutral-change'; 
+            let floatPct = parseFloat(String(valPct).replace('%', '').replace(',', '.')); 
+            if (!isNaN(floatPct)) badgeClass = floatPct >= 0 ? 'pos-change' : 'neg-change';
+            let pctHtml = '<span class="tc-change ' + badgeClass + '">' + valPct + '</span>';
+            
+            return `<div class="ticker-card" onclick="openWlModal(${index})" style="${borderStyle} ${opacityStyle} cursor:pointer;"><div class="tc-top"><div style="display:flex; align-items:center;"><span class="tc-symbol">${ticker}</span>${statusIcon}</div>${pctHtml}</div><div class="tc-val-big" style="font-weight:800; line-height:1.1;">${price}</div><div class="sensitive" style="font-size:10px; color:#888; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${desc}</div></div>`;
+        }).join('');
+        cont.innerHTML = htmlContent;
+
+    } else {
+        // TERMINAL MODE
+        cont.className = "terminal-container";
+        
+        const th = (label, colKey, isDivider = false) => {
+            let arrow = wlSortCol === colKey ? (wlSortAsc ? ' <span style="color:var(--primary); font-size:12px;">↑</span>' : ' <span style="color:var(--primary); font-size:12px;">↓</span>') : '';
+            let cls = isDivider ? 'class="term-group-divider"' : '';
+            return `<th ${cls} onclick="sortWatchlistTerminal('${colKey}')" style="cursor:pointer; user-select:none;">${label}${arrow}</th>`;
+        };
+
+        let thead = `<tr>
+            ${th('TICKER', 'ticker')}
+            ${th('NAME', 'name')}
+            ${th('PRICE', 'price', true)}
+            ${th('DAY %', 'dayPct')}
+            ${th('DAY H', 'dayH', true)}
+            ${th('DAY L', 'dayL')}
+            ${th('P/E', 'pe', true)}
+            ${th('MKT CAP', 'mkt')}
+            ${th('52W H', 'yearH', true)}
+            ${th('52W L', 'yearL')}
+        </tr>`;
+
+        // Apply sorting based on current col and direction
+        let sorted = [...myWatchlistData].sort((a, b) => {
+            let valA = parseForSort(a[wlSortCol] || a.t || "");
+            let valB = parseForSort(b[wlSortCol] || b.t || "");
+            
+            if (typeof valA === 'string' && typeof valB === 'string') {
+                return wlSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            }
+            return wlSortAsc ? (valA - valB) : (valB - valA);
+        });
+
+        const fmtVal = (val) => (val && val !== "-" && val !== "" && val !== "#N/A") ? val : "-";
+
+        let tbody = sorted.map((item) => {
+            // Locate original index for the modal mapping
+            let origIndex = myWatchlistData.findIndex(x => x.ticker === item.ticker);
+            
+            return `<tr onclick="openWlModal(${origIndex})" style="cursor:pointer;">
+                <td>
+                    <div style="display:flex; align-items:center; gap:6px; white-space:nowrap;">
+                        <span style="font-weight:800;">${fmtVal(item.ticker || item.t)}</span>
+                    </div>
+                </td>
+                <td>${fmtVal(item.name || item.desc)}</td>
+                <td class="term-group-divider" style="font-weight:800;">${fmtVal(item.price)}</td>
+                <td class="term-heatmap" style="${getHeatmapStyle(item.dayPct || item.pct, true)}">${fmtVal(item.dayPct || item.pct)}</td>
+                <td class="term-group-divider">${fmtVal(item.dayH)}</td>
+                <td>${fmtVal(item.dayL)}</td>
+                <td class="term-group-divider">${fmtVal(item.pe)}</td>
+                <td>${fmtVal(item.mkt)}</td>
+                <td class="term-group-divider">${fmtVal(item.yearH)}</td>
+                <td>${fmtVal(item.yearL)}</td>
+            </tr>`;
+        }).join('');
+
+        cont.innerHTML = `<table class="terminal-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+    }
 }
 
 // --- Watchlist Modal Logic ---
@@ -1028,10 +1126,6 @@ function toggleCustomDropdown(menuId) {
     document.getElementById(menuId).classList.toggle('show');
 }
 
-/**
- * Handles the selection of a custom dropdown option.
- * Updates the hidden input, the UI label, highlights the active item, and triggers the chart update.
- */
 function selectCustomOption(inputId, value, label, menuId, element) {
     // Update hidden input value
     document.getElementById(inputId).value = value;
@@ -1041,20 +1135,22 @@ function selectCustomOption(inputId, value, label, menuId, element) {
     
     // Remove active class from all items in this menu
     const menu = document.getElementById(menuId);
-    menu.querySelectorAll('.dropdown-item').forEach(item => {
-        item.classList.remove('active');
-    });
+    if(menu) {
+        menu.querySelectorAll('.dropdown-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        element.classList.add('active');
+        menu.classList.remove('show');
+    }
     
-    // Add active class (and checkmark via CSS) to the clicked item
-    element.classList.add('active');
-    
-    // Close menu
-    menu.classList.remove('show');
-    
-    // Trigger your existing chart update function
-    updateAnalyticsChart();
+    if (inputId === 'assetSelect' || inputId === 'chartSelect') {
+        updateAnalyticsChart(); // Dropdown degli Analytics
+    } else if (inputId === 'term-adv-filter') {
+        setAdvFilter(value);    // Dropdown Terminal: Categoria
+    } else if (inputId === 'term-group-by') {
+        setTermGroupBy(value);  // Dropdown Terminal: Group By
+    }
 }
-
 // Close dropdowns automatically if the user clicks outside of them
 document.addEventListener('click', function(event) {
     if (!event.target.closest('.custom-dropdown')) {
@@ -1164,7 +1260,6 @@ function switchPortfolioMode(mode) {
     }
 }
 
-// RESETTA TUTTI I FILTRI DEL TERMINALE
 function resetTerminalFilters() {
     termActiveFilter = 'all';
     termAdvFilterValue = '';
@@ -1177,11 +1272,31 @@ function resetTerminalFilters() {
     let allChip = Array.from(document.querySelectorAll('.term-chip')).find(el => el.textContent.trim() === 'All');
     if(allChip) allChip.classList.add('active');
 
-    // Resetta Select
-    const advFilter = document.getElementById('term-adv-filter');
-    if (advFilter) advFilter.value = '';
-    const groupBy = document.getElementById('term-group-by');
-    if (groupBy) groupBy.value = '';
+    // Resetta Dropdown Categorie
+    const advInput = document.getElementById('term-adv-filter');
+    if (advInput) {
+        advInput.value = '';
+        document.getElementById('label-term-adv-filter').innerText = '⚙️ All Categories';
+        const advMenu = document.getElementById('menu-term-adv');
+        if(advMenu) {
+            advMenu.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('active'));
+            let firstAdv = advMenu.querySelector('.dropdown-item');
+            if(firstAdv) firstAdv.classList.add('active');
+        }
+    }
+
+    // Resetta Dropdown Group By
+    const groupInput = document.getElementById('term-group-by');
+    if (groupInput) {
+        groupInput.value = '';
+        document.getElementById('label-term-group-by').innerText = '🗂️ Group By...';
+        const groupMenu = document.getElementById('menu-term-group');
+        if(groupMenu) {
+            groupMenu.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('active'));
+            let firstGroup = groupMenu.querySelector('.dropdown-item');
+            if(firstGroup) firstGroup.classList.add('active');
+        }
+    }
 
     if (currentPortfolioData && currentPortfolioData.stocks) {
         renderLivePortfolio(currentPortfolioData);
@@ -1220,10 +1335,13 @@ function setTermGroupBy(val) {
 }
 
 function populateTerminalFilters(data) {
-    const select = document.getElementById('term-adv-filter');
-    if (!select) return;
-    let currentVal = select.value;
+    const hiddenInput = document.getElementById('term-adv-filter');
+    const menu = document.getElementById('menu-term-adv');
+    if (!hiddenInput || !menu) return;
+    
+    let currentVal = hiddenInput.value;
     let sectors = new Set(), industries = new Set(), countries = new Set();
+    
     const extractCategories = (list) => {
         if(!list) return;
         list.forEach(item => {
@@ -1232,15 +1350,33 @@ function populateTerminalFilters(data) {
             if (item.ctry && item.ctry !== "#N/A") countries.add(item.ctry);
         });
     };
+    
     extractCategories(data.stocks);
     extractCategories(data.etfs);
     
-    let html = '<option value="">⚙️ All Categories</option>';
-    if (sectors.size > 0) { html += '<optgroup label="Sectors">'; Array.from(sectors).sort().forEach(s => html += `<option value="sector||${s}">${s}</option>`); html += '</optgroup>'; }
-    if (industries.size > 0) { html += '<optgroup label="Industries">'; Array.from(industries).sort().forEach(i => html += `<option value="industry||${i}">${i}</option>`); html += '</optgroup>'; }
-    if (countries.size > 0) { html += '<optgroup label="Countries">'; Array.from(countries).sort().forEach(c => html += `<option value="country||${c}">${c}</option>`); html += '</optgroup>'; }
-    select.innerHTML = html;
-    select.value = currentVal;
+    // Helper per creare l'HTML della singola riga cliccabile
+    const makeItem = (val, label) => {
+        const isActive = currentVal === val ? 'active' : '';
+        const safeLabel = label.replace(/'/g, "\\'"); // Evita che apici nel nome rompano l'HTML
+        return `<div class="dropdown-item ${isActive}" onclick="selectCustomOption('term-adv-filter', '${val}', '${safeLabel}', 'menu-term-adv', this)">${label}</div>`;
+    };
+    
+    let html = makeItem('', '⚙️ All Categories');
+    
+    if (sectors.size > 0) { 
+        html += '<div class="dropdown-group-label">Sectors</div>'; 
+        Array.from(sectors).sort().forEach(s => html += makeItem(`sector||${s}`, s)); 
+    }
+    if (industries.size > 0) { 
+        html += '<div class="dropdown-group-label">Industries</div>'; 
+        Array.from(industries).sort().forEach(i => html += makeItem(`industry||${i}`, i)); 
+    }
+    if (countries.size > 0) { 
+        html += '<div class="dropdown-group-label">Countries</div>'; 
+        Array.from(countries).sort().forEach(c => html += makeItem(`country||${c}`, c)); 
+    }
+    
+    menu.innerHTML = html;
 }
 
 function parseForSort(val) {

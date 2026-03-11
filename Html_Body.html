@@ -973,16 +973,29 @@
             <div class="term-chip" onclick="setTermFilter('profit', this)">🟢 Profit</div>
             <div class="term-chip" onclick="setTermFilter('loss', this)">🔴 Loss</div>
             
-            <select id="term-adv-filter" onchange="setAdvFilter(this.value)" class="term-select" style="min-width:140px;">
-                <option value="">⚙️ All Categories</option>
-            </select>
-            
-            <select id="term-group-by" onchange="setTermGroupBy(this.value)" class="term-select" style="min-width:140px; border-color:var(--primary); color:var(--primary); background:rgba(0,122,255,0.05);">
-                <option value="">🗂️ Group By...</option>
-                <option value="sector">Sector</option>
-                <option value="ind">Industry</option>
-                <option value="curr">Currency</option>
-            </select>
+            <div class="custom-dropdown">
+    <div class="dropdown-trigger term-select" onclick="toggleCustomDropdown('menu-term-adv')" style="display:flex; justify-content:space-between; align-items:center; min-width:140px; gap:8px;">
+        <span id="label-term-adv-filter">⚙️ All Categories</span>
+        <span style="font-size: 10px; color: var(--gray);">▼</span>
+    </div>
+    <input type="hidden" id="term-adv-filter" value="">
+    <div class="dropdown-menu" id="menu-term-adv" style="min-width:200px;">
+        </div>
+</div>
+
+<div class="custom-dropdown">
+    <div class="dropdown-trigger term-select" onclick="toggleCustomDropdown('menu-term-group')" style="display:flex; justify-content:space-between; align-items:center; min-width:140px; gap:8px; border-color:var(--primary); color:var(--primary); background:rgba(0,122,255,0.05);">
+        <span id="label-term-group-by">🗂️ Group By...</span>
+        <span style="font-size: 10px; color: var(--primary);">▼</span>
+    </div>
+    <input type="hidden" id="term-group-by" value="">
+    <div class="dropdown-menu" id="menu-term-group" style="min-width:180px;">
+        <div class="dropdown-item active" onclick="selectCustomOption('term-group-by', '', '🗂️ Group By...', 'menu-term-group', this)">None</div>
+        <div class="dropdown-item" onclick="selectCustomOption('term-group-by', 'sector', 'Sector', 'menu-term-group', this)">Sector</div>
+        <div class="dropdown-item" onclick="selectCustomOption('term-group-by', 'ind', 'Industry', 'menu-term-group', this)">Industry</div>
+        <div class="dropdown-item" onclick="selectCustomOption('term-group-by', 'curr', 'Currency', 'menu-term-group', this)">Currency</div>
+    </div>
+</div>
 
             <button onclick="resetTerminalFilters()" class="term-action-btn" style="background: rgba(255,59,48,0.1); color: var(--danger); border:none; padding: 6px 10px; box-shadow:none;">✖ Reset Filters</button>
         </div>
@@ -1019,20 +1032,29 @@
             </div>
 
             <div class="dash-widget">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
-                    <div class="widget-title" style="margin:0;"><div class="badge-icon bg-purple">⭐</div> My Watchlist</div>
-                    <span onclick="toggleWatchlistInput()" style="font-size:24px; cursor:pointer; font-weight:800; color:var(--primary); line-height:1; transition:0.2s;">+</span>
-                </div>
-                <div id="wl-add-box" style="display:none; padding-bottom:15px;">
-                    <div style="display:flex; gap:10px;">
-                        <input type="text" id="wlTickerInput" class="premium-input" placeholder="Ticker (e.g. NVDA)" style="text-transform:uppercase; background:var(--section-bg);">
-                        <button onclick="sendAddToWatchlist()" style="background:var(--primary); color:white; border:none; border-radius:12px; font-weight:800; padding:0 20px; cursor:pointer;">ADD</button>
-                    </div>
-                </div>
-                <div id="watchlist-container" style="min-height:100px;">
-                    <div style="padding:20px; text-align:center; color:var(--gray); font-size:13px; font-weight:600;">Loading watchlist...</div>
-                </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px; flex-wrap:wrap; gap:10px;">
+        <div class="widget-title" style="margin:0;"><div class="badge-icon bg-purple">⭐</div> My Watchlist</div>
+        
+        <div style="display:flex; align-items:center; gap: 10px;">
+            <div style="display:flex; background:var(--section-bg); border-radius:10px; padding:4px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.03);">
+                <button id="btn-wl-cards" onclick="switchWatchlistMode('cards')" style="background:var(--white); color:var(--text-main); border:none; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:800; cursor:pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition:all 0.2s;">🗂️ Cards</button>
+                <button id="btn-wl-term" onclick="switchWatchlistMode('terminal')" style="background:transparent; color:var(--gray); border:none; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s;">📊 Terminal</button>
             </div>
+            <span onclick="toggleWatchlistInput()" style="font-size:24px; cursor:pointer; font-weight:800; color:var(--primary); line-height:1; transition:0.2s;">+</span>
+        </div>
+    </div>
+    
+    <div id="wl-add-box" style="display:none; padding-bottom:15px;">
+        <div style="display:flex; gap:10px;">
+            <input type="text" id="wlTickerInput" class="premium-input" placeholder="Ticker (e.g. NVDA)" style="text-transform:uppercase; background:var(--section-bg);">
+            <button onclick="sendAddToWatchlist()" style="background:var(--primary); color:white; border:none; border-radius:12px; font-weight:800; padding:0 20px; cursor:pointer;">ADD</button>
+        </div>
+    </div>
+    
+    <div id="watchlist-container" class="live-scroll" style="min-height:100px;">
+        <div style="padding:20px; text-align:center; color:var(--gray); font-size:13px; font-weight:600;">Loading watchlist...</div>
+    </div>
+</div>
 
             <div class="dash-widget">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
