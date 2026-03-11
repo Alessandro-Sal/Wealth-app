@@ -99,5 +99,53 @@
    body.dark-mode .term-subtotal { background: #1c1c1e; }
    .term-subtotal b { color: var(--text-main); font-weight: 800; }
    .row-action-btn { background: transparent; border: none; font-size: 13px; cursor: pointer; opacity: 0.4; transition: opacity 0.2s; padding: 0 3px; }
-   .row-action-btn:hover { opacity: 1; transform: scale(1.1); }
+   .row-action-btn:hover { opacity: 1; transform: scale(1.1); }   
+   /* 1. Flash effect for price updates */
+   @keyframes flashGreen {
+       0% { background-color: rgba(52, 199, 89, 0.4); color: white; }
+       100% { background-color: transparent; }
+   }
+   @keyframes flashRed {
+       0% { background-color: rgba(255, 59, 48, 0.4); color: white; }
+       100% { background-color: transparent; }
+   }
+   
+   .flash-up { animation: flashGreen 1.5s ease-out; }
+   .flash-down { animation: flashRed 1.5s ease-out; }
+
+   /* Force strict tabular numbers keeping the original app font */
+   .terminal-table td {
+       font-family: inherit !important;
+       font-variant-numeric: tabular-nums;
+       letter-spacing: -0.5px;
+   }
+
+   /* 2. Crosshair Highlight (Row & Column focus) */
+   .terminal-table {
+       position: relative; /* Creates a local stacking context to trap the z-index: -1 */
+       z-index: 1;
+       overflow: hidden; /* Required for column highlight to not overflow */
+   }
+   
+   .terminal-table td, .terminal-table th { 
+       position: relative; 
+   }
+   
+   /* Horizontal highlight (Row) */
+   .terminal-table tbody tr:hover td {
+       background-color: rgba(0, 122, 255, 0.08) !important;
+   }
+   
+   /* Vertical highlight (Column) */
+   .terminal-table td:hover::after {
+       content: "";
+       position: absolute;
+       background-color: rgba(0, 122, 255, 0.05);
+       left: 0;
+       top: -5000px;
+       height: 10000px;
+       width: 100%;
+       z-index: -1; /* Goes behind the text, but stays strictly inside the table's z-index */
+       pointer-events: none; /* Prevents interference with clicks */
+   }
 </style>

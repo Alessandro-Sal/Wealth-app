@@ -1462,6 +1462,18 @@ function exportTerminalCSV() {
 }
 
 function renderLivePortfolio(data) {
+  // 1. Store previous prices for the flash effect
+  let previousPrices = {};
+  if (typeof currentPortfolioData !== 'undefined' && currentPortfolioData) {
+      ['stocks', 'etfs', 'crypto'].forEach(type => {
+          if (currentPortfolioData[type]) {
+              currentPortfolioData[type].forEach(item => {
+                  previousPrices[item.t] = parseForSort(item.price);
+              });
+          }
+      });
+  }
+
   // Save original indices once to keep modals functioning
   if (!data._indexed) {
       if (data.stocks) data.stocks.forEach((item, i) => item._originalIndex = i);
@@ -1524,6 +1536,15 @@ function renderLivePortfolio(data) {
       const fmtVal = (val) => (val && val !== "-" && val !== "" && val !== "#N/A") ? val : "-";
       let qType = type === 'crypto' ? 'Crypto' : (type === 'etfs' ? 'ETF' : 'Stocks');
 
+      // Check for price changes (Flash Effect)
+      let priceFlashClass = '';
+      let currentPriceParsed = parseForSort(item.price);
+      let oldPrice = previousPrices[item.t];
+      if (oldPrice !== undefined && oldPrice !== -Infinity && currentPriceParsed !== -Infinity) {
+          if (currentPriceParsed > oldPrice) priceFlashClass = 'flash-up';
+          else if (currentPriceParsed < oldPrice) priceFlashClass = 'flash-down';
+      }
+
       let rowHtml = `
         <tr onclick="openPortfolioModal('${type}', ${item._originalIndex})" style="cursor:pointer;">
             <td>
@@ -1539,7 +1560,7 @@ function renderLivePortfolio(data) {
           rowHtml += `
             <td><span class="sensitive">${fmtVal(item.qty)}</span></td>
             <td>${fmtVal(item.avgPrice)}</td>
-            <td class="term-group-divider">${fmtVal(item.price)}</td>
+            <td class="term-group-divider ${priceFlashClass}">${fmtVal(item.price)}</td>
             <td class="term-heatmap" style="${getHeatmapStyle(item.pct, true)}">${fmtVal(item.pct)}</td>
             <td class="term-heatmap" style="${getHeatmapStyle(item.dCh, false)}"><span class="sensitive">${fmtVal(item.dCh)}</span></td>
             <td><span class="sensitive" style="font-weight:800;">${fmtVal(item.val)}</span></td>
@@ -1562,6 +1583,27 @@ function renderLivePortfolio(data) {
             <td class="term-heatmap" style="${getHeatmapStyle(item.twr, true)}">${fmtVal(item.twr)}</td>
           `;
       } else if (termSubView === 'fundamentals') {
+          // 52W Range Sparkline logic
+          let rangeHtml = '<span style="color:var(--gray);">-</span>';
+          let curP = parseForSort(item.price);
+          let low52 = parseForSort(item.yearL);
+          let high52 = parseForSort(item.yearH);
+          
+          if (curP !== -Infinity && low52 !== -Infinity && high52 !== -Infinity && high52 > low52) {
+              let pct = ((curP - low52) / (high52 - low52)) * 100;
+              pct = Math.max(0, Math.min(100, pct)); // Clamp 0-100
+              let dotColor = pct > 80 ? '#34c759' : (pct < 20 ? '#ff3b30' : '#007aff');
+              
+              rangeHtml = `
+              <div style="display:flex; align-items:center; justify-content:center; gap:8px; min-width:120px;">
+                  <span style="font-size:9px; color:var(--gray);">${fmtVal(item.yearL)}</span>
+                  <div style="flex:1; height:4px; background:var(--row-border); border-radius:2px; position:relative;">
+                      <div style="position:absolute; top:-3px; left:${pct}%; width:10px; height:10px; background:${dotColor}; border-radius:50%; transform:translateX(-50%); box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>
+                  </div>
+                  <span style="font-size:9px; color:var(--gray);">${fmtVal(item.yearH)}</span>
+              </div>`;
+          }
+
           rowHtml += `
             <td class="term-group-divider">${fmtVal(item.name)}</td>
             <td>${fmtVal(item.sector)}</td>
@@ -1572,8 +1614,7 @@ function renderLivePortfolio(data) {
             <td>${fmtVal(item.eps)}</td>
             <td>${fmtVal(item.mkt)}</td>
             <td>${fmtVal(item.beta)}</td>
-            <td class="term-group-divider">${fmtVal(item.yearH)}</td>
-            <td>${fmtVal(item.yearL)}</td>
+            <td class="term-group-divider" colspan="2" style="padding:0 15px;">${rangeHtml}</td>
             <td>${fmtVal(item.vol)}</td>
             <td>${fmtVal(item.avgVol)}</td>
           `;
@@ -1637,7 +1678,8 @@ function renderLivePortfolio(data) {
                   thead += `
                     ${th('NAME', 'name', true)} ${th('SECTOR', 'sector')} ${th('INDUSTRY', 'ind')} ${th('COUNTRY', 'ctry')} ${th('CURR', 'curr')}
                     ${th('P/E', 'pe', true)} ${th('EPS', 'eps')} ${th('MKT CAP', 'mkt')} ${th('BETA', 'beta')}
-                    ${th('52W HIGH', 'yearH', true)} ${th('52W LOW', 'yearL')} ${th('VOLUME', 'vol')} ${th('AVG VOL', 'avgVol')}
+                    <th colspan="2" class="term-group-divider" style="text-align:center;">52W RANGE</th>
+                    ${th('VOLUME', 'vol')} ${th('AVG VOL', 'avgVol')}
                   `;
               } else if (termSubView === 'trading') {
                   thead += `
