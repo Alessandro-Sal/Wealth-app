@@ -1654,7 +1654,7 @@ function renderLivePortfolio(data) {
       return `<th ${cls} onclick="sortTerminal('${colKey}')" style="cursor:pointer; user-select:none;">${label}${arrow}</th>`;
   };
 
- const createTerminalRow = (item, type) => {
+const createTerminalRow = (item, type) => {
       const fmtVal = (val) => (val && val !== "-" && val !== "" && val !== "#N/A") ? val : "-";
       let qType = type === 'crypto' ? 'Crypto' : (type === 'etfs' ? 'ETF' : 'Stocks');
 
@@ -1667,12 +1667,33 @@ function renderLivePortfolio(data) {
           else if (currentPriceParsed < oldPrice) priceFlashClass = 'flash-down';
       }
 
-      // Added oncontextmenu trigger here. Removed inline buttons for a cleaner Bloomberg look.
+      // --- UNUSUAL VOLUME RADAR LOGIC ---
+      let volumeAlertHtml = '';
+      // Crypto usually lacks reliable average volume, skip logic for them
+      if (type !== 'crypto') {
+          let currentVol = parseVolume(item.vol);
+          let averageVol = parseVolume(item.avgVol);
+          
+          if (currentVol > 0 && averageVol > 0) {
+              let volRatio = currentVol / averageVol;
+              // Alert triggers if current volume is strictly higher than historical average
+              if (volRatio >= 2.0) { 
+                  // 200% or more (Extreme unusual volume)
+                  volumeAlertHtml = `<span class="vol-alert-icon" title="🔥 Unusual Volume: ${(volRatio).toFixed(1)}x Average">🔥</span>`;
+              } else if (volRatio >= 1.5) { 
+                  // 150% to 199% (High volume warning)
+                  volumeAlertHtml = `<span class="vol-warn-icon" title="📡 High Volume: ${(volRatio).toFixed(1)}x Average">📡</span>`;
+              }
+          }
+      }
+      // ----------------------------------
+
       let rowHtml = `
         <tr onclick="openPortfolioModal('${type}', ${item._originalIndex})" oncontextmenu="showContextMenu(event, '${item.t}', '${qType}', '${item.price}')" style="cursor:pointer;">
             <td>
                 <div style="display:flex; align-items:center; gap:6px; white-space:nowrap; font-weight:800;">
                     ${fmtVal(item.t)}
+                    ${volumeAlertHtml}
                 </div>
             </td>
       `;
@@ -2022,5 +2043,16 @@ function sliceAndDice(items, x, y, w, h, total) {
         currentTotal -= item.numericVal;
     });
     return rects;
+}
+// Helper: Parses volume strings (like 1.5M, 800K) into clean numbers for ratio calculation
+function parseVolume(v) {
+    if (!v || v === '-' || v === '#N/A' || v === 'N/A') return 0;
+    let s = String(v).toUpperCase().replace(/,/g, '');
+    let multi = 1;
+    if (s.includes('M')) { multi = 1e6; s = s.replace('M', ''); }
+    else if (s.includes('B')) { multi = 1e9; s = s.replace('B', ''); }
+    else if (s.includes('K')) { multi = 1e3; s = s.replace('K', ''); }
+    let n = parseFloat(s);
+    return isNaN(n) ? 0 : n * multi;
 }
 </script>
