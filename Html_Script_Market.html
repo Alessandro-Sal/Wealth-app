@@ -1275,16 +1275,58 @@ function switchPortfolioMode(mode) {
     portfolioViewMode = mode;
     const btnCards = document.getElementById('btn-view-cards');
     const btnTerm = document.getElementById('btn-view-term');
+    const btnHeat = document.getElementById('btn-view-heat');
     const toolbar = document.getElementById('terminal-toolbar');
     
-    if (mode === 'cards') {
-        if(btnCards) { btnCards.style.background = 'var(--white)'; btnCards.style.color = 'var(--text-main)'; btnCards.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; btnCards.style.fontWeight = '800'; }
-        if(btnTerm) { btnTerm.style.background = 'transparent'; btnTerm.style.color = 'var(--gray)'; btnTerm.style.boxShadow = 'none'; btnTerm.style.fontWeight = '700'; }
+    // Reset buttons
+    [btnCards, btnTerm, btnHeat].forEach(btn => {
+        if(btn) { btn.style.background = 'transparent'; btn.style.color = 'var(--gray)'; btn.style.boxShadow = 'none'; btn.style.fontWeight = '700'; }
+    });
+    
+    // Set active button
+    const activeBtn = mode === 'cards' ? btnCards : (mode === 'terminal' ? btnTerm : btnHeat);
+    if(activeBtn) { activeBtn.style.background = 'var(--white)'; activeBtn.style.color = 'var(--text-main)'; activeBtn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; activeBtn.style.fontWeight = '800'; }
+
+    // Toggle container visibility
+    const hmContainer = document.getElementById('portfolio-heatmap-container');
+    const lists = ['live-stocks', 'live-etfs', 'live-crypto'];
+    const widgets = ['live-day-change', 'market-breadth-widget'];
+    
+    if (mode === 'heatmap') {
         if(toolbar) toolbar.style.display = 'none';
+        if(hmContainer) hmContainer.style.display = 'block';
+        
+        // Hide widgets
+        widgets.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+        
+        // Hide lists AND their title groups
+        lists.forEach(id => { 
+            const el = document.getElementById(id); 
+            if(el) {
+                el.style.display = 'none';
+                if(el.parentElement && el.parentElement.classList.contains('live-asset-group')) {
+                    el.parentElement.style.display = 'none'; // Nasconde anche i titoli (STOCKS, ETF...)
+                }
+            } 
+        });
     } else {
-        if(btnTerm) { btnTerm.style.background = 'var(--white)'; btnTerm.style.color = 'var(--text-main)'; btnTerm.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; btnTerm.style.fontWeight = '800'; }
-        if(btnCards) { btnCards.style.background = 'transparent'; btnCards.style.color = 'var(--gray)'; btnCards.style.boxShadow = 'none'; btnCards.style.fontWeight = '700'; }
-        if(toolbar) toolbar.style.display = 'flex';
+        if(hmContainer) hmContainer.style.display = 'none';
+        
+        // Show widgets
+        widgets.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = ''; });
+        
+        // Show lists AND their title groups without breaking flexbox
+        lists.forEach(id => { 
+            const el = document.getElementById(id); 
+            if(el) {
+                el.style.display = ''; // <-- FIX: Rimuove l'inline style ripristinando il "display: flex" del tuo CSS originale!
+                if(el.parentElement && el.parentElement.classList.contains('live-asset-group')) {
+                    el.parentElement.style.display = ''; // Ripristina i titoli
+                }
+            } 
+        });
+        
+        if(toolbar) toolbar.style.display = mode === 'terminal' ? 'flex' : 'none';
     }
     
     if(typeof currentPortfolioData !== 'undefined' && currentPortfolioData && currentPortfolioData.stocks) {
@@ -1819,6 +1861,11 @@ function renderLivePortfolio(data) {
       }
   };
 
+  if (portfolioViewMode === 'heatmap') {
+      renderPortfolioHeatmap(data);
+      return;
+  }
+
   renderCont('live-stocks', data.stocks, 'stocks');
   renderCont('live-etfs', data.etfs, 'etfs');
   renderCont('live-crypto', data.crypto, 'crypto');
@@ -1867,4 +1914,113 @@ function hideContextMenu() {
 
 // Close menu when clicking anywhere else
 document.addEventListener('click', hideContextMenu);
+
+// --- PORTFOLIO HEATMAP LOGIC ---
+// --- PORTFOLIO HEATMAP LOGIC ---
+function renderPortfolioHeatmap(data) {
+    const container = document.getElementById('portfolio-heatmap-container');
+    if(!container) return;
+    container.innerHTML = '';
+
+    // 1. Flatten ONLY stocks and etfs (Crypto removed to make blocks bigger)
+    let allItems = [];
+    ['stocks', 'etfs'].forEach(type => { // <-- Crypto RIMOSSO
+        if(data[type]) {
+            data[type].forEach(item => {
+                let val = parseForSort(item.val); // Usiamo il valore per dare il peso "fisico" al blocco
+                if(val > 0 && val !== -Infinity) {
+                    allItems.push({ ...item, _type: type, numericVal: val });
+                }
+            });
+        }
+    });
+
+    // 2. Sort by size (value) descending
+    allItems.sort((a, b) => b.numericVal - a.numericVal);
+
+    let totalVal = allItems.reduce((sum, it) => sum + it.numericVal, 0);
+    if(totalVal === 0) {
+        container.innerHTML = '<div style="padding:40px; text-align:center; color:var(--gray);">No active investments for Heatmap</div>';
+        return;
+    }
+
+    // 3. Squarify Algorithm (Slice and Dice)
+    let rects = sliceAndDice(allItems, 0, 0, 100, 100, totalVal);
+
+    // 4. Color Grading Logic
+    const getColor = (pctStr) => {
+        let val = parseFloat(String(pctStr).replace('%', '').replace(',', '.'));
+        if(isNaN(val)) return '#8e8e93';
+        if(val >= 2.5) return '#10893E'; // Deep Green
+        if(val > 0) return '#34C759';    // Standard Green
+        if(val <= -2.5) return '#C93429';// Deep Red
+        if(val < 0) return '#FF3B30';    // Standard Red
+        return '#8E8E93';                // Flat
+    };
+
+    // 5. Build the DOM Nodes
+    rects.forEach(rect => {
+        let div = document.createElement('div');
+        div.className = 'heatmap-block';
+        div.style.left = rect.x + '%';
+        div.style.top = rect.y + '%';
+        div.style.width = rect.w + '%';
+        div.style.height = rect.h + '%';
+        div.style.backgroundColor = getColor(rect.item.pct);
+
+        // Percentage formatting
+        let rawPct = String(rect.item.pct || "0%").replace('%', '').trim();
+        let pctFloat = parseFloat(rawPct.replace(',', '.'));
+        let formattedPct = isNaN(pctFloat) ? "0.00%" : (pctFloat > 0 ? '+' : '') + pctFloat.toFixed(2) + '%';
+
+        // --- FIX: Safely parse Day Change using the built-in parseForSort function ---
+        let dChFloat = parseForSort(rect.item.dCh);
+        if (dChFloat === -Infinity || isNaN(dChFloat)) {
+            dChFloat = 0;
+        }
+        let formattedDch = (dChFloat >= 0 ? '+€ ' : '-€ ') + Math.abs(dChFloat).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+        // Mouse interactions
+        div.onclick = () => openPortfolioModal(rect.item._type, rect.item._originalIndex);
+        div.oncontextmenu = (e) => { 
+            if(typeof showContextMenu === 'function') showContextMenu(e, rect.item.t, rect.item._type === 'crypto' ? 'Crypto' : 'Stock', rect.item.price); 
+        };
+
+        // Output formatting
+        div.innerHTML = `
+            <div class="hm-ticker" title="${rect.item.t}">${rect.item.t}</div>
+            <div class="hm-pct">${formattedPct}</div>
+            <div class="hm-val sensitive">${formattedDch}</div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+// Helper: Custom Slice-and-Dice Algorithm
+function sliceAndDice(items, x, y, w, h, total) {
+    let rects = [];
+    let currentX = x;
+    let currentY = y;
+    let currentW = w;
+    let currentH = h;
+    let currentTotal = total;
+
+    items.forEach((item) => {
+        if(currentTotal <= 0) return;
+        let ratio = item.numericVal / currentTotal;
+        if (currentW > currentH) { 
+            let itemW = currentW * ratio;
+            rects.push({item, x: currentX, y: currentY, w: itemW, h: currentH});
+            currentX += itemW;
+            currentW -= itemW;
+        } else { 
+            let itemH = currentH * ratio;
+            rects.push({item, x: currentX, y: currentY, w: currentW, h: itemH});
+            currentY += itemH;
+            currentH -= itemH;
+        }
+        currentTotal -= item.numericVal;
+    });
+    return rects;
+}
 </script>

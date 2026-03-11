@@ -228,4 +228,70 @@
        font-weight: 700;
        margin-top: 6px;
    }
+  /* --- PORTFOLIO HEATMAP (Risoluzione Ingrandita) --- */
+   .heatmap-container {
+       position: relative;
+       width: 100%;
+       height: 75vh; /* Aumentato per coprire più schermo */
+       min-height: 600px; /* Aumentato da 400px a 600px */
+       background: var(--bg-color, #f5f5f7);
+       border-radius: 12px;
+       overflow: hidden;
+       border: 1px solid var(--row-border, rgba(0,0,0,0.1));
+       display: none; 
+       margin-bottom: 20px;
+   }
+   .heatmap-block {
+       position: absolute;
+       box-sizing: border-box;
+       border: 1px solid var(--bg-color, #f5f5f7);
+       display: flex;
+       flex-direction: column;
+       align-items: center;
+       justify-content: center;
+       color: white;
+       text-align: center;
+       padding: 4px; /* Più respiro interno */
+       cursor: pointer;
+       transition: filter 0.2s, transform 0.1s;
+       overflow: hidden;
+   }
+   .heatmap-block:hover {
+       filter: brightness(1.15);
+       z-index: 10;
+       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+   }
+   
+   /* Font ridimensionabili che non strabordano mai in malo modo */
+   .hm-ticker { 
+       font-weight: 800; 
+       font-size: clamp(11px, 1.8vw, 20px); /* Testo più grande */
+       text-shadow: 0 1px 3px rgba(0,0,0,0.3); 
+       line-height: 1.2;
+       width: 100%;
+       text-overflow: ellipsis;
+       overflow: hidden;
+       white-space: nowrap;
+   }
+   .hm-pct { 
+       font-weight: 700; 
+       font-size: clamp(10px, 1.4vw, 15px); 
+       text-shadow: 0 1px 2px rgba(0,0,0,0.3); 
+       line-height: 1.2;
+       width: 100%;
+       text-overflow: ellipsis;
+       overflow: hidden;
+       white-space: nowrap;
+   }
+   .hm-val { 
+       font-size: clamp(9px, 1.1vw, 13px); 
+       font-weight: 600;
+       opacity: 0.95; 
+       margin-top: 3px; 
+       line-height: 1.2;
+       width: 100%;
+       text-overflow: ellipsis;
+       overflow: hidden;
+       white-space: nowrap;
+   }
 </style>
