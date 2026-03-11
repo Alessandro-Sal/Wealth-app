@@ -1761,10 +1761,37 @@ const createTerminalRow = (item, type) => {
             <td>${fmtVal(item.avgVol)}</td>
           `;
       } else if (termSubView === 'trading') {
+          // --- BREAKEVEN VISUALIZER ALGORITHM ---
+          let deltaHtml = '<span style="color:var(--gray);">-</span>';
+          let deltaVal = parseForSort(item.delta);
+          
+          if (deltaVal !== -Infinity && !isNaN(deltaVal)) {
+              // Cap visual representation at +/- 50% distance from BEP 
+              // (If an asset is +100%, the bar stops at 50% physical width to not break layout)
+              const maxVisualRange = 50; 
+              
+              // Map the actual percentage to the physical width of the half-track (max 50%)
+              let physicalWidthPct = Math.min((Math.abs(deltaVal) / maxVisualRange) * 50, 50);
+              
+              let colorCls = deltaVal >= 0 ? 'pos' : 'neg';
+              let colorStyle = deltaVal > 0 ? 'color:#34c759;' : (deltaVal < 0 ? 'color:#ff3b30;' : 'color:var(--text-main);');
+              let textSign = deltaVal > 0 ? '+' : '';
+              
+              deltaHtml = `
+              <div class="bep-container">
+                  <div class="bep-track">
+                      <div class="bep-center-mark"></div>
+                      <div class="bep-fill ${colorCls}" style="width:${physicalWidthPct}%;"></div>
+                  </div>
+                  <div class="bep-text" style="${colorStyle}">${textSign}${deltaVal.toFixed(2)}%</div>
+              </div>`;
+          }
+          // --------------------------------------
+
           rowHtml += `
-            <td class="term-group-divider"><span class="sensitive">${fmtVal(item.bep)}</span></td>
-            <td>${fmtVal(item.delta)}</td>
-            <td>${fmtVal(item.winRate)}</td>
+            <td class="term-group-divider"><span class="sensitive" style="font-weight:800;">${fmtVal(item.bep)}</span></td>
+            <td>${deltaHtml}</td>
+            <td class="term-group-divider">${fmtVal(item.winRate)}</td>
             <td>${fmtVal(item.profitFactor)}</td>
             <td>${fmtVal(item.drawdown)}</td>
             <td class="term-group-divider">${fmtVal(item.firstBuyDate)}</td>
