@@ -489,25 +489,27 @@ function openNewsModal(index) {
 let currentModalArticleIndex = -1;
 
 /**
- * Updates the save button UI inside the modal
+ * Updates the save button UI inside the modal using native CSS classes
  */
 function updateModalBookmarkUI(article) {
     const savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
     const isSaved = savedNews.some(savedItem => savedItem.link === article.link);
     const btnSave = document.getElementById('nr-btn-save');
     
-    if (isSaved) {
-        btnSave.style.background = 'var(--primary)';
-        btnSave.style.color = 'white';
-    } else {
-        btnSave.style.background = '#f2f2f7';
-        btnSave.style.color = 'inherit';
+    if (btnSave) {
+        // Pulisce vecchi stili inline se rimasti in memoria
+        btnSave.style.background = ''; 
+        
+        if (isSaved) {
+            btnSave.classList.add('bookmarked');
+        } else {
+            btnSave.classList.remove('bookmarked');
+        }
     }
 }
 
 /**
- * Handles bookmarking from the Modal and changes the background 
- * of the circular div for clear visual feedback.
+ * Handles bookmarking from the Modal using native classes and slide-down Toast
  */
 function toggleModalBookmark(event) {
     if (event) {
@@ -521,8 +523,7 @@ function toggleModalBookmark(event) {
     const article = filteredNews[currentModalArticleIndex];
     if (!article) return;
     
-    // Grabs the exact circular div you clicked
-    const btnSave = event ? event.currentTarget : document.getElementById('nr-btn-save');
+    const btnSave = document.getElementById('nr-btn-save');
     
     let savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
     const existingIndex = savedNews.findIndex(item => item.link === article.link);
@@ -530,35 +531,33 @@ function toggleModalBookmark(event) {
     let toastMsg = "";
     let toastIcon = "";
     
+    if (btnSave) btnSave.style.background = ''; // Forza pulizia
+    
     if (existingIndex > -1) {
         // Remove from saved
         savedNews.splice(existingIndex, 1);
-        if (btnSave) {
-            btnSave.style.background = '#f2f2f7'; // Ritorna al grigio spento originale
-        }
+        if (btnSave) btnSave.classList.remove('bookmarked');
         toastMsg = "Removed from bookmarks";
         toastIcon = "🗑️";
     } else {
         // Add to saved
         savedNews.push(article);
         if (navigator.vibrate) navigator.vibrate(15);
-        if (btnSave) {
-            btnSave.style.background = 'var(--primary)'; // Il tondino si accende del colore della tua app
-        }
+        if (btnSave) btnSave.classList.add('bookmarked');
         toastMsg = "Article saved successfully!";
         toastIcon = "✅";
     }
     
-    // Add the "pop" animation to the circle
+    // Add the "pop" animation
     if (btnSave) {
         btnSave.style.transform = 'scale(1.3)';
-        btnSave.style.transition = 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
         setTimeout(() => { btnSave.style.transform = 'scale(1)'; }, 200);
     }
     
     // Show the slide-down Toast notification
     const toast = document.getElementById('toast-container');
     if (toast) {
+        toast.style.zIndex = '9999999';
         document.getElementById('toast-title').innerText = "BOOKMARK";
         document.getElementById('toast-message').innerText = toastMsg;
         document.getElementById('toast-icon').innerText = toastIcon;
@@ -582,7 +581,6 @@ function toggleModalBookmark(event) {
         setTimeout(() => { if (typeof loadNews === 'function') loadNews('saved'); }, 500);
     }
 }
-
 /**
  * Shares the article directly from the modal
  */
