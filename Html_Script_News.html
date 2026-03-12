@@ -506,17 +506,81 @@ function updateModalBookmarkUI(article) {
 }
 
 /**
- * Toggles the bookmark state directly from the modal
+ * Handles bookmarking from the Modal and changes the background 
+ * of the circular div for clear visual feedback.
  */
 function toggleModalBookmark(event) {
-    if (currentModalArticleIndex === -1) return;
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
     
-    // Call the existing function to toggle the bookmark
-    toggleBookmark(currentModalArticleIndex, event);
+    // Safety check
+    if (typeof currentModalArticleIndex === 'undefined' || currentModalArticleIndex === -1) return;
     
-    // Immediately update the modal UI to reflect the change
     const article = filteredNews[currentModalArticleIndex];
-    updateModalBookmarkUI(article);
+    if (!article) return;
+    
+    // Grabs the exact circular div you clicked
+    const btnSave = event ? event.currentTarget : document.getElementById('nr-btn-save');
+    
+    let savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
+    const existingIndex = savedNews.findIndex(item => item.link === article.link);
+    
+    let toastMsg = "";
+    let toastIcon = "";
+    
+    if (existingIndex > -1) {
+        // Remove from saved
+        savedNews.splice(existingIndex, 1);
+        if (btnSave) {
+            btnSave.style.background = '#f2f2f7'; // Ritorna al grigio spento originale
+        }
+        toastMsg = "Removed from bookmarks";
+        toastIcon = "🗑️";
+    } else {
+        // Add to saved
+        savedNews.push(article);
+        if (navigator.vibrate) navigator.vibrate(15);
+        if (btnSave) {
+            btnSave.style.background = 'var(--primary)'; // Il tondino si accende del colore della tua app
+        }
+        toastMsg = "Article saved successfully!";
+        toastIcon = "✅";
+    }
+    
+    // Add the "pop" animation to the circle
+    if (btnSave) {
+        btnSave.style.transform = 'scale(1.3)';
+        btnSave.style.transition = 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+        setTimeout(() => { btnSave.style.transform = 'scale(1)'; }, 200);
+    }
+    
+    // Show the slide-down Toast notification
+    const toast = document.getElementById('toast-container');
+    if (toast) {
+        document.getElementById('toast-title').innerText = "BOOKMARK";
+        document.getElementById('toast-message').innerText = toastMsg;
+        document.getElementById('toast-icon').innerText = toastIcon;
+        toast.style.top = '20px';
+        
+        // Hide after 2.5 seconds
+        setTimeout(() => { toast.style.top = '-100px'; }, 2500);
+    }
+    
+    // Sync data in background
+    localStorage.setItem('saved_news', JSON.stringify(savedNews));
+    
+    if (typeof google !== 'undefined' && google.script) {
+        google.script.run
+            .withFailureHandler(e => console.error("Cloud bookmark sync failed", e))
+            .toggleCloudSavedNews(article);
+    }
+        
+    // Update live if viewing the Saved tab
+    if (typeof currentNewsCategory !== 'undefined' && currentNewsCategory === 'saved') {
+        setTimeout(() => { if (typeof loadNews === 'function') loadNews('saved'); }, 500);
+    }
 }
 
 /**
@@ -660,6 +724,399 @@ function closeNewsModal() {
         isSpeaking = false;
         const btnText = document.getElementById('nr-listen-text');
         if (btnText) btnText.innerText = "Listen";
+    }
+}
+
+// Global states for the premium alerts sheet
+window.quickSheetNews = [];
+window.currentAlertTicker = 'ALL';
+
+/**
+ * Checks for new portfolio news silently.
+ * Updates the badge count and triggers a Toast notification for high-impact news.
+ */
+function checkPortfolioAlertsSilent() {
+    google.script.run
+      .withSuccessHandler(function(response) {
+          const articles = response.articles || [];
+          if (articles.length === 0) return;
+          
+          const lastChecked = localStorage.getItem('last_alerts_check') || 0;
+          let newCount = 0;
+          let latestHighImpactNews = null;
+          
+          articles.forEach(art => {
+              const artTime = new Date(art.date).getTime();
+              if (artTime > Number(lastChecked)) {
+                  newCount++;
+                  
+                  // Check if this new article is High-Impact using our existing logic
+                  const sentiment = getQuickSentiment(art.title);
+                  if (sentiment.tag !== '' && !latestHighImpactNews) {
+                      latestHighImpactNews = art;
+                  }
+              }
+          });
+          
+          // Update the red badge
+          const badge = document.getElementById('portfolio-badge-count');
+          if (badge) {
+              if (newCount > 0) {
+                  badge.innerText = newCount > 9 ? '9+' : newCount;
+                  badge.style.display = 'block';
+                  badge.animate([{transform: 'scale(1)'}, {transform: 'scale(1.3)'}, {transform: 'scale(1)'}], {duration: 300});
+              } else {
+                  badge.style.display = 'none';
+              }
+          }
+
+          // Trigger Toast Notification for the most recent High-Impact news
+          if (latestHighImpactNews) {
+              showToastNotification(latestHighImpactNews);
+          }
+      })
+      .getMarketNews('portfolio');
+}
+
+/**
+ * Displays a slide-down toast notification globally.
+ */
+let toastTimeout;
+function showToastNotification(article) {
+    const toast = document.getElementById('toast-container');
+    const title = document.getElementById('toast-title');
+    const msg = document.getElementById('toast-message');
+    const icon = document.getElementById('toast-icon');
+    
+    if (!toast) return;
+
+    // Format the toast content
+    const sentiment = getQuickSentiment(article.title);
+    const tickerStr = article.relatedTickers && article.relatedTickers.length > 0 ? article.relatedTickers[0] : 'PORTFOLIO';
+    
+    // Extract the raw text from the HTML tag (e.g., "🔥 EARNINGS")
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = sentiment.tag;
+    const tagText = tempDiv.innerText || '🚨 ALERT';
+
+    title.innerText = `${tickerStr} • ${tagText}`;
+    msg.innerText = article.title;
+    icon.innerText = sentiment.icon !== '⚪' ? sentiment.icon : '📰';
+
+    // Slide down
+    toast.style.top = '20px';
+    
+    // Play a subtle notification sound if device allows (optional, using browser beep)
+    if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
+
+    // Click on toast opens the bottom sheet
+    document.getElementById('toast-content').onclick = function() {
+        toast.style.top = '-100px';
+        if (typeof openPortfolioAlerts === 'function') {
+            openPortfolioAlerts();
+        }
+    };
+
+    // Auto-hide after 4 seconds
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => {
+        toast.style.top = '-100px';
+    }, 4000);
+}
+
+/**
+ * Opens the premium bottom sheet, resets the badge, and loads data.
+ */
+function openPortfolioAlerts() {
+    const backdrop = document.getElementById('common-backdrop');
+    const sheet = document.getElementById('portfolio-alerts-sheet');
+    if (backdrop) backdrop.classList.add('active');
+    if (sheet) sheet.classList.add('active');
+    
+    // Hide badge and update last checked time
+    const badge = document.getElementById('portfolio-badge-count');
+    if (badge) badge.style.display = 'none';
+    localStorage.setItem('last_alerts_check', Date.now().toString());
+
+    const container = document.getElementById('portfolio-alerts-list');
+    container.innerHTML = '<div style="text-align:center; color:var(--gray); padding:40px;"><span class="loader" style="width:20px; height:20px; border-width:3px; display:inline-block; margin-bottom:10px;"></span><br>Scanning markets...</div>';
+    document.getElementById('alert-ticker-filters').innerHTML = '';
+
+    google.script.run
+      .withSuccessHandler(function(response) {
+          window.quickSheetNews = response.articles || [];
+          window.currentAlertTicker = 'ALL';
+          renderAlertFilters(response.tickers || []);
+          renderPortfolioAlerts();
+      })
+      .withFailureHandler(function(error) {
+          container.innerHTML = '<div style="text-align:center; color:var(--danger); padding:40px;">Failed to load alerts.</div>';
+      })
+      .getMarketNews('portfolio');
+}
+
+/**
+ * Renders the filter chips at the top of the sheet.
+ */
+function renderAlertFilters(tickers) {
+    const filterContainer = document.getElementById('alert-ticker-filters');
+    filterContainer.innerHTML = '';
+    
+    if (tickers.length === 0) return;
+    
+    const allTickers = ['ALL', ...tickers];
+    
+    allTickers.forEach(ticker => {
+        const chip = document.createElement('div');
+        chip.innerText = ticker === 'ALL' ? '🌐 All Assets' : ticker;
+        chip.style.padding = '6px 14px';
+        chip.style.borderRadius = '16px';
+        chip.style.fontSize = '12px';
+        chip.style.fontWeight = '700';
+        chip.style.cursor = 'pointer';
+        chip.style.whiteSpace = 'nowrap';
+        chip.style.transition = '0.2s';
+        
+        // Styling based on active state
+        if (ticker === window.currentAlertTicker) {
+            chip.style.background = 'var(--text-main)';
+            chip.style.color = 'var(--bg)';
+        } else {
+            chip.style.background = 'var(--section-bg)';
+            chip.style.color = 'var(--gray)';
+            chip.style.border = '1px solid var(--row-border)';
+        }
+        
+        chip.onclick = function() {
+            window.currentAlertTicker = ticker;
+            // Re-render filters to update colors
+            renderAlertFilters(tickers);
+            // Re-render list
+            renderPortfolioAlerts();
+        };
+        
+        filterContainer.appendChild(chip);
+    });
+}
+
+/**
+ * Basic JS sentiment analyzer for visual feedback
+ */
+function getQuickSentiment(title) {
+    const titleLower = title.toLowerCase();
+    const upWords = /surge|rally|jump|soar|buy|up|gain|record|bull|soars|jumps|beats/i;
+    const downWords = /plunge|drop|fall|sell|down|bear|crash|loss|misses|slips/i;
+    
+    if (upWords.test(titleLower)) return { icon: '🟢', color: 'rgba(52, 199, 89, 0.1)', border: '#34c759' };
+    if (downWords.test(titleLower)) return { icon: '🔴', color: 'rgba(255, 59, 48, 0.1)', border: '#ff3b30' };
+    return { icon: '⚪', color: 'transparent', border: 'transparent' };
+}
+
+/**
+ * Renders the filtered list of alerts with premium UI.
+ */
+function renderPortfolioAlerts() {
+    const container = document.getElementById('portfolio-alerts-list');
+    container.innerHTML = '';
+    
+    let displayList = window.quickSheetNews;
+    
+    // Apply filter if not ALL
+    if (window.currentAlertTicker !== 'ALL') {
+        displayList = displayList.filter(item => 
+            item.relatedTickers && item.relatedTickers.includes(window.currentAlertTicker)
+        );
+    }
+    
+    if (displayList.length === 0) {
+        container.innerHTML = `<div style="text-align:center; color:var(--gray); padding:40px; font-weight:600;">No recent news for ${window.currentAlertTicker}.</div>`;
+        return;
+    }
+
+    displayList.forEach(item => {
+        // Find original index to link to main modal
+        const origIndex = window.quickSheetNews.findIndex(orig => orig.link === item.link);
+        const sentiment = getQuickSentiment(item.title);
+        
+        const div = document.createElement('div');
+        div.style.padding = '15px 20px';
+        div.style.borderBottom = '1px solid var(--row-border)';
+        div.style.background = 'var(--white)';
+        div.style.display = 'flex';
+        div.style.gap = '15px';
+        div.style.alignItems = 'flex-start';
+        div.style.borderLeft = `4px solid ${sentiment.border}`;
+        
+        // Find if already saved
+        const savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
+        const isSaved = savedNews.some(savedItem => savedItem.link === item.link);
+        const saveIconStr = isSaved ? 'solid' : 'regular';
+        const saveColor = isSaved ? 'var(--primary)' : 'var(--gray)';
+        
+    // Ticker pill string
+        let tickersHtml = item.relatedTickers && item.relatedTickers.length > 0 
+            ? `<span style="font-weight:800; color:var(--text-main); margin-right:6px;">${item.relatedTickers.join(', ')}</span>`
+            : '';
+
+        // Generate the Chart Quick Action button if a ticker exists
+        let chartActionHtml = '';
+        if (item.relatedTickers && item.relatedTickers.length > 0) {
+            const primaryTicker = item.relatedTickers[0];
+            chartActionHtml = `
+               <div onclick="quickViewChart('${primaryTicker}', event)" style="padding:10px; border-radius:12px; background:var(--section-bg); cursor:pointer; color:var(--primary); transition:0.2s; flex-shrink:0; margin-right:8px;" title="View Chart">
+                  📊
+               </div>
+            `;
+        }
+
+        div.innerHTML = `
+           <div style="flex:1; min-width:0; cursor:pointer;" onclick="openAlertInReader(${origIndex})">
+              <div style="font-size:10px; color:var(--gray); margin-bottom:6px; font-weight:600; text-transform:uppercase;">
+                 ${sentiment.icon} ${sentiment.tag} ${tickersHtml} • ${item.source}
+              </div>
+              <div style="font-size:14px; font-weight:800; color:var(--text-main); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
+                 ${item.title}
+              </div>
+           </div>
+           
+           <div style="display:flex; align-items:center;">
+               ${chartActionHtml}
+               <div onclick="quickSaveAlert(${origIndex}, this, event)" style="padding:10px; border-radius:12px; background:var(--section-bg); cursor:pointer; color:${saveColor}; transition:0.2s; flex-shrink:0;">
+                  🔖
+               </div>
+           </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+/**
+ * Opens the selected alert in the main full-screen reader.
+ */
+function openAlertInReader(origIndex) {
+    // Prep global array
+    filteredNews = window.quickSheetNews; 
+    closePortfolioAlertsSheet();
+    setTimeout(() => { openNewsModal(origIndex); }, 200);
+}
+
+/**
+ * Quick save directly from the alert list.
+ */
+function quickSaveAlert(origIndex, btnElement, event) {
+    event.stopPropagation(); // Prevents opening the modal
+    
+    // Simulate the bookmark toggle logic
+    filteredNews = window.quickSheetNews; 
+    toggleBookmark(origIndex, event);
+    
+    // Visual feedback
+    btnElement.style.color = btnElement.style.color === 'var(--gray)' ? 'var(--primary)' : 'var(--gray)';
+    btnElement.style.transform = 'scale(1.2)';
+    setTimeout(() => btnElement.style.transform = 'scale(1)', 200);
+}
+
+/**
+ * Clean sheet closure.
+ */
+function closePortfolioAlertsSheet() {
+    const sheet = document.getElementById('portfolio-alerts-sheet');
+    const backdrop = document.getElementById('common-backdrop');
+    if (sheet) sheet.classList.remove('active');
+    
+    const activeSheets = document.querySelectorAll('.sheet-modal.active');
+    if (backdrop && activeSheets.length === 0) {
+        backdrop.classList.remove('active');
+    }
+    
+    // Ferma l'audio se si chiude la tendina
+    if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        const btn = document.getElementById('btn-podcast-alerts');
+        if(btn) btn.innerHTML = '🎧 ASCOLTA';
+    }
+}
+
+/**
+ * Analizzatore JS Avanzato: Sentiment + High Impact Tags
+ */
+function getQuickSentiment(title) {
+    const titleLower = title.toLowerCase();
+    
+    // 1. Cerca tag di altissimo impatto (Volatilità)
+    let impactTag = '';
+    if (/earnings|trimestral|revenue|guidance|q1|q2|q3|q4/i.test(titleLower)) {
+        impactTag = '<span style="background:rgba(255,149,0,0.15); color:#ff9500; font-size:8px; padding:2px 4px; border-radius:4px; margin-right:6px;">🔥 EARNINGS</span>';
+    } else if (/merger|acquisition|buyout|takeover/i.test(titleLower)) {
+        impactTag = '<span style="background:rgba(88,86,214,0.15); color:#5856d6; font-size:8px; padding:2px 4px; border-radius:4px; margin-right:6px;">🚨 M&A</span>';
+    } else if (/fed|rate|inflation|bce|powell|cpi/i.test(titleLower)) {
+        impactTag = '<span style="background:rgba(44,44,46,0.15); color:var(--text-main); font-size:8px; padding:2px 4px; border-radius:4px; margin-right:6px;">🏦 MACRO</span>';
+    }
+
+    // 2. Sentiment Base
+    const upWords = /surge|rally|jump|soar|buy|up|gain|record|bull|soars|jumps|beats/i;
+    const downWords = /plunge|drop|fall|sell|down|bear|crash|loss|misses|slips/i;
+    
+    if (upWords.test(titleLower)) return { icon: '🟢', border: '#34c759', tag: impactTag };
+    if (downWords.test(titleLower)) return { icon: '🔴', border: '#ff3b30', tag: impactTag };
+    return { icon: '⚪', border: 'transparent', tag: impactTag };
+}
+
+/**
+ * Funzione Audio: Legge i titoli delle notizie attualmente filtrate
+ */
+let alertsSpeechUtterance = null;
+function playPortfolioPodcast() {
+    const btn = document.getElementById('btn-podcast-alerts');
+    
+    // Se sta già parlando, lo fermiamo
+    if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        btn.innerHTML = '🎧 ASCOLTA';
+        return;
+    }
+
+    // Prendi solo i titoli attualmente visibili nella lista
+    const visibleNews = window.currentAlertTicker === 'ALL' 
+        ? window.quickSheetNews 
+        : window.quickSheetNews.filter(item => item.relatedTickers && item.relatedTickers.includes(window.currentAlertTicker));
+
+    if (visibleNews.length === 0) return;
+
+    btn.innerHTML = '⏹️ STOP';
+    
+    // Crea il testo da leggere (Saluto + Titoli)
+    let textToRead = `Aggiornamento per ${window.currentAlertTicker === 'ALL' ? 'il tuo portafoglio' : window.currentAlertTicker}. `;
+    visibleNews.slice(0, 5).forEach((item, i) => {
+        textToRead += `Notizia ${i + 1}: ${item.title}. `;
+    });
+    textToRead += "Fine degli aggiornamenti.";
+
+    alertsSpeechUtterance = new SpeechSynthesisUtterance(textToRead);
+    alertsSpeechUtterance.lang = 'it-IT'; // Voce italiana
+    alertsSpeechUtterance.rate = 1.05;    // Leggermente più veloce
+
+    alertsSpeechUtterance.onend = function() {
+        btn.innerHTML = '🎧 ASCOLTA';
+    };
+
+    window.speechSynthesis.speak(alertsSpeechUtterance);
+}
+
+/**
+ * Quick action to jump to the Market tab and view the specific ticker chart.
+ */
+function quickViewChart(ticker, event) {
+    event.stopPropagation(); // Prevents opening the news reader modal
+    
+    // Close the alerts bottom sheet
+    closePortfolioAlertsSheet();
+    
+    // Re-use the existing logic to search and open the ticker in the Market tab
+    if (typeof searchTickerFromNews === 'function') {
+        searchTickerFromNews(ticker);
+    } else {
+        console.warn("searchTickerFromNews is not defined yet.");
     }
 }
 </script>

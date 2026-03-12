@@ -26,6 +26,10 @@ async function initApp() {
     }
   }, 100);
   
+  // Check for portfolio alerts silently in the background after app load
+  if (typeof checkPortfolioAlertsSilent === 'function') {
+    setTimeout(checkPortfolioAlertsSilent, 2000);
+  }
   // Theme Setup
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme === 'dark') toggleTheme();
