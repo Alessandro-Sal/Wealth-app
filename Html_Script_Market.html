@@ -131,24 +131,18 @@ function renderWatchlist() {
             if (!isNaN(floatPct)) badgeClass = floatPct >= 0 ? 'pos-change' : 'neg-change';
             let pctHtml = '<span class="tc-change ' + badgeClass + '">' + valPct + '</span>';
             
-            // Added item._flashClass to the price div
-            // Nuova struttura della Card Watchlist con icona Note in alto a destra
-            // Nuova struttura Watchlist: Padding maggiorato e anti-sovrapposizione
-            // Nuova struttura Watchlist: Icona note vicina al Ticker, percentuale in alto a dx
+           // Nuova struttura Watchlist: Flexbox e Card Ingrandita
             return `
             <div class="ticker-card" onclick="openWlModal(${index})" style="${borderStyle} ${opacityStyle} cursor:pointer;">
-                <div class="tc-top">
-                    <div style="display:flex; align-items:center; min-width:0;">
-                        <span class="tc-symbol" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80px;">${ticker}</span>
-                        
-                        <div style="cursor:pointer; font-size:12px; opacity:0.8; margin-left:6px; margin-right:4px; padding:2px; z-index:10;" onclick="openTickerNotes('${ticker}', event)" title="Notes">
+                <div class="tc-top" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                    <div style="display: flex; align-items: center; flex: 1; min-width: 0;">
+                        <div class="tc-symbol" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px;">${ticker}</div>
+                        <div style="flex-shrink: 0; margin-left: 6px; font-size: 12px; cursor: pointer; opacity: 0.8; padding: 2px;" onclick="openTickerNotes('${ticker}', event)" title="Notes">
                             ${hasTickerNote(ticker) ? '📝' : '➕'}
                         </div>
-                        
-                        ${statusIcon}
+                        ${statusIcon ? `<div style="flex-shrink: 0; margin-left: 4px;">${statusIcon}</div>` : ''}
                     </div>
-                    
-                    <div style="text-align:right;">
+                    <div style="flex-shrink: 0; text-align: right;">
                         ${pctHtml}
                     </div>
                 </div>
@@ -1667,21 +1661,18 @@ function renderLivePortfolio(data) {
           else if (state === 'PRE_MARKET') { borderStyle = 'border-left: 4px solid #007aff;'; opacityStyle = 'opacity: 0.9;'; statusIcon = '<span style="font-size:8px; margin-left:4px;">🔵</span>'; } 
       }
       
-      // Nuova struttura Portfolio: Icona note vicina al Ticker, percentuale in alto a dx
+      // Nuova struttura Portfolio: Flexbox e Card Ingrandita
       return `
       <div class="ticker-card" onclick="openPortfolioModal('${type}', ${item._originalIndex})" style="${borderStyle} ${opacityStyle} cursor:pointer;">
-          <div class="tc-top">
-              <div style="display:flex; align-items:center; min-width:0;">
-                  <span class="tc-symbol" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80px;">${item.t}</span>
-                  
-                  <div style="cursor:pointer; font-size:12px; opacity:0.8; margin-left:6px; margin-right:4px; padding:2px; z-index:10;" onclick="openTickerNotes('${item.t}', event)" title="Notes">
+          <div class="tc-top" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <div style="display: flex; align-items: center; flex: 1; min-width: 0;">
+                  <div class="tc-symbol" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px;">${item.t}</div>
+                  <div style="flex-shrink: 0; margin-left: 6px; font-size: 12px; cursor: pointer; opacity: 0.8; padding: 2px;" onclick="openTickerNotes('${item.t}', event)" title="Notes">
                       ${hasTickerNote(item.t) ? '📝' : '➕'}
                   </div>
-                  
-                  ${statusIcon}
+                  ${statusIcon ? `<div style="flex-shrink: 0; margin-left: 4px;">${statusIcon}</div>` : ''}
               </div>
-              
-              <div style="text-align:right;">
+              <div style="flex-shrink: 0; text-align: right;">
                   ${pctHtml}
               </div>
           </div>

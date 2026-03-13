@@ -456,11 +456,45 @@ function openNewsModal(index) {
         if (article.relatedTickers && article.relatedTickers.length > 0) {
             let tickersHtml = '<div class="ticker-pill-container" style="margin-top:0;">';
             article.relatedTickers.forEach(t => { 
-                // Added cursor:pointer and onclick event
                 tickersHtml += `<span class="ticker-pill" style="background:var(--section-bg); border:none; cursor:pointer;" onclick="searchTickerFromNews('${t}')">📈 ${t}</span>`; 
             });
             tickersHtml += '</div>';
             tickersContainer.innerHTML = tickersHtml;
+        }
+
+        // 5.5 ECOSISTEMA: Handle Related Notes
+        const notesContainer = document.getElementById('nr-related-notes');
+        const notesContent = document.getElementById('nr-notes-content');
+        
+        if (notesContainer && notesContent) {
+            let foundNotesHtml = '';
+            
+            // Check if the article has tickers
+            if (article.relatedTickers && article.relatedTickers.length > 0) {
+                let allNotes = {};
+                try {
+                    allNotes = JSON.parse(localStorage.getItem('ticker_notes') || '{}');
+                } catch(e) {}
+                
+                // Search for a note for each ticker in the article
+                article.relatedTickers.forEach(t => {
+                    if (allNotes[t]) {
+                        foundNotesHtml += `
+                        <div style="margin-bottom: ${foundNotesHtml !== '' ? '8px' : '0'};">
+                            <span style="font-weight: 800; font-size: 12px; color: var(--text-main); background: var(--section-bg); padding: 2px 6px; border-radius: 4px; margin-right: 6px;">${t}</span>
+                            <span style="opacity: 0.9;">${allNotes[t]}</span>
+                        </div>`;
+                    }
+                });
+            }
+            
+            // Display the box only if we found at least one note
+            if (foundNotesHtml !== '') {
+                notesContent.innerHTML = foundNotesHtml;
+                notesContainer.style.display = 'block';
+            } else {
+                notesContainer.style.display = 'none';
+            }
         }
 
         // 6. Set external link button
