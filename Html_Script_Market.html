@@ -1671,6 +1671,7 @@ function renderLivePortfolio(data) {
           ${dayChangeHtml}
           <div class="tc-val-sub"><span class="sensitive">Tot: ${item.val}</span></div>
       </div>`;
+      };
 
   const th = (label, colKey, isDivider = false) => {
       let arrow = termSortCol === colKey ? (termSortAsc ? ' <span style="color:var(--primary); font-size:12px;">↑</span>' : ' <span style="color:var(--primary); font-size:12px;">↓</span>') : '';
