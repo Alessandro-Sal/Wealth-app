@@ -489,94 +489,88 @@ function openNewsModal(index) {
 let currentModalArticleIndex = -1;
 
 /**
- * Updates the save button UI inside the modal using native CSS classes
+ * Updates the save button UI inside the modal (Forced Inline Styles)
+ */
+/**
+ * Updates the save button UI inside the modal (Total Clean Slate)
  */
 function updateModalBookmarkUI(article) {
-    const savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
-    const isSaved = savedNews.some(savedItem => savedItem.link === article.link);
     const btnSave = document.getElementById('nr-btn-save');
+    if (!btnSave) return;
     
-    if (btnSave) {
-        // Pulisce vecchi stili inline se rimasti in memoria
-        btnSave.style.background = ''; 
+    // 1. Reset Totale: rimuove qualsiasi stile inline e resetta alla classe base
+    btnSave.removeAttribute('style');
+    btnSave.className = 'bookmark-btn';
+    btnSave.innerHTML = '🔖';
+
+    try {
+        // 2. Controllo lo stato nei salvati
+        const savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
+        const isSaved = savedNews.some(savedItem => savedItem.link === article.link);
         
+        // 3. Se salvato, applico SOLO la classe nativa CSS (che lo fa diventare nero)
         if (isSaved) {
             btnSave.classList.add('bookmarked');
-        } else {
-            btnSave.classList.remove('bookmarked');
         }
+    } catch (e) {
+        console.error("Errore lettura bookmarks:", e);
     }
 }
 
 /**
- * Handles bookmarking from the Modal using native classes and slide-down Toast
+ * Handles bookmarking from the Modal (Identical to general toggleBookmark)
  */
 function toggleModalBookmark(event) {
+    // Blocca eventi propagati per evitare doppi click o chiusure impreviste
     if (event) {
         event.preventDefault();
         event.stopPropagation();
     }
     
-    // Safety check
-    if (typeof currentModalArticleIndex === 'undefined' || currentModalArticleIndex === -1) return;
+    // Safety check sull'indice
+    if (typeof currentModalArticleIndex === 'undefined' || currentModalArticleIndex === -1) {
+        return;
+    }
     
     const article = filteredNews[currentModalArticleIndex];
     if (!article) return;
     
-    const btnSave = document.getElementById('nr-btn-save');
+    // Recupera il bottone (usando lo stesso target del click se possibile, o l'ID)
+    const btnSave = event.currentTarget || document.getElementById('nr-btn-save');
+    if (!btnSave) return;
     
-    let savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
+    let savedNews = [];
+    try {
+        savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
+    } catch (e) {
+        savedNews = [];
+    }
+    
     const existingIndex = savedNews.findIndex(item => item.link === article.link);
     
-    let toastMsg = "";
-    let toastIcon = "";
-    
-    if (btnSave) btnSave.style.background = ''; // Forza pulizia
-    
+    // --- LOGICA DI TOGGLE IDENTICA ALLE CARD PRINCIPALI ---
     if (existingIndex > -1) {
-        // Remove from saved
+        // Rimuovi dai salvati e togli il colore
         savedNews.splice(existingIndex, 1);
-        if (btnSave) btnSave.classList.remove('bookmarked');
-        toastMsg = "Removed from bookmarks";
-        toastIcon = "🗑️";
+        btnSave.classList.remove('bookmarked');
     } else {
-        // Add to saved
+        // Aggiungi ai salvati, metti il colore (diventa nero) e vibra
         savedNews.push(article);
-        if (navigator.vibrate) navigator.vibrate(15);
-        if (btnSave) btnSave.classList.add('bookmarked');
-        toastMsg = "Article saved successfully!";
-        toastIcon = "✅";
+        btnSave.classList.add('bookmarked');
+        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);
     }
     
-    // Add the "pop" animation
-    if (btnSave) {
-        btnSave.style.transform = 'scale(1.3)';
-        setTimeout(() => { btnSave.style.transform = 'scale(1)'; }, 200);
-    }
-    
-    // Show the slide-down Toast notification
-    const toast = document.getElementById('toast-container');
-    if (toast) {
-        toast.style.zIndex = '9999999';
-        document.getElementById('toast-title').innerText = "BOOKMARK";
-        document.getElementById('toast-message').innerText = toastMsg;
-        document.getElementById('toast-icon').innerText = toastIcon;
-        toast.style.top = '20px';
-        
-        // Hide after 2.5 seconds
-        setTimeout(() => { toast.style.top = '-100px'; }, 2500);
-    }
-    
-    // Sync data in background
+    // Salvataggio locale per velocità
     localStorage.setItem('saved_news', JSON.stringify(savedNews));
     
+    // Sincronizzazione Cloud in background silente
     if (typeof google !== 'undefined' && google.script) {
         google.script.run
-            .withFailureHandler(e => console.error("Cloud bookmark sync failed", e))
+            .withFailureHandler(e => console.error("Cloud sync err:", e))
             .toggleCloudSavedNews(article);
     }
-        
-    // Update live if viewing the Saved tab
+    
+    // Se siamo nel tab 'saved', aggiorna la lista silenziosamente
     if (typeof currentNewsCategory !== 'undefined' && currentNewsCategory === 'saved') {
         setTimeout(() => { if (typeof loadNews === 'function') loadNews('saved'); }, 500);
     }
