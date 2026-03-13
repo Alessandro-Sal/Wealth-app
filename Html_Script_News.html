@@ -984,12 +984,15 @@ function renderPortfolioAlerts() {
 
 /**
  * Opens the selected alert in the main full-screen reader.
+ * Modified to keep the alerts sheet open in the background.
  */
 function openAlertInReader(origIndex) {
-    // Prep global array
+    // Prep global array with the sheet's news data
     filteredNews = window.quickSheetNews; 
-    closePortfolioAlertsSheet();
-    setTimeout(() => { openNewsModal(origIndex); }, 200);
+    
+    // Open the modal immediately, WITHOUT closing the alerts sheet first.
+    // The modal will appear on top because of its higher z-index.
+    openNewsModal(origIndex);
 }
 
 /**

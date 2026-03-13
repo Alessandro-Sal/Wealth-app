@@ -2195,6 +2195,7 @@
         <div class="context-menu-header" id="ctx-header">TICKER</div>
         <div class="context-menu-item" id="ctx-trade">⚡ Quick Trade</div>
         <div class="context-menu-item" id="ctx-alert">🎯 Set Price Alert</div>
+        <div class="context-menu-item" id="ctx-notes" onclick="openTickerNotes(currentSelectedTicker, event)">📝 Write Note</div>
         <div class="context-menu-divider"></div>
         <div class="context-menu-item" id="ctx-history">📜 Transaction History</div>
         <div class="context-menu-item" id="ctx-news">📰 Search News</div>
@@ -2240,5 +2241,21 @@
          <div id="toast-message" style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Message</div>
       </div>
    </div>
+</div>
+<div id="ticker-notes-sheet" class="sheet-modal">
+    <div class="sheet-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:16px;">📝</span>
+            <span id="notes-sheet-title" style="font-size:12px; font-weight:800; color:var(--text-main); letter-spacing:1px;">NOTES</span>
+        </div>
+        <button class="sheet-close" onclick="closeTickerNotesSheet()">Close</button>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:15px; padding-top:10px;">
+        <input type="hidden" id="current-notes-ticker" value="">
+        <textarea id="ticker-notes-input" class="premium-input" placeholder="Write your thoughts, targets, or reminders for this asset..." style="height: 180px; resize: none; background: var(--section-bg); font-family: inherit; line-height: 1.5;"></textarea>
+        <button onclick="saveTickerNote(event)" style="width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s;">
+            SAVE NOTE
+        </button>
+    </div>
 </div>
 </body>
