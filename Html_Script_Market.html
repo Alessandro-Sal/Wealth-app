@@ -133,14 +133,24 @@ function renderWatchlist() {
             
             // Added item._flashClass to the price div
             // Nuova struttura della Card Watchlist con icona Note in alto a destra
+            // Nuova struttura Watchlist: Padding maggiorato e anti-sovrapposizione
+            // Nuova struttura Watchlist: Icona note vicina al Ticker, percentuale in alto a dx
             return `
-            <div class="ticker-card" onclick="openWlModal(${index})" style="${borderStyle} ${opacityStyle} cursor:pointer; position:relative;">
-                <div style="position:absolute; top:8px; right:8px; cursor:pointer; font-size:12px; opacity:0.8; z-index:10;" onclick="openTickerNotes('${ticker}', event)" title="Notes">
-                    ${hasTickerNote(ticker) ? '📝' : '➕'}
-                </div>
-                <div class="tc-top" style="padding-right:20px;">
-                    <div style="display:flex; align-items:center;"><span class="tc-symbol">${ticker}</span>${statusIcon}</div>
-                    ${pctHtml}
+            <div class="ticker-card" onclick="openWlModal(${index})" style="${borderStyle} ${opacityStyle} cursor:pointer;">
+                <div class="tc-top">
+                    <div style="display:flex; align-items:center; min-width:0;">
+                        <span class="tc-symbol" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80px;">${ticker}</span>
+                        
+                        <div style="cursor:pointer; font-size:12px; opacity:0.8; margin-left:6px; margin-right:4px; padding:2px; z-index:10;" onclick="openTickerNotes('${ticker}', event)" title="Notes">
+                            ${hasTickerNote(ticker) ? '📝' : '➕'}
+                        </div>
+                        
+                        ${statusIcon}
+                    </div>
+                    
+                    <div style="text-align:right;">
+                        ${pctHtml}
+                    </div>
                 </div>
                 <div class="tc-val-big ${item._flashClass}" style="font-weight:800; line-height:1.1;">${price}</div>
                 <div class="sensitive" style="font-size:10px; color:#888; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${desc}</div>
@@ -1657,15 +1667,23 @@ function renderLivePortfolio(data) {
           else if (state === 'PRE_MARKET') { borderStyle = 'border-left: 4px solid #007aff;'; opacityStyle = 'opacity: 0.9;'; statusIcon = '<span style="font-size:8px; margin-left:4px;">🔵</span>'; } 
       }
       
-      // Nuova struttura della Card Portfolio con icona Note in alto a destra
+      // Nuova struttura Portfolio: Icona note vicina al Ticker, percentuale in alto a dx
       return `
-      <div class="ticker-card" onclick="openPortfolioModal('${type}', ${item._originalIndex})" style="${borderStyle} ${opacityStyle} cursor:pointer; position:relative;">
-          <div style="position:absolute; top:8px; right:8px; cursor:pointer; font-size:12px; opacity:0.8; z-index:10;" onclick="openTickerNotes('${item.t}', event)" title="Notes">
-              ${hasTickerNote(item.t) ? '📝' : '➕'}
-          </div>
-          <div class="tc-top" style="padding-right:20px;">
-              <div style="display:flex; align-items:center;"><span class="tc-symbol">${item.t}</span>${statusIcon}</div>
-              ${pctHtml}
+      <div class="ticker-card" onclick="openPortfolioModal('${type}', ${item._originalIndex})" style="${borderStyle} ${opacityStyle} cursor:pointer;">
+          <div class="tc-top">
+              <div style="display:flex; align-items:center; min-width:0;">
+                  <span class="tc-symbol" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80px;">${item.t}</span>
+                  
+                  <div style="cursor:pointer; font-size:12px; opacity:0.8; margin-left:6px; margin-right:4px; padding:2px; z-index:10;" onclick="openTickerNotes('${item.t}', event)" title="Notes">
+                      ${hasTickerNote(item.t) ? '📝' : '➕'}
+                  </div>
+                  
+                  ${statusIcon}
+              </div>
+              
+              <div style="text-align:right;">
+                  ${pctHtml}
+              </div>
           </div>
           <div class="tc-val-big" style="font-weight:800; line-height:1.1;"><span>${item.price}</span></div>
           ${dayChangeHtml}
@@ -1963,7 +1981,11 @@ function showContextMenu(e, ticker, assetClass, price) {
     // Bind actions
     document.getElementById('ctx-trade').onclick = () => { hideContextMenu(); quickTrade(ticker, assetClass); };
     document.getElementById('ctx-alert').onclick = () => { hideContextMenu(); openSniperAlert(ticker, price); };
-    document.getElementById('ctx-notes').onclick = (event) => { hideContextMenu(); openTickerNotes(ticker, event); };
+    const ctxNotesBtn = document.getElementById('ctx-notes');
+    if (ctxNotesBtn) {
+        ctxNotesBtn.innerHTML = hasTickerNote(ticker) ? '📝 Edit Note' : '➕ Add Note';
+        ctxNotesBtn.onclick = (event) => { hideContextMenu(); openTickerNotes(ticker, event); };
+    }
     document.getElementById('ctx-history').onclick = () => { hideContextMenu(); searchTickerHistory(ticker); };
     document.getElementById('ctx-news').onclick = () => { hideContextMenu(); window.open('https://www.google.com/search?q=' + encodeURIComponent(ticker + ' stock news'), '_blank'); };
     document.getElementById('ctx-chart').onclick = () => { hideContextMenu(); window.open('https://www.tradingview.com/chart/?symbol=' + encodeURIComponent(ticker), '_blank'); };
