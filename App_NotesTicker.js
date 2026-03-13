@@ -16,11 +16,10 @@ function syncNotesOnStartup() {
     }
 }
 
-// Call it directly so it runs when the JS executes
-syncNotesOnStartup();
-/**
- * Opens the notes sheet for a specific ticker
- */
+// ============================================================================
+// --- TICKER NOTES MODULE (FRONTEND) ---
+// ============================================================================
+
 function openTickerNotes(ticker, event) {
     if (event) {
         event.preventDefault();
@@ -35,11 +34,9 @@ function openTickerNotes(ticker, event) {
     
     if (!sheet || !title || !input || !hiddenTicker) return;
     
-    // Set the target ticker
     hiddenTicker.value = ticker;
     title.innerText = `${ticker} NOTES`;
     
-    // Load existing note from LocalStorage
     let notesData = {};
     try {
         notesData = JSON.parse(localStorage.getItem('ticker_notes') || '{}');
@@ -47,14 +44,10 @@ function openTickerNotes(ticker, event) {
     
     input.value = notesData[ticker] || '';
     
-    // Show the modal
     if (backdrop) backdrop.classList.add('active');
     sheet.classList.add('active');
 }
 
-/**
- * Closes the notes sheet cleanly
- */
 function closeTickerNotesSheet() {
     const sheet = document.getElementById('ticker-notes-sheet');
     const backdrop = document.getElementById('common-backdrop');
@@ -66,20 +59,14 @@ function closeTickerNotesSheet() {
     }
 }
 
-/**
- * Saves the note locally for speed and syncs it to Google Sheets for safety
- */
 function saveTickerNote(event) {
     const ticker = document.getElementById('current-notes-ticker').value;
     const noteText = document.getElementById('ticker-notes-input').value.trim();
     
     if (!ticker) return;
     
-    // 1. Local Storage save (instant speed)
     let notesData = {};
-    try {
-        notesData = JSON.parse(localStorage.getItem('ticker_notes') || '{}');
-    } catch(e) {}
+    try { notesData = JSON.parse(localStorage.getItem('ticker_notes') || '{}'); } catch(e) {}
     
     if (noteText === '') {
         delete notesData[ticker]; 
@@ -88,7 +75,6 @@ function saveTickerNote(event) {
     }
     localStorage.setItem('ticker_notes', JSON.stringify(notesData));
     
-    // 2. UI Button feedback (Syncing state)
     const btn = event.currentTarget;
     const oldText = btn.innerText;
     const oldBg = btn.style.background;
@@ -96,11 +82,9 @@ function saveTickerNote(event) {
     btn.innerText = '☁️ SYNCING...';
     btn.style.pointerEvents = 'none';
     
-    // 3. Google Sheets Backup (Bulletproof storage)
     if (typeof google !== 'undefined' && google.script) {
         google.script.run
             .withSuccessHandler(function() {
-                // Cloud save successful
                 btn.innerText = '✅ SECURELY SAVED';
                 btn.style.background = 'var(--success, #34c759)';
                 setTimeout(() => {
@@ -108,10 +92,13 @@ function saveTickerNote(event) {
                     btn.style.background = oldBg;
                     btn.style.pointerEvents = 'auto';
                     closeTickerNotesSheet();
+                    
+                    // Ricarica le card per far apparire l'icona 📝
+                    if (typeof fetchWatchlist === 'function') fetchWatchlist(true);
+                    if (typeof fetchLivePortfolio === 'function') fetchLivePortfolio(true);
                 }, 800);
             })
             .withFailureHandler(function(err) {
-                // Network error handling
                 btn.innerText = '⚠️ SAVED LOCALLY (SYNC FAILED)';
                 btn.style.background = 'var(--warning, #ff9500)';
                 setTimeout(() => {
@@ -122,14 +109,10 @@ function saveTickerNote(event) {
             })
             .saveNoteToCloud(ticker, noteText);
     } else {
-        // Fallback if running outside Apps Script environment
         setTimeout(() => closeTickerNotesSheet(), 500);
     }
 }
 
-/**
- * Utility: Check if a ticker has a saved note (useful for UI indicators)
- */
 function hasTickerNote(ticker) {
     try {
         const notesData = JSON.parse(localStorage.getItem('ticker_notes') || '{}');
@@ -137,46 +120,6 @@ function hasTickerNote(ticker) {
     } catch(e) {
         return false;
     }
-}
-
-/**
- * Saves or updates a note for a specific ticker in the Google Sheet.
- * If the note is empty, it deletes the row.
- */
-function saveNoteToCloud(ticker, noteText) {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName("App_Notes");
-    
-    // Create the sheet automatically if it doesn't exist yet
-    if (!sheet) {
-        sheet = ss.insertSheet("App_Notes");
-        sheet.appendRow(["Ticker", "Note", "Last Update"]);
-        sheet.getRange("A1:C1").setFontWeight("bold");
-    }
-    
-    const data = sheet.getDataRange().getValues();
-    let found = false;
-    
-    // Scan existing rows to update or delete
-    for (let i = 1; i < data.length; i++) {
-        if (data[i][0] === ticker) {
-            if (noteText === "") {
-                sheet.deleteRow(i + 1); 
-            } else {
-                sheet.getRange(i + 1, 2).setValue(noteText);
-                sheet.getRange(i + 1, 3).setValue(new Date());
-            }
-            found = true;
-            break;
-        }
-    }
-    
-    // If not found and the note is not empty, add a new row at the bottom
-    if (!found && noteText !== "") {
-        sheet.appendRow([ticker, noteText, new Date()]);
-    }
-    
-    return true;
 }
 
 /**
