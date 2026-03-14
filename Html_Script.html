@@ -165,52 +165,47 @@ function setupInputValidation() {
 
 /**
  * Toggles the sign (+/-) icon next to an input field.
- * Also changes the text color to indicate expense (red) vs income (green).
+ * L'input rimane un valore assoluto, il segno effettivo lo decide il bottone!
  */
 function toggleSignIcon(icon) {
   const wrapper = icon.parentElement;
   const input = wrapper.querySelector('input');
-  let val = parseFloat(input.value);
   const isPlus = icon.classList.contains('sign-plus');
   
   if (isPlus) {
     icon.classList.remove('sign-plus');
     icon.classList.add('sign-minus');
-    setTimeout(() => icon.innerHTML = '&#8722;', 50); 
+    icon.innerHTML = '&#8722;'; // Segno meno pulito
     input.style.color = 'var(--danger)';
-    if (!isNaN(val) && val > 0) input.value = (val * -1).toFixed(2);
   } else {
     icon.classList.remove('sign-minus');
     icon.classList.add('sign-plus');
-    setTimeout(() => icon.innerText = '+', 50);
+    icon.innerText = '+';
     input.style.color = 'var(--stocks-bg)';
-    if (!isNaN(val) && val < 0) input.value = Math.abs(val).toFixed(2);
   }
   if(navigator.vibrate) navigator.vibrate(20);
 }
 
 /**
- * Synchronizes the input text color with the current value (+/-).
+ * Sincronizza il colore dell'input col bottone e intercetta i meno digitati a mano.
  */
 function syncIconColor(input) {
   const wrapper = input.parentElement;
   const icon = wrapper.querySelector('.sign-toggle');
-  let val = parseFloat(input.value);
   
-  if (val < 0) {
-    if (!icon.classList.contains('sign-minus')) {
-      icon.classList.remove('sign-plus');
-      icon.classList.add('sign-minus');
-      icon.innerHTML = '&#8722;';
-    }
-    input.style.color = 'var(--danger)';
+  // Se l'utente digita esplicitamente un "-", lo assorbiamo nel bottone e puliamo il testo
+  if (input.value.includes('-')) {
+      input.value = input.value.replace(/-/g, '');
+      if (icon.classList.contains('sign-plus')) {
+          toggleSignIcon(icon); // Gira il bottone su meno
+      }
+  }
+  
+  // Il colore segue sempre lo stato visivo del bottone
+  if (icon.classList.contains('sign-minus')) {
+      input.style.color = 'var(--danger)';
   } else {
-    if (!icon.classList.contains('sign-plus')) {
-      icon.classList.remove('sign-minus');
-      icon.classList.add('sign-plus');
-      icon.innerText = '+';
-    }
-    input.style.color = 'var(--stocks-bg)'; 
+      input.style.color = 'var(--stocks-bg)';
   }
 }
 </script>

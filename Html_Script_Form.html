@@ -8,11 +8,6 @@
 
 // --- Form Logic ---
 
-/**
- * Handles changes in the Transaction Type dropdown.
- * Switches between standard inputs and pension inputs.
- * 
- */
 function handleTypeChange() {
   const type = document.getElementById('tType').value;
   const standardDiv = document.getElementById('standard-inputs');
@@ -24,7 +19,6 @@ function handleTypeChange() {
       pensionDiv.style.display = 'block'; 
       if(btn) btn.innerHTML = "💾 SAVE PENSION";
       
-      // Auto-set previous month
       const now = new Date(); 
       now.setMonth(now.getMonth() - 1);
       document.getElementById('penMonth').value = now.getMonth();
@@ -35,6 +29,22 @@ function handleTypeChange() {
       pensionDiv.style.display = 'none'; 
       if(btn) btn.innerHTML = "SAVE";
       loadCategories(); 
+      
+      // AUTO-TOGGLE: Imposta i segni delle banche a seconda della categoria scelta
+      document.querySelectorAll('.sign-toggle').forEach(icon => {
+          let input = icon.parentElement.querySelector('.bank-in');
+          if (type === 'Expense') {
+              icon.classList.remove('sign-plus');
+              icon.classList.add('sign-minus');
+              icon.innerHTML = '&#8722;';
+              if(input) input.style.color = 'var(--danger)';
+          } else if (type === 'Income' || type === 'Storno') {
+              icon.classList.remove('sign-minus');
+              icon.classList.add('sign-plus');
+              icon.innerText = '+';
+              if(input) input.style.color = 'var(--stocks-bg)';
+          }
+      });
   }
 }
 
@@ -76,6 +86,15 @@ function resetForm() {
   document.getElementById('txForm').reset();
   document.getElementById('tCat').innerHTML = '';
   document.getElementById('f-stat').innerText = '';
+  
+  // Resetta tutti i bottoni in modalità "Entrata" di default
+  document.querySelectorAll('.sign-toggle').forEach(icon => {
+      icon.classList.remove('sign-minus');
+      icon.classList.add('sign-plus');
+      icon.innerText = '+';
+      let input = icon.parentElement.querySelector('.bank-in');
+      if (input) input.style.color = 'var(--stocks-bg)';
+  });
 }
 
 /**
@@ -131,14 +150,22 @@ function sendTransaction() {
       return; 
   }
   
-  let amounts = {}; 
+ let amounts = {}; 
   let hasValue = false;
-  document.querySelectorAll('.bank-in').forEach(i => { 
-      let v = parseFloat(i.value); 
-      if (!isNaN(v) && v !== 0) { 
-          amounts[i.getAttribute('data-col')] = v; 
-          hasValue = true; 
-      } 
+  
+  document.querySelectorAll('.input-wrapper').forEach(wrapper => { 
+      let i = wrapper.querySelector('.bank-in');
+      if(i) {
+          let v = parseFloat(i.value); 
+          if (!isNaN(v) && v !== 0) { 
+              let isMinus = wrapper.querySelector('.sign-toggle').classList.contains('sign-minus');
+              let finalAmount = Math.abs(v);
+              if (isMinus) finalAmount = finalAmount * -1;
+              
+              amounts[i.getAttribute('data-col')] = finalAmount; 
+              hasValue = true; 
+          }
+      }
   });
   
   if (!hasValue) { 
