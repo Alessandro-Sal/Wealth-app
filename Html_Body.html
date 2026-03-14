@@ -1064,7 +1064,7 @@
     </div>
 </div>
 
-        <div class="dash-widget">
+<div class="dash-widget">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
         <div class="widget-title" style="margin:0;"><div class="badge-icon bg-dark">🏆</div> Benchmark</div>
         
@@ -1093,30 +1093,42 @@
         <div style="font-size:13px; font-weight:600; color:var(--gray); text-align:center; padding:10px;">Loading indices...</div>
     </div>
     
-    <div style="background:rgba(0,122,255,0.05); border-left:4px solid #007aff; padding:15px; border-radius:0 12px 12px 0; margin-bottom:15px;">
-        <div style="font-size:10px; font-weight:800; color:#007aff; margin-bottom:6px; letter-spacing:0.5px;">🌍 MACRO SCENARIO</div>
-        <div id="macro-text" class="ai-text-box">Click 🔄 to generate.</div>
-    </div>
-    <div style="background:rgba(255,149,0,0.05); border-left:4px solid #ff9500; padding:15px; border-radius:0 12px 12px 0;">
-        <div style="font-size:10px; font-weight:800; color:#ff9500; margin-bottom:6px; letter-spacing:0.5px;">👤 PORTFOLIO IMPACT</div>
-        <div id="portfolio-text" class="sensitive ai-text-box">Waiting for user input...</div>
-    </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                </div>
-                <div>
-                    <div class="calendar-header" style="display:flex; justify-content:space-between; align-items:center;">
-                        <button onclick="changeMonth(-1)" style="border:none; background:var(--section-bg); width:28px; height:28px; border-radius:8px; cursor:pointer; font-size:12px; color:var(--primary); font-weight:bold;">◀</button>
-                        <div id="cal-month-year" style="flex:1; text-align:center; font-weight:800; font-size:13px; color:var(--text-main);">Tap 🔄</div>
-                        <button onclick="changeMonth(1)" style="border:none; background:var(--section-bg); width:28px; height:28px; border-radius:8px; cursor:pointer; font-size:12px; color:var(--primary); font-weight:bold;">▶</button>
-                    </div>
-                    <div class="calendar-grid" id="calendar-grid">
-                        <div style="grid-column: span 7; text-align:center; padding:10px; color:var(--gray); font-size:12px; font-weight:600;">Waiting data...</div>
-                    </div>
-                    <div id="calendar-details" class="event-details-box">
-                        <div style="text-align:center; color:var(--gray); font-size:11px; font-weight:600;">Select marked day.</div>
-                    </div>
-                </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-top: 5px;">
+        <div style="background:rgba(0,122,255,0.05); border-left:4px solid #007aff; padding:15px; border-radius:12px; display:flex; flex-direction:column;">
+            <div style="font-size:10px; font-weight:800; color:#007aff; margin-bottom:8px; letter-spacing:0.5px;">🌍 MACRO SCENARIO</div>
+            <div id="macro-text" class="ai-text-box live-scroll" style="flex-grow:1; max-height: 180px; overflow-y: auto; padding-right: 8px;">
+                Click 🔄 to generate.
             </div>
+        </div>
+        
+        <div style="background:rgba(255,149,0,0.05); border-left:4px solid #ff9500; padding:15px; border-radius:12px; display:flex; flex-direction:column;">
+            <div style="font-size:10px; font-weight:800; color:#ff9500; margin-bottom:8px; letter-spacing:0.5px;">👤 PORTFOLIO IMPACT</div>
+            <div id="portfolio-text" class="sensitive ai-text-box live-scroll" style="flex-grow:1; max-height: 180px; overflow-y: auto; padding-right: 8px;">
+                Waiting for user input...
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="dash-widget" style="height: fit-content;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <div class="widget-title" style="margin:0;"><div class="badge-icon bg-red">🗓️</div> Outlook</div>
+        <span style="font-size:10px; font-weight:600; color:var(--gray);">Tap for info</span>
+    </div>
+    <div>
+        <div class="calendar-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <button onclick="changeMonth(-1)" style="border:none; background:var(--section-bg); width:28px; height:28px; border-radius:8px; cursor:pointer; font-size:12px; color:var(--primary); font-weight:bold;">◀</button>
+            <div id="cal-month-year" style="flex:1; text-align:center; font-weight:800; font-size:13px; color:var(--text-main);">Tap 🔄</div>
+            <button onclick="changeMonth(1)" style="border:none; background:var(--section-bg); width:28px; height:28px; border-radius:8px; cursor:pointer; font-size:12px; color:var(--primary); font-weight:bold;">▶</button>
+        </div>
+        <div class="calendar-grid" id="calendar-grid">
+            <div style="grid-column: span 7; text-align:center; padding:10px; color:var(--gray); font-size:12px; font-weight:600;">Waiting data...</div>
+        </div>
+        <div id="calendar-details" class="event-details-box live-scroll" style="max-height: 200px; overflow-y: auto; padding-right: 8px; margin-top: 10px;">
+            <div style="text-align:center; color:var(--gray); font-size:11px; font-weight:600;">Select marked day.</div>
+        </div>
+    </div>
+</div>
 
 <div class="dash-section-title" style="margin-top:10px;">📊 Analytics & Allocation</div>
 <div class="dash-widget">
