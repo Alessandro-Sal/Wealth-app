@@ -153,14 +153,22 @@ function getLivePortfolio() {
         })
         .filter(i => i);
   }
-
-  // 3. Daily Portfolio Performance (from Dashboard)
-  let dayChangeData = { val: "€ 0,00", pct: "0,00%" };
+// 3. Daily Portfolio Performance (from Dashboard)
+  let dayChangeData = { val: "€ 0,00", pct: "0,00%", spyPct: 0 };
   const dashSheet = ss.getSheetByName("Stock Market Dashboard");
   if (dashSheet) {
+    // Leggiamo la cella B8 per l'S&P 500 (Assicurati di inserire la formula in questa cella!)
+    let spyValue = dashSheet.getRange("C5").getValue();
+    
+    // Se la cella è vuota o c'è un errore temporaneo di Google Finance, usiamo 0
+    if (isNaN(spyValue) || spyValue === "") {
+        spyValue = 0;
+    }
+
     dayChangeData = { 
       val: dashSheet.getRange("B6").getDisplayValue(), 
-      pct: dashSheet.getRange("B7").getDisplayValue() 
+      pct: dashSheet.getRange("B7").getDisplayValue(),
+      spyPct: spyValue // <--- Il nuovo dato passato al Frontend
     };
   }
 

@@ -1577,16 +1577,56 @@ function renderLivePortfolio(data) {
   currentPortfolioData = data; 
   populateTerminalFilters(data);
 
-  // --- GLOBAL DAY CHANGE WIDGET ---
+  // --- GLOBAL DAY CHANGE WIDGET CON BENCHMARK (ALPHA) ---
   const dcContainer = document.getElementById('live-day-change');
   if (dcContainer && data.dayChange) {
       const val = String(data.dayChange.val || '0'); 
-      const pct = String(data.dayChange.pct || '0%'); 
-      const isNeg = val.includes('-') || pct.includes('-');
+      const pctStr = String(data.dayChange.pct || '0%'); 
+      
+      // Parsing per calcoli matematici
+      const pctFloat = parseFloat(pctStr.replace('%', '').replace(',', '.'));
+      
+      // Simuliamo o recuperiamo il valore dell'S&P 500 dal backend
+      // Se il tuo backend non lo passa ancora, per ora usiamo un valore di test o 0.
+      const spyPctFloat = data.dayChange.spyPct ? parseFloat(String(data.dayChange.spyPct).replace('%', '').replace(',', '.')) : 0.00; 
+      
+      // Calcolo dell'Alpha: La tua performance meno quella del mercato
+      const alpha = pctFloat - spyPctFloat;
+      const alphaColor = alpha >= 0 ? '#34c759' : '#ff3b30';
+      const alphaIcon = alpha >= 0 ? '👑' : '🐢'; // Corona se batti il mercato, Tartaruga se perdi
+      
+      const isNeg = val.includes('-') || pctStr.includes('-');
       const colorStyle = isNeg ? 'color:var(--danger);' : 'color:var(--stocks-bg);'; 
       const bgStyle = isNeg ? 'background:rgba(255, 59, 48, 0.1);' : 'background:rgba(40, 167, 69, 0.1);';
       
-      dcContainer.innerHTML = `<div style="background:var(--white); border-radius:12px; padding:12px; margin: 5px 0 15px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.03); display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center; gap:10px;"><div style="width:40px; height:40px; border-radius:50%; ${bgStyle} display:flex; align-items:center; justify-content:center; font-size:20px;">${(isNeg ? '📉' : '📈')}</div><div><div style="font-size:12px; font-weight:600; color:var(--gray); text-transform:uppercase;">Day Change</div><div style="font-size:18px; font-weight:800; color:var(--text-main);"><span class="sensitive">${val}</span></div></div></div><div style="font-size:14px; font-weight:700; ${colorStyle} padding:4px 8px; border-radius:6px; ${bgStyle}"><span>${pct}</span></div></div>`;
+      dcContainer.innerHTML = `
+        <div style="background:var(--white); border-radius:12px; padding:12px 15px; margin: 5px 0 15px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.03); display:flex; flex-direction:column; gap:10px;">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:40px; height:40px; border-radius:50%; ${bgStyle} display:flex; align-items:center; justify-content:center; font-size:20px;">
+                        ${(isNeg ? '📉' : '📈')}
+                    </div>
+                    <div>
+                        <div style="font-size:11px; font-weight:700; color:var(--gray); text-transform:uppercase; letter-spacing:0.5px;">Portfolio Day Change</div>
+                        <div style="font-size:18px; font-weight:800; color:var(--text-main);"><span class="sensitive">${val}</span></div>
+                    </div>
+                </div>
+                <div style="font-size:14px; font-weight:700; ${colorStyle} padding:4px 8px; border-radius:6px; ${bgStyle}">
+                    <span>${pctStr}</span>
+                </div>
+            </div>
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 10px; margin-top: 2px;">
+                <div style="font-size: 11px; font-weight: 600; color: var(--gray);">
+                    🇺🇸 S&P 500: <span style="color:${spyPctFloat >= 0 ? 'var(--stocks-bg)' : 'var(--danger)'}; font-weight:700;">${spyPctFloat > 0 ? '+' : ''}${spyPctFloat.toFixed(2)}%</span>
+                </div>
+                <div style="font-size: 11px; font-weight: 800; background: rgba(0,0,0,0.04); padding: 4px 8px; border-radius: 6px; color: ${alphaColor};" title="Differenza tra la tua performance e quella dell'S&P 500">
+                    ${alphaIcon} Daily Alpha: ${alpha > 0 ? '+' : ''}${alpha.toFixed(2)}%
+                </div>
+            </div>
+            
+        </div>`;
   }
   // --- MARKET BREADTH CALCULATOR ---
   const breadthContainer = document.getElementById('market-breadth-widget');
