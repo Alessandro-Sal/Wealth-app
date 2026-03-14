@@ -288,10 +288,10 @@ function processSmartInput(data, mode) {
  * UPDATED: Accetta 'isFullAnalysis' per decidere se chiamare l'AI.
  * @param {boolean} isFullAnalysis - Se true, esegue l'analisi AI. Se false (default), scarica solo i benchmark.
  */
+// --- Market Insights AI & Calendar ---
+
 function loadMarketInsights(isFullAnalysis = false) {
   const briefingEl = document.getElementById('insight-briefing'); 
-  const valEl = document.getElementById('bench-me-val');
-  
   if (isFullAnalysis) {
       if (briefingEl) briefingEl.innerText = "AI Market Analysis in progress...";
       const macroEl = document.getElementById('macro-text');
@@ -308,76 +308,122 @@ function loadMarketInsights(isFullAnalysis = false) {
   }).getMarketInsightsData(!isFullAnalysis);
 }
 
-// Global state for Benchmark Filters
+// Global state for Benchmark UI
 window.currentBenchFilter = 'Main';
+window.currentBenchMode = 'daily'; 
 window.marketIndicesData = [];
-window.portfolioMe = 0; // Store ME performance globally
+window.portfolioMeData = {}; 
+
+function setBenchmarkMode(mode) {
+    window.currentBenchMode = mode;
+    
+    // Resetta lo stile di tutti i bottoni temporali
+    document.querySelectorAll('.bench-mode-btn').forEach(btn => {
+        btn.style.cssText = 'background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;';
+    });
+    
+    // Evidenzia il bottone attivo
+    const activeBtn = document.getElementById('btn-bench-mode-' + mode);
+    if(activeBtn) {
+        activeBtn.style.cssText = 'background:var(--white); color:var(--text-main); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:800; cursor:pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition:all 0.2s;';
+    }
+    
+    filterBenchmarks(window.currentBenchFilter);
+}
 
 function filterBenchmarks(category) {
     window.currentBenchFilter = category;
     
-    // Update button styles
-    const buttons = document.querySelectorAll('#p-market .term-chip[id^="btn-bench-"]');
+    const buttons = document.querySelectorAll('.term-chip[id^="btn-bench-"]');
     buttons.forEach(btn => btn.classList.remove('active'));
-    
     const activeBtn = document.getElementById('btn-bench-' + category);
     if(activeBtn) activeBtn.classList.add('active');
 
     const container = document.getElementById('benchmark-container');
     if (!container || !window.marketIndicesData) return;
 
-    // Filter array based on selected category
     let filtered = window.marketIndicesData.filter(item => {
         if (category === 'Main') return item.isMain;
         return item.category === category;
     });
 
-    // --- BENCHMARK FISSO: Aggiunge "ME" in CIMA a tutte le categorie ---
-    if (window.portfolioMe !== undefined) {
+    // Helper: Seleziona il valore in base alla vista temporale
+    const getModeVal = (item) => {
+        switch(window.currentBenchMode) {
+            case '1m': return item.m1;
+            case 'ytd': return item.ytd;
+            case '1y': return item.y1;
+            case '3y': return item.y3;
+            case '5y': return item.y5;
+            default: return item.pct; // daily
+        }
+    };
+
+    // Ordinamento Decrescente (Top to Flop)
+    filtered.sort((a, b) => getModeVal(b) - getModeVal(a));
+
+    // Aggiunge sempre "ME" in CIMA a qualsiasi lista
+    if (window.portfolioMeData.pct !== undefined) {
         filtered.unshift({
             name: 'My Portfolio',
             ticker: 'ME',
-            pct: window.portfolioMe,
-            color: '#007aff' // Brand blue color for ME
+            pct: window.portfolioMeData.pct,
+            m1: window.portfolioMeData.m1,
+            ytd: window.portfolioMeData.ytd,
+            y1: window.portfolioMeData.y1,
+            y3: window.portfolioMeData.y3,
+            y5: window.portfolioMeData.y5,
+            color: '#007aff',
+            isMe: true
         });
     }
 
     let html = '';
-    if (filtered.length === 0) {
-        // Se non ci sono indici, mostra solo ME e un messaggio
+    if (filtered.length <= 1) { // Solo ME presente
         html = `<div style="text-align:center; padding:15px; color:var(--gray); font-size:12px;">No indices for ${category}</div>`;
     } 
     
-    // Generazione delle barre orizzontali
+    // Regola la larghezza massima della barra in base al periodo per non farla "sforare"
+    let capLimit = 2;
+    switch(window.currentBenchMode) {
+        case '1m': capLimit = 15; break;
+        case 'ytd': capLimit = 35; break;
+        case '1y': capLimit = 40; break;
+        case '3y': capLimit = 80; break;
+        case '5y': capLimit = 150; break;
+    }
+    
     filtered.forEach(item => {
-        let val = parseFloat(item.pct);
+        let val = parseFloat(getModeVal(item));
         if (isNaN(val)) val = 0;
         
         let displayVal = (val > 0 ? "+" : "") + val.toFixed(2) + "%";
         let barColor = val >= 0 ? '#34c759' : '#ff3b30';
-        
-        // Colore speciale per ME, testuale per gli altri
         let labelColor = item.color ? item.color : 'var(--text-main)'; 
-        let labelText = item.ticker === 'ME' ? 'ME' : item.name;
-        if (labelText.length > 15 && item.ticker !== 'ME') {
-            labelText = labelText.substring(0, 15) + '...';
-        }
+        let labelText = item.isMe ? 'ME' : item.name;
+        
+        if (labelText.length > 18 && !item.isMe) labelText = labelText.substring(0, 18) + '...';
 
-        // Calcolo della larghezza della barra (cappata a +/- 2%)
-        let safeVal = Math.max(-2, Math.min(2, val)); 
-        let widthPct = (Math.abs(safeVal) / 2) * 50; 
+        let safeVal = Math.max(-capLimit, Math.min(capLimit, val)); 
+        let widthPct = (Math.abs(safeVal) / capLimit) * 50; 
         
         let barStyle = val >= 0 
-            ? `left: 50%; width: ${widthPct}%; background: #34c759;` 
-            : `left: auto; right: 50%; width: ${widthPct}%; background: #ff3b30;`;
+            ? `left: 50%; width: ${widthPct}%; background: ${barColor};` 
+            : `left: auto; right: 50%; width: ${widthPct}%; background: ${barColor};`;
+
+        // NUOVO DESIGN: Nazione in grigio sotto al nome dell'indice (Flex-col)
+        let areaHtml = item.isMe ? '' : `<div style="font-size:9px; font-weight:700; color:var(--gray); text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">${item.area}</div>`;
 
         html += `
-        <div style="display:flex; align-items:center; margin-bottom:8px; height: 18px;">
-            <div style="width:85px; font-size:10px; font-weight:800; color:${labelColor}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${item.name}">${labelText}</div>
-            <div style="flex:1; height:6px; background:var(--section-bg); border-radius:3px; overflow:hidden; position:relative; margin: 0 8px;">
-                <div style="height:100%; position:absolute; border-radius:2px; ${barStyle}"></div>
+        <div style="display:flex; align-items:center; background:var(--section-bg); padding:10px 12px; border-radius:10px; margin-bottom:8px; border: 1px solid var(--row-border); box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+            <div style="width:110px; display:flex; flex-direction:column; justify-content:center;">
+                <div style="font-size:12px; font-weight:800; color:${labelColor}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${item.name}">${labelText}</div>
+                ${areaHtml}
             </div>
-            <div style="width:50px; text-align:right; font-size:11px; font-weight:bold; color:${barColor};">${displayVal}</div>
+            <div style="flex:1; height:8px; background:rgba(142,142,147,0.15); border-radius:4px; overflow:hidden; position:relative; margin: 0 12px;">
+                <div style="height:100%; position:absolute; border-radius:4px; transition:all 0.5s cubic-bezier(0.4, 0, 0.2, 1); ${barStyle}"></div>
+            </div>
+            <div style="width:60px; text-align:right; font-size:12px; font-weight:800; color:${barColor};">${displayVal}</div>
         </div>`;
     });
     
@@ -387,20 +433,21 @@ function filterBenchmarks(category) {
 function renderMarketInsights(data) {
   if (!data) return;
   
-  // Save ME data so the filter function can use it
+  // Salva l'oggetto ME globale per i filtri
   if (data.me !== undefined) {
-      window.portfolioMe = data.me;
+      window.portfolioMeData = { pct: data.me, ytd: data.meYtd, m1: data.me1m, y1: data.me1y, y3: data.me3y, y5: data.me5y };
   }
 
   // --- 1. BENCHMARK CARDS & FILTERS ---
   if (data.indices && data.indices.length > 0) {
       window.marketIndicesData = data.indices;
-      filterBenchmarks(window.currentBenchFilter); // Render default or saved tab
+      filterBenchmarks(window.currentBenchFilter);
+  } else {
+      const container = document.getElementById('benchmark-container');
+      if (container) container.innerHTML = `<div style="text-align:center; padding:15px; color:var(--gray); font-size:12px;">Ensure Config_MarketIndex is populated.</div>`;
   }
   
-  // --- 2. AI TEXT ANALYSIS (Solo se i dati esistono) ---
-  // IMPORTANTE: Controlliamo se 'macro' esiste. Se è null (modalità solo dati), NON sovrascriviamo l'HTML,
-  // lasciando visibile il messaggio "Clicca per generare".
+  // --- 2. AI TEXT ANALYSIS ---
   if (data.analysis && data.analysis.macro) {
       const macroEl = document.getElementById('macro-text'); 
       if(macroEl) { 
@@ -416,7 +463,7 @@ function renderMarketInsights(data) {
       }
   }
   
-  // --- 3. SENTIMENT BADGE (Solo se valido) ---
+  // --- 3. SENTIMENT BADGE ---
   if (data.sentiment && data.sentiment.label !== "Loading") { 
       const badge = document.getElementById('sentiment-badge'); 
       if(badge) { 
@@ -427,7 +474,7 @@ function renderMarketInsights(data) {
           else { badge.style.background = '#f2f2f7'; badge.style.color = '#8e8e93'; } 
       } 
   }
-  
+
   // --- 4. CALENDAR EVENTS ---
   // Aggiorniamo il calendario solo se ci sono eventi, altrimenti (modalità solo dati) lasciamo stare o resetta se necessario.
   

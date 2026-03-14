@@ -1064,10 +1064,21 @@
     </div>
 </div>
 
-            <div class="dash-widget">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <div class="widget-title" style="margin:0;"><div class="badge-icon bg-dark">🏆</div> Daily Benchmark</div>
-        <span id="btn-refresh-market" onclick="forceReloadMarket()" style="font-size:16px; cursor:pointer; color:var(--primary); background:var(--section-bg); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);" title="Run AI Analysis">🔄</span>
+        <div class="dash-widget">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+        <div class="widget-title" style="margin:0;"><div class="badge-icon bg-dark">🏆</div> Benchmark</div>
+        
+        <div style="display:flex; align-items:center; gap: 8px;">
+            <div style="display:flex; flex-wrap:wrap; background:var(--section-bg); border-radius:8px; padding:3px; max-width: 220px;">
+                <button class="bench-mode-btn" id="btn-bench-mode-daily" onclick="setBenchmarkMode('daily')" style="background:var(--white); color:var(--text-main); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:800; cursor:pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition:all 0.2s;">24H</button>
+                <button class="bench-mode-btn" id="btn-bench-mode-1m" onclick="setBenchmarkMode('1m')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">1M</button>
+                <button class="bench-mode-btn" id="btn-bench-mode-ytd" onclick="setBenchmarkMode('ytd')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">YTD</button>
+                <button class="bench-mode-btn" id="btn-bench-mode-1y" onclick="setBenchmarkMode('1y')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">1Y</button>
+                <button class="bench-mode-btn" id="btn-bench-mode-3y" onclick="setBenchmarkMode('3y')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">3Y</button>
+                <button class="bench-mode-btn" id="btn-bench-mode-5y" onclick="setBenchmarkMode('5y')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">5Y</button>
+            </div>
+            <span id="btn-refresh-market" onclick="forceReloadMarket()" style="font-size:16px; cursor:pointer; color:var(--primary); background:var(--section-bg); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);" title="Run AI Analysis">🔄</span>
+        </div>
     </div>
     
     <div style="display:flex; gap:8px; margin-bottom:15px; overflow-x:auto; padding-bottom:4px;" class="live-scroll">
@@ -1075,10 +1086,10 @@
         <button id="btn-bench-Americas" class="term-chip" style="padding: 4px 10px; font-size: 11px;" onclick="filterBenchmarks('Americas')">🌎 Americas</button>
         <button id="btn-bench-Europe" class="term-chip" style="padding: 4px 10px; font-size: 11px;" onclick="filterBenchmarks('Europe')">🇪🇺 Europe</button>
         <button id="btn-bench-Asia" class="term-chip" style="padding: 4px 10px; font-size: 11px;" onclick="filterBenchmarks('Asia')">🌏 Asia</button>
-        <button id="btn-bench-Global" class="term-chip" style="padding: 4px 10px; font-size: 11px;" onclick="filterBenchmarks('Global')">🪙 Global</button>
+        <button id="btn-bench-Macro" class="term-chip" style="padding: 4px 10px; font-size: 11px;" onclick="filterBenchmarks('Macro')">📊 Macro</button>
     </div>
 
-    <div id="benchmark-container" style="display: flex; flex-direction: column; width: 100%; margin-bottom: 20px;">
+    <div id="benchmark-container" style="display: flex; flex-direction: column; width: 100%; margin-bottom: 20px; min-height:100px;">
         <div style="font-size:13px; font-weight:600; color:var(--gray); text-align:center; padding:10px;">Loading indices...</div>
     </div>
     
@@ -1090,12 +1101,7 @@
         <div style="font-size:10px; font-weight:800; color:#ff9500; margin-bottom:6px; letter-spacing:0.5px;">👤 PORTFOLIO IMPACT</div>
         <div id="portfolio-text" class="sensitive ai-text-box">Waiting for user input...</div>
     </div>
-</div>
-
-            <div class="dash-widget">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                    <div class="widget-title" style="margin:0;"><div class="badge-icon bg-red">🗓️</div> Outlook</div>
-                    <span style="font-size:10px; font-weight:600; color:var(--gray);">Tap for info</span>
                 </div>
                 <div>
                     <div class="calendar-header" style="display:flex; justify-content:space-between; align-items:center;">

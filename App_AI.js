@@ -175,7 +175,7 @@ function getMarketInsightsData(onlyMacro) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const cache = CacheService.getScriptCache();
   
-  const MACRO_CACHE_KEY = "MARKET_MACRO_DATA_V2";
+  const MACRO_CACHE_KEY = "MARKET_MACRO_DATA_V4";
   const AI_CACHE_KEY = "MARKET_AI_INSIGHTS_PERSIST_V1"; 
   
   // --- 1. MACRO DATA ---
@@ -185,63 +185,63 @@ function getMarketInsightsData(onlyMacro) {
   if (cachedJSON && onlyMacro) {
       macro = JSON.parse(cachedJSON);
   } else {
-      // Initialize with default variables required by AI context
-      macro = { spx: 0, dow: 0, nasdaq: 0, russell: 0, vix: 0, us10y: 0, cryptoTrend: "N/A", me: 0, indices: [] };
+      macro = { spx: 0, dow: 0, nasdaq: 0, russell: 0, vix: 0, us10y: 0, cryptoTrend: "N/A", me: 0, meYtd: 0, me1m: 0, me1y: 0, me3y: 0, me5y: 0, indices: [] };
 
       try {
-        // --- RESTORE "ME" (My Portfolio) VALUE ---
         const dashSheet = ss.getSheetByName("Stock Market Dashboard");
         if (dashSheet) {
-            let meValStr = dashSheet.getRange("B7").getDisplayValue();
-            macro.me = parseFloat(String(meValStr).replace(/[€$£%\s]/g, '').replace(',', '.')) || 0;
+            // Estrazione sicura delle celle del portafoglio (B7 fino a B12)
+            const cleanD = (cell) => parseFloat(String(dashSheet.getRange(cell).getDisplayValue()).replace(/[€$£%\s]/g, '').replace(',', '.')) || 0;
+            macro.me = cleanD("B7");     // 24H
+            macro.meYtd = cleanD("B8");  // YTD
+            macro.me1m = cleanD("B9");   // 1M
+            macro.me1y = cleanD("B10");  // 1Y
+            macro.me3y = cleanD("B11");  // 3Y
+            macro.me5y = cleanD("B12");  // 5Y
         }
 
         const sheet = ss.getSheetByName("Config_MarketIndex");
         if (sheet) {
-          // Read from row 2 to 30, columns A to E
-          const dataRange = sheet.getRange("A2:E30").getDisplayValues();
-          
-          // These tickers will be shown by default in the "Main" tab
+          // Legge le colonne da A fino a J (colonna 10)
+          const dataRange = sheet.getRange("A2:J40").getDisplayValues();
           const mainTickers = ["INDEXSP:.INX", "INDEXNASDAQ:NDX", "INDEXSTOXX:SX5E", "INDEXBIT:FTSEMIB", "GLD", "IBIT", "INDEXNIKKEI:NI225"];
 
-          dataRange.forEach(row => {
-            const name = row[0];
-            const area = row[1];
-            const ticker = row[2];
-            const pctStr = row[4]; // Column E (% Daily change)
+          // Helper per gestire percentuali scritte con o senza "%" su Google Sheet
+          const parsePct = (val) => { 
+              if (val === "" || val === "#N/A") return 0;
+              let p = parseFloat(String(val).replace(/[€$£%\s]/g, '').replace(',', '.')) || 0; 
+              return String(val).includes('%') ? p : p * 100; 
+          };
 
-            if (name && ticker && pctStr !== "" && pctStr !== "#N/A" && !pctStr.includes("Load")) {
-              let category = "Global";
-              const areaUpper = area.toUpperCase();
+    dataRange.forEach(row => {
+            const name = row[0]; const area = row[1]; const ticker = row[2];
+            if (name && ticker && row[4] !== "" && row[4] !== "#N/A" && !row[4].includes("Load")) {
               
-              // Map areas to Continents
+              // Map specific countries to broad Continent tabs
+              let category = "Macro"; // Default for "Globale"
+              const areaUpper = area.toUpperCase();
               if (areaUpper.includes("USA") || areaUpper.includes("CANADA") || areaUpper.includes("BRASILE")) category = "Americas";
               else if (areaUpper.includes("EUROPA") || areaUpper.includes("GERMANIA") || areaUpper.includes("ITALIA") || areaUpper.includes("UK") || areaUpper.includes("FRANCIA") || areaUpper.includes("SPAGNA") || areaUpper.includes("SVIZZERA")) category = "Europe";
               else if (areaUpper.includes("GIAPPONE") || areaUpper.includes("HONG KONG") || areaUpper.includes("CINA") || areaUpper.includes("INDIA") || areaUpper.includes("AUSTRALIA")) category = "Asia";
-
-              const isMain = mainTickers.includes(ticker);
-              // Clean percentage string into a float
-              const val = parseFloat(String(pctStr).replace(/[€$£%\s]/g, '').replace(',', '.')) || 0;
-
+              
               macro.indices.push({
-                name: name,
-                area: area,
-                ticker: ticker,
-                pct: val,
-                category: category,
-                isMain: isMain
+                name: name, 
+                area: area, // Keep the specific country
+                ticker: ticker, 
+                category: category, 
+                isMain: mainTickers.includes(ticker),
+                pct: parsePct(row[4]), ytd: parsePct(row[5]), m1: parsePct(row[6]), y1: parsePct(row[7]), y3: parsePct(row[8]), y5: parsePct(row[9])
               });
 
-              // Keep specific fallback variables updated for the AI prompts
-              if (ticker === "INDEXSP:.INX") macro.spx = val;
-              if (ticker === "INDEXNASDAQ:NDX") macro.nasdaq = val;
+              if (ticker === "INDEXSP:.INX") macro.spx = parsePct(row[4]);
+              if (ticker === "INDEXNASDAQ:NDX") macro.nasdaq = parsePct(row[4]);
             }
           });
-          
           cache.put(MACRO_CACHE_KEY, JSON.stringify(macro), 60);
         }
       } catch(e) { console.error("Error Dashboard Data: " + e); }
   }
+
 
   // --- 2. AI MEMORY (Cache) ---
   let cachedAiRaw = cache.get(AI_CACHE_KEY);
