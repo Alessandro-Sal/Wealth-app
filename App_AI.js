@@ -175,7 +175,7 @@ function getMarketInsightsData(onlyMacro) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const cache = CacheService.getScriptCache();
   
-  const MACRO_CACHE_KEY = "MARKET_MACRO_DATA_V1";
+  const MACRO_CACHE_KEY = "MARKET_MACRO_DATA_V2";
   const AI_CACHE_KEY = "MARKET_AI_INSIGHTS_PERSIST_V1"; 
   
   // --- 1. MACRO DATA ---
@@ -185,24 +185,59 @@ function getMarketInsightsData(onlyMacro) {
   if (cachedJSON && onlyMacro) {
       macro = JSON.parse(cachedJSON);
   } else {
-      macro = { spx: 0, dow: 0, nasdaq: 0, russell: 0, vix: 0, us10y: 0, cryptoTrend: "N/A", me: 0 };
-      const cleanPct = (valStr) => {
-        if (!valStr) return 0;
-        let s = String(valStr).replace(/[€$£%\s]/g, '').trim().replace(',', '.');
-        return parseFloat(s) || 0;
-      };
+      // Initialize with default variables required by AI context
+      macro = { spx: 0, dow: 0, nasdaq: 0, russell: 0, vix: 0, us10y: 0, cryptoTrend: "N/A", me: 0, indices: [] };
 
       try {
-        const sheet = ss.getSheetByName("Stock Market Dashboard");
+        // --- RESTORE "ME" (My Portfolio) VALUE ---
+        const dashSheet = ss.getSheetByName("Stock Market Dashboard");
+        if (dashSheet) {
+            let meValStr = dashSheet.getRange("B7").getDisplayValue();
+            macro.me = parseFloat(String(meValStr).replace(/[€$£%\s]/g, '').replace(',', '.')) || 0;
+        }
+
+        const sheet = ss.getSheetByName("Config_MarketIndex");
         if (sheet) {
-          macro.me = cleanPct(sheet.getRange("B7").getDisplayValue());
-          const indices = sheet.getRange("C5:G5").getDisplayValues()[0];
-          macro.spx = cleanPct(indices[0]);
-          macro.dow = cleanPct(indices[1]); 
-          macro.nasdaq = cleanPct(indices[2]);
-          macro.russell = cleanPct(indices[3]);
-          macro.vix = cleanPct(indices[4]);
-          macro.us10y = cleanPct(sheet.getRange("E12").getDisplayValue());
+          // Read from row 2 to 30, columns A to E
+          const dataRange = sheet.getRange("A2:E30").getDisplayValues();
+          
+          // These tickers will be shown by default in the "Main" tab
+          const mainTickers = ["INDEXSP:.INX", "INDEXNASDAQ:NDX", "INDEXSTOXX:SX5E", "INDEXBIT:FTSEMIB", "GLD", "IBIT", "INDEXNIKKEI:NI225"];
+
+          dataRange.forEach(row => {
+            const name = row[0];
+            const area = row[1];
+            const ticker = row[2];
+            const pctStr = row[4]; // Column E (% Daily change)
+
+            if (name && ticker && pctStr !== "" && pctStr !== "#N/A" && !pctStr.includes("Load")) {
+              let category = "Global";
+              const areaUpper = area.toUpperCase();
+              
+              // Map areas to Continents
+              if (areaUpper.includes("USA") || areaUpper.includes("CANADA") || areaUpper.includes("BRASILE")) category = "Americas";
+              else if (areaUpper.includes("EUROPA") || areaUpper.includes("GERMANIA") || areaUpper.includes("ITALIA") || areaUpper.includes("UK") || areaUpper.includes("FRANCIA") || areaUpper.includes("SPAGNA") || areaUpper.includes("SVIZZERA")) category = "Europe";
+              else if (areaUpper.includes("GIAPPONE") || areaUpper.includes("HONG KONG") || areaUpper.includes("CINA") || areaUpper.includes("INDIA") || areaUpper.includes("AUSTRALIA")) category = "Asia";
+
+              const isMain = mainTickers.includes(ticker);
+              // Clean percentage string into a float
+              const val = parseFloat(String(pctStr).replace(/[€$£%\s]/g, '').replace(',', '.')) || 0;
+
+              macro.indices.push({
+                name: name,
+                area: area,
+                ticker: ticker,
+                pct: val,
+                category: category,
+                isMain: isMain
+              });
+
+              // Keep specific fallback variables updated for the AI prompts
+              if (ticker === "INDEXSP:.INX") macro.spx = val;
+              if (ticker === "INDEXNASDAQ:NDX") macro.nasdaq = val;
+            }
+          });
+          
           cache.put(MACRO_CACHE_KEY, JSON.stringify(macro), 60);
         }
       } catch(e) { console.error("Error Dashboard Data: " + e); }

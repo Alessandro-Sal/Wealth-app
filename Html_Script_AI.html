@@ -292,54 +292,110 @@ function loadMarketInsights(isFullAnalysis = false) {
   const briefingEl = document.getElementById('insight-briefing'); 
   const valEl = document.getElementById('bench-me-val');
   
-  // Se stiamo richiedendo l'analisi COMPLETA (click utente), mostriamo feedback di caricamento
   if (isFullAnalysis) {
       if (briefingEl) briefingEl.innerText = "AI Market Analysis in progress...";
-      
       const macroEl = document.getElementById('macro-text');
       if(macroEl) macroEl.innerHTML = '<span style="color:#007aff; font-style:italic;">Analysing market data... 🧠</span>';
-      
       const portEl = document.getElementById('portfolio-text');
       if(portEl) portEl.innerHTML = '<span style="color:#007aff; font-style:italic;">Comparing assets... 📊</span>';
   } else {
-      // Caricamento silenzioso solo dati (all'avvio)
       if (briefingEl) briefingEl.innerText = "Updating Market Data...";
   }
   
-  // Chiama il server: se isFullAnalysis è true, 'onlyMacro' deve essere false (quindi passiamo la negazione)
   google.script.run.withSuccessHandler(renderMarketInsights).withFailureHandler(err => { 
       console.error("Market Insights Error:", err); 
       if (briefingEl) briefingEl.innerText = "Unable to load analysis."; 
   }).getMarketInsightsData(!isFullAnalysis);
 }
 
+// Global state for Benchmark Filters
+window.currentBenchFilter = 'Main';
+window.marketIndicesData = [];
+window.portfolioMe = 0; // Store ME performance globally
+
+function filterBenchmarks(category) {
+    window.currentBenchFilter = category;
+    
+    // Update button styles
+    const buttons = document.querySelectorAll('#p-market .term-chip[id^="btn-bench-"]');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    
+    const activeBtn = document.getElementById('btn-bench-' + category);
+    if(activeBtn) activeBtn.classList.add('active');
+
+    const container = document.getElementById('benchmark-container');
+    if (!container || !window.marketIndicesData) return;
+
+    // Filter array based on selected category
+    let filtered = window.marketIndicesData.filter(item => {
+        if (category === 'Main') return item.isMain;
+        return item.category === category;
+    });
+
+    // --- BENCHMARK FISSO: Aggiunge "ME" in CIMA a tutte le categorie ---
+    if (window.portfolioMe !== undefined) {
+        filtered.unshift({
+            name: 'My Portfolio',
+            ticker: 'ME',
+            pct: window.portfolioMe,
+            color: '#007aff' // Brand blue color for ME
+        });
+    }
+
+    let html = '';
+    if (filtered.length === 0) {
+        // Se non ci sono indici, mostra solo ME e un messaggio
+        html = `<div style="text-align:center; padding:15px; color:var(--gray); font-size:12px;">No indices for ${category}</div>`;
+    } 
+    
+    // Generazione delle barre orizzontali
+    filtered.forEach(item => {
+        let val = parseFloat(item.pct);
+        if (isNaN(val)) val = 0;
+        
+        let displayVal = (val > 0 ? "+" : "") + val.toFixed(2) + "%";
+        let barColor = val >= 0 ? '#34c759' : '#ff3b30';
+        
+        // Colore speciale per ME, testuale per gli altri
+        let labelColor = item.color ? item.color : 'var(--text-main)'; 
+        let labelText = item.ticker === 'ME' ? 'ME' : item.name;
+        if (labelText.length > 15 && item.ticker !== 'ME') {
+            labelText = labelText.substring(0, 15) + '...';
+        }
+
+        // Calcolo della larghezza della barra (cappata a +/- 2%)
+        let safeVal = Math.max(-2, Math.min(2, val)); 
+        let widthPct = (Math.abs(safeVal) / 2) * 50; 
+        
+        let barStyle = val >= 0 
+            ? `left: 50%; width: ${widthPct}%; background: #34c759;` 
+            : `left: auto; right: 50%; width: ${widthPct}%; background: #ff3b30;`;
+
+        html += `
+        <div style="display:flex; align-items:center; margin-bottom:8px; height: 18px;">
+            <div style="width:85px; font-size:10px; font-weight:800; color:${labelColor}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${item.name}">${labelText}</div>
+            <div style="flex:1; height:6px; background:var(--section-bg); border-radius:3px; overflow:hidden; position:relative; margin: 0 8px;">
+                <div style="height:100%; position:absolute; border-radius:2px; ${barStyle}"></div>
+            </div>
+            <div style="width:50px; text-align:right; font-size:11px; font-weight:bold; color:${barColor};">${displayVal}</div>
+        </div>`;
+    });
+    
+    container.innerHTML = html;
+}
+
 function renderMarketInsights(data) {
   if (!data) return;
   
-  // --- 1. BENCHMARK BARS (Sempre renderizzati) ---
-  const container = document.getElementById('benchmark-container');
-  if (container) {
-      const items = [ 
-          { label: 'ME', val: data.me, color: '#007aff' }, 
-          { label: 'SPX', val: data.spx, color: '#8e8e93' }, 
-          { label: 'DOW', val: data.dow, color: '#8e8e93' }, 
-          { label: 'NDX', val: data.nasdaq, color: '#8e8e93' }, 
-          { label: 'RUT', val: data.russell, color: '#8e8e93' }, 
-          { label: 'VIX', val: data.vix, color: '#af52de' }, 
-          { label: 'US10Y', val: data.us10y, color: '#ff9500' } 
-      ];
-      let html = '';
-      items.forEach(item => { 
-          let val = parseFloat(String(item.val).replace(',', '.')); 
-          if (isNaN(val)) val = 0; 
-          let displayVal = (val > 0 ? "+" : "") + val.toFixed(2) + "%"; 
-          let barColor = val >= 0 ? '#34c759' : '#ff3b30'; 
-          let safeVal = Math.max(-2, Math.min(2, val)); 
-          let widthPct = (Math.abs(safeVal) / 2) * 50; 
-          let barStyle = val >= 0 ? `left: 50%; width: ${widthPct}%; background: #34c759;` : `left: auto; right: 50%; width: ${widthPct}%; background: #ff3b30;`; 
-          html += `<div style="display:flex; align-items:center; margin-bottom:6px; height: 18px;"><div style="width:35px; font-size:10px; font-weight:800; color:${item.color};">${item.label}</div><div style="flex:1; height:6px; background:#f2f2f7; border-radius:3px; overflow:hidden; position:relative; margin: 0 8px;"><div style="height:100%; position:absolute; border-radius:2px; ${barStyle}"></div></div><div style="width:50px; text-align:right; font-size:11px; font-weight:bold; color:${barColor};">${displayVal}</div></div>`; 
-      });
-      container.innerHTML = html;
+  // Save ME data so the filter function can use it
+  if (data.me !== undefined) {
+      window.portfolioMe = data.me;
+  }
+
+  // --- 1. BENCHMARK CARDS & FILTERS ---
+  if (data.indices && data.indices.length > 0) {
+      window.marketIndicesData = data.indices;
+      filterBenchmarks(window.currentBenchFilter); // Render default or saved tab
   }
   
   // --- 2. AI TEXT ANALYSIS (Solo se i dati esistono) ---
