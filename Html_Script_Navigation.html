@@ -11,11 +11,11 @@
  * Manages visibility of pages and triggers specific data fetches per tab.
  * 
  */
+const loadedTabs = new Set(); // ← aggiungila UNA VOLTA in cima al file
+
 function changeTab(tab) {
-  // 1. Stop background processes from previous tab immediately
   stopMarketPolling(); 
   
-  // 2. UI Updates (Tabs & Buttons)
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   
@@ -25,34 +25,27 @@ function changeTab(tab) {
   const btn = document.getElementById('btn-' + tab);
   if(btn) btn.classList.add('active');
   
-  // 3. Haptic Feedback
   if(navigator.vibrate) navigator.vibrate(10);
-  
-  // 4. Scroll to top
   window.scrollTo({top: 0, behavior: 'auto'});
-  
-  // 5. Specific Actions per Tab
-  if (tab === 'recap') {
-      fetchDashboard(); 
-      setTimeout(() => {
-          if (typeof updateAllCharts === 'function') updateAllCharts(); 
-      }, 50);
-  }
-  
-  if (tab === 'market') {
-      // ✅ OPTIMIZATION: Only call startMarketPolling().
-      // It handles the "Immediate Fetch" internally, preventing double calls/race conditions.
-      startMarketPolling(); 
-      
-      checkMarketStatus(); 
-  }
 
-  if (tab === 'news') {
-    loadNews();
-  }
+  // ↓ SOLO QUESTA PARTE CAMBIA ↓
+  if (!loadedTabs.has(tab)) {
+    loadedTabs.add(tab);
 
-  if (tab === 'invest') {
-      fetchInvestHistory();
+    if (tab === 'recap') {
+        fetchDashboard(); 
+        setTimeout(() => { if (typeof updateAllCharts === 'function') updateAllCharts(); }, 50);
+    }
+    if (tab === 'market') {
+        startMarketPolling(); 
+        checkMarketStatus(); 
+    }
+    if (tab === 'news') {
+        loadNews();
+    }
+    if (tab === 'invest') {
+        fetchInvestHistory();
+    }
   }
 }
 
