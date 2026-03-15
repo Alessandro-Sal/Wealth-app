@@ -959,101 +959,106 @@ function stopMarketPolling() {
 }
 
 function checkMarketStatus() {
-  const statusDiv = document.getElementById('market-status'); if (!statusDiv) return;
-  const now = new Date();
+  const statusDiv = document.getElementById('market-status'); 
+  if (!statusDiv) return;
   
-  const isTimeInWindow = (timeZone, openH, openM, closeH, closeM) => {
-      try { 
-          const localStr = now.toLocaleString("en-US", {timeZone: timeZone}); 
-          const localDate = new Date(localStr); 
-          const day = localDate.getDay(); 
-          const h = localDate.getHours(); 
-          const m = localDate.getMinutes(); 
-          const curMins = h * 60 + m; 
-          const openMins = openH * 60 + openM; 
-          const closeMins = closeH * 60 + closeM; 
-          // Weekdays only (1-5)
-          return (day >= 1 && day <= 5 && curMins >= openMins && curMins < closeMins); 
-      } catch(e) { return false; }
+  // Utilizza la logica unificata per ottenere gli stati reali
+  const usState = getMarketState('US');
+  const euState = getMarketState('EU');
+  const ukState = getMarketState('UK');
+  const asiaState = getMarketState('JP'); // Rappresentante per l'Asia (Tokyo)
+  
+  const badge = (flag, name, state) => { 
+      const isOpen = (state === 'OPEN' || state === 'CLOSING_SOON');
+      const isPre = (state === 'PRE_MARKET');
+      
+      let color = '#8e8e93'; // Grigio per CLOSED
+      let opacity = '0.5';
+      let statusIcon = '💤';
+      
+      if (isOpen) {
+          color = state === 'CLOSING_SOON' ? '#ff9500' : '#34c759'; // Arancione o Verde
+          opacity = '1';
+          statusIcon = '';
+      } else if (isPre) {
+          color = '#007aff'; // Blu per PRE-MARKET
+          opacity = '0.9';
+          statusIcon = '🕒';
+      }
+
+      return `<span style="margin-right:8px; opacity:${opacity}; font-weight:700; color:${color}; border:1px solid ${color}; padding:2px 6px; border-radius:6px; font-size:10px; margin-bottom:4px; display:inline-block;">${flag} ${name} ${statusIcon}</span>`; 
   };
   
-  const usOpen = isTimeInWindow("America/New_York", 9, 30, 16, 0); 
-  const euOpen = isTimeInWindow("Europe/Berlin", 9, 0, 17, 30); 
-  const ukOpen = isTimeInWindow("Europe/London", 8, 0, 16, 30);
-  
-  const badge = (flag, name, isOpen) => { 
-      const color = isOpen ? '#34c759' : '#8e8e93'; 
-      const opacity = isOpen ? '1' : '0.5'; 
-      const status = isOpen ? '' : '💤'; 
-      return `<span style="margin-right:8px; opacity:${opacity}; font-weight:700; color:${color}; border:1px solid ${color}; padding:2px 6px; border-radius:6px; font-size:10px;">${flag} ${name} ${status}</span>`; 
-  };
-  statusDiv.innerHTML = `<div style="display:flex; margin-top:4px;">${badge('🇺🇸', 'USA', usOpen)}${badge('🇪🇺', 'EU', euOpen)}${badge('🇬🇧', 'UK', ukOpen)}</div>`;
+  statusDiv.innerHTML = `
+    <div style="display:flex; margin-top:4px; flex-wrap:wrap;">
+        ${badge('🇺🇸', 'USA', usState)}
+        ${badge('🇪🇺', 'EU', euState)}
+        ${badge('🇬🇧', 'UK', ukState)}
+        ${badge('🇯🇵', 'ASIA', asiaState)}
+    </div>`;
 }
 
-// --- UPDATED MARKET STATE FUNCTION ---
 function getMarketState(exchangeCode) {
-    try {
-        const now = new Date();
-        const day = now.getUTCDay();
-        
-        // Crypto trades 24/7
-        if (exCode === 'CRYPTO') return 'OPEN';
-        
-        // Traditional markets are closed on weekends (Saturday=6, Sunday=0)
-        if (day === 0 || day === 6) return 'CLOSED';
-        
-        const utcHours = now.getUTCHours();
-        const utcMins = now.getUTCMinutes();
-        const curMins = utcHours * 60 + utcMins;
-        
-        let openMins, closeMins;
-        
-        // Define market hours in UTC minutes
-        if (exCode === 'US' || exCode === 'CA' || exCode === 'NYSE' || exCode === 'NASDAQ') { 
-            openMins = 14*60 + 30; closeMins = 21*60; // 14:30 - 21:00 UTC
-        }
-        else if (exCode === 'EU' || exCode === 'IT' || exCode === 'GER' || exCode === 'FRA' || exCode === 'UK' || exCode === 'LSE') { 
-            openMins = 8*60; closeMins = 16*60 + 30;  // 08:00 - 16:30 UTC
-        }
-        else if (exCode === 'CH') { 
-            openMins = 8*60; closeMins = 16*60 + 20;  // 08:00 - 16:20 UTC (SMI)
-        }
-        else if (exCode === 'JP') { 
-            openMins = 0; closeMins = 6*60;           // 00:00 - 06:00 UTC (Nikkei)
-        }
-        else if (exCode === 'HK') { 
-            openMins = 1*60 + 30; closeMins = 8*60;   // 01:30 - 08:00 UTC (Hang Seng)
-        }
-        else if (exCode === 'IN') { 
-            openMins = 3*60 + 45; closeMins = 10*60;  // 03:45 - 10:00 UTC (Nifty 50)
-        }
-        else if (exCode === 'BR') { 
-            openMins = 13*60; closeMins = 20*60;      // 13:00 - 20:00 UTC (Bovespa)
-        }
-        else if (exCode === 'AU') { 
-            // Australia ASX trades 23:00 to 05:00 UTC (crosses midnight)
-            if (curMins >= 23*60 || curMins < 5*60) {
-                if (curMins >= 4*60 && curMins < 5*60) return 'CLOSING_SOON';
-                return 'OPEN';
-            }
-            if (curMins >= 22*60 && curMins < 23*60) return 'PRE_MARKET';
-            return 'CLOSED';
-        }
-        else {
-            return 'OPEN'; // Fallback
-        }
-
-        // Standard check for markets that don't cross UTC midnight
-        if (curMins >= openMins && curMins < closeMins) {
-            if (closeMins - curMins <= 60) return 'CLOSING_SOON';
-            return 'OPEN';
-        }
-        if (curMins >= (openMins - 60) && curMins < openMins) return 'PRE_MARKET';
-        
-        return 'CLOSED';
-    } catch (e) {
-        return 'CLOSED';
-    }
+  if (!exchangeCode || exchangeCode === 'CRYPTO') return 'OPEN';
+  const now = new Date(); 
+  let timeZone = "UTC"; 
+  let openH = 9, openM = 0, closeH = 17, closeM = 0;
+  
+  switch (String(exchangeCode).toUpperCase()) {
+      // North America
+      case 'US': case 'USA': case 'NASDAQ': case 'NYSE': case 'AMEX': case 'CA': case 'TSX':
+          timeZone = "America/New_York"; openH = 9; openM = 30; closeH = 16; closeM = 0; break;
+      
+      // Europe
+      case 'IT': case 'ITA': case 'MIL': case 'MTA': case 'DE': case 'GER': case 'XETRA': 
+      case 'EU': case 'EAM': case 'TDG': case 'CPH': case 'FR': case 'EPA': case 'ES': case 'BME': case 'CH': case 'SWX':
+          timeZone = "Europe/Berlin"; openH = 9; openM = 0; closeH = 17; closeM = 30; break;
+      case 'UK': case 'LSE': case 'LON':
+          timeZone = "Europe/London"; openH = 8; openM = 0; closeH = 16; closeM = 30; break;
+      
+      // Asia
+      case 'JP': case 'TYO': case 'TSE':
+          timeZone = "Asia/Tokyo"; openH = 9; openM = 0; closeH = 15; closeM = 0; break;
+      case 'HK': case 'HKG': case 'HKEX':
+          timeZone = "Asia/Hong_Kong"; openH = 9; openM = 30; closeH = 16; closeM = 0; break;
+      case 'CN': case 'SHA': case 'SHE':
+          timeZone = "Asia/Shanghai"; openH = 9; openM = 30; closeH = 15; closeM = 0; break;
+      case 'IN': case 'NSE': case 'BOM':
+          timeZone = "Asia/Kolkata"; openH = 9; openM = 15; closeH = 15; closeM = 30; break;
+      
+      // Oceania
+      case 'AU': case 'ASX':
+          timeZone = "Australia/Sydney"; openH = 10; openM = 0; closeH = 16; closeM = 0; break;
+      
+      // South America
+      case 'BR': case 'BVMF': case 'SAO':
+          timeZone = "America/Sao_Paulo"; openH = 10; openM = 0; closeH = 17; closeM = 0; break;
+          
+      default: return 'CLOSED';
+  }
+  
+  try {
+      const localTimeStr = now.toLocaleString("en-US", {timeZone: timeZone}); 
+      const localDate = new Date(localTimeStr); 
+      const day = localDate.getDay(); 
+      const h = localDate.getHours(); 
+      const m = localDate.getMinutes();
+      
+      const curMins = h * 60 + m; 
+      const openMins = openH * 60 + openM; 
+      const closeMins = closeH * 60 + closeM;
+      
+      if (day === 0 || day === 6) return 'CLOSED';
+      if (curMins >= openMins && curMins < closeMins) { 
+          if (closeMins - curMins <= 60) return 'CLOSING_SOON'; 
+          return 'OPEN'; 
+      }
+      if (curMins >= (openMins - 60) && curMins < openMins) return 'PRE_MARKET';
+      
+      return 'CLOSED';
+  } catch (e) { 
+      return 'CLOSED'; 
+  }
 }
 
 // Sorting logic for tickers (Open Markets First)

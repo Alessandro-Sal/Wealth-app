@@ -411,20 +411,67 @@ function filterBenchmarks(category) {
             ? `left: 50%; width: ${widthPct}%; background: ${barColor};` 
             : `left: auto; right: 50%; width: ${widthPct}%; background: ${barColor};`;
 
-        // NUOVO DESIGN: Nazione in grigio sotto al nome dell'indice (Flex-col)
-        let areaHtml = item.isMe ? '' : `<div style="font-size:9px; font-weight:700; color:var(--gray); text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">${item.area}</div>`;
+// --- 1. LOGICA DI CALCOLO DELLO STATO MERCATO ---
+    let simulatedEx = 'US'; 
+    let indexNameUp = String(item.name || item.ticker || '').toUpperCase();
+    let tickerUp = String(item.ticker || '').toUpperCase();
 
-        html += `
-        <div style="display:flex; align-items:center; background:var(--section-bg); padding:10px 12px; border-radius:10px; margin-bottom:8px; border: 1px solid var(--row-border); box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
-            <div style="width:110px; display:flex; flex-direction:column; justify-content:center;">
-                <div style="font-size:12px; font-weight:800; color:${labelColor}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${item.name}">${labelText}</div>
-                ${areaHtml}
-            </div>
-            <div style="flex:1; height:8px; background:rgba(142,142,147,0.15); border-radius:4px; overflow:hidden; position:relative; margin: 0 12px;">
-                <div style="height:100%; position:absolute; border-radius:4px; transition:all 0.5s cubic-bezier(0.4, 0, 0.2, 1); ${barStyle}"></div>
-            </div>
-            <div style="width:60px; text-align:right; font-size:12px; font-weight:800; color:${barColor};">${displayVal}</div>
-        </div>`;
+    if (tickerUp.includes('IBIT') || tickerUp.includes('BTC') || indexNameUp.includes('BITCOIN')) {
+        simulatedEx = 'CRYPTO'; 
+    } else if (indexNameUp.includes('EURO STOXX') || indexNameUp.includes('DAX') || indexNameUp.includes('FTSE MIB') || indexNameUp.includes('CAC 40')) {
+        simulatedEx = 'IT'; // Uso IT come proxy per l'Europa (stesso fuso)
+    } else if (indexNameUp.includes('FTSE 100')) {
+        simulatedEx = 'UK';
+    } else if (indexNameUp.includes('SMI')) {
+        simulatedEx = 'CH';
+    } else if (indexNameUp.includes('NIKKEI')) {
+        simulatedEx = 'JP';
+    } else if (indexNameUp.includes('HANG SENG')) {
+        simulatedEx = 'HK';
+    } else if (indexNameUp.includes('NIFTY')) {
+        simulatedEx = 'IN';
+    } else if (indexNameUp.includes('ASX')) {
+        simulatedEx = 'AU';
+    } else if (indexNameUp.includes('BOVESPA')) {
+        simulatedEx = 'BR';
+    } else if (indexNameUp.includes('TSX')) {
+        simulatedEx = 'CA'; 
+    }
+
+    let mktState = 'OPEN';
+    if (typeof getMarketState === 'function') {
+        mktState = getMarketState(simulatedEx);
+    }
+
+    let statusIcon = '';
+    let opacityStyle = '';
+
+    // Non mettiamo icone per il "Portfolio Personale", le mettiamo solo per gli indici
+    if (!item.isMe) {
+        if (mktState === 'OPEN') {
+            statusIcon = '<span title="Market Open" style="font-size:9px; margin-left:4px;">🟢</span>';
+        } else if (mktState === 'CLOSING_SOON') {
+            statusIcon = '<span title="Closing Soon" style="font-size:9px; margin-left:4px;">🟠</span>';
+        } else if (mktState === 'PRE_MARKET') {
+            statusIcon = '<span title="Pre-Market" style="font-size:9px; margin-left:4px;">🔵</span>';
+        } else {
+            statusIcon = '<span title="Market Closed" style="font-size:10px; margin-left:4px; filter: grayscale(1);">💤</span>';
+            opacityStyle = 'opacity: 0.6;'; 
+        }
+    }
+    let areaHtml = item.isMe ? '' : `<div style="font-size:9px; font-weight:700; color:var(--gray); text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">${item.area}</div>`;
+
+    html += `
+    <div style="display:flex; align-items:center; background:var(--section-bg); padding:10px 12px; border-radius:10px; margin-bottom:8px; border: 1px solid var(--row-border); box-shadow: 0 1px 2px rgba(0,0,0,0.02); ${opacityStyle}">
+        <div style="width:110px; display:flex; flex-direction:column; justify-content:center;">
+            <div style="font-size:12px; font-weight:800; color:${labelColor}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${item.name}">${labelText} ${statusIcon}</div>
+            ${areaHtml}
+        </div>
+        <div style="flex:1; height:8px; background:rgba(142,142,147,0.15); border-radius:4px; overflow:hidden; position:relative; margin: 0 12px;">
+            <div style="height:100%; position:absolute; border-radius:4px; transition:all 0.5s cubic-bezier(0.4, 0, 0.2, 1); ${barStyle}"></div>
+        </div>
+        <div style="width:60px; text-align:right; font-size:12px; font-weight:800; color:${barColor};">${displayVal}</div>
+    </div>`;
     });
     
     container.innerHTML = html;
