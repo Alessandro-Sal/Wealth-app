@@ -11,7 +11,8 @@
  * Manages visibility of pages and triggers specific data fetches per tab.
  * 
  */
-const loadedTabs = new Set(); // ← aggiungila UNA VOLTA in cima al file
+const tabLastLoaded = {}; // ← sostituisci "const loadedTabs = new Set()"
+const TAB_CACHE_MS = 1 * 60 * 1000; // 1 minuto
 
 function changeTab(tab) {
   stopMarketPolling(); 
@@ -28,9 +29,13 @@ function changeTab(tab) {
   if(navigator.vibrate) navigator.vibrate(10);
   window.scrollTo({top: 0, behavior: 'auto'});
 
-  // ↓ SOLO QUESTA PARTE CAMBIA ↓
-  if (!loadedTabs.has(tab)) {
-    loadedTabs.add(tab);
+  // Ricarica solo se è passato abbastanza tempo
+  const now = Date.now();
+  const lastLoad = tabLastLoaded[tab] || 0;
+  const needsRefresh = (now - lastLoad) > TAB_CACHE_MS;
+
+  if (needsRefresh) {
+    tabLastLoaded[tab] = now; // aggiorna il timer
 
     if (tab === 'recap') {
         fetchDashboard(); 
