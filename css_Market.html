@@ -464,4 +464,74 @@
        from { opacity: 0; transform: translateY(10px); }
        to { opacity: 1; transform: translateY(0); }
    }
+
+   /* --- AI TOOLS GRID --- */
+.ai-tools-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+}
+@media (min-width: 768px) {
+    .ai-tools-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.ai-tool-card {
+    background: var(--section-bg);
+    border-radius: 14px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    border: 1px solid var(--row-border);
+}
+
+.ai-tool-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-weight: 800;
+    font-size: 14px;
+    color: var(--text-main);
+}
+
+.ai-tool-input-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.ai-tool-input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--row-border);
+    background: var(--bg);
+    color: var(--text-main);
+    font-size: 13px;
+}
+
+.ai-tool-btn {
+    background: var(--text-main);
+    color: var(--bg);
+    border: none;
+    border-radius: 8px;
+    padding: 0 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ai-tool-btn:active { transform: scale(0.95); }
+
+.ai-tool-result {
+    display: none;
+    margin-top: 10px;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    border-left: 3px solid #4f46e5;
+}
 </style>

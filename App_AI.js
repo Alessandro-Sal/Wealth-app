@@ -1003,3 +1003,95 @@ function fetchPriceGoogle(ticker) {
   } catch (e) {}
   return null;
 }
+
+// ==========================================
+// AI MARKET TOOLS (BACKEND)
+// ==========================================
+
+/**
+ * Utility to safely extract JSON from AI text response.
+ */
+function extractJsonFromAI(text) {
+    if (!text) return null;
+    try {
+        let clean = text.replace(/```json/gi, "").replace(/```/g, "").trim();
+        const first = clean.indexOf('{');
+        const last = clean.lastIndexOf('}');
+        if (first !== -1 && last !== -1) {
+            return JSON.parse(clean.substring(first, last + 1));
+        }
+    } catch (e) { console.error("JSON Tool Parse Error", e); }
+    return null;
+}
+
+/**
+ * 1. AI Sentiment Analyzer
+ */
+function toolSentimentAI(ticker) {
+    const prompt = `
+        Search the web for the latest financial news from the last 72 hours regarding ${ticker}.
+        Analyze the sentiment. 
+        Output strictly JSON format:
+        {
+            "score": <number 1-100, where 1 is Extreme Fear and 100 is Extreme Greed>,
+            "reasons": ["Short reason 1 in Italian", "Short reason 2 in Italian", "Short reason 3 in Italian"]
+        }
+    `;
+    // Force GEMINI with Web Search enabled
+    const raw = fetchUniversalAI(prompt, 'GEMINI', true);
+    return extractJsonFromAI(raw) || { score: 50, reasons: ["Dati non disponibili o timeout API."] };
+}
+
+/**
+ * 2. Smart Rebalancer
+ */
+function toolRebalanceAI(amount, targetAllocation) {
+    const prompt = `
+        I have ${amount} EUR of fresh liquid capital to invest.
+        My ideal target portfolio allocation is: ${targetAllocation}.
+        Calculate mathematically how I should distribute this ${amount} EUR to approach this target.
+        Output strictly JSON format:
+        {
+            "plan": ["Compra €X di Asset 1", "Compra €Y di Asset 2"],
+            "advice": "Short strategic advice in Italian about this allocation."
+        }
+    `;
+    // OpenRouter for logic/math
+    const raw = fetchUniversalAI(prompt, 'OPENROUTER') || fetchUniversalAI(prompt, 'GEMINI', false);
+    return extractJsonFromAI(raw) || { plan: ["Errore di calcolo."], advice: "Riprova più tardi." };
+}
+
+/**
+ * 3. Correlation & Overlap Checker
+ */
+function toolCorrelationAI(assetA, assetB) {
+    const prompt = `
+        Analyze the historical correlation and holding overlap between "${assetA}" and "${assetB}".
+        Are they truly diversified or do they move together?
+        Output strictly JSON format:
+        {
+            "overlapPct": <number 0-100 representing correlation risk>,
+            "analysis": "Short explanation in Italian explaining why they overlap or don't (e.g. 'Both are heavy in Big Tech')."
+        }
+    `;
+    const raw = fetchUniversalAI(prompt, 'OPENROUTER') || fetchUniversalAI(prompt, 'GEMINI', false);
+    return extractJsonFromAI(raw) || { overlapPct: 0, analysis: "Analisi non disponibile." };
+}
+
+/**
+ * 4. Earnings Summarizer
+ */
+function toolEarningsAI(ticker) {
+    const prompt = `
+        Search the web for the MOST RECENT quarterly earnings report (Q-Report) for ${ticker}.
+        Output strictly JSON format:
+        {
+            "eps": "Beat / Miss / Met (include the numbers if found)",
+            "revenue": "Beat / Miss / Met (include the numbers if found)",
+            "ceoNotes": "A 2-sentence summary in Italian of the forward guidance or CEO remarks."
+        }
+    `;
+    // Force GEMINI with Web Search enabled for up-to-date reports
+    const raw = fetchUniversalAI(prompt, 'GEMINI', true);
+    return extractJsonFromAI(raw) || { eps: "N/A", revenue: "N/A", ceoNotes: "Dati trimestrali non trovati o ricerca fallita." };
+}

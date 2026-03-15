@@ -1223,103 +1223,150 @@
             </div>
          </div>
          </div>
-         <div id="mtab-tools" class="m-tab-content">
-         <div class="dash-widget" style="height: fit-content;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-               <div class="widget-title" style="margin:0;">
-                  <div class="badge-icon bg-red">🗓️</div>
-                  Outlook
-               </div>
-             <span id="btn-refresh-market" onclick="forceReloadMarket()" style="font-size:16px; cursor:pointer; color:var(--primary); background:var(--section-bg); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);" title="Run AI Analysis">🔄</span>
+   <div id="mtab-tools" class="m-tab-content">
+    
+    <div class="dash-widget" style="height: fit-content;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <div class="widget-title" style="margin:0;">
+                <div class="badge-icon bg-red">🗓️</div>
+                Outlook
+            </div>
+            <span id="btn-refresh-market" onclick="forceReloadMarket()" style="font-size:16px; cursor:pointer; color:var(--primary); background:var(--section-bg); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);" title="Run AI Analysis">🔄</span>
+        </div>
+        <div>
+            <div class="calendar-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <button onclick="changeMonth(-1)" style="border:none; background:var(--section-bg); width:28px; height:28px; border-radius:8px; cursor:pointer; font-size:12px; color:var(--primary); font-weight:bold;">◀</button>
+                <div id="cal-month-year" style="flex:1; text-align:center; font-weight:800; font-size:13px; color:var(--text-main);">Tap 🔄</div>
+                <button onclick="changeMonth(1)" style="border:none; background:var(--section-bg); width:28px; height:28px; border-radius:8px; cursor:pointer; font-size:12px; color:var(--primary); font-weight:bold;">▶</button>
+            </div>
+            <div class="calendar-grid" id="calendar-grid">
+                <div style="grid-column: span 7; text-align:center; padding:10px; color:var(--gray); font-size:12px; font-weight:600;">Waiting data...</div>
+            </div>
+            <div id="calendar-details" class="event-details-box live-scroll" style="max-height: 200px; overflow-y: auto; padding-right: 8px; margin-top: 10px;">
+                <div style="text-align:center; color:var(--gray); font-size:11px; font-weight:600;">Select marked day.</div>
+            </div>
+        </div>
+    </div>
+         
+    <div class="dash-widget">
+        <div class="widget-title" style="justify-content:space-between; width:100%; margin-bottom: 20px;">
+            <span style="display:flex; align-items:center; gap:8px;">
+                <div class="badge-icon bg-green">💸</div>
+                Passive Income
+            </span>
+            <span onclick="loadDividends()" style="cursor:pointer; font-size:18px; color:var(--primary); background:var(--section-bg); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px;">🔄</span>
+        </div>
+        <div style="text-align:center; margin-bottom:20px; background:rgba(52, 199, 89, 0.05); padding:15px; border-radius:16px; border: 1px solid rgba(52, 199, 89, 0.1);">
+            <div style="font-size:11px; font-weight:800; color:var(--success); text-transform:uppercase; letter-spacing:1px;">Est. Annual Income</div>
+            <div id="div-total" class="sensitive tabular-nums" style="font-size:32px; font-weight:900; letter-spacing:-1px; color:var(--text-main); margin-top:5px;">--</div>
+        </div>
+        <div id="div-list">
+            <div style="font-size:13px; font-weight:600; color:var(--gray); text-align:center; padding:10px;">Tap 🔄 to calculate...</div>
+        </div>
+    </div>
 
+    <div class="dash-widget" style="background: linear-gradient(135deg, var(--white) 0%, var(--section-bg) 100%);">
+        <div class="widget-title">
+            <div class="badge-icon bg-orange">⚔️</div>
+            Stock Battle AI
+        </div>
+        <div style="font-size:13px; font-weight:600; color:var(--gray); text-align:center; margin-bottom:20px;">Compare two companies and let AI decide.</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:25px;">
+            <input id="battle-ticker-a" class="premium-input" style="text-align:center; font-size:18px; font-weight:900; text-transform:uppercase; background:var(--section-bg);" type="text" placeholder="RACE">
+            <div style="font-weight:900; font-size:16px; color:var(--gray); font-style:italic;">VS</div>
+            <input id="battle-ticker-b" class="premium-input" style="text-align:center; font-size:18px; font-weight:900; text-transform:uppercase; background:var(--section-bg);" type="text" placeholder="TSLA">
+        </div>
+        <button onclick="startBattle()" style="width:100%; background:var(--text-main); color:var(--bg); border:none; padding:16px; border-radius:16px; font-weight:900; font-size:16px; cursor:pointer; transition:transform 0.2s;">
+        🔥 FIGHT! 🔥
+        </button>
+        <div id="battle-result" style="display:none; background:var(--white); border-radius:20px; border: 1px solid var(--row-border); margin-top:25px; overflow:hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+            <div style="background:var(--section-bg); padding:20px; text-align:center; border-bottom:1px solid var(--row-border);">
+                <div style="font-size:11px; text-transform:uppercase; color:var(--gray); font-weight:800; letter-spacing:1px;">WINNER IS</div>
+                <div id="battle-winner" style="font-size:36px; font-weight:900; color:var(--primary); margin-top:5px; letter-spacing:-1px;">--</div>
             </div>
-            <div>
-               <div class="calendar-header" style="display:flex; justify-content:space-between; align-items:center;">
-                  <button onclick="changeMonth(-1)" style="border:none; background:var(--section-bg); width:28px; height:28px; border-radius:8px; cursor:pointer; font-size:12px; color:var(--primary); font-weight:bold;">◀</button>
-                  <div id="cal-month-year" style="flex:1; text-align:center; font-weight:800; font-size:13px; color:var(--text-main);">Tap 🔄</div>
-                  <button onclick="changeMonth(1)" style="border:none; background:var(--section-bg); width:28px; height:28px; border-radius:8px; cursor:pointer; font-size:12px; color:var(--primary); font-weight:bold;">▶</button>
-               </div>
-               <div class="calendar-grid" id="calendar-grid">
-                  <div style="grid-column: span 7; text-align:center; padding:10px; color:var(--gray); font-size:12px; font-weight:600;">Waiting data...</div>
-               </div>
-               <div id="calendar-details" class="event-details-box live-scroll" style="max-height: 200px; overflow-y: auto; padding-right: 8px; margin-top: 10px;">
-                  <div style="text-align:center; color:var(--gray); font-size:11px; font-weight:600;">Select marked day.</div>
-               </div>
-            </div>
-         </div>
-         
-         
-         <div class="dash-widget">
-            <div class="widget-title" style="justify-content:space-between; width:100%; margin-bottom: 20px;">
-               <span style="display:flex; align-items:center; gap:8px;">
-                  <div class="badge-icon bg-green">💸</div>
-                  Passive Income
-               </span>
-               <span onclick="loadDividends()" style="cursor:pointer; font-size:18px; color:var(--primary); background:var(--section-bg); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px;">🔄</span>
-            </div>
-            <div style="text-align:center; margin-bottom:20px; background:rgba(52, 199, 89, 0.05); padding:15px; border-radius:16px; border: 1px solid rgba(52, 199, 89, 0.1);">
-               <div style="font-size:11px; font-weight:800; color:var(--success); text-transform:uppercase; letter-spacing:1px;">Est. Annual Income</div>
-               <div id="div-total" class="sensitive tabular-nums" style="font-size:32px; font-weight:900; letter-spacing:-1px; color:var(--text-main); margin-top:5px;">--</div>
-            </div>
-            <div id="div-list">
-               <div style="font-size:13px; font-weight:600; color:var(--gray); text-align:center; padding:10px;">Tap 🔄 to calculate...</div>
-            </div>
-         </div>
-         <div class="dash-widget" style="background: linear-gradient(135deg, var(--white) 0%, var(--section-bg) 100%);">
-            <div class="widget-title">
-               <div class="badge-icon bg-orange">⚔️</div>
-               Stock Battle AI
-            </div>
-            <div style="font-size:13px; font-weight:600; color:var(--gray); text-align:center; margin-bottom:20px;">Compare two companies and let AI decide.</div>
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:25px;">
-               <input id="battle-ticker-a" class="premium-input" style="text-align:center; font-size:18px; font-weight:900; text-transform:uppercase; background:var(--section-bg);" type="text" placeholder="RACE">
-               <div style="font-weight:900; font-size:16px; color:var(--gray); font-style:italic;">VS</div>
-               <input id="battle-ticker-b" class="premium-input" style="text-align:center; font-size:18px; font-weight:900; text-transform:uppercase; background:var(--section-bg);" type="text" placeholder="TSLA">
-            </div>
-            <button onclick="startBattle()" style="width:100%; background:var(--text-main); color:var(--bg); border:none; padding:16px; border-radius:16px; font-weight:900; font-size:16px; cursor:pointer; transition:transform 0.2s;">
-            🔥 FIGHT! 🔥
-            </button>
-            <div id="battle-result" style="display:none; background:var(--white); border-radius:20px; border: 1px solid var(--row-border); margin-top:25px; overflow:hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
-               <div style="background:var(--section-bg); padding:20px; text-align:center; border-bottom:1px solid var(--row-border);">
-                  <div style="font-size:11px; text-transform:uppercase; color:var(--gray); font-weight:800; letter-spacing:1px;">WINNER IS</div>
-                  <div id="battle-winner" style="font-size:36px; font-weight:900; color:var(--primary); margin-top:5px; letter-spacing:-1px;">--</div>
-               </div>
-               <div style="padding:20px;">
-                  <div style="display:flex; align-items:center; margin-bottom:12px; font-size:13px; font-weight:800;">
-                     <div id="score-a-label" style="width:50px; color:var(--text-main);">A</div>
-                     <div style="flex:1; height:10px; background:var(--section-bg); margin:0 12px; border-radius:5px; overflow:hidden;">
+            <div style="padding:20px;">
+                <div style="display:flex; align-items:center; margin-bottom:12px; font-size:13px; font-weight:800;">
+                    <div id="score-a-label" style="width:50px; color:var(--text-main);">A</div>
+                    <div style="flex:1; height:10px; background:var(--section-bg); margin:0 12px; border-radius:5px; overflow:hidden;">
                         <div id="score-bar-a" style="height:100%; width:0%; background:var(--danger); transition: width 1s ease;"></div>
-                     </div>
-                     <div id="score-val-a" class="tabular-nums">0</div>
-                  </div>
-                  <div style="display:flex; align-items:center; margin-bottom:25px; font-size:13px; font-weight:800;">
-                     <div id="score-b-label" style="width:50px; color:var(--text-main);">B</div>
-                     <div style="flex:1; height:10px; background:var(--section-bg); margin:0 12px; border-radius:5px; overflow:hidden;">
+                    </div>
+                    <div id="score-val-a" class="tabular-nums">0</div>
+                </div>
+                <div style="display:flex; align-items:center; margin-bottom:25px; font-size:13px; font-weight:800;">
+                    <div id="score-b-label" style="width:50px; color:var(--text-main);">B</div>
+                    <div style="flex:1; height:10px; background:var(--section-bg); margin:0 12px; border-radius:5px; overflow:hidden;">
                         <div id="score-bar-b" style="height:100%; width:0%; background:var(--primary); transition: width 1s ease;"></div>
-                     </div>
-                     <div id="score-val-b" class="tabular-nums">0</div>
-                  </div>
-                  <div style="display:flex; flex-direction:column; gap:15px; margin-bottom:20px;">
-                     <div style="background:rgba(255, 59, 48, 0.05); padding:15px; border-radius:12px;">
+                    </div>
+                    <div id="score-val-b" class="tabular-nums">0</div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:15px; margin-bottom:20px;">
+                    <div style="background:rgba(255, 59, 48, 0.05); padding:15px; border-radius:12px;">
                         <div id="title-list-a" style="font-weight:800; font-size:14px; color:var(--danger); margin-bottom:10px; border-bottom:1px solid rgba(255, 59, 48, 0.1); padding-bottom:5px;">--</div>
                         <ul id="list-a" style="margin:0; padding-left:20px; color:var(--text-main); font-size:13px; font-weight:500; line-height:1.6;"></ul>
-                     </div>
-                     <div style="background:rgba(0, 122, 255, 0.05); padding:15px; border-radius:12px;">
+                    </div>
+                    <div style="background:rgba(0, 122, 255, 0.05); padding:15px; border-radius:12px;">
                         <div id="title-list-b" style="font-weight:800; font-size:14px; color:var(--primary); margin-bottom:10px; border-bottom:1px solid rgba(0, 122, 255, 0.1); padding-bottom:5px;">--</div>
                         <ul id="list-b" style="margin:0; padding-left:20px; color:var(--text-main); font-size:13px; font-weight:500; line-height:1.6;"></ul>
-                     </div>
-                  </div>
-                  <div style="background:var(--section-bg); padding:15px; border-radius:16px;">
-                     <div style="font-size:11px; text-transform:uppercase; color:var(--gray); font-weight:800; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                    </div>
+                </div>
+                <div style="background:var(--section-bg); padding:15px; border-radius:16px;">
+                    <div style="font-size:11px; text-transform:uppercase; color:var(--gray); font-weight:800; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
                         <div class="badge-icon bg-dark" style="width:20px; height:20px; font-size:10px;">📊</div>
                         VERDICT
-                     </div>
-                     <div id="battle-reason" class="ai-text-box">Analysis in progress...</div>
-                  </div>
-               </div>
+                    </div>
+                    <div id="battle-reason" class="ai-text-box">Analysis in progress...</div>
+                </div>
             </div>
-         </div>
-         </div>
+        </div>
+    </div>
+    
+    <div class="ai-tools-grid" style="margin-top: 20px;">
+        
+        <div class="ai-tool-card">
+            <div class="ai-tool-header"><span>🌡️</span> AI Sentiment Analyzer</div>
+            <div style="font-size:11px; color:var(--gray); margin-bottom:10px;">Live news analysis via Gemini Web Search.</div>
+            <div class="ai-tool-input-group">
+                <input type="text" id="tool-sentiment-tk" class="ai-tool-input" placeholder="Ticker (e.g. TSLA)">
+                <button class="ai-tool-btn" onclick="runToolSentiment()">Run</button>
+            </div>
+            <div id="res-sentiment" class="ai-tool-result"></div>
+        </div>
+
+        <div class="ai-tool-card">
+            <div class="ai-tool-header"><span>⚖️</span> Smart Rebalancer</div>
+            <div style="font-size:11px; color:var(--gray); margin-bottom:10px;">Math optimization for new capital.</div>
+            <div class="ai-tool-input-group">
+                <input type="number" id="tool-rebal-amt" class="ai-tool-input" placeholder="Amount (€)">
+                <input type="text" id="tool-rebal-tgt" class="ai-tool-input" placeholder="Target (e.g. 70% VOO, 30% BTC)">
+            </div>
+            <button class="ai-tool-btn" style="width:100%; padding:10px;" onclick="runToolRebalance()">Generate Plan</button>
+            <div id="res-rebalance" class="ai-tool-result"></div>
+        </div>
+
+        <div class="ai-tool-card">
+            <div class="ai-tool-header"><span>🔗</span> Overlap & Correlation</div>
+            <div style="font-size:11px; color:var(--gray); margin-bottom:10px;">Check if you are truly diversified.</div>
+            <div class="ai-tool-input-group">
+                <input type="text" id="tool-corr-a" class="ai-tool-input" placeholder="Asset A">
+                <input type="text" id="tool-corr-b" class="ai-tool-input" placeholder="Asset B">
+                <button class="ai-tool-btn" onclick="runToolCorrelation()">Check</button>
+            </div>
+            <div id="res-correlation" class="ai-tool-result"></div>
+        </div>
+
+        <div class="ai-tool-card">
+            <div class="ai-tool-header"><span>📄</span> AI Earnings Summary</div>
+            <div style="font-size:11px; color:var(--gray); margin-bottom:10px;">Instant TL;DR of the latest quarterly report.</div>
+            <div class="ai-tool-input-group">
+                <input type="text" id="tool-earn-tk" class="ai-tool-input" placeholder="Ticker (e.g. NVDA)">
+                <button class="ai-tool-btn" onclick="runToolEarnings()">Summarize</button>
+            </div>
+            <div id="res-earnings" class="ai-tool-result"></div>
+        </div>
+
+    </div>
+
+</div>
       </div>
    </div>
    </div>
