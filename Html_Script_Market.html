@@ -1943,34 +1943,188 @@ const createTerminalRow = (item, type) => {
               let finalHtml = `<table class="terminal-table"><thead>${thead}</thead><tbody>`;
 
               if (sorted.length === 0) {
-                  finalHtml += '<tr><td colspan="15" style="text-align:center; padding:20px;">No assets match your filters 🔍</td></tr>';
-              } else if (termGroupByKey) {
-                  let grouped = {};
-                  sorted.forEach(item => {
-                      let key = item[termGroupByKey];
-                      if (!key || key === "#N/A") key = "Other / Unassigned";
-                      if (!grouped[key]) grouped[key] = { items: [], totalVal: 0, totalPnl: 0 };
-                      grouped[key].items.push(item);
-                      let val = parseForSort(item.val); let pnl = parseForSort(item.unrealizedEur);
-                      if(val !== -Infinity) grouped[key].totalVal += val;
-                      if(pnl !== -Infinity) grouped[key].totalPnl += pnl;
-                  });
-
-                  for (let groupName in grouped) {
-                      let g = grouped[groupName];
-                      let pnlSign = g.totalPnl > 0 ? '+' : '';
-                      let pnlColor = g.totalPnl > 0 ? 'color:var(--stocks-bg)' : (g.totalPnl < 0 ? 'color:var(--danger)' : '');
-                      finalHtml += `
-                        <tr class="term-group-header"><td colspan="15">
-                            ${groupName}
-                            <span class="term-subtotal sensitive">Val: <b>€ ${g.totalVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</b></span>
-                            <span class="term-subtotal sensitive">P&L: <b style="${pnlColor}">${pnlSign}€ ${g.totalPnl.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</b></span>
-                        </td></tr>
-                      `;
-                      finalHtml += g.items.map((item) => createTerminalRow(item, type)).join('');
-                  }
+                  finalHtml += '<tr><td colspan="25" style="text-align:center; padding:20px;">No assets match your filters 🔍</td></tr>';
               } else {
-                  finalHtml += sorted.map((item) => createTerminalRow(item, type)).join('');
+                  
+                  // --- TOTALS & WEIGHTED AVERAGES CALCULATION ---
+                  const calcTotals = (listData) => {
+                      let t = { 
+                          val: 0, unreal: 0, real: 0, bal: 0, div: 0, expDiv: 0, dch: 0,
+                          wPe: 0, wEps: 0, wBeta: 0, wMkt: 0,
+                          wWinRate: 0, wProfitFactor: 0, wDrawdown: 0,
+                          valFund: 0, valTrad: 0,
+                          
+                          // For direct weighted averages of percentages
+                          wPctDch: 0, wPctUnreal: 0, wPctReal: 0, wPctBal: 0, wYoc: 0,
+                          baseDch: 0, baseUnreal: 0, baseReal: 0, baseBal: 0, baseYoc: 0
+                      };
+
+                      listData.forEach(item => {
+                          let v = parseForSort(item.val); if (v === -Infinity || isNaN(v)) v = 0;
+                          t.val += v;
+                          
+                          let u = parseForSort(item.unrealizedEur); if (u !== -Infinity && !isNaN(u)) t.unreal += u;
+                          let r = parseForSort(item.realizedEur); if (r !== -Infinity && !isNaN(r)) t.real += r;
+                          let b = parseForSort(item.balEur); if (b !== -Infinity && !isNaN(b)) t.bal += b;
+                          let d = parseForSort(item.div); if (d !== -Infinity && !isNaN(d)) t.div += d;
+                          let ed = parseForSort(item.expectedDividend); if (ed !== -Infinity && !isNaN(ed)) t.expDiv += ed;
+                          let dch = parseForSort(item.dCh); if (dch !== -Infinity && !isNaN(dch)) t.dch += dch;
+
+                          // PERCENTAGES (Weighted Averages logic for accurate rendering)
+                          let pDch = parseForSort(item.pct); 
+                          if (pDch !== -Infinity && !isNaN(pDch)) { t.wPctDch += pDch * v; t.baseDch += v; }
+
+                          let pUnreal = parseForSort(item.unrealizedPct); 
+                          let costBasis = (u !== -Infinity && !isNaN(u)) ? (v - u) : v; // Approximates cost basis
+                          if (costBasis <= 0) costBasis = v; 
+                          if (pUnreal !== -Infinity && !isNaN(pUnreal)) { t.wPctUnreal += pUnreal * costBasis; t.baseUnreal += costBasis; }
+
+                          let pReal = parseForSort(item.realizedPct);
+                          if (pReal !== -Infinity && !isNaN(pReal)) { t.wPctReal += pReal * costBasis; t.baseReal += costBasis; }
+
+                          let pBal = parseForSort(item.balPct);
+                          if (pBal !== -Infinity && !isNaN(pBal)) { t.wPctBal += pBal * costBasis; t.baseBal += costBasis; }
+
+                          let pYoc = parseForSort(item.yoc);
+                          if (pYoc !== -Infinity && !isNaN(pYoc)) { t.wYoc += pYoc * costBasis; t.baseYoc += costBasis; }
+
+                          // Fundamentals (weighted by position value)
+                          let pe = parseForSort(item.pe); if (pe !== -Infinity && !isNaN(pe) && v > 0) { t.wPe += pe * v; t.valFund += v; }
+                          let eps = parseForSort(item.eps); if (eps !== -Infinity && !isNaN(eps) && v > 0) { t.wEps += eps * v; }
+                          let beta = parseForSort(item.beta); if (beta !== -Infinity && !isNaN(beta) && v > 0) { t.wBeta += beta * v; }
+                          
+                          // Market Cap Custom Parse for Weighted Avg
+                          let rawMkt = String(item.mkt || '').toUpperCase().replace(',', '.');
+                          let mktMulti = 1;
+                          if (rawMkt.includes('T')) mktMulti = 1e12;
+                          else if (rawMkt.includes('B')) mktMulti = 1e9;
+                          else if (rawMkt.includes('M')) mktMulti = 1e6;
+                          let mktClean = parseFloat(rawMkt.replace(/[^\d.-]/g, ''));
+                          if (!isNaN(mktClean) && v > 0) { t.wMkt += (mktClean * mktMulti) * v; }
+
+                          // Trading Data (weighted by position value)
+                          let wr = parseForSort(item.winRate); if (wr !== -Infinity && !isNaN(wr) && v > 0) { t.wWinRate += wr * v; t.valTrad += v; }
+                          let pf = parseForSort(item.profitFactor); if (pf !== -Infinity && !isNaN(pf) && v > 0) { t.wProfitFactor += pf * v; }
+                          let dd = parseForSort(item.drawdown); if (dd !== -Infinity && !isNaN(dd) && v > 0) { t.wDrawdown += dd * v; }
+                      });
+
+                      // Final Division for Weighted Averages
+                      t.pctDch = t.baseDch > 0 ? t.wPctDch / t.baseDch : 0;
+                      t.pctUnreal = t.baseUnreal > 0 ? t.wPctUnreal / t.baseUnreal : 0;
+                      t.pctReal = t.baseReal > 0 ? t.wPctReal / t.baseReal : 0;
+                      t.pctBal = t.baseBal > 0 ? t.wPctBal / t.baseBal : 0;
+                      t.yoc = t.baseYoc > 0 ? t.wYoc / t.baseYoc : 0;
+
+                      t.avgPe = t.valFund > 0 ? t.wPe / t.valFund : 0;
+                      t.avgEps = t.valFund > 0 ? t.wEps / t.valFund : 0;
+                      t.avgBeta = t.valFund > 0 ? t.wBeta / t.valFund : 0;
+                      t.avgMkt = t.valFund > 0 ? t.wMkt / t.valFund : 0;
+
+                      t.avgWinRate = t.valTrad > 0 ? t.wWinRate / t.valTrad : 0;
+                      t.avgProfitFactor = t.valTrad > 0 ? t.wProfitFactor / t.valTrad : 0;
+                      t.avgDrawdown = t.valTrad > 0 ? t.wDrawdown / t.valTrad : 0;
+
+                      return t;
+                  };
+
+                  const fmtBig = (val) => { 
+                      if (val === 0 || isNaN(val)) return "-"; 
+                      if (val >= 1e12) return (val/1e12).toLocaleString('it-IT', {maximumFractionDigits: 2}) + "T"; 
+                      if (val >= 1e9) return (val/1e9).toLocaleString('it-IT', {maximumFractionDigits: 2}) + "B"; 
+                      if (val >= 1e6) return (val/1e6).toLocaleString('it-IT', {maximumFractionDigits: 2}) + "M"; 
+                      return val.toLocaleString('it-IT', {maximumFractionDigits: 2}); 
+                  };
+
+                  // --- UI ROW GENERATOR FOR TOTALS ---
+                  const createTotalRow = (totals, label, isMaster = false) => {
+                      const fmt = (v) => (!isNaN(v) && v !== 0) ? Math.abs(v).toLocaleString('it-IT', {minimumFractionDigits:2, maximumFractionDigits:2}) : '0,00';
+                      const fmtPct = (v) => (!isNaN(v) && v !== 0) ? Math.abs(v).toLocaleString('it-IT', {minimumFractionDigits:2, maximumFractionDigits:2}) + '%' : '0,00%';
+                      const sign = (v) => v > 0 ? '+' : (v < 0 ? '-' : '');
+                      const fmtCol = (v) => v > 0 ? 'color:var(--stocks-bg);' : (v < 0 ? 'color:var(--danger);' : 'color:var(--text-main);');
+                      
+                      let bgStyle = isMaster ? 'background: rgba(0,122,255,0.08); border-top: 3px solid var(--primary);' : 'background: rgba(0,0,0,0.02); border-top: 2px dashed var(--row-border);';
+
+                      if (termSubView === 'overview') {
+                          return `
+                              <tr style="${bgStyle} font-weight: 800; font-size: 13px;">
+                                  <td colspan="4" style="text-align:right;">${label}</td>
+                                  <td style="${fmtCol(totals.pctDch)}">${sign(totals.pctDch)}${fmtPct(totals.pctDch)}</td>
+                                  <td style="${fmtCol(totals.dch)}"><span class="sensitive">${sign(totals.dch)}${fmt(totals.dch)}</span></td>
+                                  <td style="color:var(--text-main);"><span class="sensitive">${fmt(totals.val)}</span></td>
+                                  <td class="term-group-divider" style="${fmtCol(totals.unreal)}"><span class="sensitive">${sign(totals.unreal)}${fmt(totals.unreal)}</span></td>
+                                  <td style="${fmtCol(totals.pctUnreal)}">${sign(totals.pctUnreal)}${fmtPct(totals.pctUnreal)}</td>
+                                  <td class="term-group-divider" style="${fmtCol(totals.real)}"><span class="sensitive">${sign(totals.real)}${fmt(totals.real)}</span></td>
+                                  <td style="${fmtCol(totals.pctReal)}">${sign(totals.pctReal)}${fmtPct(totals.pctReal)}</td>
+                                  <td class="term-group-divider" style="${fmtCol(totals.bal)}"><span class="sensitive">${sign(totals.bal)}${fmt(totals.bal)}</span></td>
+                                  <td style="${fmtCol(totals.pctBal)}">${sign(totals.pctBal)}${fmtPct(totals.pctBal)}</td>
+                                  <td class="term-group-divider" style="color:var(--primary);"><span class="sensitive">${fmt(totals.div)}</span></td>
+                                  <td style="color:var(--primary);"><span class="sensitive">${fmt(totals.expDiv)}</span></td>
+                                  <td style="color:var(--primary);">${fmtPct(totals.yoc)}</td>
+                                  <td class="term-group-divider"></td>
+                                  <td></td>
+                                  <td></td>
+                              </tr>
+                          `;
+                      } else if (termSubView === 'fundamentals') {
+                          return `
+                              <tr style="${bgStyle} font-weight: 800; font-size: 13px;">
+                                  <td colspan="6" style="text-align:right;">${label} <span style="font-size:10px; color:var(--gray);">(Weighted)</span></td>
+                                  <td class="term-group-divider">${fmt(totals.avgPe)}</td>
+                                  <td>${fmt(totals.avgEps)}</td>
+                                  <td>${fmtBig(totals.avgMkt)}</td>
+                                  <td>${fmt(totals.avgBeta)}</td>
+                                  <td colspan="4" class="term-group-divider"></td>
+                              </tr>
+                          `;
+                      } else if (termSubView === 'trading') {
+                          return `
+                              <tr style="${bgStyle} font-weight: 800; font-size: 13px;">
+                                  <td colspan="3" style="text-align:right;">${label} <span style="font-size:10px; color:var(--gray);">(Weighted)</span></td>
+                                  <td class="term-group-divider" style="${totals.avgWinRate >= 50 ? 'color:var(--stocks-bg)' : 'color:var(--danger)'}">${fmtPct(totals.avgWinRate)}</td>
+                                  <td style="${totals.avgProfitFactor >= 1 ? 'color:var(--stocks-bg)' : 'color:var(--danger)'}">${fmt(totals.avgProfitFactor)}</td>
+                                  <td style="color:var(--danger);">${sign(totals.avgDrawdown)}${fmtPct(totals.avgDrawdown)}</td>
+                                  <td colspan="7" class="term-group-divider"></td>
+                              </tr>
+                          `;
+                      }
+                  };
+
+                  let masterTot = calcTotals(filteredList);
+
+                  if (termGroupByKey) {
+                      let grouped = {};
+                      sorted.forEach(item => {
+                          let key = item[termGroupByKey];
+                          if (!key || key === "#N/A") key = "Other / Unassigned";
+                          if (!grouped[key]) grouped[key] = [];
+                          grouped[key].push(item);
+                      });
+
+                      for (let groupName in grouped) {
+                          let groupList = grouped[groupName];
+                          let gTot = calcTotals(groupList);
+                          
+                          let pnlSign = gTot.unreal > 0 ? '+' : '';
+                          let pnlColor = gTot.unreal > 0 ? 'color:var(--stocks-bg)' : (gTot.unreal < 0 ? 'color:var(--danger)' : '');
+                          
+                          finalHtml += `
+                            <tr class="term-group-header"><td colspan="25" style="background:rgba(0,122,255,0.05); color:var(--primary); font-weight:800;">
+                                📂 ${groupName} <span style="font-size:11px; opacity:0.7;">(${groupList.length} assets)</span>
+                                <span class="term-subtotal sensitive" style="float:right;">P&L: <b style="${pnlColor}">${pnlSign}€ ${gTot.unreal.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</b></span>
+                                <span class="term-subtotal sensitive" style="float:right; margin-right:15px; color:var(--text-main);">Val: <b>€ ${gTot.val.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</b></span>
+                            </td></tr>
+                          `;
+                          finalHtml += groupList.map((item) => createTerminalRow(item, type)).join('');
+                          finalHtml += createTotalRow(gTot, `Subtotal ${groupName}`, false);
+                      }
+                  } else {
+                      finalHtml += sorted.map((item) => createTerminalRow(item, type)).join('');
+                  }
+
+                  // Aggiunge la riga del totale complessivo in base ai filtri attivi
+                  if (filteredList.length > 0) {
+                      finalHtml += createTotalRow(masterTot, 'TOTAL (FILTERED)', true);
+                  }
               }
 
               finalHtml += `</tbody></table>`;
