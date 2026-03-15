@@ -410,4 +410,58 @@
        width: 48px;
        text-align: right;
    }
+
+   /* --- MARKET SUB-NAVIGATION TABS --- */
+   .market-sub-nav {
+       display: flex;
+       gap: 10px;
+       margin-bottom: 20px;
+       overflow-x: auto;
+       padding-bottom: 5px;
+       -webkit-overflow-scrolling: touch;
+       scrollbar-width: none; /* Firefox */
+   }
+   .market-sub-nav::-webkit-scrollbar {
+       display: none; /* Chrome/Safari */
+   }
+   
+   .m-sub-btn {
+       flex: 1;
+       min-width: 110px;
+       padding: 12px 15px;
+       border-radius: 14px;
+       font-size: 13px;
+       font-weight: 800;
+       border: none;
+       background: var(--section-bg);
+       color: var(--gray);
+       cursor: pointer;
+       transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+       white-space: nowrap;
+       text-align: center;
+       box-shadow: inset 0 0 0 1px rgba(0,0,0,0.02);
+   }
+   body.dark-mode .m-sub-btn {
+       box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+   }
+   
+   .m-sub-btn.active {
+       background: var(--text-main);
+       color: var(--bg);
+       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+       transform: translateY(-2px);
+   }
+   
+   .m-tab-content {
+       display: none; /* Hidden by default */
+       animation: fadeInTab 0.3s ease-in-out forwards;
+   }
+   .m-tab-content.active {
+       display: block; /* Visible when active */
+   }
+   
+   @keyframes fadeInTab {
+       from { opacity: 0; transform: translateY(10px); }
+       to { opacity: 1; transform: translateY(0); }
+   }
 </style>

@@ -2471,4 +2471,37 @@ function hasTickerNote(ticker) {
         return false;
     }
 }
+
+/**
+ * Switches the active sub-tab inside the Market page.
+ * @param {string} tabId - The ID suffix of the tab to show (assets, insights, tools).
+ * @param {HTMLElement} btnElement - The button element that was clicked.
+ */
+function switchMarketTab(tabId, btnElement) {
+    // 1. Remove active state from all buttons
+    const buttons = document.querySelectorAll('.m-sub-btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    
+    // 2. Add active state to the clicked button
+    if (btnElement) {
+        btnElement.classList.add('active');
+    }
+    
+    // 3. Hide all tab contents
+    const tabs = document.querySelectorAll('.m-tab-content');
+    tabs.forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // 4. Show the target tab
+    const targetTab = document.getElementById('mtab-' + tabId);
+    if (targetTab) {
+        targetTab.classList.add('active');
+        
+        // Fix potential TradingView render issues when changing from display:none to block
+        if (tabId === 'insights') {
+            window.dispatchEvent(new Event('resize'));
+        }
+    }
+}
 </script>
