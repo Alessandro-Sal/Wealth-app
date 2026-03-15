@@ -1081,13 +1081,18 @@
         </div>
     </div>
     
-    <div style="display:flex; gap:8px; margin-bottom:15px; overflow-x:auto; padding-bottom:4px;" class="live-scroll">
-        <button id="btn-bench-Main" class="term-chip active" style="padding: 4px 10px; font-size: 11px;" onclick="filterBenchmarks('Main')">⭐ Main</button>
-        <button id="btn-bench-Americas" class="term-chip" style="padding: 4px 10px; font-size: 11px;" onclick="filterBenchmarks('Americas')">🌎 Americas</button>
-        <button id="btn-bench-Europe" class="term-chip" style="padding: 4px 10px; font-size: 11px;" onclick="filterBenchmarks('Europe')">🇪🇺 Europe</button>
-        <button id="btn-bench-Asia" class="term-chip" style="padding: 4px 10px; font-size: 11px;" onclick="filterBenchmarks('Asia')">🌏 Asia</button>
-        <button id="btn-bench-Macro" class="term-chip" style="padding: 4px 10px; font-size: 11px;" onclick="filterBenchmarks('Macro')">📊 Macro</button>
-    </div>
+    <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:10px; margin-bottom:10px; -webkit-overflow-scrolling:touch;">
+    <div class="term-chip active" id="btn-bench-Main" onclick="filterBenchmarks('Main')">⭐ Main</div>
+    <div class="term-chip" id="btn-bench-us" onclick="filterBenchmarks('us')">🇺🇸 US</div>
+    <div class="term-chip" id="btn-bench-eu" onclick="filterBenchmarks('eu')">🇪🇺 Europe</div>
+    <div class="term-chip" id="btn-bench-ap" onclick="filterBenchmarks('ap')">🌏 Asia</div>
+    <div class="term-chip" id="btn-bench-em" onclick="filterBenchmarks('em')">🌍 Emerging & Americas</div>
+    <div class="term-chip" id="btn-bench-fi" onclick="filterBenchmarks('fi')">🏦 Fixed Income</div>
+    <div class="term-chip" id="btn-bench-cmd" onclick="filterBenchmarks('cmd')">🛢️ Commodities</div>
+    <div class="term-chip" id="btn-bench-thm" onclick="filterBenchmarks('thm')">📈 Thematic</div>
+    <div class="term-chip" id="btn-bench-mac" onclick="filterBenchmarks('mac')">📊 Macro & Forex</div>
+    <div class="term-chip" id="btn-bench-oth" onclick="filterBenchmarks('oth')">📌 Other</div>
+</div>
 
     <div id="benchmark-container" style="display: flex; flex-direction: column; width: 100%; margin-bottom: 20px; min-height:100px;">
         <div style="font-size:13px; font-weight:600; color:var(--gray); text-align:center; padding:10px;">Loading indices...</div>
