@@ -394,4 +394,363 @@ function renderCashflowChart(data) {
         }
     });
 }
+
+// --- GLOBAL VARIABLES FOR CLOSED POSITIONS ---
+let cpData = [];
+let cpSubView = 'overview'; 
+let cpSortCol = 'totalPnL';
+let cpSortAsc = false;
+
+function fetchClosedPositions() {
+    run('getClosedPositionsData').then(data => {
+        if (data && data.error) {
+            document.getElementById('cp-table-body').innerHTML = `<tr><td colspan="15" style="text-align: center; color: var(--danger); padding: 20px;">Error: ${data.error}</td></tr>`;
+            return;
+        }
+        
+        cpData = data;
+        document.getElementById('cp-count').innerText = `${data.length} Positions`;
+        calculateAndRenderCPKPIs();
+        renderCPTerminal();
+        renderCPScatterChart();
+        
+    }).catch(err => console.error("Error fetching closed positions:", err));
+}
+
+function setCPView(view, btnElement) {
+    cpSubView = view;
+    // Resetta i bottoni
+    const btns = btnElement.parentElement.querySelectorAll('.term-view-btn');
+    btns.forEach(b => b.classList.remove('active'));
+    btnElement.classList.add('active');
+    renderCPTerminal();
+}
+
+function sortCPTerminal(colKey) {
+    if (cpSortCol === colKey) { cpSortAsc = !cpSortAsc; } 
+    else { cpSortCol = colKey; cpSortAsc = false; }
+    renderCPTerminal();
+}
+
+// Reuse the parse logic from Market to sort EUR/USD/% values correctly
+function parseCPSort(val) {
+    if (!val || val === '-' || val === '#N/A' || val === '') return -Infinity; 
+    let s = String(val).replace(/[€$%+ ]/g, '').trim();
+    let lastComma = s.lastIndexOf(',');
+    let lastDot = s.lastIndexOf('.');
+    if (lastComma > lastDot) s = s.replace(/\./g, '').replace(',', '.');
+    else if (lastDot > lastComma) s = s.replace(/,/g, '');
+    else if (s.includes(',')) s = s.replace(',', '.');
+    let n = parseFloat(s);
+    return isNaN(n) ? String(val).toLowerCase() : n;
+}
+
+// Reuse the Heatmap Style logic from Market
+function getCPHeatmapStyle(val) {
+    if (!val || val === '-' || val === '#N/A' || val === '') return '';
+    let n = parseCPSort(val);
+    if (n === -Infinity || isNaN(n) || n === 0) return '';
+    let intensity = Math.min(Math.abs(n) / 1000, 1);
+    let alpha = 0.05 + (intensity * 0.35);
+    if (String(val).includes('%')) alpha = 0.05 + (Math.min(Math.abs(n) / 50, 1) * 0.35); // Scale for %
+    if (n > 0) return `background-color: rgba(52, 199, 89, ${alpha}); color: var(--text-main); font-weight: 800;`;
+    if (n < 0) return `background-color: rgba(255, 59, 48, ${alpha}); color: var(--text-main); font-weight: 800;`;
+    return '';
+}
+
+/**
+ * Calculates and renders category-specific KPIs for Closed Positions.
+ * Splits insights by Stocks, ETFs, and Crypto.
+ */
+function calculateAndRenderCPKPIs() {
+    const container = document.getElementById('cp-kpi-container');
+    if (!container) return;
+
+    // Define the categories we want to track
+    const categories = {
+        'Stock': { title: '📈 Stocks', pnl: 0, wins: 0, best: null, worst: null, totalDays: 0, count: 0 },
+        'ETF': { title: '🧺 ETFs', pnl: 0, wins: 0, best: null, worst: null, totalDays: 0, count: 0 },
+        'Crypto': { title: '🪙 Crypto', pnl: 0, wins: 0, best: null, worst: null, totalDays: 0, count: 0 }
+    };
+
+    // Parse data and assign to categories
+    cpData.forEach(d => {
+        let type = d.type;
+        // Fallback for custom types, map them to 'Other' if needed, but we focus on the main 3
+        if (!categories[type]) return; 
+
+        let pnl = parseCPSort(d.totalPnL);
+        let days = parseInt(d.daysHeld) || 0;
+
+        if (pnl !== -Infinity) {
+            let cat = categories[type];
+            cat.count++;
+            cat.pnl += pnl;
+            cat.totalDays += days;
+            if (pnl > 0) cat.wins++;
+
+            // Check for Best Trade
+            if (!cat.best || pnl > cat.best.pnl) {
+                cat.best = { ticker: d.ticker, pnl: pnl };
+            }
+            // Check for Worst Trade
+            if (!cat.worst || pnl < cat.worst.pnl) {
+                cat.worst = { ticker: d.ticker, pnl: pnl };
+            }
+        }
+    });
+
+    let html = '';
+    const fmt = (v) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
+
+    // Build the HTML cards for each category that has data
+    Object.keys(categories).forEach(key => {
+        let cat = categories[key];
+        if (cat.count === 0) return; // Skip empty categories
+
+        let winRatePct = ((cat.wins / cat.count) * 100).toFixed(1) + '%';
+        let avgDays = Math.round(cat.totalDays / cat.count);
+        let pnlColor = cat.pnl >= 0 ? 'var(--success)' : 'var(--danger)';
+
+        let bestStr = cat.best && cat.best.pnl > 0 ? `${cat.best.ticker} <span style="color:var(--success);">(${fmt(cat.best.pnl)})</span>` : '-';
+        let worstStr = cat.worst && cat.worst.pnl < 0 ? `${cat.worst.ticker} <span style="color:var(--danger);">(${fmt(cat.worst.pnl)})</span>` : '-';
+
+        html += `
+        <div style="background: var(--card-bg, #fff); padding: 15px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.05); box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--row-border);">
+                <div style="font-weight: 800; font-size: 14px; color: var(--text-main);">${cat.title}</div>
+                <div class="sensitive" style="font-weight: 800; font-size: 16px; color: ${pnlColor};">${fmt(cat.pnl)}</div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--gray); font-weight: 600;">Win Rate</span>
+                    <span style="font-weight: 800; color: var(--text-main);">${winRatePct} <span style="font-size:10px; opacity:0.6; font-weight:600;">(${cat.wins}/${cat.count})</span></span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--gray); font-weight: 600;">Best Trade</span>
+                    <span class="sensitive" style="font-weight: 800;">${bestStr}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--gray); font-weight: 600;">Worst Trade</span>
+                    <span class="sensitive" style="font-weight: 800;">${worstStr}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding-top: 6px; border-top: 1px dashed var(--row-border); margin-top: 2px;">
+                    <span style="color: var(--gray); font-weight: 600;">Avg Holding Time</span>
+                    <span style="font-weight: 800; color: var(--text-main);">${avgDays} Days</span>
+                </div>
+            </div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+}
+
+/**
+ * Renders the Graveyard Terminal table, grouped by Asset Type.
+ */
+function renderCPTerminal() {
+    const thead = document.getElementById('cp-thead');
+    const tbody = document.getElementById('cp-table-body');
+    if (!thead || !tbody || cpData.length === 0) return;
+
+    const th = (label, colKey, isDivider = false) => {
+        let arrow = cpSortCol === colKey ? (cpSortAsc ? ' <span style="color:var(--primary); font-size:12px;">↑</span>' : ' <span style="color:var(--primary); font-size:12px;">↓</span>') : '';
+        let cls = isDivider ? 'class="term-group-divider"' : '';
+        return `<th ${cls} onclick="sortCPTerminal('${colKey}')" style="cursor:pointer; user-select:none;">${label}${arrow}</th>`;
+    };
+
+    // Sort Data Globally
+    let sorted = [...cpData].sort((a, b) => {
+        let valA = parseCPSort(a[cpSortCol]);
+        let valB = parseCPSort(b[cpSortCol]);
+        if (typeof valA === 'string' && typeof valB === 'string') return cpSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        return cpSortAsc ? (valA - valB) : (valB - valA);
+    });
+
+    const fmt = (val) => (val && val !== "-" && val !== "") ? val : "-";
+
+    // --- RENDER HEADERS ---
+    let headerHtml = `<tr>${th('TICKER', 'ticker')}`;
+    if (cpSubView === 'overview') {
+        headerHtml += `
+            ${th('INVESTED', 'invested', true)}
+            ${th('REALIZED P&L', 'realPnL', true)}
+            ${th('DIVIDENDS', 'divs')}
+            ${th('TOTAL P&L', 'totalPnL')}
+            ${th('ROI %', 'roi', true)}
+            ${th('XIRR', 'xirr')}
+            ${th('TWR', 'twr')}
+        `;
+    } else {
+        headerHtml += `
+            ${th('FIRST BUY', 'firstBuy', true)}
+            ${th('LAST ACT.', 'lastAct')}
+            ${th('DAYS HELD', 'daysHeld')}
+            ${th('TRADES', 'trades')}
+            ${th('FIRST PRICE', 'firstPrice', true)}
+            ${th('MIN BUY', 'minBuy')}
+            ${th('MAX BUY', 'maxBuy')}
+            ${th('AVG SELL', 'avgSell', true)}
+            ${th('MAX SELL', 'maxSell')}
+        `;
+    }
+    headerHtml += `</tr>`;
+    thead.innerHTML = headerHtml;
+
+    // --- RENDER BODY GROUPED BY TYPE ---
+    let bodyHtml = '';
+    const groupsToRender = ['Stock', 'ETF', 'Crypto', 'Other'];
+
+    groupsToRender.forEach(groupName => {
+        // Filter rows for this specific group
+        let groupData = sorted.filter(r => {
+            if (groupName === 'Other') return r.type !== 'Stock' && r.type !== 'ETF' && r.type !== 'Crypto';
+            return r.type === groupName;
+        });
+
+        if (groupData.length === 0) return;
+
+        // Calculate Group Subtotal P&L
+        let groupPnl = groupData.reduce((sum, r) => {
+            let pnl = parseCPSort(r.totalPnL);
+            return sum + (pnl === -Infinity ? 0 : pnl);
+        }, 0);
+        
+        let gPnlColor = groupPnl >= 0 ? 'var(--success)' : 'var(--danger)';
+        let fmtGPnl = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(groupPnl);
+        let colSpan = cpSubView === 'overview' ? 8 : 10;
+
+        // Inject Group Header Row
+        bodyHtml += `
+        <tr class="term-group-header">
+            <td colspan="${colSpan}" style="background:rgba(0,122,255,0.05); color:var(--text-main); font-weight:800; text-align:left; border-top: 2px solid var(--row-border);">
+                📂 ${groupName} <span style="font-size:11px; opacity:0.7; color:var(--gray); font-weight:600; margin-left:6px;">(${groupData.length} Trades)</span>
+                <span class="sensitive" style="float:right; color:${gPnlColor}; font-weight:800;">Tot P&L: ${fmtGPnl}</span>
+            </td>
+        </tr>`;
+
+        // Inject Rows for this group
+        groupData.forEach(row => {
+            bodyHtml += `<tr><td><div style="font-weight:800;">${fmt(row.ticker)}</div></td>`;
+            
+            if (cpSubView === 'overview') {
+                bodyHtml += `
+                    <td class="term-group-divider"><span class="sensitive">${fmt(row.invested)}</span></td>
+                    <td class="term-group-divider term-heatmap" style="${getCPHeatmapStyle(row.realPnL)}"><span class="sensitive">${fmt(row.realPnL)}</span></td>
+                    <td><span class="sensitive" style="color:var(--primary); font-weight:700;">${fmt(row.divs)}</span></td>
+                    <td class="term-heatmap" style="${getCPHeatmapStyle(row.totalPnL)}"><span class="sensitive" style="font-weight:800;">${fmt(row.totalPnL)}</span></td>
+                    <td class="term-group-divider term-heatmap" style="${getCPHeatmapStyle(row.roi)}">${fmt(row.roi)}</td>
+                    <td class="term-heatmap" style="${getCPHeatmapStyle(row.xirr)}" title="${row.xirrNote}">${fmt(row.xirr)}</td>
+                    <td class="term-heatmap" style="${getCPHeatmapStyle(row.twr)}">${fmt(row.twr)}</td>
+                `;
+            } else {
+                bodyHtml += `
+                    <td class="term-group-divider" style="color:var(--gray);">${fmt(row.firstBuy)}</td>
+                    <td style="color:var(--gray);">${fmt(row.lastAct)}</td>
+                    <td style="font-weight:700;">${fmt(row.daysHeld)}</td>
+                    <td style="font-weight:700;">${fmt(row.trades)}</td>
+                    <td class="term-group-divider"><span class="sensitive">${fmt(row.firstPrice)}</span></td>
+                    <td><span class="sensitive">${fmt(row.minBuy)}</span></td>
+                    <td><span class="sensitive">${fmt(row.maxBuy)}</span></td>
+                    <td class="term-group-divider"><span class="sensitive" style="color:#ff9500; font-weight:700;">${fmt(row.avgSell)}</span></td>
+                    <td><span class="sensitive" style="color:#ff9500; font-weight:700;">${fmt(row.maxSell)}</span></td>
+                `;
+            }
+            bodyHtml += `</tr>`;
+        });
+    });
+
+    tbody.innerHTML = bodyHtml;
+}
+
+let cpScatterChartInstance = null;
+
+/**
+ * Renders a Scatter Plot to analyze Trading Efficiency (Days Held vs ROI).
+ */
+function renderCPScatterChart() {
+    const canvas = document.getElementById('cpScatterChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    if (cpScatterChartInstance) cpScatterChartInstance.destroy();
+
+    // Map and clean data for the scatter plot
+    let scatterData = cpData.map(d => {
+        let xVal = parseInt(d.daysHeld) || 0;
+        let yVal = parseCPSort(d.roi); // Usa la tua funzione per convertire "10,50%" in 10.5
+        yVal = (yVal === -Infinity || isNaN(yVal)) ? 0 : yVal;
+        
+        return {
+            x: xVal,
+            y: yVal,
+            ticker: d.ticker,
+            pnl: parseCPSort(d.totalPnL)
+        };
+    }).filter(d => d.x > 0); // Nascondi trade con 0 giorni per pulizia visiva
+
+    const isDark = document.body.classList.contains('dark-mode');
+    const textColor = isDark ? '#fff' : '#333';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+
+    // Dividi profitti e perdite per colorare i puntini di verde o rosso
+    const wins = scatterData.filter(d => d.y >= 0);
+    const losses = scatterData.filter(d => d.y < 0);
+
+    cpScatterChartInstance = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [
+                {
+                    label: 'Profit Trades',
+                    data: wins,
+                    backgroundColor: 'rgba(52, 199, 89, 0.7)',
+                    borderColor: 'rgba(52, 199, 89, 1)',
+                    pointRadius: 6,
+                    pointHoverRadius: 9
+                },
+                {
+                    label: 'Loss Trades',
+                    data: losses,
+                    backgroundColor: 'rgba(255, 59, 48, 0.7)',
+                    borderColor: 'rgba(255, 59, 48, 1)',
+                    pointRadius: 6,
+                    pointHoverRadius: 9
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { color: textColor, font: { size: 10, weight: 'bold' }, usePointStyle: true, boxWidth: 6 } },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let raw = context.raw;
+                            let privacy = document.body.classList.contains('privacy-mode');
+                            let pnlStr = privacy ? '****' : new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(raw.pnl);
+                            return `${raw.ticker} | Days Held: ${raw.x} | ROI: ${raw.y.toFixed(2)}% | P&L: ${pnlStr}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'linear',
+                    position: 'bottom',
+                    title: { display: true, text: 'Days Held', color: textColor, font: { weight: 'bold', size: 11 } },
+                    ticks: { color: textColor, font: { size: 10 } },
+                    grid: { color: gridColor }
+                },
+                y: {
+                    title: { display: true, text: 'ROI %', color: textColor, font: { weight: 'bold', size: 11 } },
+                    ticks: { color: textColor, callback: v => v + '%', font: { size: 10 } },
+                    grid: { color: gridColor, borderDash: [5, 5] }
+                }
+            }
+        }
+    });
+}
 </script>

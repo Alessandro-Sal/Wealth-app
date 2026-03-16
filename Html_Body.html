@@ -886,6 +886,7 @@
                         <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'currency', 'Currency', 'menu-metric', this)">Currency</div>
                         <div class="dropdown-group-label">💰 Profitability</div>
                         <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'performance', 'Performance', 'menu-metric', this)">Performance</div>
+                        <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'efficiency', 'Efficiency (Days vs ROI)', 'menu-metric', this)"> Efficiency (Days vs ROI)</div>
                         <div class="dropdown-group-label">✅ Realized</div>
                         <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'realized_excl', 'Realized (Trading)', 'menu-metric', this)">Realized (Trading)</div>
                         <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'realized_incl', 'Realized + Divs', 'menu-metric', this)">Realized + Divs</div>
@@ -1467,6 +1468,51 @@
                   </table>
                </div>
             </div>
+            <div class="dash-widget span-2 span-pc-4" style="margin-top: 20px; margin-bottom: 30px; padding: 0; overflow: hidden; border-radius: 20px;">
+    
+    <div style="border-bottom: 1px solid var(--row-border); background: var(--section-bg);">
+        <div style="padding: 20px 20px 10px 20px;">
+            <div class="widget-title">
+                <div class="badge-icon bg-dark">🪦</div>
+                Closed Positions (Graveyard)
+            </div>
+        </div>
+        
+        <div id="cp-kpi-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; padding: 0 20px 20px 20px;">
+            <div style="text-align: center; color: var(--gray); font-size: 12px; padding: 20px; grid-column: 1/-1;">Loading statistics...</div>
+        </div>
+
+        <div id="cp-kpi-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; padding: 0 20px 20px 20px;">
+            <div style="text-align: center; color: var(--gray); font-size: 12px; padding: 20px; grid-column: 1/-1;">Loading statistics...</div>
+        </div>
+        
+        <div style="padding: 0 20px 20px 20px; border-bottom: 1px solid var(--row-border);">
+            <div style="font-size: 11px; font-weight: 800; color: var(--gray); text-transform: uppercase; margin-bottom: 10px;">Trade Efficiency (Days Held vs ROI)</div>
+            <div style="position: relative; height: 260px; width: 100%;">
+                <canvas id="cpScatterChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    
+    <div class="term-toolbar" style="padding: 15px 20px; background: var(--bg);">
+        <div class="term-view-toggle">
+            <button class="term-view-btn active" onclick="setCPView('overview', this)">Overview</button>
+            <button class="term-view-btn" onclick="setCPView('trading', this)">Trading Info</button>
+        </div>
+        <div style="font-size: 11px; color: var(--gray); font-weight: 600;" id="cp-count">0 Positions</div>
+    </div>
+    
+    <div class="terminal-container" style="border-radius: 0; border: none; box-shadow: none;">
+        <table class="terminal-table" style="width: 100%; min-width: 800px;">
+            <thead id="cp-thead">
+                </thead>
+            <tbody id="cp-table-body">
+                <tr><td colspan="15" style="text-align: center; padding: 20px; color: var(--gray);">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
          </div>
          <div id="rtab-cashflow" class="m-tab-content">
             <div class="dash-grid">
