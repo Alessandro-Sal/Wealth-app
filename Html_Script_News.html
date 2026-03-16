@@ -1,1151 +1,1151 @@
 <script>
-let currentNewsCategory = 'market';
-let allFetchedNews = [];      
-let filteredNews = [];        
-let lastFetchedTickers = [];  
-let displayedNewsCount = 0;   
-const CHUNK_SIZE = 30;        
-
-/**
- * Utility: Converte il Markdown generato dall'AI in HTML pulito
- */
-function cleanAIMarkdown(text) {
-  if (!text) return "";
-  let cleaned = text.replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--text-main);">$1</strong>'); // Grassetto
-  cleaned = cleaned.replace(/\n/g, '<br>'); // A capo
-  cleaned = cleaned.replace(/(<br>|^)\s*\*\s/g, '$1• '); // Liste puntate
-  return cleaned;
-}
-
-/**
- * Handles clicks on category buttons, updates UI, and fetches new data.
- */
-function setNewsCategory(category, buttonElement) {
-  const buttons = document.querySelectorAll('.news-cat-btn');
-  buttons.forEach(btn => btn.classList.remove('active'));
-  buttonElement.classList.add('active');
-  
-  const searchInput = document.getElementById('newsSearchInput');
-  if (searchInput) searchInput.value = '';
-  
-  currentNewsCategory = category;
-  loadNews(currentNewsCategory);
-}
-
-/**
- * Triggers the backend function to fetch news data.
- * NOW INCLUDES: Cloud Sync logic for 'saved' category.
- */
-function loadNews(category = 'market') {
-  const container = document.getElementById('news-container');
-  if (!container) return; 
-  
-  // --- CLOUD SAVED NEWS LOGIC ---
-  if (category === 'saved') {
-    container.innerHTML = '<div class="loader" style="text-align: center; color: var(--gray); padding: 40px; grid-column: 1 / -1;">Syncing bookmarks from cloud...</div>';
-    
-    google.script.run
-      .withSuccessHandler(function(savedArticles) {
-          container.style.opacity = '1';
-          container.style.pointerEvents = 'auto';
-          // Save a local copy for the bookmark icons logic
-          localStorage.setItem('saved_news', JSON.stringify(savedArticles)); 
-          renderNews({ articles: savedArticles, tickers: [] });
-      })
-      .withFailureHandler(function(err) {
-          container.innerHTML = '<div style="text-align:center; color:var(--danger); grid-column: 1/-1;">Sync failed.</div>';
-      })
-      .getCloudSavedNews();
-    return;
-  }
-  
-  // --- SOFT RELOAD & SKELETON LOGIC FOR STANDARD CATEGORIES ---
-  if (container.innerHTML.trim() !== "" && !container.innerHTML.includes("skeleton-card")) {
-      container.style.opacity = '0.5'; 
-      container.style.transition = 'opacity 0.3s ease';
-      container.style.pointerEvents = 'none'; 
-  } else {
-      let skeletonHtml = '';
-      for(let i=0; i<4; i++) {
-          skeletonHtml += `
-          <div class="skeleton-card">
-              <div class="skeleton-element skel-badge"></div>
-              <div class="skeleton-element skel-title"></div>
-              <div class="skeleton-element skel-title-short"></div>
-              <div class="skeleton-element skel-text"></div>
-              <div class="skeleton-element skel-text-short"></div>
-          </div>`;
-      }
-      container.innerHTML = skeletonHtml;
-  }
-
-  google.script.run
-    .withUserObject(category)
-    .withSuccessHandler(function(response, requestedCategory) {
-        if (requestedCategory !== currentNewsCategory) return; 
-        container.style.opacity = '1';
-        container.style.pointerEvents = 'auto';
-        renderNews(response);
-    })
-    .withFailureHandler(function(error, requestedCategory) {
-        if (requestedCategory !== currentNewsCategory) return;
-        container.style.opacity = '1';
-        container.style.pointerEvents = 'auto';
-        container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--danger); grid-column: 1 / -1;">Could not load news at this time.</div>';
-    })
-    .getMarketNews(category);
-}
-/**
- * Receives data from server, resets states, and applies filters to start rendering.
- */
-function renderNews(response) {
-  allFetchedNews = response.articles || [];
-  lastFetchedTickers = response.tickers || [];
-  
-  filterNewsItems();
-}
-
-/**
- * Filters the news globally based on search and prepares the DOM container.
- */
-function filterNewsItems() {
-  const searchInput = document.getElementById('newsSearchInput');
-  const filterText = searchInput ? searchInput.value.toLowerCase() : '';
-  
-  if (!filterText) {
-    filteredNews = [...allFetchedNews];
-  } else {
-    filteredNews = allFetchedNews.filter(item => {
-      const textToSearch = (item.title + " " + item.summary + " " + item.source + " " + (item.relatedTickers ? item.relatedTickers.join(' ') : '')).toLowerCase();
-      return textToSearch.includes(filterText);
-    });
-  }
-  
-  displayedNewsCount = 0; 
-  
-  const container = document.getElementById('news-container');
-  if (!container) return;
-  
-  container.innerHTML = ''; 
-  
-  if (currentNewsCategory === 'portfolio' && lastFetchedTickers.length > 0) {
-    const tickerBanner = document.createElement('div');
-    tickerBanner.style.gridColumn = '1 / -1';
-    tickerBanner.style.background = 'rgba(52, 199, 89, 0.1)';
-    tickerBanner.style.border = '1px solid rgba(52, 199, 89, 0.2)';
-    tickerBanner.style.borderRadius = '12px';
-    tickerBanner.style.padding = '12px 15px';
-    tickerBanner.style.fontSize = '12px';
-    tickerBanner.style.color = 'var(--text-main)';
-    tickerBanner.style.marginBottom = '10px';
-    tickerBanner.innerHTML = `<span style="font-weight:800; color:#34c759; text-transform:uppercase; font-size:10px; display:block; margin-bottom:4px;">🎯 Tracking your assets</span> <b>${lastFetchedTickers.join(', ')}</b>`;
-    container.appendChild(tickerBanner);
-  }
-
-  if (filteredNews.length === 0) {
-    let emptyMsg = filterText ? 'No articles match your search.' : 'No articles available right now.';
-    if (currentNewsCategory === 'saved' && !filterText) emptyMsg = "You haven't saved any articles yet.<br><br>Tap the 🔖 icon on any news to read it later.";
-    
-    container.innerHTML += `<div id="news-no-results" style="text-align:center; padding:50px 20px; color:var(--gray); grid-column: 1 / -1; font-weight:600; line-height: 1.5;">${emptyMsg}</div>`;
-    return;
-  }
-
-  renderNextChunk();
-}
-
-/**
- * Renders a specific chunk of articles (Pagination)
- */
-function renderNextChunk() {
-  const container = document.getElementById('news-container');
-  if (!container) return;
-
-  const existingBtn = document.getElementById('load-more-btn');
-  if (existingBtn) existingBtn.remove();
-
-  const chunk = filteredNews.slice(displayedNewsCount, displayedNewsCount + CHUNK_SIZE);
-  const savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
-
-  chunk.forEach((item, chunkIndex) => {
-    const absoluteIndex = displayedNewsCount + chunkIndex;
-    
-    const dateObj = new Date(item.date);
-    const formattedDate = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-    
-    const readTime = Math.max(2, Math.floor(item.title.length / 20) % 5 + 1);
-    
-    let badgeColor = 'rgba(0, 122, 255, 0.1)';
-    let badgeText = '#007aff';
-    if (item.category === 'portfolio') { badgeColor = 'rgba(52, 199, 89, 0.1)'; badgeText = '#34c759'; }
-    else if (item.category === 'world') { badgeColor = 'rgba(88, 86, 214, 0.1)'; badgeText = '#5856d6'; }
-    else if (item.category === 'politics') { badgeColor = 'rgba(255, 59, 48, 0.1)'; badgeText = '#ff3b30'; }
-    else if (item.category === 'science' || item.category === 'tech') { badgeColor = 'rgba(255, 149, 0, 0.1)'; badgeText = '#ff9500'; }
-
-    let tickersHtml = '';
-    if (item.relatedTickers && item.relatedTickers.length > 0) {
-        tickersHtml = '<div class="ticker-pill-container">';
-        item.relatedTickers.forEach(t => { tickersHtml += `<span class="ticker-pill">📈 ${t}</span>`; });
-        tickersHtml += '</div>';
-    }
-    
-    const isSaved = savedNews.some(savedItem => savedItem.link === item.link);
-    const bookmarkClass = isSaved ? 'bookmark-btn bookmarked' : 'bookmark-btn';
-
-    // Build Image HTML if available
-    let imageHtml = '';
-    if (item.imageUrl) {
-        imageHtml = `<div class="news-thumbnail-wrapper">
-                        <img src="${item.imageUrl}" alt="News Image" onerror="this.parentElement.style.display='none'">
-                     </div>`;
-    }
-
-    // --- CHANGED: Use a DIV instead of A tag so we can intercept the click ---
-    const newsCard = document.createElement('div');
-    newsCard.className = 'news-card';
-    newsCard.style.cursor = 'pointer';
-    
-    // Intercept clicks to open the modal
-    newsCard.onclick = function(e) {
-        // Prevent modal if user clicks on action buttons or the AI summary box
-        if (e.target.closest('.news-card-actions') || e.target.closest('.ai-article-summary')) return; 
-        openNewsModal(absoluteIndex);
-    };
-    
-   newsCard.innerHTML = `
-      <div style="display: flex; align-items: flex-start; justify-content: space-between;">
-          <div style="flex: 1; min-width: 0;">
-              
-              <div class="news-card-header" style="display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 12px; padding-right: 10px; gap: 6px;">
-                  
-                  <div style="display: flex; align-items: center; gap: 10px;">
-                      <span class="news-badge" style="background:${badgeColor}; color:${badgeText};">${item.category}</span>
-                      
-                      <div class="news-card-actions">
-                         <div class="ai-btn" onclick="summarizeArticle(${absoluteIndex}, event, this)" title="AI Insight">✨</div>
-                         <div class="share-btn" onclick="shareArticle('${item.link}', '${item.title.replace(/'/g, "\\'")}', event)" title="Share">📤</div>
-                         <div class="${bookmarkClass}" onclick="toggleBookmark(${absoluteIndex}, event)" title="Save">🔖</div>
-                      </div>
-                  </div>
-                  
-                  <span class="news-read-time" style="white-space: nowrap;">⏱️ ${readTime} min</span>
-              </div>
-              
-              <h3 class="news-title">${item.title}</h3>
-              ${item.summary ? `<p class="news-summary">${item.summary}</p>` : ''}
-              ${tickersHtml}
-          </div>
-          ${imageHtml}
-      </div>
-      
-      <div id="ai-summary-box-${absoluteIndex}" class="ai-article-summary"></div>
-      
-      <div class="news-footer">
-        <div class="news-source-icon">🗞️</div>
-        <span>${item.source} • ${formattedDate}</span>
-      </div>
-    `;
-    
-    container.appendChild(newsCard);
-      });
-
-  displayedNewsCount += chunk.length;
-
-  if (displayedNewsCount < filteredNews.length) {
-    const loadMoreBtn = document.createElement('button');
-    loadMoreBtn.id = 'load-more-btn';
-    loadMoreBtn.className = 'load-more-btn';
-    loadMoreBtn.innerText = 'Load Older News ⬇️';
-    loadMoreBtn.onclick = renderNextChunk;
-    container.appendChild(loadMoreBtn);
-  }
-}
-
-/**
- * Toggles the saved status of an article.
- * NOW FEATURES: Optimistic UI updates + Background Cloud Sync!
- */
-function toggleBookmark(absoluteIndex, event) {
-  event.preventDefault(); 
-  event.stopPropagation(); 
-  
-  const article = filteredNews[absoluteIndex];
-  if (!article) return;
-  
-  let savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
-  const existingIndex = savedNews.findIndex(item => item.link === article.link);
-  const btnEl = event.currentTarget;
-  
-  // 1. OPTIMISTIC UI: Instantly change the button color and vibrate
-  if (existingIndex > -1) {
-    savedNews.splice(existingIndex, 1);
-    btnEl.classList.remove('bookmarked');
-  } else {
-    savedNews.push(article);
-    btnEl.classList.add('bookmarked');
-    if (navigator.vibrate) navigator.vibrate(15);
-  }
-  
-  // 2. Local Storage update (for speed)
-  localStorage.setItem('saved_news', JSON.stringify(savedNews));
-  
-  // 3. CLOUD SYNC: Send to Google Sheets in the background silently
-  google.script.run
-    .withFailureHandler(e => console.error("Cloud bookmark sync failed", e))
-    .toggleCloudSavedNews(article);
-
-  // If we are currently reading the "Saved" tab, silently refresh it
-  if (currentNewsCategory === 'saved') {
-      setTimeout(() => loadNews('saved'), 500);
-  }
-}
-
-
-/**
- * Triggers native mobile share sheet or copies to clipboard.
- */
-function shareArticle(url, title, event) {
-  event.preventDefault();
-  event.stopPropagation();
-  
-  if (navigator.share) {
-    navigator.share({
-      title: title,
-      url: url
-    }).catch(console.error);
-  } else {
-    navigator.clipboard.writeText(url);
-    const btn = event.currentTarget;
-    const oldHtml = btn.innerHTML;
-    btn.innerHTML = '✅';
-    setTimeout(() => btn.innerHTML = oldHtml, 2000);
-  }
-}
-
-/**
- * Calls backend AI function to summarize current category news.
- */
-function requestAIBriefing() {
-  const container = document.getElementById('news-container');
-  if (!container || allFetchedNews.length === 0) {
-      alert("Please wait for news to load before asking AI.");
-      return;
-  }
-  
-  let aiCard = document.getElementById('ai-briefing-box');
-  if (!aiCard) {
-      aiCard = document.createElement('div');
-      aiCard.id = 'ai-briefing-box';
-      aiCard.className = 'ai-briefing-card';
-      container.insertBefore(aiCard, container.firstChild);
-  }
-  
-  aiCard.innerHTML = `
-      <div class="ai-briefing-header">✨ AI Morning Briefing</div>
-      <div class="ai-briefing-content" style="color:var(--gray);"><span class="loader" style="display:inline-block; border-width:2px; width:12px; height:12px; margin-right:5px;"></span> AI is analyzing the markets...</div>
-  `;
-  
-  google.script.run
-      .withSuccessHandler(function(summary) {
-          const aiContent = cleanAIMarkdown(summary);
-          aiCard.innerHTML = `
-              <div class="ai-briefing-header">✨ AI Morning Briefing</div>
-              <div class="ai-briefing-content">${aiContent}</div>
-          `;
-      })
-      .withFailureHandler(function(err) {
-          aiCard.innerHTML = `
-              <div class="ai-briefing-header">✨ AI Morning Briefing</div>
-              <div class="ai-briefing-content" style="color:var(--danger);">⚠️ Could not generate summary.</div>
-          `;
-      })
-      .getNewsAIBriefing(allFetchedNews);
-}
-
-/**
- * Calls backend AI to analyze a single article and expands the card to show it.
- */
-function summarizeArticle(absoluteIndex, event, btnElement) {
-  event.preventDefault(); 
-  event.stopPropagation(); 
-  
-  const article = filteredNews[absoluteIndex];
-  if (!article) return;
-  
-  const summaryBox = document.getElementById(`ai-summary-box-${absoluteIndex}`);
-  if (!summaryBox) return;
-  
-  if (summaryBox.innerHTML !== '') {
-    summaryBox.style.display = summaryBox.style.display === 'none' ? 'block' : 'none';
-    return;
-  }
-  
-  summaryBox.style.display = 'block';
-  summaryBox.innerHTML = '<span class="loader" style="width:10px; height:10px; border-width:2px; display:inline-block; margin-right:5px;"></span> <i>Analisi AI in corso...</i>';
-  
-  google.script.run
-    .withSuccessHandler(function(response) {
-      const formattedResponse = cleanAIMarkdown(response);
-      summaryBox.innerHTML = `<strong>✨ AI Insight:</strong><br>${formattedResponse}`;
-    })
-    .withFailureHandler(function(err) {
-      summaryBox.innerHTML = '<span style="color:var(--danger)">⚠️ Errore di connessione. Riprova.</span>';
-    })
-    .getSingleArticleAISummary(article.title, article.summary);
-}
-
-setTimeout(function() {
-  const container = document.getElementById('news-container');
-  if (container && container.innerHTML.includes('Loading insights')) {
-    loadNews('market');
-  }
-}, 500);
-
-/**
- * Opens the reader modal for a specific news article
- */
-function openNewsModal(index) {
-    try {
-        const article = filteredNews[index];
-        if (!article) return;
-
-        // Set the current index for modal actions
-        currentModalArticleIndex = index;
-        
-        // Update the bookmark button UI inside the modal
-        if (typeof updateModalBookmarkUI === 'function') {
-            updateModalBookmarkUI(article);
-        }
-
-        // Reset TTS Audio UI if opening a new article
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-            isSpeaking = false;
-            const btnText = document.getElementById('nr-listen-text');
-            if (btnText) btnText.innerText = "Listen";
-        }
-
-        // 1. Populate basic text data
-        document.getElementById('nr-source').innerText = article.source || 'News';
-        document.getElementById('nr-btn-source').innerText = article.source || 'Source';
-        document.getElementById('nr-title').innerText = article.title || 'No Title';
-        
-        // 2. Handle Image
-        const imgContainer = document.getElementById('nr-image-container');
-        const imgEl = document.getElementById('nr-image');
-        if (article.imageUrl) {
-            imgEl.src = article.imageUrl;
-            imgContainer.style.display = 'block';
-        } else {
-            imgContainer.style.display = 'none';
-        }
-
-        // 3. Handle Date
-        if (article.date) {
-            const dateObj = new Date(article.date);
-            document.getElementById('nr-date').innerText = dateObj.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        } else {
-            document.getElementById('nr-date').innerText = '';
-        }
-
-        // 4. Handle Summary
-        document.getElementById('nr-summary').innerHTML = article.summary || "No summary available for this article.";
-
-        // 5. Handle Tickers (NOW CLICKABLE!)
-        const tickersContainer = document.getElementById('nr-tickers');
-        tickersContainer.innerHTML = '';
-        if (article.relatedTickers && article.relatedTickers.length > 0) {
-            let tickersHtml = '<div class="ticker-pill-container" style="margin-top:0;">';
-            article.relatedTickers.forEach(t => { 
-                tickersHtml += `<span class="ticker-pill" style="background:var(--section-bg); border:none; cursor:pointer;" onclick="searchTickerFromNews('${t}')">📈 ${t}</span>`; 
-            });
-            tickersHtml += '</div>';
-            tickersContainer.innerHTML = tickersHtml;
-        }
-
-        // 5.5 ECOSISTEMA: Handle Related Notes
-        const notesContainer = document.getElementById('nr-related-notes');
-        const notesContent = document.getElementById('nr-notes-content');
-        
-        if (notesContainer && notesContent) {
-            let foundNotesHtml = '';
-            
-            // Check if the article has tickers
-            if (article.relatedTickers && article.relatedTickers.length > 0) {
-                let allNotes = {};
-                try {
-                    allNotes = JSON.parse(localStorage.getItem('ticker_notes') || '{}');
-                } catch(e) {}
-                
-                // Search for a note for each ticker in the article
-                article.relatedTickers.forEach(t => {
-                    if (allNotes[t]) {
-                        foundNotesHtml += `
-                        <div style="margin-bottom: ${foundNotesHtml !== '' ? '8px' : '0'};">
-                            <span style="font-weight: 800; font-size: 12px; color: var(--text-main); background: var(--section-bg); padding: 2px 6px; border-radius: 4px; margin-right: 6px;">${t}</span>
-                            <span style="opacity: 0.9;">${allNotes[t]}</span>
+   let currentNewsCategory = 'market';
+   let allFetchedNews = [];      
+   let filteredNews = [];        
+   let lastFetchedTickers = [];  
+   let displayedNewsCount = 0;   
+   const CHUNK_SIZE = 30;        
+   
+   /**
+    * Utility: Converte il Markdown generato dall'AI in HTML pulito
+    */
+   function cleanAIMarkdown(text) {
+     if (!text) return "";
+     let cleaned = text.replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--text-main);">$1</strong>'); // Grassetto
+     cleaned = cleaned.replace(/\n/g, '<br>'); // A capo
+     cleaned = cleaned.replace(/(<br>|^)\s*\*\s/g, '$1• '); // Liste puntate
+     return cleaned;
+   }
+   
+   /**
+    * Handles clicks on category buttons, updates UI, and fetches new data.
+    */
+   function setNewsCategory(category, buttonElement) {
+     const buttons = document.querySelectorAll('.news-cat-btn');
+     buttons.forEach(btn => btn.classList.remove('active'));
+     buttonElement.classList.add('active');
+     
+     const searchInput = document.getElementById('newsSearchInput');
+     if (searchInput) searchInput.value = '';
+     
+     currentNewsCategory = category;
+     loadNews(currentNewsCategory);
+   }
+   
+   /**
+    * Triggers the backend function to fetch news data.
+    * NOW INCLUDES: Cloud Sync logic for 'saved' category.
+    */
+   function loadNews(category = 'market') {
+     const container = document.getElementById('news-container');
+     if (!container) return; 
+     
+     // --- CLOUD SAVED NEWS LOGIC ---
+     if (category === 'saved') {
+       container.innerHTML = '<div class="loader" style="text-align: center; color: var(--gray); padding: 40px; grid-column: 1 / -1;">Syncing bookmarks from cloud...</div>';
+       
+       google.script.run
+         .withSuccessHandler(function(savedArticles) {
+             container.style.opacity = '1';
+             container.style.pointerEvents = 'auto';
+             // Save a local copy for the bookmark icons logic
+             localStorage.setItem('saved_news', JSON.stringify(savedArticles)); 
+             renderNews({ articles: savedArticles, tickers: [] });
+         })
+         .withFailureHandler(function(err) {
+             container.innerHTML = '<div style="text-align:center; color:var(--danger); grid-column: 1/-1;">Sync failed.</div>';
+         })
+         .getCloudSavedNews();
+       return;
+     }
+     
+     // --- SOFT RELOAD & SKELETON LOGIC FOR STANDARD CATEGORIES ---
+     if (container.innerHTML.trim() !== "" && !container.innerHTML.includes("skeleton-card")) {
+         container.style.opacity = '0.5'; 
+         container.style.transition = 'opacity 0.3s ease';
+         container.style.pointerEvents = 'none'; 
+     } else {
+         let skeletonHtml = '';
+         for(let i=0; i<4; i++) {
+             skeletonHtml += `
+             <div class="skeleton-card">
+                 <div class="skeleton-element skel-badge"></div>
+                 <div class="skeleton-element skel-title"></div>
+                 <div class="skeleton-element skel-title-short"></div>
+                 <div class="skeleton-element skel-text"></div>
+                 <div class="skeleton-element skel-text-short"></div>
+             </div>`;
+         }
+         container.innerHTML = skeletonHtml;
+     }
+   
+     google.script.run
+       .withUserObject(category)
+       .withSuccessHandler(function(response, requestedCategory) {
+           if (requestedCategory !== currentNewsCategory) return; 
+           container.style.opacity = '1';
+           container.style.pointerEvents = 'auto';
+           renderNews(response);
+       })
+       .withFailureHandler(function(error, requestedCategory) {
+           if (requestedCategory !== currentNewsCategory) return;
+           container.style.opacity = '1';
+           container.style.pointerEvents = 'auto';
+           container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--danger); grid-column: 1 / -1;">Could not load news at this time.</div>';
+       })
+       .getMarketNews(category);
+   }
+   /**
+    * Receives data from server, resets states, and applies filters to start rendering.
+    */
+   function renderNews(response) {
+     allFetchedNews = response.articles || [];
+     lastFetchedTickers = response.tickers || [];
+     
+     filterNewsItems();
+   }
+   
+   /**
+    * Filters the news globally based on search and prepares the DOM container.
+    */
+   function filterNewsItems() {
+     const searchInput = document.getElementById('newsSearchInput');
+     const filterText = searchInput ? searchInput.value.toLowerCase() : '';
+     
+     if (!filterText) {
+       filteredNews = [...allFetchedNews];
+     } else {
+       filteredNews = allFetchedNews.filter(item => {
+         const textToSearch = (item.title + " " + item.summary + " " + item.source + " " + (item.relatedTickers ? item.relatedTickers.join(' ') : '')).toLowerCase();
+         return textToSearch.includes(filterText);
+       });
+     }
+     
+     displayedNewsCount = 0; 
+     
+     const container = document.getElementById('news-container');
+     if (!container) return;
+     
+     container.innerHTML = ''; 
+     
+     if (currentNewsCategory === 'portfolio' && lastFetchedTickers.length > 0) {
+       const tickerBanner = document.createElement('div');
+       tickerBanner.style.gridColumn = '1 / -1';
+       tickerBanner.style.background = 'rgba(52, 199, 89, 0.1)';
+       tickerBanner.style.border = '1px solid rgba(52, 199, 89, 0.2)';
+       tickerBanner.style.borderRadius = '12px';
+       tickerBanner.style.padding = '12px 15px';
+       tickerBanner.style.fontSize = '12px';
+       tickerBanner.style.color = 'var(--text-main)';
+       tickerBanner.style.marginBottom = '10px';
+       tickerBanner.innerHTML = `<span style="font-weight:800; color:#34c759; text-transform:uppercase; font-size:10px; display:block; margin-bottom:4px;">🎯 Tracking your assets</span> <b>${lastFetchedTickers.join(', ')}</b>`;
+       container.appendChild(tickerBanner);
+     }
+   
+     if (filteredNews.length === 0) {
+       let emptyMsg = filterText ? 'No articles match your search.' : 'No articles available right now.';
+       if (currentNewsCategory === 'saved' && !filterText) emptyMsg = "You haven't saved any articles yet.<br><br>Tap the 🔖 icon on any news to read it later.";
+       
+       container.innerHTML += `<div id="news-no-results" style="text-align:center; padding:50px 20px; color:var(--gray); grid-column: 1 / -1; font-weight:600; line-height: 1.5;">${emptyMsg}</div>`;
+       return;
+     }
+   
+     renderNextChunk();
+   }
+   
+   /**
+    * Renders a specific chunk of articles (Pagination)
+    */
+   function renderNextChunk() {
+     const container = document.getElementById('news-container');
+     if (!container) return;
+   
+     const existingBtn = document.getElementById('load-more-btn');
+     if (existingBtn) existingBtn.remove();
+   
+     const chunk = filteredNews.slice(displayedNewsCount, displayedNewsCount + CHUNK_SIZE);
+     const savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
+   
+     chunk.forEach((item, chunkIndex) => {
+       const absoluteIndex = displayedNewsCount + chunkIndex;
+       
+       const dateObj = new Date(item.date);
+       const formattedDate = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+       
+       const readTime = Math.max(2, Math.floor(item.title.length / 20) % 5 + 1);
+       
+       let badgeColor = 'rgba(0, 122, 255, 0.1)';
+       let badgeText = '#007aff';
+       if (item.category === 'portfolio') { badgeColor = 'rgba(52, 199, 89, 0.1)'; badgeText = '#34c759'; }
+       else if (item.category === 'world') { badgeColor = 'rgba(88, 86, 214, 0.1)'; badgeText = '#5856d6'; }
+       else if (item.category === 'politics') { badgeColor = 'rgba(255, 59, 48, 0.1)'; badgeText = '#ff3b30'; }
+       else if (item.category === 'science' || item.category === 'tech') { badgeColor = 'rgba(255, 149, 0, 0.1)'; badgeText = '#ff9500'; }
+   
+       let tickersHtml = '';
+       if (item.relatedTickers && item.relatedTickers.length > 0) {
+           tickersHtml = '<div class="ticker-pill-container">';
+           item.relatedTickers.forEach(t => { tickersHtml += `<span class="ticker-pill">📈 ${t}</span>`; });
+           tickersHtml += '</div>';
+       }
+       
+       const isSaved = savedNews.some(savedItem => savedItem.link === item.link);
+       const bookmarkClass = isSaved ? 'bookmark-btn bookmarked' : 'bookmark-btn';
+   
+       // Build Image HTML if available
+       let imageHtml = '';
+       if (item.imageUrl) {
+           imageHtml = `<div class="news-thumbnail-wrapper">
+                           <img src="${item.imageUrl}" alt="News Image" onerror="this.parentElement.style.display='none'">
                         </div>`;
-                    }
-                });
-            }
-            
-            // Display the box only if we found at least one note
-            if (foundNotesHtml !== '') {
-                notesContent.innerHTML = foundNotesHtml;
-                notesContainer.style.display = 'block';
-            } else {
-                notesContainer.style.display = 'none';
-            }
-        }
-
-        // 6. Set external link button
-        document.getElementById('nr-full-link').href = article.link || '#';
-
-        // 7. Handle AI Insight injection if previously generated
-        const aiBox = document.getElementById('nr-ai-box');
-        const existingSummaryBox = document.getElementById(`ai-summary-box-${index}`);
-        
-        if (existingSummaryBox && existingSummaryBox.innerHTML.includes('✨')) {
-            const aiText = existingSummaryBox.innerHTML.replace(/<strong>.*?<\/strong><br>/, '');
-            document.getElementById('nr-ai-content').innerHTML = aiText;
-            aiBox.style.display = 'block';
-        } else {
-            aiBox.style.display = 'none';
-        }
-
-        // 8. Open the modal
-        document.getElementById('news-reader-modal').style.display = 'flex';
-        
-    } catch (err) {
-        console.error("Error opening news modal:", err);
-    }
-}
-// Global variable to track the currently opened article in the modal
-let currentModalArticleIndex = -1;
-
-/**
- * Updates the save button UI inside the modal (Forced Inline Styles)
- */
-/**
- * Updates the save button UI inside the modal (Total Clean Slate)
- */
-function updateModalBookmarkUI(article) {
-    const btnSave = document.getElementById('nr-btn-save');
-    if (!btnSave) return;
-    
-    // 1. Reset Totale: rimuove qualsiasi stile inline e resetta alla classe base
-    btnSave.removeAttribute('style');
-    btnSave.className = 'bookmark-btn';
-    btnSave.innerHTML = '🔖';
-
-    try {
-        // 2. Controllo lo stato nei salvati
-        const savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
-        const isSaved = savedNews.some(savedItem => savedItem.link === article.link);
-        
-        // 3. Se salvato, applico SOLO la classe nativa CSS (che lo fa diventare nero)
-        if (isSaved) {
-            btnSave.classList.add('bookmarked');
-        }
-    } catch (e) {
-        console.error("Errore lettura bookmarks:", e);
-    }
-}
-
-/**
- * Handles bookmarking from the Modal (Identical to general toggleBookmark)
- */
-function toggleModalBookmark(event) {
-    // Blocca eventi propagati per evitare doppi click o chiusure impreviste
-    if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
-    
-    // Safety check sull'indice
-    if (typeof currentModalArticleIndex === 'undefined' || currentModalArticleIndex === -1) {
-        return;
-    }
-    
-    const article = filteredNews[currentModalArticleIndex];
-    if (!article) return;
-    
-    // Recupera il bottone (usando lo stesso target del click se possibile, o l'ID)
-    const btnSave = event.currentTarget || document.getElementById('nr-btn-save');
-    if (!btnSave) return;
-    
-    let savedNews = [];
-    try {
-        savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
-    } catch (e) {
-        savedNews = [];
-    }
-    
-    const existingIndex = savedNews.findIndex(item => item.link === article.link);
-    
-    // --- LOGICA DI TOGGLE IDENTICA ALLE CARD PRINCIPALI ---
-    if (existingIndex > -1) {
-        // Rimuovi dai salvati e togli il colore
-        savedNews.splice(existingIndex, 1);
-        btnSave.classList.remove('bookmarked');
-    } else {
-        // Aggiungi ai salvati, metti il colore (diventa nero) e vibra
-        savedNews.push(article);
-        btnSave.classList.add('bookmarked');
-        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);
-    }
-    
-    // Salvataggio locale per velocità
-    localStorage.setItem('saved_news', JSON.stringify(savedNews));
-    
-    // Sincronizzazione Cloud in background silente
-    if (typeof google !== 'undefined' && google.script) {
-        google.script.run
-            .withFailureHandler(e => console.error("Cloud sync err:", e))
-            .toggleCloudSavedNews(article);
-    }
-    
-    // Se siamo nel tab 'saved', aggiorna la lista silenziosamente
-    if (typeof currentNewsCategory !== 'undefined' && currentNewsCategory === 'saved') {
-        setTimeout(() => { if (typeof loadNews === 'function') loadNews('saved'); }, 500);
-    }
-}
-/**
- * Shares the article directly from the modal
- */
-function shareModalArticle(event) {
-    if (currentModalArticleIndex === -1) return;
-    const article = filteredNews[currentModalArticleIndex];
-    
-    // Call the existing share function
-    shareArticle(article.link, article.title.replace(/'/g, "\\'"), event);
-}
-
-/**
- * Cleanly closes the modal and stops any ongoing audio
- */
-function closeNewsModal() {
-    document.getElementById('news-reader-modal').style.display = 'none';
-    currentModalArticleIndex = -1;
-    // Optional: Stop speech synthesis if it was playing
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-    }
-}
-
-// --- TTS AND NAVIGATION LOGIC ---
-
-let isSpeaking = false;
-let currentUtterance = null;
-
-/**
- * Toggles the Text-To-Speech functionality for the article summary
- */
-function toggleSpeech() {
-    const textToRead = document.getElementById('nr-summary').innerText;
-    const btnText = document.getElementById('nr-listen-text');
-    
-    if (!textToRead || !('speechSynthesis' in window)) {
-        alert("Text-to-speech non supportato dal tuo browser o nessun testo disponibile.");
-        return;
-    }
-
-    if (isSpeaking) {
-        // Stop speaking
-        window.speechSynthesis.cancel();
-        isSpeaking = false;
-        if (btnText) btnText.innerText = "Listen";
-    } else {
-        // Start speaking
-        currentUtterance = new SpeechSynthesisUtterance(textToRead);
-        currentUtterance.lang = 'it-IT'; // Using Italian as default for app language
-        currentUtterance.rate = 1.0;
-        
-        currentUtterance.onend = function() {
-            isSpeaking = false;
-            if (btnText) btnText.innerText = "Listen";
-        };
-        
-        window.speechSynthesis.speak(currentUtterance);
-        isSpeaking = true;
-        if (btnText) btnText.innerText = "Stop";
-    }
-}
-
-/**
- * Handles clicks on ticker pills inside the modal.
- * Navigates to the Market tab and searches for the ticker in Watchlist or Portfolio.
- */
-function searchTickerFromNews(ticker) {
-    // 1. Close the current news modal
-    closeNewsModal();
-    
-    // 2. Switch to the Market tab
-    if (typeof changeTab === 'function') {
-        changeTab('market');
-    }
-    
-    // 3. Wait for the tab transition, then find and open the modal
-    setTimeout(() => {
-        let found = false;
-        
-        // A. Search in Watchlist Data
-        if (typeof myWatchlistData !== 'undefined' && myWatchlistData) {
-            // Find the index of the ticker in the array
-            let idx = myWatchlistData.findIndex(item => item.ticker === ticker || item.t === ticker);
-            if (idx !== -1) {
-                if (typeof openWlModal === 'function') {
-                    openWlModal(idx);
-                    found = true;
-                }
-            }
-        }
-        
-        // B. Search in Live Portfolio Data (if not in Watchlist)
-        if (!found && typeof currentPortfolioData !== 'undefined' && currentPortfolioData) {
-            const assetTypes = ['stocks', 'etfs', 'crypto'];
-            for (const type of assetTypes) {
-                if (currentPortfolioData[type]) {
-                    let idx = currentPortfolioData[type].findIndex(item => item.ticker === ticker || item.t === ticker);
-                    if (idx !== -1) {
-                        if (typeof openPortfolioModal === 'function') {
-                            openPortfolioModal(type, idx);
-                            found = true;
-                            break; // Stop searching once found
-                        }
-                    }
-                }
-            }
-        }
-        
-        // C. Fallback if the ticker is NOT tracked in the app yet
-        if (!found) {
-            alert("The ticker " + ticker + " is not currently in your Watchlist or Portfolio. Add it to view its chart.");
-            
-            // Optionally, automatically open the add to watchlist input
-            if (typeof toggleWatchlistInput === 'function') {
-                const box = document.getElementById('wl-add-box');
-                if (box && box.style.display === 'none') {
-                    toggleWatchlistInput();
-                }
-                const input = document.getElementById('wlTickerInput');
-                if (input) {
-                    input.value = ticker;
-                }
-            }
-        }
-        
-    }, 350); // 350ms delay to ensure the UI is ready after tab switch
-}
-
-/**
- * Cleanly closes the modal and stops any ongoing audio
- */
-function closeNewsModal() {
-    document.getElementById('news-reader-modal').style.display = 'none';
-    currentModalArticleIndex = -1;
-    
-    // Stop speech synthesis if it was playing
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        isSpeaking = false;
-        const btnText = document.getElementById('nr-listen-text');
-        if (btnText) btnText.innerText = "Listen";
-    }
-}
-
-// Global states for the premium alerts sheet
-window.quickSheetNews = [];
-window.currentAlertTicker = 'ALL';
-
-/**
- * Checks for new portfolio news silently.
- * Updates the badge count and triggers a Toast notification for high-impact news.
- */
-function checkPortfolioAlertsSilent() {
-    google.script.run
-      .withSuccessHandler(function(response) {
-          const articles = response.articles || [];
-          if (articles.length === 0) return;
-          
-          const lastChecked = localStorage.getItem('last_alerts_check') || 0;
-          let newCount = 0;
-          let latestHighImpactNews = null;
-          
-          articles.forEach(art => {
-              const artTime = new Date(art.date).getTime();
-              if (artTime > Number(lastChecked)) {
-                  newCount++;
-                  
-                  // Check if this new article is High-Impact using our existing logic
-                  const sentiment = getQuickSentiment(art.title);
-                  if (sentiment.tag !== '' && !latestHighImpactNews) {
-                      latestHighImpactNews = art;
-                  }
-              }
-          });
-          
-          // Update the red badge
-          const badge = document.getElementById('portfolio-badge-count');
-          if (badge) {
-              if (newCount > 0) {
-                  badge.innerText = newCount > 9 ? '9+' : newCount;
-                  badge.style.display = 'block';
-                  badge.animate([{transform: 'scale(1)'}, {transform: 'scale(1.3)'}, {transform: 'scale(1)'}], {duration: 300});
-              } else {
-                  badge.style.display = 'none';
-              }
-          }
-
-          // Trigger Toast Notification for the most recent High-Impact news
-          if (latestHighImpactNews) {
-              showToastNotification(latestHighImpactNews);
-          }
-      })
-      .getMarketNews('portfolio');
-}
-
-/**
- * Displays a slide-down toast notification globally.
- */
-let toastTimeout;
-function showToastNotification(article) {
-    const toast = document.getElementById('toast-container');
-    const title = document.getElementById('toast-title');
-    const msg = document.getElementById('toast-message');
-    const icon = document.getElementById('toast-icon');
-    
-    if (!toast) return;
-
-    // Format the toast content
-    const sentiment = getQuickSentiment(article.title);
-    const tickerStr = article.relatedTickers && article.relatedTickers.length > 0 ? article.relatedTickers[0] : 'PORTFOLIO';
-    
-    // Extract the raw text from the HTML tag (e.g., "🔥 EARNINGS")
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = sentiment.tag;
-    const tagText = tempDiv.innerText || '🚨 ALERT';
-
-    title.innerText = `${tickerStr} • ${tagText}`;
-    msg.innerText = article.title;
-    icon.innerText = sentiment.icon !== '⚪' ? sentiment.icon : '📰';
-
-    // Slide down
-    toast.style.top = '20px';
-    
-    // Play a subtle notification sound if device allows (optional, using browser beep)
-    if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
-
-    // Click on toast opens the bottom sheet
-    document.getElementById('toast-content').onclick = function() {
-        toast.style.top = '-100px';
-        if (typeof openPortfolioAlerts === 'function') {
-            openPortfolioAlerts();
-        }
-    };
-
-    // Auto-hide after 4 seconds
-    clearTimeout(toastTimeout);
-    toastTimeout = setTimeout(() => {
-        toast.style.top = '-100px';
-    }, 4000);
-}
-
-/**
- * Opens the premium bottom sheet, resets the badge, and loads data.
- */
-function openPortfolioAlerts() {
-    const backdrop = document.getElementById('common-backdrop');
-    const sheet = document.getElementById('portfolio-alerts-sheet');
-    if (backdrop) backdrop.classList.add('active');
-    if (sheet) sheet.classList.add('active');
-    
-    // Hide badge and update last checked time
-    const badge = document.getElementById('portfolio-badge-count');
-    if (badge) badge.style.display = 'none';
-    localStorage.setItem('last_alerts_check', Date.now().toString());
-
-    const container = document.getElementById('portfolio-alerts-list');
-    container.innerHTML = '<div style="text-align:center; color:var(--gray); padding:40px;"><span class="loader" style="width:20px; height:20px; border-width:3px; display:inline-block; margin-bottom:10px;"></span><br>Scanning markets...</div>';
-    document.getElementById('alert-ticker-filters').innerHTML = '';
-
-    google.script.run
-      .withSuccessHandler(function(response) {
-          window.quickSheetNews = response.articles || [];
-          window.currentAlertTicker = 'ALL';
-          renderAlertFilters(response.tickers || []);
-          renderPortfolioAlerts();
-      })
-      .withFailureHandler(function(error) {
-          container.innerHTML = '<div style="text-align:center; color:var(--danger); padding:40px;">Failed to load alerts.</div>';
-      })
-      .getMarketNews('portfolio');
-}
-
-/**
- * Renders the filter chips at the top of the sheet.
- */
-function renderAlertFilters(tickers) {
-    const filterContainer = document.getElementById('alert-ticker-filters');
-    filterContainer.innerHTML = '';
-    
-    if (tickers.length === 0) return;
-    
-    const allTickers = ['ALL', ...tickers];
-    
-    allTickers.forEach(ticker => {
-        const chip = document.createElement('div');
-        chip.innerText = ticker === 'ALL' ? '🌐 All Assets' : ticker;
-        chip.style.padding = '6px 14px';
-        chip.style.borderRadius = '16px';
-        chip.style.fontSize = '12px';
-        chip.style.fontWeight = '700';
-        chip.style.cursor = 'pointer';
-        chip.style.whiteSpace = 'nowrap';
-        chip.style.transition = '0.2s';
-        
-        // Styling based on active state
-        if (ticker === window.currentAlertTicker) {
-            chip.style.background = 'var(--text-main)';
-            chip.style.color = 'var(--bg)';
-        } else {
-            chip.style.background = 'var(--section-bg)';
-            chip.style.color = 'var(--gray)';
-            chip.style.border = '1px solid var(--row-border)';
-        }
-        
-        chip.onclick = function() {
-            window.currentAlertTicker = ticker;
-            // Re-render filters to update colors
-            renderAlertFilters(tickers);
-            // Re-render list
-            renderPortfolioAlerts();
-        };
-        
-        filterContainer.appendChild(chip);
-    });
-}
-
-/**
- * Basic JS sentiment analyzer for visual feedback
- */
-function getQuickSentiment(title) {
-    const titleLower = title.toLowerCase();
-    const upWords = /surge|rally|jump|soar|buy|up|gain|record|bull|soars|jumps|beats/i;
-    const downWords = /plunge|drop|fall|sell|down|bear|crash|loss|misses|slips/i;
-    
-    if (upWords.test(titleLower)) return { icon: '🟢', color: 'rgba(52, 199, 89, 0.1)', border: '#34c759' };
-    if (downWords.test(titleLower)) return { icon: '🔴', color: 'rgba(255, 59, 48, 0.1)', border: '#ff3b30' };
-    return { icon: '⚪', color: 'transparent', border: 'transparent' };
-}
-
-/**
- * Renders the filtered list of alerts with premium UI.
- */
-function renderPortfolioAlerts() {
-    const container = document.getElementById('portfolio-alerts-list');
-    container.innerHTML = '';
-    
-    let displayList = window.quickSheetNews;
-    
-    // Apply filter if not ALL
-    if (window.currentAlertTicker !== 'ALL') {
-        displayList = displayList.filter(item => 
-            item.relatedTickers && item.relatedTickers.includes(window.currentAlertTicker)
-        );
-    }
-    
-    if (displayList.length === 0) {
-        container.innerHTML = `<div style="text-align:center; color:var(--gray); padding:40px; font-weight:600;">No recent news for ${window.currentAlertTicker}.</div>`;
-        return;
-    }
-
-    displayList.forEach(item => {
-        // Find original index to link to main modal
-        const origIndex = window.quickSheetNews.findIndex(orig => orig.link === item.link);
-        const sentiment = getQuickSentiment(item.title);
-        
-        const div = document.createElement('div');
-        div.style.padding = '15px 20px';
-        div.style.borderBottom = '1px solid var(--row-border)';
-        div.style.background = 'var(--white)';
-        div.style.display = 'flex';
-        div.style.gap = '15px';
-        div.style.alignItems = 'flex-start';
-        div.style.borderLeft = `4px solid ${sentiment.border}`;
-        
-        // Find if already saved
-        const savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
-        const isSaved = savedNews.some(savedItem => savedItem.link === item.link);
-        const saveIconStr = isSaved ? 'solid' : 'regular';
-        const saveColor = isSaved ? 'var(--primary)' : 'var(--gray)';
-        
-    // Ticker pill string
-        let tickersHtml = item.relatedTickers && item.relatedTickers.length > 0 
-            ? `<span style="font-weight:800; color:var(--text-main); margin-right:6px;">${item.relatedTickers.join(', ')}</span>`
-            : '';
-
-        // Generate the Chart Quick Action button if a ticker exists
-        let chartActionHtml = '';
-        if (item.relatedTickers && item.relatedTickers.length > 0) {
-            const primaryTicker = item.relatedTickers[0];
-            chartActionHtml = `
-               <div onclick="quickViewChart('${primaryTicker}', event)" style="padding:10px; border-radius:12px; background:var(--section-bg); cursor:pointer; color:var(--primary); transition:0.2s; flex-shrink:0; margin-right:8px;" title="View Chart">
-                  📊
-               </div>
-            `;
-        }
-
-        div.innerHTML = `
-           <div style="flex:1; min-width:0; cursor:pointer;" onclick="openAlertInReader(${origIndex})">
-              <div style="font-size:10px; color:var(--gray); margin-bottom:6px; font-weight:600; text-transform:uppercase;">
-                 ${sentiment.icon} ${sentiment.tag} ${tickersHtml} • ${item.source}
-              </div>
-              <div style="font-size:14px; font-weight:800; color:var(--text-main); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
-                 ${item.title}
-              </div>
-           </div>
+       }
+   
+       // --- CHANGED: Use a DIV instead of A tag so we can intercept the click ---
+       const newsCard = document.createElement('div');
+       newsCard.className = 'news-card';
+       newsCard.style.cursor = 'pointer';
+       
+       // Intercept clicks to open the modal
+       newsCard.onclick = function(e) {
+           // Prevent modal if user clicks on action buttons or the AI summary box
+           if (e.target.closest('.news-card-actions') || e.target.closest('.ai-article-summary')) return; 
+           openNewsModal(absoluteIndex);
+       };
+       
+      newsCard.innerHTML = `
+         <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+             <div style="flex: 1; min-width: 0;">
+                 
+                 <div class="news-card-header" style="display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 12px; padding-right: 10px; gap: 6px;">
+                     
+                     <div style="display: flex; align-items: center; gap: 10px;">
+                         <span class="news-badge" style="background:${badgeColor}; color:${badgeText};">${item.category}</span>
+                         
+                         <div class="news-card-actions">
+                            <div class="ai-btn" onclick="summarizeArticle(${absoluteIndex}, event, this)" title="AI Insight">✨</div>
+                            <div class="share-btn" onclick="shareArticle('${item.link}', '${item.title.replace(/'/g, "\\'")}', event)" title="Share">📤</div>
+                            <div class="${bookmarkClass}" onclick="toggleBookmark(${absoluteIndex}, event)" title="Save">🔖</div>
+                         </div>
+                     </div>
+                     
+                     <span class="news-read-time" style="white-space: nowrap;">⏱️ ${readTime} min</span>
+                 </div>
+                 
+                 <h3 class="news-title">${item.title}</h3>
+                 ${item.summary ? `<p class="news-summary">${item.summary}</p>` : ''}
+                 ${tickersHtml}
+             </div>
+             ${imageHtml}
+         </div>
+         
+         <div id="ai-summary-box-${absoluteIndex}" class="ai-article-summary"></div>
+         
+         <div class="news-footer">
+           <div class="news-source-icon">🗞️</div>
+           <span>${item.source} • ${formattedDate}</span>
+         </div>
+       `;
+       
+       container.appendChild(newsCard);
+         });
+   
+     displayedNewsCount += chunk.length;
+   
+     if (displayedNewsCount < filteredNews.length) {
+       const loadMoreBtn = document.createElement('button');
+       loadMoreBtn.id = 'load-more-btn';
+       loadMoreBtn.className = 'load-more-btn';
+       loadMoreBtn.innerText = 'Load Older News ⬇️';
+       loadMoreBtn.onclick = renderNextChunk;
+       container.appendChild(loadMoreBtn);
+     }
+   }
+   
+   /**
+    * Toggles the saved status of an article.
+    * NOW FEATURES: Optimistic UI updates + Background Cloud Sync!
+    */
+   function toggleBookmark(absoluteIndex, event) {
+     event.preventDefault(); 
+     event.stopPropagation(); 
+     
+     const article = filteredNews[absoluteIndex];
+     if (!article) return;
+     
+     let savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
+     const existingIndex = savedNews.findIndex(item => item.link === article.link);
+     const btnEl = event.currentTarget;
+     
+     // 1. OPTIMISTIC UI: Instantly change the button color and vibrate
+     if (existingIndex > -1) {
+       savedNews.splice(existingIndex, 1);
+       btnEl.classList.remove('bookmarked');
+     } else {
+       savedNews.push(article);
+       btnEl.classList.add('bookmarked');
+       if (navigator.vibrate) navigator.vibrate(15);
+     }
+     
+     // 2. Local Storage update (for speed)
+     localStorage.setItem('saved_news', JSON.stringify(savedNews));
+     
+     // 3. CLOUD SYNC: Send to Google Sheets in the background silently
+     google.script.run
+       .withFailureHandler(e => console.error("Cloud bookmark sync failed", e))
+       .toggleCloudSavedNews(article);
+   
+     // If we are currently reading the "Saved" tab, silently refresh it
+     if (currentNewsCategory === 'saved') {
+         setTimeout(() => loadNews('saved'), 500);
+     }
+   }
+   
+   
+   /**
+    * Triggers native mobile share sheet or copies to clipboard.
+    */
+   function shareArticle(url, title, event) {
+     event.preventDefault();
+     event.stopPropagation();
+     
+     if (navigator.share) {
+       navigator.share({
+         title: title,
+         url: url
+       }).catch(console.error);
+     } else {
+       navigator.clipboard.writeText(url);
+       const btn = event.currentTarget;
+       const oldHtml = btn.innerHTML;
+       btn.innerHTML = '✅';
+       setTimeout(() => btn.innerHTML = oldHtml, 2000);
+     }
+   }
+   
+   /**
+    * Calls backend AI function to summarize current category news.
+    */
+   function requestAIBriefing() {
+     const container = document.getElementById('news-container');
+     if (!container || allFetchedNews.length === 0) {
+         alert("Please wait for news to load before asking AI.");
+         return;
+     }
+     
+     let aiCard = document.getElementById('ai-briefing-box');
+     if (!aiCard) {
+         aiCard = document.createElement('div');
+         aiCard.id = 'ai-briefing-box';
+         aiCard.className = 'ai-briefing-card';
+         container.insertBefore(aiCard, container.firstChild);
+     }
+     
+     aiCard.innerHTML = `
+         <div class="ai-briefing-header">✨ AI Morning Briefing</div>
+         <div class="ai-briefing-content" style="color:var(--gray);"><span class="loader" style="display:inline-block; border-width:2px; width:12px; height:12px; margin-right:5px;"></span> AI is analyzing the markets...</div>
+     `;
+     
+     google.script.run
+         .withSuccessHandler(function(summary) {
+             const aiContent = cleanAIMarkdown(summary);
+             aiCard.innerHTML = `
+                 <div class="ai-briefing-header">✨ AI Morning Briefing</div>
+                 <div class="ai-briefing-content">${aiContent}</div>
+             `;
+         })
+         .withFailureHandler(function(err) {
+             aiCard.innerHTML = `
+                 <div class="ai-briefing-header">✨ AI Morning Briefing</div>
+                 <div class="ai-briefing-content" style="color:var(--danger);">⚠️ Could not generate summary.</div>
+             `;
+         })
+         .getNewsAIBriefing(allFetchedNews);
+   }
+   
+   /**
+    * Calls backend AI to analyze a single article and expands the card to show it.
+    */
+   function summarizeArticle(absoluteIndex, event, btnElement) {
+     event.preventDefault(); 
+     event.stopPropagation(); 
+     
+     const article = filteredNews[absoluteIndex];
+     if (!article) return;
+     
+     const summaryBox = document.getElementById(`ai-summary-box-${absoluteIndex}`);
+     if (!summaryBox) return;
+     
+     if (summaryBox.innerHTML !== '') {
+       summaryBox.style.display = summaryBox.style.display === 'none' ? 'block' : 'none';
+       return;
+     }
+     
+     summaryBox.style.display = 'block';
+     summaryBox.innerHTML = '<span class="loader" style="width:10px; height:10px; border-width:2px; display:inline-block; margin-right:5px;"></span> <i>Analisi AI in corso...</i>';
+     
+     google.script.run
+       .withSuccessHandler(function(response) {
+         const formattedResponse = cleanAIMarkdown(response);
+         summaryBox.innerHTML = `<strong>✨ AI Insight:</strong><br>${formattedResponse}`;
+       })
+       .withFailureHandler(function(err) {
+         summaryBox.innerHTML = '<span style="color:var(--danger)">⚠️ Errore di connessione. Riprova.</span>';
+       })
+       .getSingleArticleAISummary(article.title, article.summary);
+   }
+   
+   setTimeout(function() {
+     const container = document.getElementById('news-container');
+     if (container && container.innerHTML.includes('Loading insights')) {
+       loadNews('market');
+     }
+   }, 500);
+   
+   /**
+    * Opens the reader modal for a specific news article
+    */
+   function openNewsModal(index) {
+       try {
+           const article = filteredNews[index];
+           if (!article) return;
+   
+           // Set the current index for modal actions
+           currentModalArticleIndex = index;
            
-           <div style="display:flex; align-items:center;">
-               ${chartActionHtml}
-               <div onclick="quickSaveAlert(${origIndex}, this, event)" style="padding:10px; border-radius:12px; background:var(--section-bg); cursor:pointer; color:${saveColor}; transition:0.2s; flex-shrink:0;">
-                  🔖
-               </div>
-           </div>
-        `;
-        container.appendChild(div);
-    });
-}
-
-/**
- * Opens the selected alert in the main full-screen reader.
- * Modified to keep the alerts sheet open in the background.
- */
-function openAlertInReader(origIndex) {
-    // Prep global array with the sheet's news data
-    filteredNews = window.quickSheetNews; 
-    
-    // Open the modal immediately, WITHOUT closing the alerts sheet first.
-    // The modal will appear on top because of its higher z-index.
-    openNewsModal(origIndex);
-}
-
-/**
- * Quick save directly from the alert list.
- */
-function quickSaveAlert(origIndex, btnElement, event) {
-    event.stopPropagation(); // Prevents opening the modal
-    
-    // Simulate the bookmark toggle logic
-    filteredNews = window.quickSheetNews; 
-    toggleBookmark(origIndex, event);
-    
-    // Visual feedback
-    btnElement.style.color = btnElement.style.color === 'var(--gray)' ? 'var(--primary)' : 'var(--gray)';
-    btnElement.style.transform = 'scale(1.2)';
-    setTimeout(() => btnElement.style.transform = 'scale(1)', 200);
-}
-
-/**
- * Clean sheet closure.
- */
-function closePortfolioAlertsSheet() {
-    const sheet = document.getElementById('portfolio-alerts-sheet');
-    const backdrop = document.getElementById('common-backdrop');
-    if (sheet) sheet.classList.remove('active');
-    
-    const activeSheets = document.querySelectorAll('.sheet-modal.active');
-    if (backdrop && activeSheets.length === 0) {
-        backdrop.classList.remove('active');
-    }
-    
-    // Ferma l'audio se si chiude la tendina
-    if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-        const btn = document.getElementById('btn-podcast-alerts');
-        if(btn) btn.innerHTML = '🎧 ASCOLTA';
-    }
-}
-
-/**
- * Analizzatore JS Avanzato: Sentiment + High Impact Tags
- */
-function getQuickSentiment(title) {
-    const titleLower = title.toLowerCase();
-    
-    // 1. Cerca tag di altissimo impatto (Volatilità)
-    let impactTag = '';
-    if (/earnings|trimestral|revenue|guidance|q1|q2|q3|q4/i.test(titleLower)) {
-        impactTag = '<span style="background:rgba(255,149,0,0.15); color:#ff9500; font-size:8px; padding:2px 4px; border-radius:4px; margin-right:6px;">🔥 EARNINGS</span>';
-    } else if (/merger|acquisition|buyout|takeover/i.test(titleLower)) {
-        impactTag = '<span style="background:rgba(88,86,214,0.15); color:#5856d6; font-size:8px; padding:2px 4px; border-radius:4px; margin-right:6px;">🚨 M&A</span>';
-    } else if (/fed|rate|inflation|bce|powell|cpi/i.test(titleLower)) {
-        impactTag = '<span style="background:rgba(44,44,46,0.15); color:var(--text-main); font-size:8px; padding:2px 4px; border-radius:4px; margin-right:6px;">🏦 MACRO</span>';
-    }
-
-    // 2. Sentiment Base
-    const upWords = /surge|rally|jump|soar|buy|up|gain|record|bull|soars|jumps|beats/i;
-    const downWords = /plunge|drop|fall|sell|down|bear|crash|loss|misses|slips/i;
-    
-    if (upWords.test(titleLower)) return { icon: '🟢', border: '#34c759', tag: impactTag };
-    if (downWords.test(titleLower)) return { icon: '🔴', border: '#ff3b30', tag: impactTag };
-    return { icon: '⚪', border: 'transparent', tag: impactTag };
-}
-
-/**
- * Funzione Audio: Legge i titoli delle notizie attualmente filtrate
- */
-let alertsSpeechUtterance = null;
-function playPortfolioPodcast() {
-    const btn = document.getElementById('btn-podcast-alerts');
-    
-    // Se sta già parlando, lo fermiamo
-    if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-        btn.innerHTML = '🎧 ASCOLTA';
-        return;
-    }
-
-    // Prendi solo i titoli attualmente visibili nella lista
-    const visibleNews = window.currentAlertTicker === 'ALL' 
-        ? window.quickSheetNews 
-        : window.quickSheetNews.filter(item => item.relatedTickers && item.relatedTickers.includes(window.currentAlertTicker));
-
-    if (visibleNews.length === 0) return;
-
-    btn.innerHTML = '⏹️ STOP';
-    
-    // Crea il testo da leggere (Saluto + Titoli)
-    let textToRead = `Aggiornamento per ${window.currentAlertTicker === 'ALL' ? 'il tuo portafoglio' : window.currentAlertTicker}. `;
-    visibleNews.slice(0, 5).forEach((item, i) => {
-        textToRead += `Notizia ${i + 1}: ${item.title}. `;
-    });
-    textToRead += "Fine degli aggiornamenti.";
-
-    alertsSpeechUtterance = new SpeechSynthesisUtterance(textToRead);
-    alertsSpeechUtterance.lang = 'it-IT'; // Voce italiana
-    alertsSpeechUtterance.rate = 1.05;    // Leggermente più veloce
-
-    alertsSpeechUtterance.onend = function() {
-        btn.innerHTML = '🎧 ASCOLTA';
-    };
-
-    window.speechSynthesis.speak(alertsSpeechUtterance);
-}
-
-/**
- * Quick action to jump to the Market tab and view the specific ticker chart.
- */
-function quickViewChart(ticker, event) {
-    event.stopPropagation(); // Prevents opening the news reader modal
-    
-    // Close the alerts bottom sheet
-    closePortfolioAlertsSheet();
-    
-    // Re-use the existing logic to search and open the ticker in the Market tab
-    if (typeof searchTickerFromNews === 'function') {
-        searchTickerFromNews(ticker);
-    } else {
-        console.warn("searchTickerFromNews is not defined yet.");
-    }
-}
+           // Update the bookmark button UI inside the modal
+           if (typeof updateModalBookmarkUI === 'function') {
+               updateModalBookmarkUI(article);
+           }
+   
+           // Reset TTS Audio UI if opening a new article
+           if ('speechSynthesis' in window) {
+               window.speechSynthesis.cancel();
+               isSpeaking = false;
+               const btnText = document.getElementById('nr-listen-text');
+               if (btnText) btnText.innerText = "Listen";
+           }
+   
+           // 1. Populate basic text data
+           document.getElementById('nr-source').innerText = article.source || 'News';
+           document.getElementById('nr-btn-source').innerText = article.source || 'Source';
+           document.getElementById('nr-title').innerText = article.title || 'No Title';
+           
+           // 2. Handle Image
+           const imgContainer = document.getElementById('nr-image-container');
+           const imgEl = document.getElementById('nr-image');
+           if (article.imageUrl) {
+               imgEl.src = article.imageUrl;
+               imgContainer.style.display = 'block';
+           } else {
+               imgContainer.style.display = 'none';
+           }
+   
+           // 3. Handle Date
+           if (article.date) {
+               const dateObj = new Date(article.date);
+               document.getElementById('nr-date').innerText = dateObj.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+           } else {
+               document.getElementById('nr-date').innerText = '';
+           }
+   
+           // 4. Handle Summary
+           document.getElementById('nr-summary').innerHTML = article.summary || "No summary available for this article.";
+   
+           // 5. Handle Tickers (NOW CLICKABLE!)
+           const tickersContainer = document.getElementById('nr-tickers');
+           tickersContainer.innerHTML = '';
+           if (article.relatedTickers && article.relatedTickers.length > 0) {
+               let tickersHtml = '<div class="ticker-pill-container" style="margin-top:0;">';
+               article.relatedTickers.forEach(t => { 
+                   tickersHtml += `<span class="ticker-pill" style="background:var(--section-bg); border:none; cursor:pointer;" onclick="searchTickerFromNews('${t}')">📈 ${t}</span>`; 
+               });
+               tickersHtml += '</div>';
+               tickersContainer.innerHTML = tickersHtml;
+           }
+   
+           // 5.5 ECOSISTEMA: Handle Related Notes
+           const notesContainer = document.getElementById('nr-related-notes');
+           const notesContent = document.getElementById('nr-notes-content');
+           
+           if (notesContainer && notesContent) {
+               let foundNotesHtml = '';
+               
+               // Check if the article has tickers
+               if (article.relatedTickers && article.relatedTickers.length > 0) {
+                   let allNotes = {};
+                   try {
+                       allNotes = JSON.parse(localStorage.getItem('ticker_notes') || '{}');
+                   } catch(e) {}
+                   
+                   // Search for a note for each ticker in the article
+                   article.relatedTickers.forEach(t => {
+                       if (allNotes[t]) {
+                           foundNotesHtml += `
+                           <div style="margin-bottom: ${foundNotesHtml !== '' ? '8px' : '0'};">
+                               <span style="font-weight: 800; font-size: 12px; color: var(--text-main); background: var(--section-bg); padding: 2px 6px; border-radius: 4px; margin-right: 6px;">${t}</span>
+                               <span style="opacity: 0.9;">${allNotes[t]}</span>
+                           </div>`;
+                       }
+                   });
+               }
+               
+               // Display the box only if we found at least one note
+               if (foundNotesHtml !== '') {
+                   notesContent.innerHTML = foundNotesHtml;
+                   notesContainer.style.display = 'block';
+               } else {
+                   notesContainer.style.display = 'none';
+               }
+           }
+   
+           // 6. Set external link button
+           document.getElementById('nr-full-link').href = article.link || '#';
+   
+           // 7. Handle AI Insight injection if previously generated
+           const aiBox = document.getElementById('nr-ai-box');
+           const existingSummaryBox = document.getElementById(`ai-summary-box-${index}`);
+           
+           if (existingSummaryBox && existingSummaryBox.innerHTML.includes('✨')) {
+               const aiText = existingSummaryBox.innerHTML.replace(/<strong>.*?<\/strong><br>/, '');
+               document.getElementById('nr-ai-content').innerHTML = aiText;
+               aiBox.style.display = 'block';
+           } else {
+               aiBox.style.display = 'none';
+           }
+   
+           // 8. Open the modal
+           document.getElementById('news-reader-modal').style.display = 'flex';
+           
+       } catch (err) {
+           console.error("Error opening news modal:", err);
+       }
+   }
+   // Global variable to track the currently opened article in the modal
+   let currentModalArticleIndex = -1;
+   
+   /**
+    * Updates the save button UI inside the modal (Forced Inline Styles)
+    */
+   /**
+    * Updates the save button UI inside the modal (Total Clean Slate)
+    */
+   function updateModalBookmarkUI(article) {
+       const btnSave = document.getElementById('nr-btn-save');
+       if (!btnSave) return;
+       
+       // 1. Reset Totale: rimuove qualsiasi stile inline e resetta alla classe base
+       btnSave.removeAttribute('style');
+       btnSave.className = 'bookmark-btn';
+       btnSave.innerHTML = '🔖';
+   
+       try {
+           // 2. Controllo lo stato nei salvati
+           const savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
+           const isSaved = savedNews.some(savedItem => savedItem.link === article.link);
+           
+           // 3. Se salvato, applico SOLO la classe nativa CSS (che lo fa diventare nero)
+           if (isSaved) {
+               btnSave.classList.add('bookmarked');
+           }
+       } catch (e) {
+           console.error("Errore lettura bookmarks:", e);
+       }
+   }
+   
+   /**
+    * Handles bookmarking from the Modal (Identical to general toggleBookmark)
+    */
+   function toggleModalBookmark(event) {
+       // Blocca eventi propagati per evitare doppi click o chiusure impreviste
+       if (event) {
+           event.preventDefault();
+           event.stopPropagation();
+       }
+       
+       // Safety check sull'indice
+       if (typeof currentModalArticleIndex === 'undefined' || currentModalArticleIndex === -1) {
+           return;
+       }
+       
+       const article = filteredNews[currentModalArticleIndex];
+       if (!article) return;
+       
+       // Recupera il bottone (usando lo stesso target del click se possibile, o l'ID)
+       const btnSave = event.currentTarget || document.getElementById('nr-btn-save');
+       if (!btnSave) return;
+       
+       let savedNews = [];
+       try {
+           savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
+       } catch (e) {
+           savedNews = [];
+       }
+       
+       const existingIndex = savedNews.findIndex(item => item.link === article.link);
+       
+       // --- LOGICA DI TOGGLE IDENTICA ALLE CARD PRINCIPALI ---
+       if (existingIndex > -1) {
+           // Rimuovi dai salvati e togli il colore
+           savedNews.splice(existingIndex, 1);
+           btnSave.classList.remove('bookmarked');
+       } else {
+           // Aggiungi ai salvati, metti il colore (diventa nero) e vibra
+           savedNews.push(article);
+           btnSave.classList.add('bookmarked');
+           if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);
+       }
+       
+       // Salvataggio locale per velocità
+       localStorage.setItem('saved_news', JSON.stringify(savedNews));
+       
+       // Sincronizzazione Cloud in background silente
+       if (typeof google !== 'undefined' && google.script) {
+           google.script.run
+               .withFailureHandler(e => console.error("Cloud sync err:", e))
+               .toggleCloudSavedNews(article);
+       }
+       
+       // Se siamo nel tab 'saved', aggiorna la lista silenziosamente
+       if (typeof currentNewsCategory !== 'undefined' && currentNewsCategory === 'saved') {
+           setTimeout(() => { if (typeof loadNews === 'function') loadNews('saved'); }, 500);
+       }
+   }
+   /**
+    * Shares the article directly from the modal
+    */
+   function shareModalArticle(event) {
+       if (currentModalArticleIndex === -1) return;
+       const article = filteredNews[currentModalArticleIndex];
+       
+       // Call the existing share function
+       shareArticle(article.link, article.title.replace(/'/g, "\\'"), event);
+   }
+   
+   /**
+    * Cleanly closes the modal and stops any ongoing audio
+    */
+   function closeNewsModal() {
+       document.getElementById('news-reader-modal').style.display = 'none';
+       currentModalArticleIndex = -1;
+       // Optional: Stop speech synthesis if it was playing
+       if ('speechSynthesis' in window) {
+           window.speechSynthesis.cancel();
+       }
+   }
+   
+   // --- TTS AND NAVIGATION LOGIC ---
+   
+   let isSpeaking = false;
+   let currentUtterance = null;
+   
+   /**
+    * Toggles the Text-To-Speech functionality for the article summary
+    */
+   function toggleSpeech() {
+       const textToRead = document.getElementById('nr-summary').innerText;
+       const btnText = document.getElementById('nr-listen-text');
+       
+       if (!textToRead || !('speechSynthesis' in window)) {
+           alert("Text-to-speech non supportato dal tuo browser o nessun testo disponibile.");
+           return;
+       }
+   
+       if (isSpeaking) {
+           // Stop speaking
+           window.speechSynthesis.cancel();
+           isSpeaking = false;
+           if (btnText) btnText.innerText = "Listen";
+       } else {
+           // Start speaking
+           currentUtterance = new SpeechSynthesisUtterance(textToRead);
+           currentUtterance.lang = 'it-IT'; // Using Italian as default for app language
+           currentUtterance.rate = 1.0;
+           
+           currentUtterance.onend = function() {
+               isSpeaking = false;
+               if (btnText) btnText.innerText = "Listen";
+           };
+           
+           window.speechSynthesis.speak(currentUtterance);
+           isSpeaking = true;
+           if (btnText) btnText.innerText = "Stop";
+       }
+   }
+   
+   /**
+    * Handles clicks on ticker pills inside the modal.
+    * Navigates to the Market tab and searches for the ticker in Watchlist or Portfolio.
+    */
+   function searchTickerFromNews(ticker) {
+       // 1. Close the current news modal
+       closeNewsModal();
+       
+       // 2. Switch to the Market tab
+       if (typeof changeTab === 'function') {
+           changeTab('market');
+       }
+       
+       // 3. Wait for the tab transition, then find and open the modal
+       setTimeout(() => {
+           let found = false;
+           
+           // A. Search in Watchlist Data
+           if (typeof myWatchlistData !== 'undefined' && myWatchlistData) {
+               // Find the index of the ticker in the array
+               let idx = myWatchlistData.findIndex(item => item.ticker === ticker || item.t === ticker);
+               if (idx !== -1) {
+                   if (typeof openWlModal === 'function') {
+                       openWlModal(idx);
+                       found = true;
+                   }
+               }
+           }
+           
+           // B. Search in Live Portfolio Data (if not in Watchlist)
+           if (!found && typeof currentPortfolioData !== 'undefined' && currentPortfolioData) {
+               const assetTypes = ['stocks', 'etfs', 'crypto'];
+               for (const type of assetTypes) {
+                   if (currentPortfolioData[type]) {
+                       let idx = currentPortfolioData[type].findIndex(item => item.ticker === ticker || item.t === ticker);
+                       if (idx !== -1) {
+                           if (typeof openPortfolioModal === 'function') {
+                               openPortfolioModal(type, idx);
+                               found = true;
+                               break; // Stop searching once found
+                           }
+                       }
+                   }
+               }
+           }
+           
+           // C. Fallback if the ticker is NOT tracked in the app yet
+           if (!found) {
+               alert("The ticker " + ticker + " is not currently in your Watchlist or Portfolio. Add it to view its chart.");
+               
+               // Optionally, automatically open the add to watchlist input
+               if (typeof toggleWatchlistInput === 'function') {
+                   const box = document.getElementById('wl-add-box');
+                   if (box && box.style.display === 'none') {
+                       toggleWatchlistInput();
+                   }
+                   const input = document.getElementById('wlTickerInput');
+                   if (input) {
+                       input.value = ticker;
+                   }
+               }
+           }
+           
+       }, 350); // 350ms delay to ensure the UI is ready after tab switch
+   }
+   
+   /**
+    * Cleanly closes the modal and stops any ongoing audio
+    */
+   function closeNewsModal() {
+       document.getElementById('news-reader-modal').style.display = 'none';
+       currentModalArticleIndex = -1;
+       
+       // Stop speech synthesis if it was playing
+       if ('speechSynthesis' in window) {
+           window.speechSynthesis.cancel();
+           isSpeaking = false;
+           const btnText = document.getElementById('nr-listen-text');
+           if (btnText) btnText.innerText = "Listen";
+       }
+   }
+   
+   // Global states for the premium alerts sheet
+   window.quickSheetNews = [];
+   window.currentAlertTicker = 'ALL';
+   
+   /**
+    * Checks for new portfolio news silently.
+    * Updates the badge count and triggers a Toast notification for high-impact news.
+    */
+   function checkPortfolioAlertsSilent() {
+       google.script.run
+         .withSuccessHandler(function(response) {
+             const articles = response.articles || [];
+             if (articles.length === 0) return;
+             
+             const lastChecked = localStorage.getItem('last_alerts_check') || 0;
+             let newCount = 0;
+             let latestHighImpactNews = null;
+             
+             articles.forEach(art => {
+                 const artTime = new Date(art.date).getTime();
+                 if (artTime > Number(lastChecked)) {
+                     newCount++;
+                     
+                     // Check if this new article is High-Impact using our existing logic
+                     const sentiment = getQuickSentiment(art.title);
+                     if (sentiment.tag !== '' && !latestHighImpactNews) {
+                         latestHighImpactNews = art;
+                     }
+                 }
+             });
+             
+             // Update the red badge
+             const badge = document.getElementById('portfolio-badge-count');
+             if (badge) {
+                 if (newCount > 0) {
+                     badge.innerText = newCount > 9 ? '9+' : newCount;
+                     badge.style.display = 'block';
+                     badge.animate([{transform: 'scale(1)'}, {transform: 'scale(1.3)'}, {transform: 'scale(1)'}], {duration: 300});
+                 } else {
+                     badge.style.display = 'none';
+                 }
+             }
+   
+             // Trigger Toast Notification for the most recent High-Impact news
+             if (latestHighImpactNews) {
+                 showToastNotification(latestHighImpactNews);
+             }
+         })
+         .getMarketNews('portfolio');
+   }
+   
+   /**
+    * Displays a slide-down toast notification globally.
+    */
+   let toastTimeout;
+   function showToastNotification(article) {
+       const toast = document.getElementById('toast-container');
+       const title = document.getElementById('toast-title');
+       const msg = document.getElementById('toast-message');
+       const icon = document.getElementById('toast-icon');
+       
+       if (!toast) return;
+   
+       // Format the toast content
+       const sentiment = getQuickSentiment(article.title);
+       const tickerStr = article.relatedTickers && article.relatedTickers.length > 0 ? article.relatedTickers[0] : 'PORTFOLIO';
+       
+       // Extract the raw text from the HTML tag (e.g., "🔥 EARNINGS")
+       const tempDiv = document.createElement('div');
+       tempDiv.innerHTML = sentiment.tag;
+       const tagText = tempDiv.innerText || '🚨 ALERT';
+   
+       title.innerText = `${tickerStr} • ${tagText}`;
+       msg.innerText = article.title;
+       icon.innerText = sentiment.icon !== '⚪' ? sentiment.icon : '📰';
+   
+       // Slide down
+       toast.style.top = '20px';
+       
+       // Play a subtle notification sound if device allows (optional, using browser beep)
+       if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
+   
+       // Click on toast opens the bottom sheet
+       document.getElementById('toast-content').onclick = function() {
+           toast.style.top = '-100px';
+           if (typeof openPortfolioAlerts === 'function') {
+               openPortfolioAlerts();
+           }
+       };
+   
+       // Auto-hide after 4 seconds
+       clearTimeout(toastTimeout);
+       toastTimeout = setTimeout(() => {
+           toast.style.top = '-100px';
+       }, 4000);
+   }
+   
+   /**
+    * Opens the premium bottom sheet, resets the badge, and loads data.
+    */
+   function openPortfolioAlerts() {
+       const backdrop = document.getElementById('common-backdrop');
+       const sheet = document.getElementById('portfolio-alerts-sheet');
+       if (backdrop) backdrop.classList.add('active');
+       if (sheet) sheet.classList.add('active');
+       
+       // Hide badge and update last checked time
+       const badge = document.getElementById('portfolio-badge-count');
+       if (badge) badge.style.display = 'none';
+       localStorage.setItem('last_alerts_check', Date.now().toString());
+   
+       const container = document.getElementById('portfolio-alerts-list');
+       container.innerHTML = '<div style="text-align:center; color:var(--gray); padding:40px;"><span class="loader" style="width:20px; height:20px; border-width:3px; display:inline-block; margin-bottom:10px;"></span><br>Scanning markets...</div>';
+       document.getElementById('alert-ticker-filters').innerHTML = '';
+   
+       google.script.run
+         .withSuccessHandler(function(response) {
+             window.quickSheetNews = response.articles || [];
+             window.currentAlertTicker = 'ALL';
+             renderAlertFilters(response.tickers || []);
+             renderPortfolioAlerts();
+         })
+         .withFailureHandler(function(error) {
+             container.innerHTML = '<div style="text-align:center; color:var(--danger); padding:40px;">Failed to load alerts.</div>';
+         })
+         .getMarketNews('portfolio');
+   }
+   
+   /**
+    * Renders the filter chips at the top of the sheet.
+    */
+   function renderAlertFilters(tickers) {
+       const filterContainer = document.getElementById('alert-ticker-filters');
+       filterContainer.innerHTML = '';
+       
+       if (tickers.length === 0) return;
+       
+       const allTickers = ['ALL', ...tickers];
+       
+       allTickers.forEach(ticker => {
+           const chip = document.createElement('div');
+           chip.innerText = ticker === 'ALL' ? '🌐 All Assets' : ticker;
+           chip.style.padding = '6px 14px';
+           chip.style.borderRadius = '16px';
+           chip.style.fontSize = '12px';
+           chip.style.fontWeight = '700';
+           chip.style.cursor = 'pointer';
+           chip.style.whiteSpace = 'nowrap';
+           chip.style.transition = '0.2s';
+           
+           // Styling based on active state
+           if (ticker === window.currentAlertTicker) {
+               chip.style.background = 'var(--text-main)';
+               chip.style.color = 'var(--bg)';
+           } else {
+               chip.style.background = 'var(--section-bg)';
+               chip.style.color = 'var(--gray)';
+               chip.style.border = '1px solid var(--row-border)';
+           }
+           
+           chip.onclick = function() {
+               window.currentAlertTicker = ticker;
+               // Re-render filters to update colors
+               renderAlertFilters(tickers);
+               // Re-render list
+               renderPortfolioAlerts();
+           };
+           
+           filterContainer.appendChild(chip);
+       });
+   }
+   
+   /**
+    * Basic JS sentiment analyzer for visual feedback
+    */
+   function getQuickSentiment(title) {
+       const titleLower = title.toLowerCase();
+       const upWords = /surge|rally|jump|soar|buy|up|gain|record|bull|soars|jumps|beats/i;
+       const downWords = /plunge|drop|fall|sell|down|bear|crash|loss|misses|slips/i;
+       
+       if (upWords.test(titleLower)) return { icon: '🟢', color: 'rgba(52, 199, 89, 0.1)', border: '#34c759' };
+       if (downWords.test(titleLower)) return { icon: '🔴', color: 'rgba(255, 59, 48, 0.1)', border: '#ff3b30' };
+       return { icon: '⚪', color: 'transparent', border: 'transparent' };
+   }
+   
+   /**
+    * Renders the filtered list of alerts with premium UI.
+    */
+   function renderPortfolioAlerts() {
+       const container = document.getElementById('portfolio-alerts-list');
+       container.innerHTML = '';
+       
+       let displayList = window.quickSheetNews;
+       
+       // Apply filter if not ALL
+       if (window.currentAlertTicker !== 'ALL') {
+           displayList = displayList.filter(item => 
+               item.relatedTickers && item.relatedTickers.includes(window.currentAlertTicker)
+           );
+       }
+       
+       if (displayList.length === 0) {
+           container.innerHTML = `<div style="text-align:center; color:var(--gray); padding:40px; font-weight:600;">No recent news for ${window.currentAlertTicker}.</div>`;
+           return;
+       }
+   
+       displayList.forEach(item => {
+           // Find original index to link to main modal
+           const origIndex = window.quickSheetNews.findIndex(orig => orig.link === item.link);
+           const sentiment = getQuickSentiment(item.title);
+           
+           const div = document.createElement('div');
+           div.style.padding = '15px 20px';
+           div.style.borderBottom = '1px solid var(--row-border)';
+           div.style.background = 'var(--white)';
+           div.style.display = 'flex';
+           div.style.gap = '15px';
+           div.style.alignItems = 'flex-start';
+           div.style.borderLeft = `4px solid ${sentiment.border}`;
+           
+           // Find if already saved
+           const savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
+           const isSaved = savedNews.some(savedItem => savedItem.link === item.link);
+           const saveIconStr = isSaved ? 'solid' : 'regular';
+           const saveColor = isSaved ? 'var(--primary)' : 'var(--gray)';
+           
+       // Ticker pill string
+           let tickersHtml = item.relatedTickers && item.relatedTickers.length > 0 
+               ? `<span style="font-weight:800; color:var(--text-main); margin-right:6px;">${item.relatedTickers.join(', ')}</span>`
+               : '';
+   
+           // Generate the Chart Quick Action button if a ticker exists
+           let chartActionHtml = '';
+           if (item.relatedTickers && item.relatedTickers.length > 0) {
+               const primaryTicker = item.relatedTickers[0];
+               chartActionHtml = `
+                  <div onclick="quickViewChart('${primaryTicker}', event)" style="padding:10px; border-radius:12px; background:var(--section-bg); cursor:pointer; color:var(--primary); transition:0.2s; flex-shrink:0; margin-right:8px;" title="View Chart">
+                     📊
+                  </div>
+               `;
+           }
+   
+           div.innerHTML = `
+              <div style="flex:1; min-width:0; cursor:pointer;" onclick="openAlertInReader(${origIndex})">
+                 <div style="font-size:10px; color:var(--gray); margin-bottom:6px; font-weight:600; text-transform:uppercase;">
+                    ${sentiment.icon} ${sentiment.tag} ${tickersHtml} • ${item.source}
+                 </div>
+                 <div style="font-size:14px; font-weight:800; color:var(--text-main); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
+                    ${item.title}
+                 </div>
+              </div>
+              
+              <div style="display:flex; align-items:center;">
+                  ${chartActionHtml}
+                  <div onclick="quickSaveAlert(${origIndex}, this, event)" style="padding:10px; border-radius:12px; background:var(--section-bg); cursor:pointer; color:${saveColor}; transition:0.2s; flex-shrink:0;">
+                     🔖
+                  </div>
+              </div>
+           `;
+           container.appendChild(div);
+       });
+   }
+   
+   /**
+    * Opens the selected alert in the main full-screen reader.
+    * Modified to keep the alerts sheet open in the background.
+    */
+   function openAlertInReader(origIndex) {
+       // Prep global array with the sheet's news data
+       filteredNews = window.quickSheetNews; 
+       
+       // Open the modal immediately, WITHOUT closing the alerts sheet first.
+       // The modal will appear on top because of its higher z-index.
+       openNewsModal(origIndex);
+   }
+   
+   /**
+    * Quick save directly from the alert list.
+    */
+   function quickSaveAlert(origIndex, btnElement, event) {
+       event.stopPropagation(); // Prevents opening the modal
+       
+       // Simulate the bookmark toggle logic
+       filteredNews = window.quickSheetNews; 
+       toggleBookmark(origIndex, event);
+       
+       // Visual feedback
+       btnElement.style.color = btnElement.style.color === 'var(--gray)' ? 'var(--primary)' : 'var(--gray)';
+       btnElement.style.transform = 'scale(1.2)';
+       setTimeout(() => btnElement.style.transform = 'scale(1)', 200);
+   }
+   
+   /**
+    * Clean sheet closure.
+    */
+   function closePortfolioAlertsSheet() {
+       const sheet = document.getElementById('portfolio-alerts-sheet');
+       const backdrop = document.getElementById('common-backdrop');
+       if (sheet) sheet.classList.remove('active');
+       
+       const activeSheets = document.querySelectorAll('.sheet-modal.active');
+       if (backdrop && activeSheets.length === 0) {
+           backdrop.classList.remove('active');
+       }
+       
+       // Ferma l'audio se si chiude la tendina
+       if (window.speechSynthesis.speaking) {
+           window.speechSynthesis.cancel();
+           const btn = document.getElementById('btn-podcast-alerts');
+           if(btn) btn.innerHTML = '🎧 ASCOLTA';
+       }
+   }
+   
+   /**
+    * Analizzatore JS Avanzato: Sentiment + High Impact Tags
+    */
+   function getQuickSentiment(title) {
+       const titleLower = title.toLowerCase();
+       
+       // 1. Cerca tag di altissimo impatto (Volatilità)
+       let impactTag = '';
+       if (/earnings|trimestral|revenue|guidance|q1|q2|q3|q4/i.test(titleLower)) {
+           impactTag = '<span style="background:rgba(255,149,0,0.15); color:#ff9500; font-size:8px; padding:2px 4px; border-radius:4px; margin-right:6px;">🔥 EARNINGS</span>';
+       } else if (/merger|acquisition|buyout|takeover/i.test(titleLower)) {
+           impactTag = '<span style="background:rgba(88,86,214,0.15); color:#5856d6; font-size:8px; padding:2px 4px; border-radius:4px; margin-right:6px;">🚨 M&A</span>';
+       } else if (/fed|rate|inflation|bce|powell|cpi/i.test(titleLower)) {
+           impactTag = '<span style="background:rgba(44,44,46,0.15); color:var(--text-main); font-size:8px; padding:2px 4px; border-radius:4px; margin-right:6px;">🏦 MACRO</span>';
+       }
+   
+       // 2. Sentiment Base
+       const upWords = /surge|rally|jump|soar|buy|up|gain|record|bull|soars|jumps|beats/i;
+       const downWords = /plunge|drop|fall|sell|down|bear|crash|loss|misses|slips/i;
+       
+       if (upWords.test(titleLower)) return { icon: '🟢', border: '#34c759', tag: impactTag };
+       if (downWords.test(titleLower)) return { icon: '🔴', border: '#ff3b30', tag: impactTag };
+       return { icon: '⚪', border: 'transparent', tag: impactTag };
+   }
+   
+   /**
+    * Funzione Audio: Legge i titoli delle notizie attualmente filtrate
+    */
+   let alertsSpeechUtterance = null;
+   function playPortfolioPodcast() {
+       const btn = document.getElementById('btn-podcast-alerts');
+       
+       // Se sta già parlando, lo fermiamo
+       if (window.speechSynthesis.speaking) {
+           window.speechSynthesis.cancel();
+           btn.innerHTML = '🎧 ASCOLTA';
+           return;
+       }
+   
+       // Prendi solo i titoli attualmente visibili nella lista
+       const visibleNews = window.currentAlertTicker === 'ALL' 
+           ? window.quickSheetNews 
+           : window.quickSheetNews.filter(item => item.relatedTickers && item.relatedTickers.includes(window.currentAlertTicker));
+   
+       if (visibleNews.length === 0) return;
+   
+       btn.innerHTML = '⏹️ STOP';
+       
+       // Crea il testo da leggere (Saluto + Titoli)
+       let textToRead = `Aggiornamento per ${window.currentAlertTicker === 'ALL' ? 'il tuo portafoglio' : window.currentAlertTicker}. `;
+       visibleNews.slice(0, 5).forEach((item, i) => {
+           textToRead += `Notizia ${i + 1}: ${item.title}. `;
+       });
+       textToRead += "Fine degli aggiornamenti.";
+   
+       alertsSpeechUtterance = new SpeechSynthesisUtterance(textToRead);
+       alertsSpeechUtterance.lang = 'it-IT'; // Voce italiana
+       alertsSpeechUtterance.rate = 1.05;    // Leggermente più veloce
+   
+       alertsSpeechUtterance.onend = function() {
+           btn.innerHTML = '🎧 ASCOLTA';
+       };
+   
+       window.speechSynthesis.speak(alertsSpeechUtterance);
+   }
+   
+   /**
+    * Quick action to jump to the Market tab and view the specific ticker chart.
+    */
+   function quickViewChart(ticker, event) {
+       event.stopPropagation(); // Prevents opening the news reader modal
+       
+       // Close the alerts bottom sheet
+       closePortfolioAlertsSheet();
+       
+       // Re-use the existing logic to search and open the ticker in the Market tab
+       if (typeof searchTickerFromNews === 'function') {
+           searchTickerFromNews(ticker);
+       } else {
+           console.warn("searchTickerFromNews is not defined yet.");
+       }
+   }
 </script>

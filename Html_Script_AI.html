@@ -1,979 +1,979 @@
 <script>
-/**
- * ======================================================================================
- * BLOCK 8: AI, GEMINI & SMART FEATURES
- * Handles Chat, Voice/Image Input, Market Insights AI, Stock Battle, and Risk Reports.
- * ======================================================================================
- */
-
-// --- Gemini Chat UI Management ---
-
-function openGeminiSheet() {
-  closeAllSheets();
-  const sheet = document.getElementById('gemini-sheet'); 
-  const backdrop = document.getElementById('common-backdrop');
-  sheet.classList.add('active'); 
-  backdrop.classList.add('active');
-  setTimeout(() => document.getElementById('geminiInput').focus(), 300);
-}
-
-function sendToGemini() {
-  const input = document.getElementById('geminiInput'); 
-  const chat = document.getElementById('chat-container'); 
-  const question = input.value.trim();
-  
-  if(!question) return;
-
-  // Append User Message
-  chat.innerHTML += `<div style="align-self:flex-end; background:#007aff; color:white; padding:10px 15px; border-radius: 15px 15px 0 15px; max-width:80%; font-size:14px; margin-bottom:10px;">${question}</div>`;
-  input.value = ""; 
-  chat.scrollTop = chat.scrollHeight;
-
-  // Add Loading Indicator
-  const loadingId = "load-" + new Date().getTime();
-  chat.innerHTML += `<div id="${loadingId}" style="align-self:flex-start; color:#888; font-size:12px; margin-left:10px; font-style:italic;">Analyzing...</div>`; 
-  chat.scrollTop = chat.scrollHeight;
-
-  // Call Server-Side Gemini Function
-  google.script.run.withSuccessHandler(response => {
-      const loader = document.getElementById(loadingId); 
-      if(loader) loader.remove();
-      
-      // Use marked.parse for perfect Markdown rendering (tables, bold, lists)
-      let formatted = marked.parse(response);
-      
-      chat.innerHTML += `<div style="align-self:flex-start; background:white; padding:10px 15px; border-radius: 0 15px 15px 15px; max-width:90%; box-shadow:0 2px 5px rgba(0,0,0,0.05); font-size:14px; line-height:1.5;" class="ai-report-content">${formatted}</div>`; 
-      chat.scrollTop = chat.scrollHeight;
-      
-      // Update History Context
-      chatHistory.push({ role: "user", parts: [{ text: question }] }); 
-      chatHistory.push({ role: "model", parts: [{ text: response }] });
-      if (chatHistory.length > 10) chatHistory = chatHistory.slice(-10);
-
-  }).withFailureHandler(err => { 
-      const loader = document.getElementById(loadingId); 
-      if(loader) loader.innerText = "Error: " + err.message; 
-  }).askGemini(question, geminiSessionPin, JSON.stringify(chatHistory));
-}
-
-function fillGemini(text) {
-  const input = document.getElementById('geminiInput');
-  input.value = text;
-  sendToGemini(); 
-}
-
-// --- AI Security (PIN Lock) ---
-
-function openGeminiPinPad() {
-  if (geminiSessionPin !== "") { 
-      document.getElementById('gemini-confirm-overlay').classList.add('active'); 
-      return; 
-  }
-  geminiCurrentInput = ""; 
-  updateGeminiDots(); 
-  document.getElementById('gemini-pin-overlay').classList.add('active');
-}
-
-function closeGeminiPinPad() {
-  document.getElementById('gemini-pin-overlay').classList.remove('active'); 
-  geminiCurrentInput = "";
-}
-
-function closeGeminiConfirm() {
-  document.getElementById('gemini-confirm-overlay').classList.remove('active');
-}
-
-function confirmGeminiLock() {
-  geminiSessionPin = ""; 
-  updateGeminiLockIcon(false); 
-  resetGeminiChat();
-  
-  // If locking AI, also re-lock global privacy
-  if (!document.body.classList.contains('privacy-mode')) { 
-      document.body.classList.add('privacy-mode'); 
-      updateAllCharts(); 
-      localStorage.removeItem('auth_expiry'); 
-  }
-  closeGeminiConfirm();
-}
-
-function pressGeminiKey(num) {
-  if (geminiCurrentInput.length < 4) {
-      geminiCurrentInput += num; 
-      updateGeminiDots();
-      if (geminiCurrentInput.length === 4) { setTimeout(verifyGeminiPin, 300); }
-  }
-}
-
-function clearGeminiKey() {
-  geminiCurrentInput = geminiCurrentInput.slice(0, -1); 
-  updateGeminiDots();
-}
-
-function updateGeminiDots() {
-  const dots = document.querySelectorAll('#gemini-pin-overlay .gemini-dot');
-  dots.forEach((dot, idx) => { 
-      if (idx < geminiCurrentInput.length) dot.classList.add('filled'); 
-      else dot.classList.remove('filled'); 
-  });
-}
-
-function verifyGeminiPin() {
-  // Uses the main verifyUserPin function server-side
-  google.script.run.withSuccessHandler(isValid => {
-      if (isValid) {
-          geminiSessionPin = geminiCurrentInput;
-          updateGeminiLockIcon(true);
-          closeGeminiPinPad();
-          resetGeminiChat();
-          
-          // Unlock Global Privacy when AI is unlocked
-          document.body.classList.remove('privacy-mode');
-          updateAllCharts();
-          
-          // Set session expiry (15 mins)
-          const expiry = new Date().getTime() + (15 * 60 * 1000);
-          localStorage.setItem('auth_expiry', expiry);
-          console.log("Sync Unlock: AI -> Main Activated");
-          
-          const msg = document.getElementById('ai-status-msg'); 
-          if (msg) msg.innerHTML = "Owner Mode: <b>UNLOCKED</b> ✅";
-      } else {
-          const dotsContainer = document.getElementById('geminiDotsBox'); 
-          dotsContainer.classList.add('gemini-shake');
-          setTimeout(() => { 
-              dotsContainer.classList.remove('gemini-shake'); 
-              geminiCurrentInput = ""; 
-              updateGeminiDots(); 
-          }, 400);
-      }
-  }).verifyUserPin(geminiCurrentInput);
-}
-
-function updateGeminiLockIcon(isUnlocked) {
-  const btn = document.getElementById('aiLockBtn'); 
-  if(btn) btn.innerHTML = isUnlocked ? "🔓" : "🔒";
-}
-
-function resetGeminiChat() {
-  const chat = document.getElementById('chat-container'); 
-  chat.innerHTML = "";
-  
-  if (geminiSessionPin !== "") {
-      chat.innerHTML = `<div class="ai-msg" style="align-self:flex-start; background:#eef2ff; color:#333; padding:10px 15px; border-radius: 0 15px 15px 15px; max-width:80%; box-shadow:0 2px 5px rgba(0,0,0,0.05); font-size:14px;"><span style="color:#4f46e5; font-weight:bold;">Owner Mode Active ✅</span><br>I have full access to your data. What shall we analyze?</div>`;
-  } else {
-      chat.innerHTML = `<div class="ai-msg" style="align-self:flex-start; background:white; padding:10px 15px; border-radius: 0 15px 15px 15px; max-width:80%; box-shadow:0 2px 5px rgba(0,0,0,0.05); font-size:14px;"><span id="ai-status-msg">Privacy Mode: <b>ACTIVE</b> 🔒</span><br><span style="font-size:12px; color:#666;">History cleared. Unlock for personal data.</span></div>`;
-  }
-}
-
-// --- Smart Input (Voice & Image) ---
-
-function startVoiceInput() {
-  if (!('webkitSpeechRecognition' in window)) { 
-      Swal.fire({icon:'error', text:'Browser not supported for voice input.'}); 
-      return; 
-  }
-  const recognition = new webkitSpeechRecognition(); 
-  recognition.lang = 'it-IT'; // Keep Italian for input recognition
-  recognition.interimResults = false; 
-  recognition.maxAlternatives = 1;
-  
-  const btn = document.querySelector('button[onclick="startVoiceInput()"]'); 
-  const oldText = btn.innerText; 
-  btn.innerText = "👂"; 
-  btn.style.backgroundColor = "#ffebeb";
-  
-  recognition.start();
-  
-  recognition.onresult = (event) => { 
-      const speechResult = event.results[0][0].transcript; 
-      console.log("Voice detected:", speechResult); 
-      processSmartInput(speechResult, 'voice'); 
-  };
-  
-  recognition.onend = () => { 
-      btn.innerText = oldText; 
-      btn.style.backgroundColor = "transparent"; 
-  };
-  
-  recognition.onerror = (event) => { 
-      console.error(event.error); 
-      btn.innerText = oldText; 
-      btn.style.backgroundColor = "transparent"; 
-      Swal.fire({icon:'error', title:'Voice Error', text: event.error}); 
-  };
-}
-
-function handleImageInput(inputElement) {
-  const file = inputElement.files[0]; 
-  if (!file) return;
-  
-  Swal.fire({ 
-      title: 'Scanning Receipt...', 
-      text: 'Gemini is reading the image 📸', 
-      didOpen: () => Swal.showLoading(), 
-      allowOutsideClick: false 
-  });
-  
-  const reader = new FileReader(); 
-  reader.readAsDataURL(file);
-  reader.onload = (e) => { 
-      const base64Raw = e.target.result; 
-      const base64Clean = base64Raw.split(',')[1]; 
-      processSmartInput(base64Clean, 'image'); 
-  };
-}
-
-function processSmartInput(data, mode) {
-  if(mode === 'voice') { 
-      Swal.fire({ 
-          title: 'AI Processing...', 
-          text: 'Analyzing speech input 🧠', 
-          didOpen: () => Swal.showLoading(), 
-          allowOutsideClick: false 
-      }); 
-  }
-  
-  google.script.run.withSuccessHandler(result => {
-      Swal.close();
-      if (result.error) { 
-          Swal.fire({icon:'error', title:'AI Error', text: result.error}); 
-          return; 
-      }
-      
-      // Auto-fill form
-      const typeSelect = document.getElementById('tType'); 
-      typeSelect.value = result.type === 'Income' ? 'Income' : 'Expense'; 
-      handleTypeChange();
-      
-      setTimeout(() => { 
-          const catSelect = document.getElementById('tCat'); 
-          let found = false; 
-          for (let i = 0; i < catSelect.options.length; i++) { 
-              if (catSelect.options[i].value === result.category) { 
-                  catSelect.selectedIndex = i; 
-                  found = true; 
-                  break; 
-              } 
-          } 
-          if(!found) catSelect.value = "Altro"; 
-      }, 100);
-      
-      document.querySelectorAll('.bank-in').forEach(el => el.value = "");
-      const defBank = document.querySelector('.bank-in[data-col="5"]') || document.querySelector('.bank-in'); 
-      if(defBank) { 
-          defBank.value = result.amount; 
-          syncIconColor(defBank); 
-      }
-      
-      document.getElementById('tDet').value = result.desc;
-      
-      const feedbackIcon = mode === 'voice' ? '🎙️' : '📸'; 
-      Swal.fire({ 
-          icon: 'success', 
-          title: `${feedbackIcon} Data Extracted`, 
-          text: `Detected: ${result.desc} - €${result.amount}`, 
-          timer: 2000, 
-          showConfirmButton: false 
-      });
-  }).withFailureHandler(err => { 
-      Swal.fire({icon:'error', title:'Server Error', text: err.message}); 
-  }).parseExpenseAI(data, mode);
-}
-
-// --- Market Insights AI & Calendar ---
-
-/**
- * Loads Market Insights.
- * UPDATED: Accetta 'isFullAnalysis' per decidere se chiamare l'AI.
- * @param {boolean} isFullAnalysis - Se true, esegue l'analisi AI. Se false (default), scarica solo i benchmark.
- */
-// --- Market Insights AI & Calendar ---
-
-function loadMarketInsights(isFullAnalysis = false) {
-  const briefingEl = document.getElementById('insight-briefing'); 
-  if (isFullAnalysis) {
-      if (briefingEl) briefingEl.innerText = "AI Market Analysis in progress...";
-      const macroEl = document.getElementById('macro-text');
-      if(macroEl) macroEl.innerHTML = '<span style="color:#007aff; font-style:italic;">Analysing market data... 🧠</span>';
-      const portEl = document.getElementById('portfolio-text');
-      if(portEl) portEl.innerHTML = '<span style="color:#007aff; font-style:italic;">Comparing assets... 📊</span>';
-  } else {
-      if (briefingEl) briefingEl.innerText = "Updating Market Data...";
-  }
-  
-  google.script.run.withSuccessHandler(renderMarketInsights).withFailureHandler(err => { 
-      console.error("Market Insights Error:", err); 
-      if (briefingEl) briefingEl.innerText = "Unable to load analysis."; 
-  }).getMarketInsightsData(!isFullAnalysis);
-}
-
-// Global state for Benchmark UI
-window.currentBenchFilter = 'Main';
-window.currentBenchMode = 'daily'; 
-window.marketIndicesData = [];
-window.portfolioMeData = {}; 
-
-function setBenchmarkMode(mode) {
-    window.currentBenchMode = mode;
-    
-    // Resetta lo stile di tutti i bottoni temporali
-    document.querySelectorAll('.bench-mode-btn').forEach(btn => {
-        btn.style.cssText = 'background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;';
-    });
-    
-    // Evidenzia il bottone attivo
-    const activeBtn = document.getElementById('btn-bench-mode-' + mode);
-    if(activeBtn) {
-        activeBtn.style.cssText = 'background:var(--white); color:var(--text-main); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:800; cursor:pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition:all 0.2s;';
-    }
-    
-    filterBenchmarks(window.currentBenchFilter);
-}
-
-function filterBenchmarks(category) {
-    window.currentBenchFilter = category;
-    
-    // Aggiorna lo stato visivo dei bottoni
-    const buttons = document.querySelectorAll('.term-chip[id^="btn-bench-"]');
-    buttons.forEach(btn => btn.classList.remove('active'));
-    const activeBtn = document.getElementById('btn-bench-' + category);
-    if(activeBtn) activeBtn.classList.add('active');
-
-    const container = document.getElementById('benchmark-container');
-    if (!container || !window.marketIndicesData) return;
-
-    // --- 1. MOTORE DI FILTRAGGIO INTELLIGENTE ---
-    let filtered = window.marketIndicesData.filter(item => {
-        let t = String(item.ticker || '').toUpperCase();
-        let n = String(item.name || '').toUpperCase();
-
-        if (category === 'Main') return item.isMain;
-        
-        if (category === 'fi') return ['TNX', 'TLT', 'BND', 'IGOV', 'JNK', 'TIP', 'LQD', 'BIL', 'EMB'].includes(t);
-        if (category === 'cmd') return ['GLD', 'SLV', 'CPER', 'USO', 'UNG', 'DBA', 'DBC', 'URA', 'LIT', 'GDX', 'IBIT', 'BTC', 'ETH-USD'].includes(t) || t.includes('CRYPTO');
-        if (category === 'thm') return ['SMH', 'CIBR', 'ITA', 'BOTZ', 'SKYY', 'ICLN', 'XBI', 'XLF', 'XLV', 'KRE', 'XRT', 'XLE', 'VUG', 'NOBL'].includes(t);
-        if (category === 'mac') return ['VIX', 'UUP', 'VNQ', 'VNQI'].includes(t) || t.includes('EURUSD') || t.includes('USDJPY') || t.includes('GBPUSD');
-        
-        if (category === 'us') return n.includes('S&P 500') || n.includes('NASDAQ') || n.includes('DOW') || n.includes('RUSSELL') || t.includes('.INX') || t.includes('NDX');
-        if (category === 'eu') return n.includes('STOXX') || n.includes('DAX') || n.includes('FTSE MIB') || n.includes('FTSE 100') || n.includes('CAC') || n.includes('IBEX') || n.includes('SMI') || t === 'EWP';
-        if (category === 'ap') return n.includes('NIKKEI') || n.includes('HANG SENG') || n.includes('SHANGHAI') || n.includes('NIFTY') || n.includes('ASX') || ['EWT', 'EWY', 'VNM', 'MCHI'].includes(t);
-        if (category === 'em') return n.includes('BOVESPA') || n.includes('TSX') || n.includes('EMERGING') || ['EWW', 'EEM'].includes(t) || t.includes('OSPTX');
-        
-        if (category === 'oth') {
-            let isMapped = ['TNX', 'TLT', 'BND', 'IGOV', 'JNK', 'TIP', 'LQD', 'BIL', 'EMB', 'GLD', 'SLV', 'CPER', 'USO', 'UNG', 'DBA', 'DBC', 'URA', 'LIT', 'GDX', 'IBIT', 'BTC', 'ETH-USD', 'SMH', 'CIBR', 'ITA', 'BOTZ', 'SKYY', 'ICLN', 'XBI', 'XLF', 'XLV', 'KRE', 'XRT', 'XLE', 'VUG', 'NOBL', 'VIX', 'UUP', 'VNQ', 'VNQI', 'EWT', 'EWY', 'VNM', 'MCHI', 'EWW', 'EEM', 'EWP'].includes(t) || t.includes('CRYPTO') || t.includes('EURUSD') || t.includes('USDJPY') || t.includes('GBPUSD') || n.includes('S&P 500') || n.includes('NASDAQ') || n.includes('DOW') || n.includes('RUSSELL') || t.includes('.INX') || t.includes('NDX') || n.includes('STOXX') || n.includes('DAX') || n.includes('FTSE MIB') || n.includes('FTSE 100') || n.includes('CAC') || n.includes('IBEX') || n.includes('SMI') || n.includes('NIKKEI') || n.includes('HANG SENG') || n.includes('SHANGHAI') || n.includes('NIFTY') || n.includes('ASX') || n.includes('BOVESPA') || n.includes('TSX') || n.includes('EMERGING') || t.includes('OSPTX');
-            return !isMapped && !item.isMain;
-        }
-
-        return item.category === category;
-    });
-
-    const getModeVal = (item) => {
-        switch(window.currentBenchMode) {
-            case '1m': return item.m1;
-            case 'ytd': return item.ytd;
-            case '1y': return item.y1;
-            case '3y': return item.y3;
-            case '5y': return item.y5;
-            default: return item.pct; // daily
-        }
-    };
-
-    filtered.sort((a, b) => getModeVal(b) - getModeVal(a));
-
-    if (window.portfolioMeData && window.portfolioMeData.pct !== undefined) {
-        filtered.unshift({
-            name: 'My Portfolio',
-            ticker: 'ME',
-            pct: window.portfolioMeData.pct,
-            m1: window.portfolioMeData.m1,
-            ytd: window.portfolioMeData.ytd,
-            y1: window.portfolioMeData.y1,
-            y3: window.portfolioMeData.y3,
-            y5: window.portfolioMeData.y5,
-            color: '#007aff',
-            isMe: true,
-            area: 'Portfolio'
-        });
-    }
-
-    // --- NUOVO: INIZIALIZZAZIONE HTML CON MEDIA QUERY PER RESPONSIVITA' ---
-    let html = `
-    <style>
-        .bench-name-col { width: 115px; } /* Larghezza per Smartphone */
-        @media (min-width: 768px) { 
-            .bench-name-col { width: 220px; } /* Larghezza espansa per PC/Tablet */
-        }
-    </style>
-    `;
-
-    if (filtered.length <= 1) { 
-        html += `<div style="text-align:center; padding:15px; color:var(--gray); font-size:12px;">No indices for this category</div>`;
-    } 
-    
-    let capLimit = 2;
-    switch(window.currentBenchMode) {
-        case '1m': capLimit = 15; break;
-        case 'ytd': capLimit = 35; break;
-        case '1y': capLimit = 40; break;
-        case '3y': capLimit = 80; break;
-        case '5y': capLimit = 150; break;
-    }
-    
-    // --- 2. RENDERIZZAZIONE HTML ---
-    filtered.forEach(item => {
-        let val = parseFloat(getModeVal(item));
-        if (isNaN(val)) val = 0;
-        
-        let displayVal = (val > 0 ? "+" : "") + val.toFixed(2) + "%";
-        let barColor = val >= 0 ? 'var(--stocks-bg)' : 'var(--danger)';
-        let labelColor = item.color ? item.color : 'var(--text-main)'; 
-        let labelText = item.isMe ? 'ME' : item.name;
-
-        let safeVal = Math.max(-capLimit, Math.min(capLimit, val)); 
-        let widthPct = (Math.abs(safeVal) / capLimit) * 50; 
-        
-        let barStyle = val >= 0 
-            ? `left: 50%; width: ${widthPct}%; background: ${barColor}; border-top-right-radius: 4px; border-bottom-right-radius: 4px;` 
-            : `left: auto; right: 50%; width: ${widthPct}%; background: ${barColor}; border-top-left-radius: 4px; border-bottom-left-radius: 4px;`;
-
-        let simulatedEx = 'US'; 
-        let indexNameUp = String(item.name || item.ticker || '').toUpperCase();
-        let tickerUp = String(item.ticker || '').toUpperCase();
-
-        if (tickerUp.includes('IBIT') || tickerUp.includes('BTC') || tickerUp.includes('ETH') || indexNameUp.includes('BITCOIN')) {
-            simulatedEx = 'CRYPTO'; 
-        } else if (indexNameUp.includes('EURO STOXX') || indexNameUp.includes('DAX') || indexNameUp.includes('FTSE MIB') || indexNameUp.includes('CAC 40')) {
-            simulatedEx = 'IT'; 
-        } else if (indexNameUp.includes('FTSE 100')) {
-            simulatedEx = 'UK';
-        } else if (indexNameUp.includes('SMI')) {
-            simulatedEx = 'CH';
-        } else if (indexNameUp.includes('NIKKEI')) {
-            simulatedEx = 'JP';
-        } else if (indexNameUp.includes('HANG SENG')) {
-            simulatedEx = 'HK';
-        } else if (indexNameUp.includes('SHANGHAI')) {
-            simulatedEx = 'CN';
-        } else if (indexNameUp.includes('NIFTY')) {
-            simulatedEx = 'IN';
-        } else if (indexNameUp.includes('ASX')) {
-            simulatedEx = 'AU';
-        } else if (indexNameUp.includes('BOVESPA')) {
-            simulatedEx = 'BR';
-        } else if (indexNameUp.includes('TSX')) {
-            simulatedEx = 'CA'; 
-        }
-
-        let mktState = 'OPEN';
-        if (typeof getMarketState === 'function') {
-            mktState = getMarketState(simulatedEx);
-        }
-
-        let statusIcon = '';
-        let opacityStyle = '';
-
-        if (!item.isMe) {
-            if (mktState === 'OPEN') {
-                statusIcon = '<span title="Market Open" style="font-size:9px;">🟢</span>';
-            } else if (mktState === 'CLOSING_SOON') {
-                statusIcon = '<span title="Closing Soon" style="font-size:9px;">🟠</span>';
-            } else if (mktState === 'PRE_MARKET') {
-                statusIcon = '<span title="Pre-Market" style="font-size:9px;">🔵</span>';
-            } else {
-                statusIcon = '<span title="Market Closed" style="font-size:10px; filter: grayscale(1);">💤</span>';
-                opacityStyle = 'opacity: 0.6;'; 
-            }
-        }
-
-        let areaHtml = item.isMe ? '' : `<div style="font-size:9px; font-weight:700; color:var(--gray); text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">${item.area || ''}</div>`;
-
-        // NUOVA CLASSE 'bench-name-col' INSERITA QUI
-        html += `
-        <div style="display:flex; align-items:center; background:var(--section-bg); padding:10px 12px; border-radius:10px; margin-bottom:8px; border: 1px solid var(--row-border); box-shadow: 0 1px 2px rgba(0,0,0,0.02); ${opacityStyle}">
-            
-            <div class="bench-name-col" style="display:flex; flex-direction:column; justify-content:center; padding-right:6px;">
-                <div style="display:flex; align-items:center; width:100%;">
-                    <div style="font-size:12px; font-weight:800; color:${labelColor}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;" title="${item.name}">${labelText}</div>
-                    <div style="margin-left:4px; flex-shrink:0;">${statusIcon}</div>
-                </div>
-                ${areaHtml}
-            </div>
-
-            <div style="flex:1; height:8px; background:rgba(142,142,147,0.15); border-radius:4px; overflow:hidden; position:relative; margin: 0 12px;">
-                <div style="height:100%; position:absolute; transition:all 0.5s cubic-bezier(0.4, 0, 0.2, 1); ${barStyle}"></div>
-            </div>
-            
-            <div style="width:60px; text-align:right; font-size:12px; font-weight:800; color:${barColor};">${displayVal}</div>
-        </div>`;
-    });
-    
-    container.innerHTML = html;
-}
-
-function renderMarketInsights(data) {
-  if (!data) return;
-  
-  // Salva l'oggetto ME globale per i filtri
-  if (data.me !== undefined) {
-      window.portfolioMeData = { pct: data.me, ytd: data.meYtd, m1: data.me1m, y1: data.me1y, y3: data.me3y, y5: data.me5y };
-  }
-
-  // --- 1. BENCHMARK CARDS & FILTERS ---
-  if (data.indices && data.indices.length > 0) {
-      window.marketIndicesData = data.indices;
-      filterBenchmarks(window.currentBenchFilter);
-  } else {
-      const container = document.getElementById('benchmark-container');
-      if (container) container.innerHTML = `<div style="text-align:center; padding:15px; color:var(--gray); font-size:12px;">Ensure Config_MarketIndex is populated.</div>`;
-  }
-  
-  // --- 2. AI TEXT ANALYSIS ---
-  if (data.analysis && data.analysis.macro) {
-      const macroEl = document.getElementById('macro-text'); 
-      if(macroEl) { 
-          macroEl.style.textAlign = "justify"; 
-          macroEl.style.fontSize = "12px"; 
-          macroEl.innerHTML = data.analysis.macro; 
-      }
-      const portEl = document.getElementById('portfolio-text'); 
-      if(portEl && data.analysis.portfolio) { 
-          portEl.style.textAlign = "justify"; 
-          portEl.style.fontSize = "12px"; 
-          portEl.innerHTML = data.analysis.portfolio; 
-      }
-  }
-  
-  // --- 3. SENTIMENT BADGE ---
-  if (data.sentiment && data.sentiment.label !== "Loading") { 
-      const badge = document.getElementById('sentiment-badge'); 
-      if(badge) { 
-          const score = data.sentiment.score; 
-          badge.innerText = `${data.sentiment.label} (${score}/10)`; 
-          if (score <= 3) { badge.style.background = '#ffebeb'; badge.style.color = '#ff3b30'; } 
-          else if (score >= 7) { badge.style.background = '#e6fffa'; badge.style.color = '#34c759'; } 
-          else { badge.style.background = '#f2f2f7'; badge.style.color = '#8e8e93'; } 
-      } 
-  }
-
-  // --- 4. CALENDAR EVENTS ---
-  // Aggiorniamo il calendario solo se ci sono eventi, altrimenti (modalità solo dati) lasciamo stare o resetta se necessario.
-  
-  const newMarketEvents = data.market_events && data.market_events.length > 0;
-  const newPortfolioEvents = data.portfolio_events && data.portfolio_events.length > 0;
-
-  // Entriamo nel blocco di aggiornamento SOLO se c'è almeno un evento nuovo da mostrare
-  if (newMarketEvents || newPortfolioEvents) {
-      allMarketEvents = []; // ORA è sicuro resettare: abbiamo nuovi dati da scrivere
-      
-      if (newMarketEvents) { 
-          data.market_events.forEach(ev => { allMarketEvents.push({ ...ev, type: 'market' }); }); 
-      }
-      if (newPortfolioEvents) { 
-          data.portfolio_events.forEach(ev => { allMarketEvents.push({ ...ev, type: 'portfolio' }); }); 
-      }
-      
-      // Ridisegna il calendario con i nuovi puntini
-      renderCalendarWidget();
-  }
-}
-
-function renderCalendarWidget() {
-  const grid = document.getElementById('calendar-grid'); 
-  const header = document.getElementById('cal-month-year'); 
-  if (!grid || !header) return;
-  
-  grid.innerHTML = ''; 
-  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S']; // English Initials (Mon-Sun)
-  days.forEach(d => { grid.innerHTML += `<div class="calendar-day-name">${d}</div>`; });
-  
-  const year = currentCalDate.getFullYear(); 
-  const month = currentCalDate.getMonth();
-  const monthName = currentCalDate.toLocaleString('en-US', { month: 'long', year: 'numeric' }); 
-  header.innerText = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-  
-  const firstDayOfMonth = new Date(year, month, 1).getDay(); 
-  const startDayIndex = (firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1); 
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  
-  for (let i = 0; i < startDayIndex; i++) { grid.innerHTML += `<div></div>`; }
-  
-  for (let day = 1; day <= daysInMonth; day++) {
-      const checkDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const daysEvents = allMarketEvents.filter(e => e.date === checkDate);
-      
-      let dotsHtml = ''; 
-      if (daysEvents.length > 0) { 
-          dotsHtml = '<div class="event-dot-container">'; 
-          daysEvents.forEach(ev => { 
-              const dotClass = ev.type === 'portfolio' ? 'dot-blue' : 'dot-purple'; 
-              dotsHtml += `<div class="event-dot ${dotClass}"></div>`; 
-          }); 
-          dotsHtml += '</div>'; 
-      }
-      
-      const todayStr = new Date().toISOString().split('T')[0]; 
-      const isToday = (checkDate === todayStr) ? 'today' : '';
-      const dayDiv = document.createElement('div'); 
-      dayDiv.className = `calendar-day ${isToday}`; 
-      dayDiv.innerHTML = `<span>${day}</span>${dotsHtml}`; 
-      dayDiv.onclick = () => selectDate(day, month, year, dayDiv);
-      grid.appendChild(dayDiv);
-  }
-}
-
-function selectDate(day, month, year, element) {
-  document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('selected')); 
-  element.classList.add('selected');
-  
-  const checkDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-  const events = allMarketEvents.filter(e => e.date === checkDate);
-  const detailsBox = document.getElementById('calendar-details');
-  
-  if (events.length === 0) { 
-      detailsBox.innerHTML = `<div style="text-align:center; color:#999; font-size:11px; padding:10px;">No events on ${day}/${month+1}.</div>`; 
-      return; 
-  }
-  
-  let html = `<div style="font-size:10px; font-weight:bold; color:#555; margin-bottom:10px; text-transform:uppercase;">Events for ${day} ${currentCalDate.toLocaleString('en-US', { month: 'long' })}:</div>`;
-  events.forEach(ev => { 
-      const color = ev.type === 'portfolio' ? '#007aff' : '#af52de'; 
-      const label = ev.type === 'portfolio' ? 'PORTFOLIO' : 'MARKET'; 
-      const bg = ev.type === 'portfolio' ? '#f0f7ff' : '#fcf0ff'; 
-      html += `<div style="background:${bg}; border-left:3px solid ${color}; padding:8px; border-radius:6px; margin-bottom:6px;"><div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-weight:bold; color:#333; font-size:12px;">${ev.ticker}</span><span style="font-size:9px; font-weight:bold; color:${color}; border:1px solid ${color}; padding:1px 4px; border-radius:4px;">${label}</span></div><div style="font-size:11px; color:#555; margin-top:3px; line-height:1.2;">${ev.event}</div></div>`; 
-  });
-  detailsBox.innerHTML = html;
-}
-
-function changeMonth(delta) { 
-  currentCalDate.setMonth(currentCalDate.getMonth() + delta); 
-  renderCalendarWidget(); 
-}
-
-// Funzione per il refresh del mercato (Pulsante "Refresh Market")
-function forceReloadMarket() {
-  const btn = document.getElementById('btn-refresh-market'); 
-  if(btn) { btn.innerText = "⏳"; btn.style.pointerEvents = "none"; }
-  
-  const briefingEl = document.getElementById('macro-text'); 
-  const portEl = document.getElementById('portfolio-text');
-  
-  // Feedback visivo immediato
-  if(briefingEl) briefingEl.innerHTML = '<span style="color:#888; font-style:italic;">Analysing market scenarios... 🧠</span>'; 
-  if(portEl) portEl.innerHTML = '...';
-  
-  // FIX: Passiamo 'false' (onlyMacro = false) per dire al server "Voglio l'analisi AI completa ORA"
-  google.script.run.withSuccessHandler(data => { 
-      renderMarketInsights(data); 
-      if(btn) { btn.innerText = "🔄"; btn.style.pointerEvents = "auto"; } 
-      if(typeof Swal !== 'undefined') { 
-          const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000}); 
-          Toast.fire({icon: 'success', title: 'AI Market Insight Updated'}); 
-      } 
-  }).withFailureHandler(err => { 
-      console.error(err); 
-      if(btn) { btn.innerText = "⚠️"; btn.style.pointerEvents = "auto"; } 
-  }).getMarketInsightsData(false); // <--- IMPORTANTE: false = FULL REFRESH
-}
-
-// Funzione per il refresh del rischio (Pulsante "Refresh Risk")
-function forceReloadRisk() {
-  const btn = document.getElementById('btn-refresh-risk'); 
-  if(btn) { btn.innerText = "⏳"; btn.style.pointerEvents = "none"; }
-  
-  document.getElementById('risk-comment').innerText = "Running Stress Test (Live)..."; 
-  document.getElementById('risk-score').style.opacity = "0.3";
-  
-  // FIX: Passiamo 'true' (forceRefresh = true) per ignorare la cache e ricalcolare
-  google.script.run.withSuccessHandler(analysis => {
-      // ... (Resto della funzione invariato) ...
-      const card = document.getElementById('risk-card'); 
-      const data = analysis || { riskLevel: "N/A", riskScore: 0, summary: "Data unavailable" };
-      
-      document.getElementById('risk-level').innerText = "Risk: " + data.riskLevel; 
-      document.getElementById('risk-score').innerText = data.riskScore + "/100"; 
-      document.getElementById('risk-score').style.opacity = "1"; 
-      document.getElementById('risk-comment').innerText = data.summary;
-      
-      let score = parseInt(data.riskScore); 
-      let col = '#34c759'; 
-      if(score > 30) col = '#ffcc00'; 
-      if(score > 50) col = '#ff9500'; 
-      if(score > 70) col = '#ff3b30';
-      
-      if(card) card.style.borderLeftColor = col; 
-      document.getElementById('risk-score').style.color = col;
-      
-      const tipEl = document.getElementById('risk-tip');
-      if(tipEl) {
-          tipEl.innerHTML = `<span style="font-weight:bold; cursor:pointer;" onclick="openRiskSheet()">👉 Tap for Stress Test & Full Report</span>`;
-      }
-
-      window.currentRiskData = data; 
-      if(btn) { btn.innerText = "🔄"; btn.style.pointerEvents = "auto"; }
-  }).withFailureHandler(err => { 
-      console.error(err); 
-      document.getElementById('risk-comment').innerText = "Update Error."; 
-      if(btn) { btn.innerText = "⚠️"; btn.style.pointerEvents = "auto"; } 
-  }).getPortfolioRiskAnalysis(true); 
-}
-
-// --- Risk Report ---
-
-function openRiskSheet() {
-  const data = window.currentRiskData; 
-  if (!data) return;
-  
-  document.getElementById('risk-dial').innerText = data.riskScore + "/100";
-  let col = '#34c759'; 
-  if(data.riskScore > 50) col = '#ff9500'; 
-  if(data.riskScore > 75) col = '#ff3b30'; 
-  document.getElementById('risk-dial').style.color = col;
-  
-  if (data.stressTest) { 
-      document.getElementById('st-market').innerText = data.stressTest.marketCrash || "N/A"; 
-      document.getElementById('st-crypto').innerText = data.stressTest.cryptoWinter || "N/A"; 
-  }
-  document.getElementById('risk-conc').innerText = data.concentration || "No concentration data.";
-  
-  const list = document.getElementById('risk-sugg'); 
-  list.innerHTML = "";
-  if (data.suggestions && Array.isArray(data.suggestions)) { 
-      data.suggestions.forEach(s => { list.innerHTML += `<li style="margin-bottom:8px;">${s}</li>`; }); 
-  }
-  
-  closeAllSheets(); 
-  document.getElementById('risk-sheet').classList.add('active'); 
-  document.getElementById('common-backdrop').classList.add('active');
-}
-
-// --- Stock Battle ---
-
-function startBattle() {
-  const tA = document.getElementById('battle-ticker-a').value.trim(); 
-  const tB = document.getElementById('battle-ticker-b').value.trim();
-  
-  if (!tA || !tB) { alert("Enter two companies to start the battle!"); return; }
-  
-  const resDiv = document.getElementById('battle-result'); 
-  resDiv.style.display = 'block'; 
-  resDiv.style.borderColor = '#e5e5ea';
-  
-  const winEl = document.getElementById('battle-winner'); 
-  winEl.innerText = "CALCULATING..."; 
-  winEl.style.color = "#ccc";
-  
-  document.getElementById('battle-reason').innerText = "AI Analyst is studying balance sheets, competitors, and market cap...";
-  document.getElementById('score-bar-a').style.width = '0%'; 
-  document.getElementById('score-bar-b').style.width = '0%'; 
-  document.getElementById('list-a').innerHTML = ''; 
-  document.getElementById('list-b').innerHTML = '';
-  
-  google.script.run.withSuccessHandler(renderBattleResult).runStockBattle(tA, tB);
-}
-
-function renderBattleResult(data) {
-  const tA = data.resolved_ticker_a || "A"; 
-  const tB = data.resolved_ticker_b || "B";
-  
-  const winEl = document.getElementById('battle-winner'); 
-  winEl.innerText = data.winner; 
-  winEl.style.color = '#ff9500';
-  
-  document.getElementById('score-a-label').innerText = tA; 
-  document.getElementById('score-b-label').innerText = tB;
-  document.getElementById('score-val-a').innerText = data.scoreA; 
-  document.getElementById('score-val-b').innerText = data.scoreB;
-  
-  document.getElementById('title-list-a').innerText = `Why ${tA}?`; 
-  document.getElementById('title-list-b').innerText = `Why ${tB}?`;
-  
-  const fillList = (ulId, items) => { 
-      const ul = document.getElementById(ulId); 
-      ul.innerHTML = ''; 
-      if (items && items.length > 0) { 
-          items.forEach(item => { ul.innerHTML += `<li style="margin-bottom:4px;">${item}</li>`; }); 
-      } else { 
-          ul.innerHTML = '<li>No relevant data</li>'; 
-      } 
-  };
-  fillList('list-a', data.strengths_a); 
-  fillList('list-b', data.strengths_b);
-  
-  // Use marked.parse to render the detailed verdict properly
-  let cleanVerdict = marked.parse(data.verdict);
-  document.getElementById('battle-reason').innerHTML = cleanVerdict;
-  
-  setTimeout(() => { 
-      document.getElementById('score-bar-a').style.width = data.scoreA + '%'; 
-      document.getElementById('score-bar-b').style.width = data.scoreB + '%'; 
-  }, 100);
-}
-
-// --- Passive Income (Dividends) ---
-
-function loadDividends() {
-  document.getElementById('div-list').innerHTML = '<div class="skeleton" style="height:40px; margin-bottom:10px;"></div><div class="skeleton" style="height:40px;"></div>';
-  google.script.run.withSuccessHandler(renderDividends).fetchDividendData();
-}
-
-function renderDividends(data) {
-  const totalEl = document.getElementById('div-total'); 
-  const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
-  if (totalEl) totalEl.innerText = fmt.format(data.totalYearly);
-  
-  const listEl = document.getElementById('div-list');
-  if (!data.items || data.items.length === 0) { 
-      listEl.innerHTML = '<div style="text-align:center; color:#999; font-size:12px;">No dividends detected in portfolio.</div>'; 
-      return; 
-  }
-  
-  let html = '';
-  data.items.forEach(item => {
-      let valFmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(item.estAmount);
-      html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid #f2f2f7;"><div style="display:flex; align-items:center;"><div style="background:#f2f2f7; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:10px; color:#555; margin-right:10px;">${item.ticker.substring(0,3)}</div><div><div style="font-weight:bold; font-size:13px;">${item.ticker}</div><div style="font-size:10px; color:var(--gray);">Yield: <span style="color:#34c759; font-weight:700;">${item.yieldPct}%</span></div></div></div><div style="text-align:right;"><div class="sensitive" style="font-weight:800; font-size:13px; color:var(--text-main);">${valFmt}</div><div style="font-size:9px; color:#007aff; background:#e6f2ff; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:2px;">Next: ${item.nextMonth}</div></div></div>`;
-  });
-  html += '<div style="text-align:center; font-size:9px; color:#ccc; margin-top:10px;">AI estimated data. Always check ex-dividend dates.</div>';
-  listEl.innerHTML = html;
-}
-
-/**
- * Frontend function to call the AI Analyst.
- * Updated to use marked.js for Markdown parsing and custom CSS classes.
- * UI texts translated to English.
- */
-function openAnalystAI() {
-    Swal.fire({
-        title: 'AI Financial Analyst 🧠',
-        input: 'text',
-        inputLabel: 'Enter Ticker or Asset Name',
-        inputPlaceholder: 'e.g. NVDA, Bitcoin, Ferrari...',
-        showCancelButton: true,
-        confirmButtonText: 'Analyze',
-        confirmButtonColor: '#5856d6', // Invest theme color
-        showLoaderOnConfirm: true,
-        // Optional class for the input popup
-        customClass: {
-            popup: 'ai-input-popup'
-        },
-        preConfirm: (assetName) => {
-            if (!assetName) {
-                Swal.showValidationMessage('Please enter a name');
-                return;
-            }
-            // Call server-side Google Script function
-            return run('analyzeAsset', assetName)
-                .then(response => {
-                    return response;
-                })
-                .catch(error => {
-                    Swal.showValidationMessage(`Request failed: ${error}`);
-                });
-        },
-        allowOutsideClick: () => !Swal.isLoading()
-    }).then((result) => {
-        if (result.isConfirmed) {
-            
-            // --- KEY CHANGE HERE ---
-            // Use marked.parse() instead of manual .replace().
-            // This automatically converts Markdown tables, lists, and bold text into valid HTML.
-            let cleanHtml = marked.parse(result.value);
-
-            Swal.fire({
-                title: 'Analysis Report 🧠',
-                // Apply CSS classes defined in css_Main/css_Components
-                // to style tables and headers correctly
-                customClass: {
-                    htmlContainer: 'ai-report-content',
-                    popup: 'ai-report-popup'
-                },
-                // Insert the clean HTML generated by marked
-                html: `<div style="text-align:left; font-size:14px; line-height:1.6;">${cleanHtml}</div>`,
-                width: '750px', // Increased width to accommodate tables comfortably
-                confirmButtonText: 'Close',
-                confirmButtonColor: '#5856d6'
-            });
-        }
-    });
-}
-
-// ==========================================
-// AI TOOLS HANDLERS
-// ==========================================
-
-/**
- * Generic UI helper for tools
- */
-function setToolLoading(resultDivId) {
-    const el = document.getElementById(resultDivId);
-    el.style.display = 'block';
-    el.innerHTML = '<span style="color:var(--gray); font-style:italic;">Processing with AI... ⏳</span>';
-}
-
-function runToolSentiment() {
-    const tk = document.getElementById('tool-sentiment-tk').value.trim();
-    if(!tk) return;
-    setToolLoading('res-sentiment');
-    
-    google.script.run.withSuccessHandler(res => {
-        let html = `
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <strong>Score:</strong> 
-                <span style="font-size:16px; font-weight:900; color:${res.score > 50 ? '#34c759' : '#ff3b30'}">${res.score}/100</span>
-            </div>
-            <strong>Catalysts:</strong>
-            <ul style="padding-left:15px; margin-top:5px; margin-bottom:0;">
-                ${res.reasons.map(r => `<li style="margin-bottom:4px;">${r}</li>`).join('')}
-            </ul>`;
-        document.getElementById('res-sentiment').innerHTML = html;
-    }).toolSentimentAI(tk);
-}
-
-function runToolRebalance() {
-    const amt = document.getElementById('tool-rebal-amt').value;
-    const tgt = document.getElementById('tool-rebal-tgt').value;
-    if(!amt || !tgt) return;
-    setToolLoading('res-rebalance');
-    
-    google.script.run.withSuccessHandler(res => {
-        let html = `<strong>Action Plan:</strong><ul style="padding-left:15px; margin-top:5px;">`;
-        res.plan.forEach(step => html += `<li style="margin-bottom:4px;">${step}</li>`);
-        html += `</ul><div style="font-size:11px; color:var(--gray); margin-top:8px;">${res.advice}</div>`;
-        document.getElementById('res-rebalance').innerHTML = html;
-    }).toolRebalanceAI(amt, tgt);
-}
-
-function runToolCorrelation() {
-    const a = document.getElementById('tool-corr-a').value;
-    const b = document.getElementById('tool-corr-b').value;
-    if(!a || !b) return;
-    setToolLoading('res-correlation');
-    
-    google.script.run.withSuccessHandler(res => {
-        let color = res.overlapPct > 60 ? '#ff3b30' : (res.overlapPct > 30 ? '#ff9500' : '#34c759');
-        document.getElementById('res-correlation').innerHTML = `
-            <div style="margin-bottom:8px;">
-                <strong>Overlap Risk:</strong> <span style="font-weight:bold; color:${color};">${res.overlapPct}%</span>
-            </div>
-            <div>${res.analysis}</div>
-        `;
-    }).toolCorrelationAI(a, b);
-}
-
-function runToolEarnings() {
-    const tk = document.getElementById('tool-earn-tk').value;
-    if(!tk) return;
-    setToolLoading('res-earnings');
-    
-    google.script.run.withSuccessHandler(res => {
-        document.getElementById('res-earnings').innerHTML = `
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; margin-bottom:10px; font-size:12px;">
-                <div style="background:var(--section-bg); padding:5px; border-radius:4px;"><strong>EPS:</strong> ${res.eps}</div>
-                <div style="background:var(--section-bg); padding:5px; border-radius:4px;"><strong>Rev:</strong> ${res.revenue}</div>
-            </div>
-            <strong>CEO Notes:</strong>
-            <p style="margin-top:5px; margin-bottom:0; font-size:11px; color:var(--gray);">${res.ceoNotes}</p>
-        `;
-    }).toolEarningsAI(tk);
-}
+   /**
+    * ======================================================================================
+    * BLOCK 8: AI, GEMINI & SMART FEATURES
+    * Handles Chat, Voice/Image Input, Market Insights AI, Stock Battle, and Risk Reports.
+    * ======================================================================================
+    */
+   
+   // --- Gemini Chat UI Management ---
+   
+   function openGeminiSheet() {
+     closeAllSheets();
+     const sheet = document.getElementById('gemini-sheet'); 
+     const backdrop = document.getElementById('common-backdrop');
+     sheet.classList.add('active'); 
+     backdrop.classList.add('active');
+     setTimeout(() => document.getElementById('geminiInput').focus(), 300);
+   }
+   
+   function sendToGemini() {
+     const input = document.getElementById('geminiInput'); 
+     const chat = document.getElementById('chat-container'); 
+     const question = input.value.trim();
+     
+     if(!question) return;
+   
+     // Append User Message
+     chat.innerHTML += `<div style="align-self:flex-end; background:#007aff; color:white; padding:10px 15px; border-radius: 15px 15px 0 15px; max-width:80%; font-size:14px; margin-bottom:10px;">${question}</div>`;
+     input.value = ""; 
+     chat.scrollTop = chat.scrollHeight;
+   
+     // Add Loading Indicator
+     const loadingId = "load-" + new Date().getTime();
+     chat.innerHTML += `<div id="${loadingId}" style="align-self:flex-start; color:#888; font-size:12px; margin-left:10px; font-style:italic;">Analyzing...</div>`; 
+     chat.scrollTop = chat.scrollHeight;
+   
+     // Call Server-Side Gemini Function
+     google.script.run.withSuccessHandler(response => {
+         const loader = document.getElementById(loadingId); 
+         if(loader) loader.remove();
+         
+         // Use marked.parse for perfect Markdown rendering (tables, bold, lists)
+         let formatted = marked.parse(response);
+         
+         chat.innerHTML += `<div style="align-self:flex-start; background:white; padding:10px 15px; border-radius: 0 15px 15px 15px; max-width:90%; box-shadow:0 2px 5px rgba(0,0,0,0.05); font-size:14px; line-height:1.5;" class="ai-report-content">${formatted}</div>`; 
+         chat.scrollTop = chat.scrollHeight;
+         
+         // Update History Context
+         chatHistory.push({ role: "user", parts: [{ text: question }] }); 
+         chatHistory.push({ role: "model", parts: [{ text: response }] });
+         if (chatHistory.length > 10) chatHistory = chatHistory.slice(-10);
+   
+     }).withFailureHandler(err => { 
+         const loader = document.getElementById(loadingId); 
+         if(loader) loader.innerText = "Error: " + err.message; 
+     }).askGemini(question, geminiSessionPin, JSON.stringify(chatHistory));
+   }
+   
+   function fillGemini(text) {
+     const input = document.getElementById('geminiInput');
+     input.value = text;
+     sendToGemini(); 
+   }
+   
+   // --- AI Security (PIN Lock) ---
+   
+   function openGeminiPinPad() {
+     if (geminiSessionPin !== "") { 
+         document.getElementById('gemini-confirm-overlay').classList.add('active'); 
+         return; 
+     }
+     geminiCurrentInput = ""; 
+     updateGeminiDots(); 
+     document.getElementById('gemini-pin-overlay').classList.add('active');
+   }
+   
+   function closeGeminiPinPad() {
+     document.getElementById('gemini-pin-overlay').classList.remove('active'); 
+     geminiCurrentInput = "";
+   }
+   
+   function closeGeminiConfirm() {
+     document.getElementById('gemini-confirm-overlay').classList.remove('active');
+   }
+   
+   function confirmGeminiLock() {
+     geminiSessionPin = ""; 
+     updateGeminiLockIcon(false); 
+     resetGeminiChat();
+     
+     // If locking AI, also re-lock global privacy
+     if (!document.body.classList.contains('privacy-mode')) { 
+         document.body.classList.add('privacy-mode'); 
+         updateAllCharts(); 
+         localStorage.removeItem('auth_expiry'); 
+     }
+     closeGeminiConfirm();
+   }
+   
+   function pressGeminiKey(num) {
+     if (geminiCurrentInput.length < 4) {
+         geminiCurrentInput += num; 
+         updateGeminiDots();
+         if (geminiCurrentInput.length === 4) { setTimeout(verifyGeminiPin, 300); }
+     }
+   }
+   
+   function clearGeminiKey() {
+     geminiCurrentInput = geminiCurrentInput.slice(0, -1); 
+     updateGeminiDots();
+   }
+   
+   function updateGeminiDots() {
+     const dots = document.querySelectorAll('#gemini-pin-overlay .gemini-dot');
+     dots.forEach((dot, idx) => { 
+         if (idx < geminiCurrentInput.length) dot.classList.add('filled'); 
+         else dot.classList.remove('filled'); 
+     });
+   }
+   
+   function verifyGeminiPin() {
+     // Uses the main verifyUserPin function server-side
+     google.script.run.withSuccessHandler(isValid => {
+         if (isValid) {
+             geminiSessionPin = geminiCurrentInput;
+             updateGeminiLockIcon(true);
+             closeGeminiPinPad();
+             resetGeminiChat();
+             
+             // Unlock Global Privacy when AI is unlocked
+             document.body.classList.remove('privacy-mode');
+             updateAllCharts();
+             
+             // Set session expiry (15 mins)
+             const expiry = new Date().getTime() + (15 * 60 * 1000);
+             localStorage.setItem('auth_expiry', expiry);
+             console.log("Sync Unlock: AI -> Main Activated");
+             
+             const msg = document.getElementById('ai-status-msg'); 
+             if (msg) msg.innerHTML = "Owner Mode: <b>UNLOCKED</b> ✅";
+         } else {
+             const dotsContainer = document.getElementById('geminiDotsBox'); 
+             dotsContainer.classList.add('gemini-shake');
+             setTimeout(() => { 
+                 dotsContainer.classList.remove('gemini-shake'); 
+                 geminiCurrentInput = ""; 
+                 updateGeminiDots(); 
+             }, 400);
+         }
+     }).verifyUserPin(geminiCurrentInput);
+   }
+   
+   function updateGeminiLockIcon(isUnlocked) {
+     const btn = document.getElementById('aiLockBtn'); 
+     if(btn) btn.innerHTML = isUnlocked ? "🔓" : "🔒";
+   }
+   
+   function resetGeminiChat() {
+     const chat = document.getElementById('chat-container'); 
+     chat.innerHTML = "";
+     
+     if (geminiSessionPin !== "") {
+         chat.innerHTML = `<div class="ai-msg" style="align-self:flex-start; background:#eef2ff; color:#333; padding:10px 15px; border-radius: 0 15px 15px 15px; max-width:80%; box-shadow:0 2px 5px rgba(0,0,0,0.05); font-size:14px;"><span style="color:#4f46e5; font-weight:bold;">Owner Mode Active ✅</span><br>I have full access to your data. What shall we analyze?</div>`;
+     } else {
+         chat.innerHTML = `<div class="ai-msg" style="align-self:flex-start; background:white; padding:10px 15px; border-radius: 0 15px 15px 15px; max-width:80%; box-shadow:0 2px 5px rgba(0,0,0,0.05); font-size:14px;"><span id="ai-status-msg">Privacy Mode: <b>ACTIVE</b> 🔒</span><br><span style="font-size:12px; color:#666;">History cleared. Unlock for personal data.</span></div>`;
+     }
+   }
+   
+   // --- Smart Input (Voice & Image) ---
+   
+   function startVoiceInput() {
+     if (!('webkitSpeechRecognition' in window)) { 
+         Swal.fire({icon:'error', text:'Browser not supported for voice input.'}); 
+         return; 
+     }
+     const recognition = new webkitSpeechRecognition(); 
+     recognition.lang = 'it-IT'; // Keep Italian for input recognition
+     recognition.interimResults = false; 
+     recognition.maxAlternatives = 1;
+     
+     const btn = document.querySelector('button[onclick="startVoiceInput()"]'); 
+     const oldText = btn.innerText; 
+     btn.innerText = "👂"; 
+     btn.style.backgroundColor = "#ffebeb";
+     
+     recognition.start();
+     
+     recognition.onresult = (event) => { 
+         const speechResult = event.results[0][0].transcript; 
+         console.log("Voice detected:", speechResult); 
+         processSmartInput(speechResult, 'voice'); 
+     };
+     
+     recognition.onend = () => { 
+         btn.innerText = oldText; 
+         btn.style.backgroundColor = "transparent"; 
+     };
+     
+     recognition.onerror = (event) => { 
+         console.error(event.error); 
+         btn.innerText = oldText; 
+         btn.style.backgroundColor = "transparent"; 
+         Swal.fire({icon:'error', title:'Voice Error', text: event.error}); 
+     };
+   }
+   
+   function handleImageInput(inputElement) {
+     const file = inputElement.files[0]; 
+     if (!file) return;
+     
+     Swal.fire({ 
+         title: 'Scanning Receipt...', 
+         text: 'Gemini is reading the image 📸', 
+         didOpen: () => Swal.showLoading(), 
+         allowOutsideClick: false 
+     });
+     
+     const reader = new FileReader(); 
+     reader.readAsDataURL(file);
+     reader.onload = (e) => { 
+         const base64Raw = e.target.result; 
+         const base64Clean = base64Raw.split(',')[1]; 
+         processSmartInput(base64Clean, 'image'); 
+     };
+   }
+   
+   function processSmartInput(data, mode) {
+     if(mode === 'voice') { 
+         Swal.fire({ 
+             title: 'AI Processing...', 
+             text: 'Analyzing speech input 🧠', 
+             didOpen: () => Swal.showLoading(), 
+             allowOutsideClick: false 
+         }); 
+     }
+     
+     google.script.run.withSuccessHandler(result => {
+         Swal.close();
+         if (result.error) { 
+             Swal.fire({icon:'error', title:'AI Error', text: result.error}); 
+             return; 
+         }
+         
+         // Auto-fill form
+         const typeSelect = document.getElementById('tType'); 
+         typeSelect.value = result.type === 'Income' ? 'Income' : 'Expense'; 
+         handleTypeChange();
+         
+         setTimeout(() => { 
+             const catSelect = document.getElementById('tCat'); 
+             let found = false; 
+             for (let i = 0; i < catSelect.options.length; i++) { 
+                 if (catSelect.options[i].value === result.category) { 
+                     catSelect.selectedIndex = i; 
+                     found = true; 
+                     break; 
+                 } 
+             } 
+             if(!found) catSelect.value = "Altro"; 
+         }, 100);
+         
+         document.querySelectorAll('.bank-in').forEach(el => el.value = "");
+         const defBank = document.querySelector('.bank-in[data-col="5"]') || document.querySelector('.bank-in'); 
+         if(defBank) { 
+             defBank.value = result.amount; 
+             syncIconColor(defBank); 
+         }
+         
+         document.getElementById('tDet').value = result.desc;
+         
+         const feedbackIcon = mode === 'voice' ? '🎙️' : '📸'; 
+         Swal.fire({ 
+             icon: 'success', 
+             title: `${feedbackIcon} Data Extracted`, 
+             text: `Detected: ${result.desc} - €${result.amount}`, 
+             timer: 2000, 
+             showConfirmButton: false 
+         });
+     }).withFailureHandler(err => { 
+         Swal.fire({icon:'error', title:'Server Error', text: err.message}); 
+     }).parseExpenseAI(data, mode);
+   }
+   
+   // --- Market Insights AI & Calendar ---
+   
+   /**
+    * Loads Market Insights.
+    * UPDATED: Accetta 'isFullAnalysis' per decidere se chiamare l'AI.
+    * @param {boolean} isFullAnalysis - Se true, esegue l'analisi AI. Se false (default), scarica solo i benchmark.
+    */
+   // --- Market Insights AI & Calendar ---
+   
+   function loadMarketInsights(isFullAnalysis = false) {
+     const briefingEl = document.getElementById('insight-briefing'); 
+     if (isFullAnalysis) {
+         if (briefingEl) briefingEl.innerText = "AI Market Analysis in progress...";
+         const macroEl = document.getElementById('macro-text');
+         if(macroEl) macroEl.innerHTML = '<span style="color:#007aff; font-style:italic;">Analysing market data... 🧠</span>';
+         const portEl = document.getElementById('portfolio-text');
+         if(portEl) portEl.innerHTML = '<span style="color:#007aff; font-style:italic;">Comparing assets... 📊</span>';
+     } else {
+         if (briefingEl) briefingEl.innerText = "Updating Market Data...";
+     }
+     
+     google.script.run.withSuccessHandler(renderMarketInsights).withFailureHandler(err => { 
+         console.error("Market Insights Error:", err); 
+         if (briefingEl) briefingEl.innerText = "Unable to load analysis."; 
+     }).getMarketInsightsData(!isFullAnalysis);
+   }
+   
+   // Global state for Benchmark UI
+   window.currentBenchFilter = 'Main';
+   window.currentBenchMode = 'daily'; 
+   window.marketIndicesData = [];
+   window.portfolioMeData = {}; 
+   
+   function setBenchmarkMode(mode) {
+       window.currentBenchMode = mode;
+       
+       // Resetta lo stile di tutti i bottoni temporali
+       document.querySelectorAll('.bench-mode-btn').forEach(btn => {
+           btn.style.cssText = 'background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;';
+       });
+       
+       // Evidenzia il bottone attivo
+       const activeBtn = document.getElementById('btn-bench-mode-' + mode);
+       if(activeBtn) {
+           activeBtn.style.cssText = 'background:var(--white); color:var(--text-main); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:800; cursor:pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition:all 0.2s;';
+       }
+       
+       filterBenchmarks(window.currentBenchFilter);
+   }
+   
+   function filterBenchmarks(category) {
+       window.currentBenchFilter = category;
+       
+       // Aggiorna lo stato visivo dei bottoni
+       const buttons = document.querySelectorAll('.term-chip[id^="btn-bench-"]');
+       buttons.forEach(btn => btn.classList.remove('active'));
+       const activeBtn = document.getElementById('btn-bench-' + category);
+       if(activeBtn) activeBtn.classList.add('active');
+   
+       const container = document.getElementById('benchmark-container');
+       if (!container || !window.marketIndicesData) return;
+   
+       // --- 1. MOTORE DI FILTRAGGIO INTELLIGENTE ---
+       let filtered = window.marketIndicesData.filter(item => {
+           let t = String(item.ticker || '').toUpperCase();
+           let n = String(item.name || '').toUpperCase();
+   
+           if (category === 'Main') return item.isMain;
+           
+           if (category === 'fi') return ['TNX', 'TLT', 'BND', 'IGOV', 'JNK', 'TIP', 'LQD', 'BIL', 'EMB'].includes(t);
+           if (category === 'cmd') return ['GLD', 'SLV', 'CPER', 'USO', 'UNG', 'DBA', 'DBC', 'URA', 'LIT', 'GDX', 'IBIT', 'BTC', 'ETH-USD'].includes(t) || t.includes('CRYPTO');
+           if (category === 'thm') return ['SMH', 'CIBR', 'ITA', 'BOTZ', 'SKYY', 'ICLN', 'XBI', 'XLF', 'XLV', 'KRE', 'XRT', 'XLE', 'VUG', 'NOBL'].includes(t);
+           if (category === 'mac') return ['VIX', 'UUP', 'VNQ', 'VNQI'].includes(t) || t.includes('EURUSD') || t.includes('USDJPY') || t.includes('GBPUSD');
+           
+           if (category === 'us') return n.includes('S&P 500') || n.includes('NASDAQ') || n.includes('DOW') || n.includes('RUSSELL') || t.includes('.INX') || t.includes('NDX');
+           if (category === 'eu') return n.includes('STOXX') || n.includes('DAX') || n.includes('FTSE MIB') || n.includes('FTSE 100') || n.includes('CAC') || n.includes('IBEX') || n.includes('SMI') || t === 'EWP';
+           if (category === 'ap') return n.includes('NIKKEI') || n.includes('HANG SENG') || n.includes('SHANGHAI') || n.includes('NIFTY') || n.includes('ASX') || ['EWT', 'EWY', 'VNM', 'MCHI'].includes(t);
+           if (category === 'em') return n.includes('BOVESPA') || n.includes('TSX') || n.includes('EMERGING') || ['EWW', 'EEM'].includes(t) || t.includes('OSPTX');
+           
+           if (category === 'oth') {
+               let isMapped = ['TNX', 'TLT', 'BND', 'IGOV', 'JNK', 'TIP', 'LQD', 'BIL', 'EMB', 'GLD', 'SLV', 'CPER', 'USO', 'UNG', 'DBA', 'DBC', 'URA', 'LIT', 'GDX', 'IBIT', 'BTC', 'ETH-USD', 'SMH', 'CIBR', 'ITA', 'BOTZ', 'SKYY', 'ICLN', 'XBI', 'XLF', 'XLV', 'KRE', 'XRT', 'XLE', 'VUG', 'NOBL', 'VIX', 'UUP', 'VNQ', 'VNQI', 'EWT', 'EWY', 'VNM', 'MCHI', 'EWW', 'EEM', 'EWP'].includes(t) || t.includes('CRYPTO') || t.includes('EURUSD') || t.includes('USDJPY') || t.includes('GBPUSD') || n.includes('S&P 500') || n.includes('NASDAQ') || n.includes('DOW') || n.includes('RUSSELL') || t.includes('.INX') || t.includes('NDX') || n.includes('STOXX') || n.includes('DAX') || n.includes('FTSE MIB') || n.includes('FTSE 100') || n.includes('CAC') || n.includes('IBEX') || n.includes('SMI') || n.includes('NIKKEI') || n.includes('HANG SENG') || n.includes('SHANGHAI') || n.includes('NIFTY') || n.includes('ASX') || n.includes('BOVESPA') || n.includes('TSX') || n.includes('EMERGING') || t.includes('OSPTX');
+               return !isMapped && !item.isMain;
+           }
+   
+           return item.category === category;
+       });
+   
+       const getModeVal = (item) => {
+           switch(window.currentBenchMode) {
+               case '1m': return item.m1;
+               case 'ytd': return item.ytd;
+               case '1y': return item.y1;
+               case '3y': return item.y3;
+               case '5y': return item.y5;
+               default: return item.pct; // daily
+           }
+       };
+   
+       filtered.sort((a, b) => getModeVal(b) - getModeVal(a));
+   
+       if (window.portfolioMeData && window.portfolioMeData.pct !== undefined) {
+           filtered.unshift({
+               name: 'My Portfolio',
+               ticker: 'ME',
+               pct: window.portfolioMeData.pct,
+               m1: window.portfolioMeData.m1,
+               ytd: window.portfolioMeData.ytd,
+               y1: window.portfolioMeData.y1,
+               y3: window.portfolioMeData.y3,
+               y5: window.portfolioMeData.y5,
+               color: '#007aff',
+               isMe: true,
+               area: 'Portfolio'
+           });
+       }
+   
+       // --- NUOVO: INIZIALIZZAZIONE HTML CON MEDIA QUERY PER RESPONSIVITA' ---
+       let html = `
+       <style>
+           .bench-name-col { width: 115px; } /* Larghezza per Smartphone */
+           @media (min-width: 768px) { 
+               .bench-name-col { width: 220px; } /* Larghezza espansa per PC/Tablet */
+           }
+       </style>
+       `;
+   
+       if (filtered.length <= 1) { 
+           html += `<div style="text-align:center; padding:15px; color:var(--gray); font-size:12px;">No indices for this category</div>`;
+       } 
+       
+       let capLimit = 2;
+       switch(window.currentBenchMode) {
+           case '1m': capLimit = 15; break;
+           case 'ytd': capLimit = 35; break;
+           case '1y': capLimit = 40; break;
+           case '3y': capLimit = 80; break;
+           case '5y': capLimit = 150; break;
+       }
+       
+       // --- 2. RENDERIZZAZIONE HTML ---
+       filtered.forEach(item => {
+           let val = parseFloat(getModeVal(item));
+           if (isNaN(val)) val = 0;
+           
+           let displayVal = (val > 0 ? "+" : "") + val.toFixed(2) + "%";
+           let barColor = val >= 0 ? 'var(--stocks-bg)' : 'var(--danger)';
+           let labelColor = item.color ? item.color : 'var(--text-main)'; 
+           let labelText = item.isMe ? 'ME' : item.name;
+   
+           let safeVal = Math.max(-capLimit, Math.min(capLimit, val)); 
+           let widthPct = (Math.abs(safeVal) / capLimit) * 50; 
+           
+           let barStyle = val >= 0 
+               ? `left: 50%; width: ${widthPct}%; background: ${barColor}; border-top-right-radius: 4px; border-bottom-right-radius: 4px;` 
+               : `left: auto; right: 50%; width: ${widthPct}%; background: ${barColor}; border-top-left-radius: 4px; border-bottom-left-radius: 4px;`;
+   
+           let simulatedEx = 'US'; 
+           let indexNameUp = String(item.name || item.ticker || '').toUpperCase();
+           let tickerUp = String(item.ticker || '').toUpperCase();
+   
+           if (tickerUp.includes('IBIT') || tickerUp.includes('BTC') || tickerUp.includes('ETH') || indexNameUp.includes('BITCOIN')) {
+               simulatedEx = 'CRYPTO'; 
+           } else if (indexNameUp.includes('EURO STOXX') || indexNameUp.includes('DAX') || indexNameUp.includes('FTSE MIB') || indexNameUp.includes('CAC 40')) {
+               simulatedEx = 'IT'; 
+           } else if (indexNameUp.includes('FTSE 100')) {
+               simulatedEx = 'UK';
+           } else if (indexNameUp.includes('SMI')) {
+               simulatedEx = 'CH';
+           } else if (indexNameUp.includes('NIKKEI')) {
+               simulatedEx = 'JP';
+           } else if (indexNameUp.includes('HANG SENG')) {
+               simulatedEx = 'HK';
+           } else if (indexNameUp.includes('SHANGHAI')) {
+               simulatedEx = 'CN';
+           } else if (indexNameUp.includes('NIFTY')) {
+               simulatedEx = 'IN';
+           } else if (indexNameUp.includes('ASX')) {
+               simulatedEx = 'AU';
+           } else if (indexNameUp.includes('BOVESPA')) {
+               simulatedEx = 'BR';
+           } else if (indexNameUp.includes('TSX')) {
+               simulatedEx = 'CA'; 
+           }
+   
+           let mktState = 'OPEN';
+           if (typeof getMarketState === 'function') {
+               mktState = getMarketState(simulatedEx);
+           }
+   
+           let statusIcon = '';
+           let opacityStyle = '';
+   
+           if (!item.isMe) {
+               if (mktState === 'OPEN') {
+                   statusIcon = '<span title="Market Open" style="font-size:9px;">🟢</span>';
+               } else if (mktState === 'CLOSING_SOON') {
+                   statusIcon = '<span title="Closing Soon" style="font-size:9px;">🟠</span>';
+               } else if (mktState === 'PRE_MARKET') {
+                   statusIcon = '<span title="Pre-Market" style="font-size:9px;">🔵</span>';
+               } else {
+                   statusIcon = '<span title="Market Closed" style="font-size:10px; filter: grayscale(1);">💤</span>';
+                   opacityStyle = 'opacity: 0.6;'; 
+               }
+           }
+   
+           let areaHtml = item.isMe ? '' : `<div style="font-size:9px; font-weight:700; color:var(--gray); text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">${item.area || ''}</div>`;
+   
+           // NUOVA CLASSE 'bench-name-col' INSERITA QUI
+           html += `
+           <div style="display:flex; align-items:center; background:var(--section-bg); padding:10px 12px; border-radius:10px; margin-bottom:8px; border: 1px solid var(--row-border); box-shadow: 0 1px 2px rgba(0,0,0,0.02); ${opacityStyle}">
+               
+               <div class="bench-name-col" style="display:flex; flex-direction:column; justify-content:center; padding-right:6px;">
+                   <div style="display:flex; align-items:center; width:100%;">
+                       <div style="font-size:12px; font-weight:800; color:${labelColor}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;" title="${item.name}">${labelText}</div>
+                       <div style="margin-left:4px; flex-shrink:0;">${statusIcon}</div>
+                   </div>
+                   ${areaHtml}
+               </div>
+   
+               <div style="flex:1; height:8px; background:rgba(142,142,147,0.15); border-radius:4px; overflow:hidden; position:relative; margin: 0 12px;">
+                   <div style="height:100%; position:absolute; transition:all 0.5s cubic-bezier(0.4, 0, 0.2, 1); ${barStyle}"></div>
+               </div>
+               
+               <div style="width:60px; text-align:right; font-size:12px; font-weight:800; color:${barColor};">${displayVal}</div>
+           </div>`;
+       });
+       
+       container.innerHTML = html;
+   }
+   
+   function renderMarketInsights(data) {
+     if (!data) return;
+     
+     // Salva l'oggetto ME globale per i filtri
+     if (data.me !== undefined) {
+         window.portfolioMeData = { pct: data.me, ytd: data.meYtd, m1: data.me1m, y1: data.me1y, y3: data.me3y, y5: data.me5y };
+     }
+   
+     // --- 1. BENCHMARK CARDS & FILTERS ---
+     if (data.indices && data.indices.length > 0) {
+         window.marketIndicesData = data.indices;
+         filterBenchmarks(window.currentBenchFilter);
+     } else {
+         const container = document.getElementById('benchmark-container');
+         if (container) container.innerHTML = `<div style="text-align:center; padding:15px; color:var(--gray); font-size:12px;">Ensure Config_MarketIndex is populated.</div>`;
+     }
+     
+     // --- 2. AI TEXT ANALYSIS ---
+     if (data.analysis && data.analysis.macro) {
+         const macroEl = document.getElementById('macro-text'); 
+         if(macroEl) { 
+             macroEl.style.textAlign = "justify"; 
+             macroEl.style.fontSize = "12px"; 
+             macroEl.innerHTML = data.analysis.macro; 
+         }
+         const portEl = document.getElementById('portfolio-text'); 
+         if(portEl && data.analysis.portfolio) { 
+             portEl.style.textAlign = "justify"; 
+             portEl.style.fontSize = "12px"; 
+             portEl.innerHTML = data.analysis.portfolio; 
+         }
+     }
+     
+     // --- 3. SENTIMENT BADGE ---
+     if (data.sentiment && data.sentiment.label !== "Loading") { 
+         const badge = document.getElementById('sentiment-badge'); 
+         if(badge) { 
+             const score = data.sentiment.score; 
+             badge.innerText = `${data.sentiment.label} (${score}/10)`; 
+             if (score <= 3) { badge.style.background = '#ffebeb'; badge.style.color = '#ff3b30'; } 
+             else if (score >= 7) { badge.style.background = '#e6fffa'; badge.style.color = '#34c759'; } 
+             else { badge.style.background = '#f2f2f7'; badge.style.color = '#8e8e93'; } 
+         } 
+     }
+   
+     // --- 4. CALENDAR EVENTS ---
+     // Aggiorniamo il calendario solo se ci sono eventi, altrimenti (modalità solo dati) lasciamo stare o resetta se necessario.
+     
+     const newMarketEvents = data.market_events && data.market_events.length > 0;
+     const newPortfolioEvents = data.portfolio_events && data.portfolio_events.length > 0;
+   
+     // Entriamo nel blocco di aggiornamento SOLO se c'è almeno un evento nuovo da mostrare
+     if (newMarketEvents || newPortfolioEvents) {
+         allMarketEvents = []; // ORA è sicuro resettare: abbiamo nuovi dati da scrivere
+         
+         if (newMarketEvents) { 
+             data.market_events.forEach(ev => { allMarketEvents.push({ ...ev, type: 'market' }); }); 
+         }
+         if (newPortfolioEvents) { 
+             data.portfolio_events.forEach(ev => { allMarketEvents.push({ ...ev, type: 'portfolio' }); }); 
+         }
+         
+         // Ridisegna il calendario con i nuovi puntini
+         renderCalendarWidget();
+     }
+   }
+   
+   function renderCalendarWidget() {
+     const grid = document.getElementById('calendar-grid'); 
+     const header = document.getElementById('cal-month-year'); 
+     if (!grid || !header) return;
+     
+     grid.innerHTML = ''; 
+     const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S']; // English Initials (Mon-Sun)
+     days.forEach(d => { grid.innerHTML += `<div class="calendar-day-name">${d}</div>`; });
+     
+     const year = currentCalDate.getFullYear(); 
+     const month = currentCalDate.getMonth();
+     const monthName = currentCalDate.toLocaleString('en-US', { month: 'long', year: 'numeric' }); 
+     header.innerText = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+     
+     const firstDayOfMonth = new Date(year, month, 1).getDay(); 
+     const startDayIndex = (firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1); 
+     const daysInMonth = new Date(year, month + 1, 0).getDate();
+     
+     for (let i = 0; i < startDayIndex; i++) { grid.innerHTML += `<div></div>`; }
+     
+     for (let day = 1; day <= daysInMonth; day++) {
+         const checkDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+         const daysEvents = allMarketEvents.filter(e => e.date === checkDate);
+         
+         let dotsHtml = ''; 
+         if (daysEvents.length > 0) { 
+             dotsHtml = '<div class="event-dot-container">'; 
+             daysEvents.forEach(ev => { 
+                 const dotClass = ev.type === 'portfolio' ? 'dot-blue' : 'dot-purple'; 
+                 dotsHtml += `<div class="event-dot ${dotClass}"></div>`; 
+             }); 
+             dotsHtml += '</div>'; 
+         }
+         
+         const todayStr = new Date().toISOString().split('T')[0]; 
+         const isToday = (checkDate === todayStr) ? 'today' : '';
+         const dayDiv = document.createElement('div'); 
+         dayDiv.className = `calendar-day ${isToday}`; 
+         dayDiv.innerHTML = `<span>${day}</span>${dotsHtml}`; 
+         dayDiv.onclick = () => selectDate(day, month, year, dayDiv);
+         grid.appendChild(dayDiv);
+     }
+   }
+   
+   function selectDate(day, month, year, element) {
+     document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('selected')); 
+     element.classList.add('selected');
+     
+     const checkDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+     const events = allMarketEvents.filter(e => e.date === checkDate);
+     const detailsBox = document.getElementById('calendar-details');
+     
+     if (events.length === 0) { 
+         detailsBox.innerHTML = `<div style="text-align:center; color:#999; font-size:11px; padding:10px;">No events on ${day}/${month+1}.</div>`; 
+         return; 
+     }
+     
+     let html = `<div style="font-size:10px; font-weight:bold; color:#555; margin-bottom:10px; text-transform:uppercase;">Events for ${day} ${currentCalDate.toLocaleString('en-US', { month: 'long' })}:</div>`;
+     events.forEach(ev => { 
+         const color = ev.type === 'portfolio' ? '#007aff' : '#af52de'; 
+         const label = ev.type === 'portfolio' ? 'PORTFOLIO' : 'MARKET'; 
+         const bg = ev.type === 'portfolio' ? '#f0f7ff' : '#fcf0ff'; 
+         html += `<div style="background:${bg}; border-left:3px solid ${color}; padding:8px; border-radius:6px; margin-bottom:6px;"><div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-weight:bold; color:#333; font-size:12px;">${ev.ticker}</span><span style="font-size:9px; font-weight:bold; color:${color}; border:1px solid ${color}; padding:1px 4px; border-radius:4px;">${label}</span></div><div style="font-size:11px; color:#555; margin-top:3px; line-height:1.2;">${ev.event}</div></div>`; 
+     });
+     detailsBox.innerHTML = html;
+   }
+   
+   function changeMonth(delta) { 
+     currentCalDate.setMonth(currentCalDate.getMonth() + delta); 
+     renderCalendarWidget(); 
+   }
+   
+   // Funzione per il refresh del mercato (Pulsante "Refresh Market")
+   function forceReloadMarket() {
+     const btn = document.getElementById('btn-refresh-market'); 
+     if(btn) { btn.innerText = "⏳"; btn.style.pointerEvents = "none"; }
+     
+     const briefingEl = document.getElementById('macro-text'); 
+     const portEl = document.getElementById('portfolio-text');
+     
+     // Feedback visivo immediato
+     if(briefingEl) briefingEl.innerHTML = '<span style="color:#888; font-style:italic;">Analysing market scenarios... 🧠</span>'; 
+     if(portEl) portEl.innerHTML = '...';
+     
+     // FIX: Passiamo 'false' (onlyMacro = false) per dire al server "Voglio l'analisi AI completa ORA"
+     google.script.run.withSuccessHandler(data => { 
+         renderMarketInsights(data); 
+         if(btn) { btn.innerText = "🔄"; btn.style.pointerEvents = "auto"; } 
+         if(typeof Swal !== 'undefined') { 
+             const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000}); 
+             Toast.fire({icon: 'success', title: 'AI Market Insight Updated'}); 
+         } 
+     }).withFailureHandler(err => { 
+         console.error(err); 
+         if(btn) { btn.innerText = "⚠️"; btn.style.pointerEvents = "auto"; } 
+     }).getMarketInsightsData(false); // <--- IMPORTANTE: false = FULL REFRESH
+   }
+   
+   // Funzione per il refresh del rischio (Pulsante "Refresh Risk")
+   function forceReloadRisk() {
+     const btn = document.getElementById('btn-refresh-risk'); 
+     if(btn) { btn.innerText = "⏳"; btn.style.pointerEvents = "none"; }
+     
+     document.getElementById('risk-comment').innerText = "Running Stress Test (Live)..."; 
+     document.getElementById('risk-score').style.opacity = "0.3";
+     
+     // FIX: Passiamo 'true' (forceRefresh = true) per ignorare la cache e ricalcolare
+     google.script.run.withSuccessHandler(analysis => {
+         // ... (Resto della funzione invariato) ...
+         const card = document.getElementById('risk-card'); 
+         const data = analysis || { riskLevel: "N/A", riskScore: 0, summary: "Data unavailable" };
+         
+         document.getElementById('risk-level').innerText = "Risk: " + data.riskLevel; 
+         document.getElementById('risk-score').innerText = data.riskScore + "/100"; 
+         document.getElementById('risk-score').style.opacity = "1"; 
+         document.getElementById('risk-comment').innerText = data.summary;
+         
+         let score = parseInt(data.riskScore); 
+         let col = '#34c759'; 
+         if(score > 30) col = '#ffcc00'; 
+         if(score > 50) col = '#ff9500'; 
+         if(score > 70) col = '#ff3b30';
+         
+         if(card) card.style.borderLeftColor = col; 
+         document.getElementById('risk-score').style.color = col;
+         
+         const tipEl = document.getElementById('risk-tip');
+         if(tipEl) {
+             tipEl.innerHTML = `<span style="font-weight:bold; cursor:pointer;" onclick="openRiskSheet()">👉 Tap for Stress Test & Full Report</span>`;
+         }
+   
+         window.currentRiskData = data; 
+         if(btn) { btn.innerText = "🔄"; btn.style.pointerEvents = "auto"; }
+     }).withFailureHandler(err => { 
+         console.error(err); 
+         document.getElementById('risk-comment').innerText = "Update Error."; 
+         if(btn) { btn.innerText = "⚠️"; btn.style.pointerEvents = "auto"; } 
+     }).getPortfolioRiskAnalysis(true); 
+   }
+   
+   // --- Risk Report ---
+   
+   function openRiskSheet() {
+     const data = window.currentRiskData; 
+     if (!data) return;
+     
+     document.getElementById('risk-dial').innerText = data.riskScore + "/100";
+     let col = '#34c759'; 
+     if(data.riskScore > 50) col = '#ff9500'; 
+     if(data.riskScore > 75) col = '#ff3b30'; 
+     document.getElementById('risk-dial').style.color = col;
+     
+     if (data.stressTest) { 
+         document.getElementById('st-market').innerText = data.stressTest.marketCrash || "N/A"; 
+         document.getElementById('st-crypto').innerText = data.stressTest.cryptoWinter || "N/A"; 
+     }
+     document.getElementById('risk-conc').innerText = data.concentration || "No concentration data.";
+     
+     const list = document.getElementById('risk-sugg'); 
+     list.innerHTML = "";
+     if (data.suggestions && Array.isArray(data.suggestions)) { 
+         data.suggestions.forEach(s => { list.innerHTML += `<li style="margin-bottom:8px;">${s}</li>`; }); 
+     }
+     
+     closeAllSheets(); 
+     document.getElementById('risk-sheet').classList.add('active'); 
+     document.getElementById('common-backdrop').classList.add('active');
+   }
+   
+   // --- Stock Battle ---
+   
+   function startBattle() {
+     const tA = document.getElementById('battle-ticker-a').value.trim(); 
+     const tB = document.getElementById('battle-ticker-b').value.trim();
+     
+     if (!tA || !tB) { alert("Enter two companies to start the battle!"); return; }
+     
+     const resDiv = document.getElementById('battle-result'); 
+     resDiv.style.display = 'block'; 
+     resDiv.style.borderColor = '#e5e5ea';
+     
+     const winEl = document.getElementById('battle-winner'); 
+     winEl.innerText = "CALCULATING..."; 
+     winEl.style.color = "#ccc";
+     
+     document.getElementById('battle-reason').innerText = "AI Analyst is studying balance sheets, competitors, and market cap...";
+     document.getElementById('score-bar-a').style.width = '0%'; 
+     document.getElementById('score-bar-b').style.width = '0%'; 
+     document.getElementById('list-a').innerHTML = ''; 
+     document.getElementById('list-b').innerHTML = '';
+     
+     google.script.run.withSuccessHandler(renderBattleResult).runStockBattle(tA, tB);
+   }
+   
+   function renderBattleResult(data) {
+     const tA = data.resolved_ticker_a || "A"; 
+     const tB = data.resolved_ticker_b || "B";
+     
+     const winEl = document.getElementById('battle-winner'); 
+     winEl.innerText = data.winner; 
+     winEl.style.color = '#ff9500';
+     
+     document.getElementById('score-a-label').innerText = tA; 
+     document.getElementById('score-b-label').innerText = tB;
+     document.getElementById('score-val-a').innerText = data.scoreA; 
+     document.getElementById('score-val-b').innerText = data.scoreB;
+     
+     document.getElementById('title-list-a').innerText = `Why ${tA}?`; 
+     document.getElementById('title-list-b').innerText = `Why ${tB}?`;
+     
+     const fillList = (ulId, items) => { 
+         const ul = document.getElementById(ulId); 
+         ul.innerHTML = ''; 
+         if (items && items.length > 0) { 
+             items.forEach(item => { ul.innerHTML += `<li style="margin-bottom:4px;">${item}</li>`; }); 
+         } else { 
+             ul.innerHTML = '<li>No relevant data</li>'; 
+         } 
+     };
+     fillList('list-a', data.strengths_a); 
+     fillList('list-b', data.strengths_b);
+     
+     // Use marked.parse to render the detailed verdict properly
+     let cleanVerdict = marked.parse(data.verdict);
+     document.getElementById('battle-reason').innerHTML = cleanVerdict;
+     
+     setTimeout(() => { 
+         document.getElementById('score-bar-a').style.width = data.scoreA + '%'; 
+         document.getElementById('score-bar-b').style.width = data.scoreB + '%'; 
+     }, 100);
+   }
+   
+   // --- Passive Income (Dividends) ---
+   
+   function loadDividends() {
+     document.getElementById('div-list').innerHTML = '<div class="skeleton" style="height:40px; margin-bottom:10px;"></div><div class="skeleton" style="height:40px;"></div>';
+     google.script.run.withSuccessHandler(renderDividends).fetchDividendData();
+   }
+   
+   function renderDividends(data) {
+     const totalEl = document.getElementById('div-total'); 
+     const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+     if (totalEl) totalEl.innerText = fmt.format(data.totalYearly);
+     
+     const listEl = document.getElementById('div-list');
+     if (!data.items || data.items.length === 0) { 
+         listEl.innerHTML = '<div style="text-align:center; color:#999; font-size:12px;">No dividends detected in portfolio.</div>'; 
+         return; 
+     }
+     
+     let html = '';
+     data.items.forEach(item => {
+         let valFmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(item.estAmount);
+         html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid #f2f2f7;"><div style="display:flex; align-items:center;"><div style="background:#f2f2f7; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:10px; color:#555; margin-right:10px;">${item.ticker.substring(0,3)}</div><div><div style="font-weight:bold; font-size:13px;">${item.ticker}</div><div style="font-size:10px; color:var(--gray);">Yield: <span style="color:#34c759; font-weight:700;">${item.yieldPct}%</span></div></div></div><div style="text-align:right;"><div class="sensitive" style="font-weight:800; font-size:13px; color:var(--text-main);">${valFmt}</div><div style="font-size:9px; color:#007aff; background:#e6f2ff; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:2px;">Next: ${item.nextMonth}</div></div></div>`;
+     });
+     html += '<div style="text-align:center; font-size:9px; color:#ccc; margin-top:10px;">AI estimated data. Always check ex-dividend dates.</div>';
+     listEl.innerHTML = html;
+   }
+   
+   /**
+    * Frontend function to call the AI Analyst.
+    * Updated to use marked.js for Markdown parsing and custom CSS classes.
+    * UI texts translated to English.
+    */
+   function openAnalystAI() {
+       Swal.fire({
+           title: 'AI Financial Analyst 🧠',
+           input: 'text',
+           inputLabel: 'Enter Ticker or Asset Name',
+           inputPlaceholder: 'e.g. NVDA, Bitcoin, Ferrari...',
+           showCancelButton: true,
+           confirmButtonText: 'Analyze',
+           confirmButtonColor: '#5856d6', // Invest theme color
+           showLoaderOnConfirm: true,
+           // Optional class for the input popup
+           customClass: {
+               popup: 'ai-input-popup'
+           },
+           preConfirm: (assetName) => {
+               if (!assetName) {
+                   Swal.showValidationMessage('Please enter a name');
+                   return;
+               }
+               // Call server-side Google Script function
+               return run('analyzeAsset', assetName)
+                   .then(response => {
+                       return response;
+                   })
+                   .catch(error => {
+                       Swal.showValidationMessage(`Request failed: ${error}`);
+                   });
+           },
+           allowOutsideClick: () => !Swal.isLoading()
+       }).then((result) => {
+           if (result.isConfirmed) {
+               
+               // --- KEY CHANGE HERE ---
+               // Use marked.parse() instead of manual .replace().
+               // This automatically converts Markdown tables, lists, and bold text into valid HTML.
+               let cleanHtml = marked.parse(result.value);
+   
+               Swal.fire({
+                   title: 'Analysis Report 🧠',
+                   // Apply CSS classes defined in css_Main/css_Components
+                   // to style tables and headers correctly
+                   customClass: {
+                       htmlContainer: 'ai-report-content',
+                       popup: 'ai-report-popup'
+                   },
+                   // Insert the clean HTML generated by marked
+                   html: `<div style="text-align:left; font-size:14px; line-height:1.6;">${cleanHtml}</div>`,
+                   width: '750px', // Increased width to accommodate tables comfortably
+                   confirmButtonText: 'Close',
+                   confirmButtonColor: '#5856d6'
+               });
+           }
+       });
+   }
+   
+   // ==========================================
+   // AI TOOLS HANDLERS
+   // ==========================================
+   
+   /**
+    * Generic UI helper for tools
+    */
+   function setToolLoading(resultDivId) {
+       const el = document.getElementById(resultDivId);
+       el.style.display = 'block';
+       el.innerHTML = '<span style="color:var(--gray); font-style:italic;">Processing with AI... ⏳</span>';
+   }
+   
+   function runToolSentiment() {
+       const tk = document.getElementById('tool-sentiment-tk').value.trim();
+       if(!tk) return;
+       setToolLoading('res-sentiment');
+       
+       google.script.run.withSuccessHandler(res => {
+           let html = `
+               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                   <strong>Score:</strong> 
+                   <span style="font-size:16px; font-weight:900; color:${res.score > 50 ? '#34c759' : '#ff3b30'}">${res.score}/100</span>
+               </div>
+               <strong>Catalysts:</strong>
+               <ul style="padding-left:15px; margin-top:5px; margin-bottom:0;">
+                   ${res.reasons.map(r => `<li style="margin-bottom:4px;">${r}</li>`).join('')}
+               </ul>`;
+           document.getElementById('res-sentiment').innerHTML = html;
+       }).toolSentimentAI(tk);
+   }
+   
+   function runToolRebalance() {
+       const amt = document.getElementById('tool-rebal-amt').value;
+       const tgt = document.getElementById('tool-rebal-tgt').value;
+       if(!amt || !tgt) return;
+       setToolLoading('res-rebalance');
+       
+       google.script.run.withSuccessHandler(res => {
+           let html = `<strong>Action Plan:</strong><ul style="padding-left:15px; margin-top:5px;">`;
+           res.plan.forEach(step => html += `<li style="margin-bottom:4px;">${step}</li>`);
+           html += `</ul><div style="font-size:11px; color:var(--gray); margin-top:8px;">${res.advice}</div>`;
+           document.getElementById('res-rebalance').innerHTML = html;
+       }).toolRebalanceAI(amt, tgt);
+   }
+   
+   function runToolCorrelation() {
+       const a = document.getElementById('tool-corr-a').value;
+       const b = document.getElementById('tool-corr-b').value;
+       if(!a || !b) return;
+       setToolLoading('res-correlation');
+       
+       google.script.run.withSuccessHandler(res => {
+           let color = res.overlapPct > 60 ? '#ff3b30' : (res.overlapPct > 30 ? '#ff9500' : '#34c759');
+           document.getElementById('res-correlation').innerHTML = `
+               <div style="margin-bottom:8px;">
+                   <strong>Overlap Risk:</strong> <span style="font-weight:bold; color:${color};">${res.overlapPct}%</span>
+               </div>
+               <div>${res.analysis}</div>
+           `;
+       }).toolCorrelationAI(a, b);
+   }
+   
+   function runToolEarnings() {
+       const tk = document.getElementById('tool-earn-tk').value;
+       if(!tk) return;
+       setToolLoading('res-earnings');
+       
+       google.script.run.withSuccessHandler(res => {
+           document.getElementById('res-earnings').innerHTML = `
+               <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; margin-bottom:10px; font-size:12px;">
+                   <div style="background:var(--section-bg); padding:5px; border-radius:4px;"><strong>EPS:</strong> ${res.eps}</div>
+                   <div style="background:var(--section-bg); padding:5px; border-radius:4px;"><strong>Rev:</strong> ${res.revenue}</div>
+               </div>
+               <strong>CEO Notes:</strong>
+               <p style="margin-top:5px; margin-bottom:0; font-size:11px; color:var(--gray);">${res.ceoNotes}</p>
+           `;
+       }).toolEarningsAI(tk);
+   }
 </script>
