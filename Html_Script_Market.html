@@ -809,7 +809,32 @@
         let totalGain = item.gainEur + cashRealized; 
         return { ...item, invested: invested, tradeRealized: tradeRealized, cashRealized: cashRealized, totalGain: totalGain }; 
     });
-    
+    // --- INIEZIONE GRAVEYARD NEI GRAFICI BARRE/TORTE ---
+    if (includeClosedInMarket && window.cpData && window.cpData.length > 0) {
+        let mappedCPForChart = window.cpData.map(cp => {
+            let cat = 'stocks';
+            let rawType = String(cp.type).trim().toUpperCase();
+            if (rawType === 'ETF' || rawType === 'ETFS') cat = 'etfs';
+            else if (rawType === 'CRYPTO' || rawType === 'CRYPTOS') cat = 'crypto';
+
+            return {
+                ticker: cp.ticker + ' (C)',
+                value: 0, // Ignorati nei grafici di allocazione
+                gainEur: 0,
+                realizedExcl: parseForSort(cp.realPnL) || 0,
+                dividends: parseForSort(cp.divs) || 0,
+                gainPct: (parseForSort(cp.roi) / 100) || 0,
+                daysHeld: parseInt(cp.daysHeld) || 0,
+                totalGain: parseForSort(cp.totalPnL) || 0, // Visibili nei grafici di profitto
+                _cat: cat
+            };
+        });
+        
+        if (assetType !== 'combined') mappedCPForChart = mappedCPForChart.filter(c => c._cat === assetType);
+        else mappedCPForChart = mappedCPForChart.filter(c => c._cat !== 'crypto');
+        
+        dataset = [...dataset, ...mappedCPForChart];
+    }
     if (['realized_excl', 'realized_incl', 'total_gain', 'div_single', 'winloss'].includes(chartType)) { 
         dataset = dataset.filter(item => item.value > 0.01 || Math.abs(item.totalGain) > 1 || Math.abs(item.tradeRealized) > 1); 
     } else { 
@@ -851,37 +876,37 @@
         case 'div_single': let divSet = dataset.filter(d => d.dividends > 0).sort((a,b) => b.dividends - a.dividends); labels = divSet.map(d => d.ticker); values = divSet.map(d => d.dividends); colors = '#ffcc00'; formatType = 'currency'; break;
         case 'winloss': let win = dataset.filter(d => d.totalGain >= 0).length; let loss = dataset.filter(d => d.totalGain < 0).length; labels = ['In Profit', 'In Loss']; values = [win, loss]; colors = ['#34c759', '#ff3b30']; formatType = 'number'; break;
         
-        // NUOVO CASO SCATTER PLOT (EFFICIENZA) - Usa i dati Live del Terminale
         case 'efficiency': 
-            // Pesca da currentPortfolioData invece che da analyticsDataCache
             let liveData = [];
             if (currentPortfolioData) {
-                if (assetType === 'combined') {
-                    liveData = [...(currentPortfolioData.stocks || []), ...(currentPortfolioData.etfs || [])];
-                } else {
-                    liveData = currentPortfolioData[assetType] || [];
-                }
+                if (assetType === 'combined') liveData = [...(currentPortfolioData.stocks || []), ...(currentPortfolioData.etfs || [])];
+                else liveData = currentPortfolioData[assetType] || [];
             }
 
-            labels = liveData.map(d => d.t); // Nel live portfolio il ticker si chiama 't'
+            // --- INIEZIONE GRAVEYARD NELLO SCATTER PLOT ---
+            if (includeClosedInMarket && window.cpData && window.cpData.length > 0) {
+                let mappedCPForLive = window.cpData.map(mapClosedToLive);
+                if (assetType !== 'combined') mappedCPForLive = mappedCPForLive.filter(c => c._cat === assetType);
+                else mappedCPForLive = mappedCPForLive.filter(c => c._cat !== 'crypto');
+                liveData = [...liveData, ...mappedCPForLive];
+            }
+
+            labels = liveData.map(d => d.t); 
             
             values = liveData.map(d => {
                 let xVal = parseInt(d.daysHeld) || 0;
-                
-                // Usiamo la tua funzione parseForSort per convertire "12,50%" in 12.5
-                let yVal = parseForSort(d.unrealizedPct); 
+                // Legge la %. Se è chiusa usa il Realized, se è aperta usa l'Unrealized
+                let rawY = d._isClosed ? d.realizedPct : d.unrealizedPct;
+                let yVal = parseForSort(rawY); 
                 yVal = yVal === -Infinity ? 0 : yVal;
                 
-                let gainVal = parseForSort(d.unrealizedEur);
+                // Legge i Profitti per il Tooltip
+                let rawGain = d._isClosed ? d.balEur : d.unrealizedEur;
+                let gainVal = parseForSort(rawGain);
                 gainVal = gainVal === -Infinity ? 0 : gainVal;
 
-                return {
-                    x: xVal,
-                    y: yVal,
-                    ticker: d.t,
-                    gainEur: gainVal
-                };
-            }).filter(d => d.x > 0); // Nasconde i trade appena aperti (0 giorni)
+                return { x: xVal, y: yVal, ticker: d.t, gainEur: gainVal };
+            }).filter(d => d.x > 0); 
             
             colors = values.map(v => v.y >= 0 ? 'rgba(52, 199, 89, 0.7)' : 'rgba(255, 59, 48, 0.7)'); 
             formatType = 'scatter'; 
@@ -2575,4 +2600,54 @@
            }
        }
    }
+   // --- GRAVEYARD INJECTION ENGINE ---
+let includeClosedInMarket = false;
+
+function toggleMarketClosedPositions(isChecked) {
+    includeClosedInMarket = isChecked;
+    
+    // Se attivato ma cpData (i dati chiusi) non sono in memoria, li pesca
+    if (isChecked && (!window.cpData || window.cpData.length === 0)) {
+        run('getClosedPositionsData').then(data => {
+            window.cpData = data;
+            if(currentPortfolioData) renderLivePortfolio(currentPortfolioData);
+            updateAnalyticsChart();
+        });
+    } else {
+        // Se già in memoria, aggiorna all'istante
+        if(currentPortfolioData) renderLivePortfolio(currentPortfolioData);
+        updateAnalyticsChart();
+    }
+}
+
+// Converte una posizione chiusa in un formato mascherato per il Terminale Live
+function mapClosedToLive(cp) {
+    let cat = 'stocks';
+    let rawType = String(cp.type).trim().toUpperCase();
+    if (rawType === 'ETF' || rawType === 'ETFS') cat = 'etfs';
+    else if (rawType === 'CRYPTO' || rawType === 'CRYPTOS') cat = 'crypto';
+
+    return {
+        _cat: cat,
+        _isClosed: true,
+        t: cp.ticker + " (C)", // (C) per Closed
+        name: "Realized History",
+        sector: "-", ind: "-", ctry: "-", curr: "-",
+        qty: "0",
+        avgPrice: "-", price: "-", pct: "-", dCh: "-",
+        val: "€ 0,00",
+        unrealizedEur: "-", unrealizedPct: "-",
+        realizedEur: cp.realPnL, // Inietta il profitto realizzato!
+        realizedPct: cp.roi,     
+        balEur: cp.totalPnL,
+        balPct: cp.roi,
+        div: cp.divs,
+        expectedDividend: "-", yoc: "-", xirrUnrealized: "-",
+        xirrRealized: cp.xirr, twr: cp.twr, bep: "-", delta: "-",
+        winRate: "-", profitFactor: "-", drawdown: "-",
+        firstBuyDate: cp.firstBuy, daysHeld: cp.daysHeld, tradeCount: cp.trades,
+        minBuy: cp.minBuy, maxBuy: cp.maxBuy, maxSell: cp.maxSell, avgSell: cp.avgSell,
+        pe: "-", eps: "-", mkt: "-", beta: "-", vol: "-", avgVol: "-", yearH: "-", yearL: "-"
+    };
+}
 </script>

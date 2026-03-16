@@ -746,44 +746,56 @@
                <div id="live-day-change"></div>
                <div id="market-breadth-widget"></div>
                <div id="terminal-toolbar" style="display:none; flex-direction:column; gap:12px; margin-bottom:15px; background:var(--section-bg); padding:12px; border-radius:12px; border: 1px solid var(--row-border);">
-                  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                     <div class="term-view-toggle" style="background:rgba(0,0,0,0.05); padding:4px; border-radius:8px; display:flex; gap:4px;">
-                        <button class="term-view-btn active" onclick="setTermSubView('overview', this)">📊 Overview</button>
-                        <button class="term-view-btn" onclick="setTermSubView('fundamentals', this)">🏢 Fundamentals</button>
-                        <button class="term-view-btn" onclick="setTermSubView('trading', this)">⚡ Trading</button>
-                     </div>
-                     <button class="term-action-btn" onclick="exportTerminalCSV()" style="box-shadow: 0 1px 3px rgba(0,0,0,0.05);">📥 Export CSV</button>
-                  </div>
-                  <div style="height:1px; width:100%; background:var(--row-border); opacity:0.6;"></div>
-                  <div class="term-filters" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                     <div class="term-chip active" onclick="setTermFilter('all', this)">All</div>
-                     <div class="term-chip" onclick="setTermFilter('profit', this)">🟢 Profit</div>
-                     <div class="term-chip" onclick="setTermFilter('loss', this)">🔴 Loss</div>
-                     <div class="custom-dropdown">
-                        <div class="dropdown-trigger term-select" onclick="toggleCustomDropdown('menu-term-adv')" style="display:flex; justify-content:space-between; align-items:center; min-width:140px; gap:8px;">
-                           <span id="label-term-adv-filter">⚙️ All Categories</span>
-                           <span style="font-size: 10px; color: var(--gray);">▼</span>
-                        </div>
-                        <input type="hidden" id="term-adv-filter" value="">
-                        <div class="dropdown-menu" id="menu-term-adv" style="min-width:200px;">
-                        </div>
-                     </div>
-                     <div class="custom-dropdown">
-                        <div class="dropdown-trigger term-select" onclick="toggleCustomDropdown('menu-term-group')" style="display:flex; justify-content:space-between; align-items:center; min-width:140px; gap:8px; border-color:var(--primary); color:var(--primary); background:rgba(0,122,255,0.05);">
-                           <span id="label-term-group-by">🗂️ Group By...</span>
-                           <span style="font-size: 10px; color: var(--primary);">▼</span>
-                        </div>
-                        <input type="hidden" id="term-group-by" value="">
-                        <div class="dropdown-menu" id="menu-term-group" style="min-width:180px;">
-                           <div class="dropdown-item active" onclick="selectCustomOption('term-group-by', '', '🗂️ Group By...', 'menu-term-group', this)">None</div>
-                           <div class="dropdown-item" onclick="selectCustomOption('term-group-by', 'sector', 'Sector', 'menu-term-group', this)">Sector</div>
-                           <div class="dropdown-item" onclick="selectCustomOption('term-group-by', 'ind', 'Industry', 'menu-term-group', this)">Industry</div>
-                           <div class="dropdown-item" onclick="selectCustomOption('term-group-by', 'curr', 'Currency', 'menu-term-group', this)">Currency</div>
-                        </div>
-                     </div>
-                     <button onclick="resetTerminalFilters()" class="term-action-btn" style="background: rgba(255,59,48,0.1); color: var(--danger); border:none; padding: 6px 10px; box-shadow:none;">✖ Reset Filters</button>
-                  </div>
-               </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div class="term-view-toggle" style="background:rgba(0,0,0,0.05); padding:4px; border-radius:8px; display:flex; gap:4px;">
+            <button class="term-view-btn active" onclick="setTermSubView('overview', this)">📊 Overview</button>
+            <button class="term-view-btn" onclick="setTermSubView('fundamentals', this)">🏢 Fundamentals</button>
+            <button class="term-view-btn" onclick="setTermSubView('trading', this)">⚡ Trading</button>
+        </div>
+        
+        <div style="display:flex; align-items:center; gap:10px;">
+            <div style="display: flex; align-items: center; background: rgba(0,0,0,0.02); padding: 4px 10px; border-radius: 8px; border: 1px solid var(--row-border);">
+                <span style="font-size: 11px; font-weight: 800; color: var(--gray); text-transform: uppercase;">Graveyard</span>
+                <label class="switch-ios">
+                    <input type="checkbox" id="toggle-closed-market" onchange="toggleMarketClosedPositions(this.checked)">
+                    <span class="slider-ios"></span>
+                </label>
+            </div>
+            <button class="term-action-btn" onclick="exportTerminalCSV()" style="box-shadow: 0 1px 3px rgba(0,0,0,0.05);">📥 Export CSV</button>
+        </div>
+    </div>
+    
+    <div style="height:1px; width:100%; background:var(--row-border); opacity:0.6;"></div>
+    
+    <div class="term-filters" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <div class="term-chip active" onclick="setTermFilter('all', this)">All</div>
+        <div class="term-chip" onclick="setTermFilter('profit', this)">🟢 Profit</div>
+        <div class="term-chip" onclick="setTermFilter('loss', this)">🔴 Loss</div>
+        <div class="custom-dropdown">
+            <div class="dropdown-trigger term-select" onclick="toggleCustomDropdown('menu-term-adv')" style="display:flex; justify-content:space-between; align-items:center; min-width:140px; gap:8px;">
+                <span id="label-term-adv-filter">⚙️ All Categories</span>
+                <span style="font-size: 10px; color: var(--gray);">▼</span>
+            </div>
+            <input type="hidden" id="term-adv-filter" value="">
+            <div class="dropdown-menu" id="menu-term-adv" style="min-width:200px;">
+            </div>
+        </div>
+        <div class="custom-dropdown">
+            <div class="dropdown-trigger term-select" onclick="toggleCustomDropdown('menu-term-group')" style="display:flex; justify-content:space-between; align-items:center; min-width:140px; gap:8px; border-color:var(--primary); color:var(--primary); background:rgba(0,122,255,0.05);">
+                <span id="label-term-group-by">🗂️ Group By...</span>
+                <span style="font-size: 10px; color: var(--primary);">▼</span>
+            </div>
+            <input type="hidden" id="term-group-by" value="">
+            <div class="dropdown-menu" id="menu-term-group" style="min-width:180px;">
+                <div class="dropdown-item active" onclick="selectCustomOption('term-group-by', '', '🗂️ Group By...', 'menu-term-group', this)">None</div>
+                <div class="dropdown-item" onclick="selectCustomOption('term-group-by', 'sector', 'Sector', 'menu-term-group', this)">Sector</div>
+                <div class="dropdown-item" onclick="selectCustomOption('term-group-by', 'ind', 'Industry', 'menu-term-group', this)">Industry</div>
+                <div class="dropdown-item" onclick="selectCustomOption('term-group-by', 'curr', 'Currency', 'menu-term-group', this)">Currency</div>
+            </div>
+        </div>
+        <button onclick="resetTerminalFilters()" class="term-action-btn" style="background: rgba(255,59,48,0.1); color: var(--danger); border:none; padding: 6px 10px; box-shadow:none;">✖ Reset Filters</button>
+    </div>
+</div>
                <div id="portfolio-heatmap-container" class="heatmap-container"></div>
                <div class="live-asset-group">
                   <div class="live-asset-title">
