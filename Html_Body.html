@@ -1435,26 +1435,33 @@
                   <canvas id="nwTrendChart"></canvas>
                </div>
             </div>
-            <div class="dash-widget span-2 span-pc-4" style="margin-top: 20px;margin-bottom: 30px; overflow: hidden;">
+            <div class="dash-widget span-2 span-pc-4" style="margin-top: 20px; margin-bottom: 30px; overflow: hidden;">
                <div class="widget-title">
                   <div class="badge-icon bg-purple">📜</div>
-                  Portfolio Evolution (final year)
+                  Portfolio Evolution (Final Year)
                </div>
-               <div style="overflow-x: auto; margin-top: 10px;">
-                  <table style="width: 100%; text-align: left; border-collapse: collapse; font-size: 13px; min-width: 600px;">
+               
+               <div style="position: relative; height: 320px; width: 100%; margin-top: 20px; margin-bottom: 25px;">
+                  <canvas id="evoChart"></canvas>
+               </div>
+               
+               <div style="overflow-x: auto;">
+                  <table id="evo-table" style="width: 100%; text-align: left; border-collapse: collapse; font-size: 13px; min-width: 850px;">
                      <thead>
-                        <tr style="border-bottom: 1px solid var(--row-border); color: var(--gray); text-transform: uppercase; font-size: 11px;">
-                           <th style="padding: 10px;">Ticker</th>
-                           <th style="padding: 10px;">Type</th>
-                           <th style="padding: 10px; text-align: right;">Qty</th>
-                           <th style="padding: 10px; text-align: right;">Invested</th>
-                           <th style="padding: 10px; text-align: right;">Value</th>
-                           <th style="padding: 10px; text-align: right;">Gain/Loss</th>
-                           <th style="padding: 10px; text-align: right;">Performance</th>
+                        <tr style="border-bottom: 1px solid var(--row-border); color: var(--gray); text-transform: uppercase; font-size: 11px; cursor: pointer;">
+                           <th style="padding: 10px; transition: color 0.2s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--gray)'" onclick="sortEvoTable(0)">Ticker ↕</th>
+                           <th style="padding: 10px; transition: color 0.2s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--gray)'" onclick="sortEvoTable(1)">Type ↕</th>
+                           <th style="padding: 10px; text-align: right; transition: color 0.2s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--gray)'" onclick="sortEvoTable(2)">Qty ↕</th>
+                           <th style="padding: 10px; text-align: right; transition: color 0.2s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--gray)'" onclick="sortEvoTable(3)">Price ↕</th>
+                           <th style="padding: 10px; text-align: right; transition: color 0.2s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--gray)'" onclick="sortEvoTable(4)">Price (€) ↕</th>
+                           <th style="padding: 10px; text-align: right; transition: color 0.2s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--gray)'" onclick="sortEvoTable(5)">Invested ↕</th>
+                           <th style="padding: 10px; text-align: right; transition: color 0.2s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--gray)'" onclick="sortEvoTable(6)">Value ↕</th>
+                           <th style="padding: 10px; text-align: right; transition: color 0.2s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--gray)'" onclick="sortEvoTable(7)">Gain/Loss ↕</th>
+                           <th style="padding: 10px; text-align: right; transition: color 0.2s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--gray)'" onclick="sortEvoTable(8)">Perf. ↕</th>
                         </tr>
                      </thead>
                      <tbody id="evo-table-body">
-                        <tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--gray);">Loading...</td></tr>
+                        <tr><td colspan="9" style="text-align: center; padding: 20px; color: var(--gray);">Loading...</td></tr>
                      </tbody>
                   </table>
                </div>
