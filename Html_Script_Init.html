@@ -114,13 +114,6 @@
              fetchWatchlist();
              fetchAnalyticsData();
              fetchTaxOptimizationData();
-
-             // --- NEW: Fetch Portfolio Evolution ---
-             // Fetch historical portfolio evolution for the default selected year
-             const defaultYear = document.getElementById('trendYear').value;
-             if (defaultYear && typeof fetchHistoricalPortfolioEvo === 'function') {
-                 fetchHistoricalPortfolioEvo(defaultYear);
-             }
          setTimeout(() => {
              if (typeof renderNetWorthTrendChart === 'function') {
                  renderNetWorthTrendChart();
@@ -392,6 +385,8 @@
      fetchRunway(year);
      fetchYearlyTotals(year);
      fetchTaxOptimizationData();
+     fetchPortfolioCashflow(year);
+     fetchHistoricalPortfolioEvo(year);
      google.script.run.withSuccessHandler(f => {
          document.getElementById('flow-in').innerText = "€ " + f.income;
          document.getElementById('flow-out').innerText = "€ " + f.expenses;

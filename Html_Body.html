@@ -1163,7 +1163,8 @@
       <div class="pc-wrapper">
          <div class="recap-header-container">
             <div class="floating-year-selector" style="position:static; box-shadow:none; padding:0; background:transparent; border:none; animation:none;">
-               <select id="trendYear" onchange="renderFinancialChart(this.value); fetchTrips(this.value);fetchCategoryBreakdown(this.value);fetchProjection(this.value);fetchFireProgress(this.value);fetchRunway(this.value);fetchYearlyTotals(this.value);fetchHistoricalNW(this.value);fetchHistoricalPortfolioEvo(this.value);" style="font-size: 24px; font-weight: 900; letter-spacing: -1px; background:var(--section-bg); padding: 8px 16px; border-radius: 14px;">
+               <select id="trendYear" onchange="renderFinancialChart(this.value); fetchTrips(this.value);fetchCategoryBreakdown(this.value);fetchProjection(this.value);fetchFireProgress(this.value);fetchRunway(this.value);
+               fetchYearlyTotals(this.value);fetchHistoricalNW(this.value);fetchHistoricalPortfolioEvo(this.value);fetchPortfolioCashflow(this.value);" style="font-size: 24px; font-weight: 900; letter-spacing: -1px; background:var(--section-bg); padding: 8px 16px; border-radius: 14px;">
                   <option value="2026" selected>2026</option>
                </select>
             </div>
@@ -1531,8 +1532,37 @@
                   </div>
                </div>
             </div>
+            <div class="dash-widget span-2 span-pc-4" style="margin-top: 20px; margin-bottom: 30px; overflow: hidden;">
+    <div class="widget-title">
+        <div class="badge-icon bg-blue">🏛️<i class="fas fa-water"></i></div>
+        Cashflow & Performance
+    </div>
+    
+    <div style="position: relative; height: 320px; width: 100%; margin-top: 20px; margin-bottom: 25px;">
+        <canvas id="cashflowChart"></canvas>
+    </div>
+    
+    <div style="overflow-x: auto;">
+        <table id="cashflow-table" style="width: 100%; text-align: left; border-collapse: collapse; font-size: 13px; min-width: 700px;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--row-border); color: var(--gray); text-transform: uppercase; font-size: 11px;">
+                    <th style="padding: 10px;">Year</th>
+                    <th style="padding: 10px;">Type</th>
+                    <th style="padding: 10px; text-align: right;">Deposits</th>
+                    <th style="padding: 10px; text-align: right;">Withdrawals</th>
+                    <th style="padding: 10px; text-align: right;">Net Divs</th>
+                    <th style="padding: 10px; text-align: right;">Inflow</th>
+                    <th style="padding: 10px; text-align: right;">Net Flow</th>
+                </tr>
+            </thead>
+            <tbody id="cashflow-table-body">
+                <tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--gray);">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
             <div class="dash-grid">
-               <div class="dash-widget span-2 span-pc-2">
+               <div class="dash-widget span-2 span-pc-2" style="margin-top: 20px; margin-bottom: 30px; overflow: hidden;">
                   <div class="widget-title">
                      <div class="badge-icon bg-blue">🏛️</div>
                      Tax Bill Simulator
@@ -1541,7 +1571,7 @@
                      <div style="text-align:center; color:var(--gray); padding: 20px;">Loading tax data...</div>
                   </div>
                </div>
-               <div class="dash-widget span-2 span-pc-2">
+               <div class="dash-widget span-2 span-pc-2" style="margin-top: 20px; margin-bottom: 30px; overflow: hidden;">
                   <div class="widget-title">
                      <div class="badge-icon bg-green">✂️</div>
                      Tax Loss Harvesting

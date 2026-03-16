@@ -211,4 +211,187 @@ function renderEvoChart(data) {
         }
     });
 }
+
+// --- GLOBAL VARIABLES FOR CASHFLOW ---
+let cashflowChartInstance = null;
+
+/**
+ * Fetches and renders cashflow data from the server, filtered by year.
+ * @param {string} year The year selected in the recap dropdown (e.g. "2024" or "All")
+ */
+function fetchPortfolioCashflow(year) {
+    // Mostra lo stato di caricamento nella tabella
+    const tbody = document.getElementById('cashflow-table-body');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--gray);">Loading cashflow data...</td></tr>';
+
+    run('getPortfolioCashflowData').then(data => {
+        if (data && data.error) {
+            if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 20px;">Error: ${data.error}</td></tr>`;
+            if (cashflowChartInstance) cashflowChartInstance.destroy();
+            return;
+        }
+        
+        if (!data || data.length === 0) {
+            if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--gray); padding: 20px;">No cashflow data found.</td></tr>`;
+            if (cashflowChartInstance) cashflowChartInstance.destroy();
+            return;
+        }
+
+        // 1. FILTRA I DATI IN BASE ALL'ANNO SELEZIONATO
+        let filteredData = data;
+        // Adatta "All" / "Tutti" in base al value che hai nel tuo tag <select>
+        if (year && year !== 'All' && year !== 'Tutti' && year !== '') { 
+            filteredData = data.filter(row => String(row.year) === String(year));
+        }
+
+        // 2. GESTISCI IL CASO IN CUI NON CI SONO DATI PER L'ANNO SPECIFICO
+        if (filteredData.length === 0) {
+            if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--gray); padding: 20px;">No cashflow data found for ${year}.</td></tr>`;
+            if (cashflowChartInstance) cashflowChartInstance.destroy();
+            return;
+        }
+
+        // 3. RENDERIZZA TABELLA E GRAFICO
+        renderCashflowTable(filteredData);
+        
+        // NOTA SUL GRAFICO: 
+        // Passando filteredData, il grafico mostrerà solo le colonne dell'anno selezionato.
+        // Se preferisci che il grafico mostri SEMPRE lo storico di tutti gli anni a prescindere 
+        // dalla tendina, cambia la riga sotto in: renderCashflowChart(data);
+        renderCashflowChart(filteredData); 
+        
+    }).catch(err => {
+        console.error("Error fetching cashflow data:", err);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 20px;">JS Error: ${err.message || err}</td></tr>`;
+    });
+}
+
+/**
+ * Renders the HTML table for cashflow data.
+ * Applies privacy mode spans, conditional colors, and exact Portfolio Evolution styling.
+ * @param {Array} data The cashflow data array
+ */
+function renderCashflowTable(data) {
+    const tbody = document.getElementById('cashflow-table-body');
+    if (!tbody) return;
+
+    let html = '';
+    data.forEach(row => {
+        // Check if Net Flow is negative
+        const isNegative = String(row.netFlow).includes('-');
+        const colorClass = isNegative ? 'var(--danger)' : 'var(--success)';
+        
+        html += `
+            <tr style="border-bottom: 1px solid var(--row-border); transition: background 0.2s;" onmouseover="this.style.background='rgba(0,122,255,0.05)'" onmouseout="this.style.background='transparent'">
+                <td style="padding: 12px 10px; font-weight: 800; color: var(--text-main);">${row.year}</td>
+                <td style="padding: 12px 10px; color: var(--gray); font-size: 11px;">${row.assetType}</td>
+                <td style="padding: 12px 10px; text-align: right; min-width: 90px; white-space: nowrap;"><span class="sensitive">${row.deposits}</span></td>
+                <td style="padding: 12px 10px; text-align: right; min-width: 90px; white-space: nowrap;"><span class="sensitive">${row.withdrawals}</span></td>
+                <td style="padding: 12px 10px; text-align: right; min-width: 90px; white-space: nowrap;"><span class="sensitive">${row.netDividends}</span></td>
+                <td style="padding: 12px 10px; text-align: right; font-weight: 800; color: var(--text-main); min-width: 100px; white-space: nowrap;"><span class="sensitive">${row.totalInflow}</span></td>
+                <td style="padding: 12px 10px; text-align: right; color: ${colorClass}; font-weight: 800; background: ${isNegative ? 'rgba(255, 59, 48, 0.05)' : 'rgba(52, 199, 89, 0.05)'}; min-width: 100px; white-space: nowrap;"><span class="sensitive">${row.netFlow}</span></td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+/**
+ * Renders a grouped bar chart aggregating data by Year.
+ * Compares Total Deposits vs Total Inflows for each year.
+ * @param {Array} data The cashflow data array
+ */
+function renderCashflowChart(data) {
+    const canvas = document.getElementById('cashflowChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    if (cashflowChartInstance) {
+        cashflowChartInstance.destroy();
+    }
+
+    // Extract unique sorted years
+    const years = [...new Set(data.map(d => d.year))].sort();
+
+    // Helper function to clean Italian currency strings and convert to float
+    // e.g., "€ 16.217,12" -> 16217.12
+    const parseCurrency = (valStr) => {
+        const cleanStr = String(valStr).replace(/[^0-9,-]/g, '').replace(',', '.');
+        return parseFloat(cleanStr) || 0;
+    };
+
+    // Aggregate Deposits and Inflows by Year
+    const yearlyDeposits = years.map(year => {
+        return data.filter(d => d.year === String(year))
+                   .reduce((sum, d) => sum + parseCurrency(d.deposits), 0);
+    });
+
+    const yearlyInflows = years.map(year => {
+        return data.filter(d => d.year === String(year))
+                   .reduce((sum, d) => sum + parseCurrency(d.totalInflow), 0);
+    });
+
+    const isDark = document.body.classList.contains('dark-mode');
+    const textColor = isDark ? '#fff' : '#333';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+
+    cashflowChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: years,
+            datasets: [
+                {
+                    label: 'Total Deposits (Buys)',
+                    data: yearlyDeposits,
+                    backgroundColor: '#ff9500', // Warning/Orange
+                    borderRadius: 4
+                },
+                {
+                    label: 'Total Inflow (Sells + Divs)',
+                    data: yearlyInflows,
+                    backgroundColor: '#34c759', // Success/Green
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: textColor, font: { size: 11 }, usePointStyle: true, boxWidth: 8, padding: 20 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            // Apply privacy mode to tooltips
+                            if (document.body.classList.contains('privacy-mode')) return context.dataset.label + ': ****';
+                            return context.dataset.label + ': ' + new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(context.raw);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { color: textColor, font: { weight: 'bold' } }
+                },
+                y: {
+                    grid: { color: gridColor, borderDash: [5, 5] },
+                    border: { display: false },
+                    ticks: {
+                        color: textColor,
+                        callback: function(value) {
+                            // Apply privacy mode to y-axis
+                            if (document.body.classList.contains('privacy-mode')) return '****';
+                            return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(value);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
 </script>
