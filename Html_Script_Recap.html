@@ -1,0 +1,47 @@
+<script>
+/**
+ * Chiama il backend per recuperare i dati dell'evoluzione del portafoglio per l'anno selezionato
+ * e genera le righe della tabella.
+ */
+function fetchHistoricalPortfolioEvo(year) {
+    const tbody = document.getElementById('evo-table-body');
+    if (!tbody) return;
+    
+    // Mostra stato di caricamento
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--gray);">Caricamento dati storici...</td></tr>';
+    
+    run('getHistoricalPortfolio', year).then(data => {
+        if (data.error || !data || data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--gray);">Nessuna posizione registrata per il ${year}.</td></tr>`;
+            return;
+        }
+        
+        let html = '';
+        data.forEach(row => {
+            // Controlla se la performance è negativa per assegnare il colore rosso o verde
+            const isNegative = row.performance.includes('-');
+            const colorClass = isNegative ? 'var(--danger)' : 'var(--success)';
+            
+            // Impostiamo "sensitive" per nascondere i dati in privacy mode
+            html += `
+                <tr style="border-bottom: 1px solid var(--row-border);">
+                    <td style="padding: 12px 10px; font-weight: 800; color: var(--text-main);">${row.ticker}</td>
+                    <td style="padding: 12px 10px; color: var(--gray); font-size: 11px;">${row.type}</td>
+                    <td style="padding: 12px 10px; text-align: right;">${row.qty}</td>
+                    <td class="sensitive" style="padding: 12px 10px; text-align: right;">${row.invested}</td>
+                    <td class="sensitive" style="padding: 12px 10px; text-align: right; font-weight: 800; color: var(--text-main);">${row.value}</td>
+                    <td class="sensitive" style="padding: 12px 10px; text-align: right; color: ${colorClass}; font-weight: 700;">${row.gainLoss}</td>
+                    <td style="padding: 12px 10px; text-align: right; color: ${colorClass}; font-weight: 800; background: ${isNegative ? 'rgba(255, 59, 48, 0.05)' : 'rgba(52, 199, 89, 0.05)'};">${row.performance}</td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+        
+    }).catch(err => {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--danger);">Errore nel caricamento dei dati.</td></tr>`;
+        console.error("Errore fetchHistoricalPortfolioEvo:", err);
+    });
+}
+
+</script>

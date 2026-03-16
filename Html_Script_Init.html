@@ -107,6 +107,20 @@
          fetchWatchlist();
          fetchAnalyticsData();
          fetchTaxOptimizationData();
+         // Start Live Market Updates & Background Fetches
+             if (typeof loadNews === 'function') loadNews('market'); // Avvia il download delle news all'apertura dell'app
+                 
+             // Start Live Market Updates
+             fetchWatchlist();
+             fetchAnalyticsData();
+             fetchTaxOptimizationData();
+
+             // --- NEW: Fetch Portfolio Evolution ---
+             // Fetch historical portfolio evolution for the default selected year
+             const defaultYear = document.getElementById('trendYear').value;
+             if (defaultYear && typeof fetchHistoricalPortfolioEvo === 'function') {
+                 fetchHistoricalPortfolioEvo(defaultYear);
+             }
          setTimeout(() => {
              if (typeof renderNetWorthTrendChart === 'function') {
                  renderNetWorthTrendChart();
