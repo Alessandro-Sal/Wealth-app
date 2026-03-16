@@ -1614,6 +1614,13 @@
                <button type="button" class="mini-theme-btn" onclick="openGeminiSheet()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border:none; color:white; width:40px; height:40px; font-size:18px; box-shadow: 0 4px 12px rgba(118, 75, 162, 0.4);">✨</button>
             </div>
          </div>
+         <div class="market-sub-nav">
+      <button class="m-sub-btn active" onclick="switchRecapTab('overview', this)">🎯 Overview</button>
+   <button class="m-sub-btn" onclick="switchRecapTab('analytics', this)">📊 Analytics</button>
+      <button class="m-sub-btn" onclick="switchRecapTab('cashflow', this)">💸 Cashflow & Perf.</button>
+   <button class="m-sub-btn" onclick="switchRecapTab('planning', this)">🏖️ Others</button>
+</div>
+<div id="rtab-overview" class="m-tab-content active">
          <div class="dash-hero">
             <div style="position: relative; z-index: 10;">
                <div style="font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.9;">💎 Total Net Worth</div>
@@ -1708,7 +1715,8 @@
                </div>
             </div>
          </div>
-         
+         </div>
+         <div id="rtab-analytics" class="m-tab-content">
          <div class="dash-grid" style="grid-template-columns: 1fr;">
             
             <div class="dash-widget span-pc-4" style="padding: 24px;">
@@ -1857,9 +1865,20 @@
                      </div>
                   </div>
                </div>
+         
             </div>
+           
          </div>
-         <div class="dash-section-title">💸 Cashflow & Trends</div>
+         <div class="dash-widget span-2 span-pc-4" style="margin-bottom: 30px;">
+               <div class="widget-title">📈 Net Worth & Asset Growth</div>
+               <div id="nw-loading-indicator" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--gray); font-size: 15px; font-weight: 700; z-index: 5;">
+                  Loading historical data...
+               </div>
+               <div style="position: relative; height: 400px; width: 100%; z-index: 10;">
+                  <canvas id="nwTrendChart"></canvas>
+               </div>
+            </div></div>
+         <div id="rtab-cashflow" class="m-tab-content">
          <div class="dash-grid">
             <div class="dash-widget span-2 span-pc-4" id="year-recap-card" style="border-top: 5px solid var(--primary);">
                <div style="font-size:13px; color:var(--text-main); font-weight:800; text-transform:uppercase; margin-bottom:25px; text-align:center; letter-spacing: 1px;">
@@ -1922,17 +1941,8 @@
                   <canvas id="incomeStackChart"></canvas>
                </div>
             </div>
-            <div class="dash-widget span-2 span-pc-4" style="margin-bottom: 30px;">
-               <div class="widget-title">📈 Net Worth & Asset Growth</div>
-               <div id="nw-loading-indicator" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--gray); font-size: 15px; font-weight: 700; z-index: 5;">
-                  Loading historical data...
-               </div>
-               <div style="position: relative; height: 400px; width: 100%; z-index: 10;">
-                  <canvas id="nwTrendChart"></canvas>
-               </div>
-            </div>
+                     
          </div>
-         <div class="dash-section-title">🏛️ Tax Optimization & Harvesting</div>
          <div class="dash-grid">
             <div class="dash-widget span-2 span-pc-2">
                <div class="widget-title">
@@ -1957,7 +1967,9 @@
                </div>
             </div>
          </div>
-         <div class="dash-section-title">🏝️ Lifestyle & Planning</div>
+         </div>
+         
+         <div id="rtab-planning" class="m-tab-content">
          <div class="dash-grid">
             <div class="dash-widget span-2 span-pc-2">
                <div class="widget-title">✈️ Travels Cost</div>
@@ -2029,6 +2041,7 @@
                </div>
             </div>
          </div>
+      </div>
       </div>
    </div>
    <div class="nav-bar-container">

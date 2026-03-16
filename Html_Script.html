@@ -208,4 +208,46 @@ function syncIconColor(input) {
       input.style.color = 'var(--stocks-bg)';
   }
 }
+/**
+ * Switches the active sub-tab inside the Recap (Dashboard) page.
+ * Forces a resize event to ensure Chart.js canvases render correctly 
+ * when their container goes from display:none to display:block.
+ * @param {string} tabId - The ID suffix of the tab to show (overview, cashflow, planning).
+ * @param {HTMLElement} btnElement - The button element that was clicked.
+ */
+function switchRecapTab(tabId, btnElement) {
+    // 1. Remove active state from all buttons inside Recap
+    const recapNav = document.querySelector('#p-recap .market-sub-nav');
+    if (recapNav) {
+        const buttons = recapNav.querySelectorAll('.m-sub-btn');
+        buttons.forEach(btn => btn.classList.remove('active'));
+    }
+    
+    // 2. Add active state to the clicked button
+    if (btnElement) {
+        btnElement.classList.add('active');
+    }
+    
+    // 3. Hide all tab contents inside Recap
+    const recapWrapper = document.querySelector('#p-recap .pc-wrapper');
+    if (recapWrapper) {
+        const tabs = recapWrapper.querySelectorAll('.m-tab-content');
+        tabs.forEach(tab => {
+            tab.classList.remove('active');
+        });
+    }
+    
+    // 4. Show the target tab
+    const targetTab = document.getElementById('rtab-' + tabId);
+    if (targetTab) {
+        targetTab.classList.add('active');
+        
+        // 5. CRITICAL FIX FOR CHART.JS
+        // Dispatching a resize event forces Chart.js to recalculate its bounds
+        // because canvases size down to 0 when their container is display:none
+        setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+        }, 10);
+    }
+}
 </script>
