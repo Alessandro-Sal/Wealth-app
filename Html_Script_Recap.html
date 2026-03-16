@@ -64,11 +64,11 @@ function renderEvoTable(data) {
                 <td style="padding: 12px 10px; font-weight: 800; color: var(--text-main);">${row.ticker}</td>
                 <td style="padding: 12px 10px; color: var(--gray); font-size: 11px;">${row.type}</td>
                 <td style="padding: 12px 10px; text-align: right;">${row.qty}</td>
-                <td class="sensitive" style="padding: 12px 10px; text-align: right; color: var(--gray); min-width: 80px; white-space: nowrap;">${row.priceOrig}</td>
-                <td class="sensitive" style="padding: 12px 10px; text-align: right; font-weight: 600; min-width: 80px; white-space: nowrap;">${row.priceEur}</td>
-                <td class="sensitive" style="padding: 12px 10px; text-align: right; min-width: 90px; white-space: nowrap;">${row.invested}</td>
-                <td class="sensitive" style="padding: 12px 10px; text-align: right; font-weight: 800; color: var(--text-main); min-width: 100px; white-space: nowrap;">${row.value}</td>
-                <td class="sensitive" style="padding: 12px 10px; text-align: right; color: ${colorClass}; font-weight: 700; min-width: 90px; white-space: nowrap;">${row.gainLoss}</td>
+                <td style="padding: 12px 10px; text-align: right; color: var(--gray); min-width: 80px; white-space: nowrap;"><span class="sensitive">${row.priceOrig}</span></td>
+                <td style="padding: 12px 10px; text-align: right; font-weight: 600; min-width: 80px; white-space: nowrap;"><span class="sensitive">${row.priceEur}</span></td>
+                <td style="padding: 12px 10px; text-align: right; min-width: 90px; white-space: nowrap;"><span class="sensitive">${row.invested}</span></td>
+                <td style="padding: 12px 10px; text-align: right; font-weight: 800; color: var(--text-main); min-width: 100px; white-space: nowrap;"><span class="sensitive">${row.value}</span></td>
+                <td style="padding: 12px 10px; text-align: right; color: ${colorClass}; font-weight: 700; min-width: 90px; white-space: nowrap;"><span class="sensitive">${row.gainLoss}</span></td>
                 <td style="padding: 12px 10px; text-align: right; color: ${colorClass}; font-weight: 800; background: ${isNegative ? 'rgba(255, 59, 48, 0.05)' : 'rgba(52, 199, 89, 0.05)'}; min-width: 75px;">${perfStr}</td>
             </tr>
         `;
