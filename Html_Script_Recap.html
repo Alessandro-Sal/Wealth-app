@@ -632,7 +632,8 @@ function renderCPTerminal() {
 
         // Inject Rows for this group
         groupData.forEach(row => {
-            bodyHtml += `<tr><td><div style="font-weight:800;">${fmt(row.ticker)}</div></td>`;
+            bodyHtml += `<tr onclick="openPostMortemModal('${row.ticker}')" style="cursor:pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,122,255,0.05)'" onmouseout="this.style.background='transparent'">
+                <td><div style="font-weight:800;">${fmt(row.ticker)}</div></td>`;
             
             if (cpSubView === 'overview') {
                 bodyHtml += `
