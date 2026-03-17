@@ -273,6 +273,11 @@ function calculatePortfolioStats(allData, currentPrices = new Map()) {
     let finalMinPrice = (s.minBuyPrice === Infinity) ? 0 : s.minBuyPrice;
     let avgSellPrice = (s.totalSoldShares > 0) ? (s.totalSoldRevenue / s.totalSoldShares) : 0;
 
+    // --- APPLY REQUESTED OVERRIDE FOR CLOSED POSITIONS (Columns D & E) ---
+    // If closed, show total sold shares as quantity, and average sell price as avg price
+    let displayQty = (status === "CLOSED") ? s.totalSoldShares : tv.shares;
+    let displayAvgPrice = (status === "CLOSED") ? avgSellPrice : avgPrice;
+
     let analysisNotes = [];
     if (tradingRoiPct < -0.01 && totalRoiPct > 0) analysisNotes.push("🐮 Cash Cow: Gain via Divs.");
     if (tradingRoiPct > 0.05 && (totalRoiPct - tradingRoiPct) < 0.01) analysisNotes.push("📈 Pure Trading.");
@@ -370,20 +375,39 @@ function calculatePortfolioStats(allData, currentPrices = new Map()) {
 
     // --- PUSH OUTPUT ---
     output.push([
-      ticker, s.type, status, tv.shares, avgPrice, s.totalInvestedHistorical, 
-      s.tradingPnL, s.dividends, totalRealizedPnL, breakEven, tv.bookVal,     
-      allocationPct, tradingRoiPct, totalRoiPct, s.firstBuyDate, s.firstBuyPrice,
-      finalMinPrice, s.maxBuyPrice, s.maxSellPrice, avgSellPrice, daysHeld,       
-      s.lastActionDate, s.tradeCount, finalNote, 
-      assetXirrUnrealized,  // Y
-      noteUnrealized,       // Z
-      assetXirrRealized,    // AA
-      noteRealized,         // AB
-      dietzTWR,             // AC (NEW: Modified Dietz TWR)
-      yoc,                  // AD (NEW: Yield on Cost)
-      winRate,              // AE (NEW: Win Rate)
-      profitFactor,         // AF (NEW: Profit Factor)
-      drawdown              // AG (NEW: Drawdown)
+      ticker, 
+      s.type, 
+      status, 
+      displayQty,          // MODIFIED: Quantity (Column D) based on OPEN/CLOSED
+      displayAvgPrice,     // MODIFIED: Avg Price (Column E) based on OPEN/CLOSED
+      s.totalInvestedHistorical, 
+      s.tradingPnL, 
+      s.dividends, 
+      totalRealizedPnL, 
+      breakEven, 
+      tv.bookVal,     
+      allocationPct, 
+      tradingRoiPct, 
+      totalRoiPct, 
+      s.firstBuyDate, 
+      s.firstBuyPrice,
+      finalMinPrice, 
+      s.maxBuyPrice, 
+      s.maxSellPrice, 
+      avgSellPrice, 
+      daysHeld,       
+      s.lastActionDate, 
+      s.tradeCount, 
+      finalNote, 
+      assetXirrUnrealized,  
+      noteUnrealized,       
+      assetXirrRealized,    
+      noteRealized,         
+      dietzTWR,             
+      yoc,                  
+      winRate,              
+      profitFactor,         
+      drawdown              
     ]);
   }
   return output;

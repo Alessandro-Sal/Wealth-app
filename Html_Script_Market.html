@@ -817,15 +817,23 @@
             if (rawType === 'ETF' || rawType === 'ETFS') cat = 'etfs';
             else if (rawType === 'CRYPTO' || rawType === 'CRYPTOS') cat = 'crypto';
 
+            // Parso i valori in sicurezza
+            let rPnL = parseForSort(cp.realPnL); if(rPnL === -Infinity) rPnL = 0;
+            let divs = parseForSort(cp.divs); if(divs === -Infinity) divs = 0;
+            let tot = parseForSort(cp.totalPnL); if(tot === -Infinity) tot = 0;
+            let roi = parseForSort(cp.roi); if(roi === -Infinity) roi = 0;
+
             return {
                 ticker: cp.ticker + ' (C)',
                 value: 0, // Ignorati nei grafici di allocazione
+                invested: 0,
                 gainEur: 0,
-                realizedExcl: parseForSort(cp.realPnL) || 0,
-                dividends: parseForSort(cp.divs) || 0,
-                gainPct: (parseForSort(cp.roi) / 100) || 0,
+                tradeRealized: rPnL,          // FIX: Nome corretto per il grafico
+                dividends: divs,
+                cashRealized: rPnL + divs,    // FIX: Nome corretto per il grafico
+                totalGain: tot,               // FIX: Nome corretto per il grafico
+                gainPct: roi / 100,
                 daysHeld: parseInt(cp.daysHeld) || 0,
-                totalGain: parseForSort(cp.totalPnL) || 0, // Visibili nei grafici di profitto
                 _cat: cat
             };
         });
@@ -2283,15 +2291,28 @@
          }
      };
    
+     // --- INIEZIONE GRAVEYARD NEL TERMINALE ---
+     let dStocks = [...(data.stocks || [])];
+     let dEtfs = [...(data.etfs || [])];
+     let dCrypto = [...(data.crypto || [])];
+
+     if (includeClosedInMarket && window.cpData && window.cpData.length > 0) {
+         let mapped = window.cpData.map(mapClosedToLive);
+         dStocks = [...dStocks, ...mapped.filter(m => m._cat === 'stocks')];
+         dEtfs = [...dEtfs, ...mapped.filter(m => m._cat === 'etfs')];
+         dCrypto = [...dCrypto, ...mapped.filter(m => m._cat === 'crypto')];
+     }
+
      if (portfolioViewMode === 'heatmap') {
-         renderPortfolioHeatmap(data);
+         renderPortfolioHeatmap({ stocks: dStocks, etfs: dEtfs, crypto: dCrypto });
          return;
      }
    
-     renderCont('live-stocks', data.stocks, 'stocks');
-     renderCont('live-etfs', data.etfs, 'etfs');
-     renderCont('live-crypto', data.crypto, 'crypto');
-   }
+     // Passiamo le liste con i dati uniti al costruttore del terminale
+     renderCont('live-stocks', dStocks, 'stocks');
+     renderCont('live-etfs', dEtfs, 'etfs');
+     renderCont('live-crypto', dCrypto, 'crypto');
+}
    // --- Custom Right-Click Menu Logic ---
    function showContextMenu(e, ticker, assetClass, price) {
        e.preventDefault(); // Prevent default browser menu
@@ -2606,15 +2627,14 @@ let includeClosedInMarket = false;
 function toggleMarketClosedPositions(isChecked) {
     includeClosedInMarket = isChecked;
     
-    // Se attivato ma cpData (i dati chiusi) non sono in memoria, li pesca
     if (isChecked && (!window.cpData || window.cpData.length === 0)) {
-        run('getClosedPositionsData').then(data => {
+        // SINTASSI CORRETTA PER IL MODULO MARKET
+        google.script.run.withSuccessHandler(function(data) {
             window.cpData = data;
             if(currentPortfolioData) renderLivePortfolio(currentPortfolioData);
             updateAnalyticsChart();
-        });
+        }).getClosedPositionsData();
     } else {
-        // Se già in memoria, aggiorna all'istante
         if(currentPortfolioData) renderLivePortfolio(currentPortfolioData);
         updateAnalyticsChart();
     }
