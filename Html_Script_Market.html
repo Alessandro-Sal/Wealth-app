@@ -2711,22 +2711,46 @@ function mapClosedToLive(cp) {
 }
 
 /**
- * Opens the Post-Mortem modal for a closed position.
- * @param {string} ticker The asset ticker to inspect
+ * Gestisce il cambio delle Tab all'interno del Modal Post-Mortem
+ */
+function switchPMTab(tabName, element) {
+    // Nascondi tutti i contenuti
+    document.querySelectorAll('.pm-tab-content').forEach(el => el.style.display = 'none');
+    // Mostra quello selezionato
+    document.getElementById('pm-tab-' + tabName).style.display = 'block';
+    
+    // Aggiorna l'estetica dei pulsanti della tab
+    document.querySelectorAll('.pm-tab').forEach(el => {
+        el.style.color = 'var(--gray)';
+        el.style.fontWeight = '600';
+        el.style.borderBottom = '2px solid transparent';
+    });
+    element.style.color = 'var(--primary)';
+    element.style.fontWeight = '800';
+    element.style.borderBottom = '2px solid var(--primary)';
+}
+
+/**
+ * Apre il Modal Post-Mortem e inietta tutti i dati (aggiornato per la nuova UI)
  */
 function openPostMortemModal(ticker) {
-    // Ensure cpData is accessible (from Market or Recap)
     let dataset = window.cpData || (typeof cpData !== 'undefined' ? cpData : []);
     let row = dataset.find(d => d.ticker === ticker);
     if (!row) return;
 
+    // Header Dinamico
     document.getElementById('pm-mod-ticker').innerText = row.ticker;
+    document.getElementById('pm-mod-name').innerText = row.name && row.name !== '-' ? row.name : 'Realized Asset';
     
-    // Parse values for styling
+    let typeEl = document.getElementById('pm-mod-type');
+    typeEl.innerText = row.type;
+    typeEl.style.background = row.type === 'Crypto' ? 'rgba(255, 149, 0, 0.1)' : 'rgba(0, 122, 255, 0.1)';
+    typeEl.style.color = row.type === 'Crypto' ? '#ff9500' : 'var(--primary)';
+
+    // Overview Tab
     let pnlVal = parseCPSort(row.totalPnL);
     let pnlColor = pnlVal >= 0 ? 'var(--success)' : 'var(--danger)';
     
-    // Header P&L
     let pnlEl = document.getElementById('pm-mod-pnl');
     pnlEl.innerText = row.totalPnL;
     pnlEl.style.color = pnlColor;
@@ -2735,32 +2759,29 @@ function openPostMortemModal(ticker) {
     roiEl.innerText = row.roi;
     roiEl.style.color = pnlColor;
 
-    // Grid Stats
-    document.getElementById('pm-mod-days').innerText = row.daysHeld || '-';
-    document.getElementById('pm-mod-trades').innerText = row.trades || '-';
-    document.getElementById('pm-mod-first').innerText = row.firstBuy || '-';
-    document.getElementById('pm-mod-last').innerText = row.closeDate || row.lastAct || '-';
-    
-    // Advanced Stats
-    document.getElementById('pm-mod-inv').innerText = row.invested || '-';
-    document.getElementById('pm-mod-avgsell').innerText = row.avgSell || '-';
-    document.getElementById('pm-mod-minbuy').innerText = row.minBuy || '-';
-    
-    // (codice esistente...)
     let xirrEl = document.getElementById('pm-mod-xirr');
     xirrEl.innerText = row.xirr || '-';
     xirrEl.style.color = (parseCPSort(row.xirr) >= 0) ? 'var(--success)' : 'var(--danger)';
 
-    // --- NUOVA PARTE: Opportunity Cost ---
-    document.getElementById('pm-mod-qty').innerText = row.qty || '-';
+    document.getElementById('pm-mod-inv').innerText = row.invested || '-';
+    document.getElementById('pm-mod-divs').innerText = row.divs || '-';
+    document.getElementById('pm-mod-days').innerText = row.daysHeld || '-';
+    document.getElementById('pm-mod-trades').innerText = row.trades || '-';
+
+    // Trading Info Tab
+    document.getElementById('pm-mod-first').innerText = row.firstBuy || '-';
+    document.getElementById('pm-mod-last').innerText = row.closeDate || row.lastAct || '-';
+    document.getElementById('pm-mod-minbuy').innerText = row.minBuy || '-';
+    document.getElementById('pm-mod-maxbuy').innerText = row.maxBuy || '-';
+    document.getElementById('pm-mod-avgsell').innerText = row.avgSell || '-';
+    document.getElementById('pm-mod-maxsell').innerText = row.maxSell || '-';
+
+    // Opportunity Cost Section
+    document.getElementById('pm-mod-qty').innerText = row.qty || row.histQty || '-';
     document.getElementById('pm-mod-today').innerText = row.priceToday || '-';
     
-    // Aggiorna anche l'Avg Sell Price in Advanced stats per coerenza se c'è
-    if(row.avgSell && row.avgSell !== "-") document.getElementById('pm-mod-avgsell').innerText = row.avgSell;
-
     let missedEurEl = document.getElementById('pm-mod-missed-eur');
     let missedPctEl = document.getElementById('pm-mod-missed-pct');
-    
     let missedVal = parseCPSort(row.missedEur);
     
     missedEurEl.innerText = row.missedEur || '-';
@@ -2777,15 +2798,36 @@ function openPostMortemModal(ticker) {
         missedPctEl.style.color = 'var(--gray)';
     }
 
-    // Load Notes (Shared with Live Notes)
+    // Fundamentals Tab
+    if (row.type === 'Crypto') {
+        document.getElementById('pm-fund-container').style.display = 'none';
+        document.getElementById('pm-fund-empty').style.display = 'block';
+    } else {
+        document.getElementById('pm-fund-container').style.display = 'block';
+        document.getElementById('pm-fund-empty').style.display = 'none';
+        
+        document.getElementById('pm-mod-sector').innerText = row.sector || '-';
+        document.getElementById('pm-mod-ind').innerText = row.ind || '-';
+        document.getElementById('pm-mod-ctry').innerText = row.ctry || '-';
+        document.getElementById('pm-mod-mkt').innerText = row.mkt || '-';
+        document.getElementById('pm-mod-pe').innerText = row.pe || '-';
+        document.getElementById('pm-mod-eps').innerText = row.eps || '-';
+        document.getElementById('pm-mod-beta').innerText = row.beta || '-';
+    }
+
+    // Load Notes
     let notesData = {};
     try { notesData = JSON.parse(localStorage.getItem('ticker_notes') || '{}'); } catch(e) {}
     document.getElementById('pm-mod-notes').value = notesData[ticker] || '';
 
-    // Render historical chart
+    // Resetta il Modale alla tab Overview di default
+    let firstTab = document.querySelector('.pm-tab');
+    if (firstTab) switchPMTab('overview', firstTab);
+
+    // Carica il grafico
     renderPMChartWidget(ticker);
 
-    // Display Modal
+    // Mostra il modale
     const backdrop = document.getElementById('common-backdrop');
     if (backdrop) backdrop.classList.add('active');
     document.getElementById('pm-modal').classList.add('active');
