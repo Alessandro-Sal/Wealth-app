@@ -2664,11 +2664,19 @@ function mapClosedToLive(cp) {
         ind: cp.ind || "-", 
         ctry: cp.ctry || "-", 
         curr: cp.curr || "-",
-        qty: "0",
-        histQty: cp.qty,
-        avgPrice: "-", price: "-", pct: "-", dCh: "-",
+        
+        // --- COLONNE INIETTATE NEL TERMINALE ---
+        qty: cp.qty || "-",              // Apparirà nella colonna QTY
+        avgPrice: cp.avgSell || "-",     // Apparirà nella colonna AVG PRICE
+        price: cp.priceToday || "-",     // Apparirà nella colonna PRICE
+        pct: cp.missedPct || "-",        // Mostrato come variazione giornaliera (Missed Gain)
+        dCh: cp.missedEur || "-",        // Mostrato come variazione in €
+        
+        // CRITICO: Lasciamo val a 0 per evitare che modifichi il Net Worth Live
         val: "€ 0,00",
-        unrealizedEur: "-", unrealizedPct: "-",
+        
+        unrealizedEur: "-", 
+        unrealizedPct: "-",
         realizedEur: cp.realPnL, 
         realizedPct: cp.realizedPct || cp.roi,     
         balEur: cp.totalPnL,
