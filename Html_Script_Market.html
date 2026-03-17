@@ -2711,45 +2711,23 @@ function mapClosedToLive(cp) {
 }
 
 /**
- * Gestisce il cambio delle Tab all'interno del Modal Post-Mortem
- */
-function switchPMTab(tabName, element) {
-    // Nascondi tutti i contenuti
-    document.querySelectorAll('.pm-tab-content').forEach(el => el.style.display = 'none');
-    // Mostra quello selezionato
-    document.getElementById('pm-tab-' + tabName).style.display = 'block';
-    
-    // Aggiorna l'estetica dei pulsanti della tab
-    document.querySelectorAll('.pm-tab').forEach(el => {
-        el.style.color = 'var(--gray)';
-        el.style.fontWeight = '600';
-        el.style.borderBottom = '2px solid transparent';
-    });
-    element.style.color = 'var(--primary)';
-    element.style.fontWeight = '800';
-    element.style.borderBottom = '2px solid var(--primary)';
-}
-
-/**
- * Apre il Modal Post-Mortem e inietta tutti i dati (aggiornato per la nuova UI)
+ * Opens the Post-Mortem modal for a closed position using Native Layout.
  */
 function openPostMortemModal(ticker) {
     let dataset = window.cpData || (typeof cpData !== 'undefined' ? cpData : []);
     let row = dataset.find(d => d.ticker === ticker);
     if (!row) return;
 
-    // Header Dinamico
+    // Header
     document.getElementById('pm-mod-ticker').innerText = row.ticker;
     document.getElementById('pm-mod-name').innerText = row.name && row.name !== '-' ? row.name : 'Realized Asset';
     
-    let typeEl = document.getElementById('pm-mod-type');
-    typeEl.innerText = row.type;
-    typeEl.style.background = row.type === 'Crypto' ? 'rgba(255, 149, 0, 0.1)' : 'rgba(0, 122, 255, 0.1)';
-    typeEl.style.color = row.type === 'Crypto' ? '#ff9500' : 'var(--primary)';
-
-    // Overview Tab
+    let typeBadge = document.getElementById('pm-mod-ticker');
+    typeBadge.style.background = row.type === 'Crypto' ? '#ff9500' : '#8e8e93';
+    
+    // P&L
     let pnlVal = parseCPSort(row.totalPnL);
-    let pnlColor = pnlVal >= 0 ? 'var(--success)' : 'var(--danger)';
+    let pnlColor = pnlVal >= 0 ? 'var(--success, #34c759)' : 'var(--danger, #ff3b30)';
     
     let pnlEl = document.getElementById('pm-mod-pnl');
     pnlEl.innerText = row.totalPnL;
@@ -2759,24 +2737,20 @@ function openPostMortemModal(ticker) {
     roiEl.innerText = row.roi;
     roiEl.style.color = pnlColor;
 
-    let xirrEl = document.getElementById('pm-mod-xirr');
-    xirrEl.innerText = row.xirr || '-';
-    xirrEl.style.color = (parseCPSort(row.xirr) >= 0) ? 'var(--success)' : 'var(--danger)';
-
-    document.getElementById('pm-mod-inv').innerText = row.invested || '-';
-    document.getElementById('pm-mod-divs').innerText = row.divs || '-';
+    // Grid Stats (3x3 matching Watchlist)
     document.getElementById('pm-mod-days').innerText = row.daysHeld || '-';
     document.getElementById('pm-mod-trades').innerText = row.trades || '-';
-
-    // Trading Info Tab
+    let xirrEl = document.getElementById('pm-mod-xirr');
+    xirrEl.innerText = row.xirr || '-';
+    xirrEl.style.color = (parseCPSort(row.xirr) >= 0) ? 'var(--success, #34c759)' : 'var(--danger, #ff3b30)';
     document.getElementById('pm-mod-first').innerText = row.firstBuy || '-';
     document.getElementById('pm-mod-last').innerText = row.closeDate || row.lastAct || '-';
-    document.getElementById('pm-mod-minbuy').innerText = row.minBuy || '-';
-    document.getElementById('pm-mod-maxbuy').innerText = row.maxBuy || '-';
-    document.getElementById('pm-mod-avgsell').innerText = row.avgSell || '-';
-    document.getElementById('pm-mod-maxsell').innerText = row.maxSell || '-';
+    
+    let winRateEl = document.getElementById('pm-mod-winrate');
+    winRateEl.innerText = row.winRate || '-';
+    winRateEl.style.color = parseCPSort(row.winRate) >= 50 ? 'var(--success, #34c759)' : 'var(--danger, #ff3b30)';
 
-    // Opportunity Cost Section
+    // Opportunity Cost
     document.getElementById('pm-mod-qty').innerText = row.qty || row.histQty || '-';
     document.getElementById('pm-mod-today').innerText = row.priceToday || '-';
     
@@ -2788,59 +2762,37 @@ function openPostMortemModal(ticker) {
     missedPctEl.innerText = row.missedPct || '-';
     
     if (missedVal > 0) {
-        missedEurEl.style.color = 'var(--success)';
-        missedPctEl.style.color = 'var(--success)';
+        missedEurEl.style.color = 'var(--success, #34c759)';
+        missedPctEl.style.color = 'var(--success, #34c759)';
     } else if (missedVal < 0) {
-        missedEurEl.style.color = 'var(--danger)';
-        missedPctEl.style.color = 'var(--danger)';
+        missedEurEl.style.color = 'var(--danger, #ff3b30)';
+        missedPctEl.style.color = 'var(--danger, #ff3b30)';
     } else {
-        missedEurEl.style.color = 'var(--text-main)';
-        missedPctEl.style.color = 'var(--gray)';
+        missedEurEl.style.color = 'var(--text-main, #333)';
+        missedPctEl.style.color = 'var(--gray, #8e8e93)';
     }
 
-    // Fundamentals Tab
-    if (row.type === 'Crypto') {
-        document.getElementById('pm-fund-container').style.display = 'none';
-        document.getElementById('pm-fund-empty').style.display = 'block';
-    } else {
-        document.getElementById('pm-fund-container').style.display = 'block';
-        document.getElementById('pm-fund-empty').style.display = 'none';
-        
-        document.getElementById('pm-mod-sector').innerText = row.sector || '-';
-        document.getElementById('pm-mod-ind').innerText = row.ind || '-';
-        document.getElementById('pm-mod-ctry').innerText = row.ctry || '-';
-        document.getElementById('pm-mod-mkt').innerText = row.mkt || '-';
-        document.getElementById('pm-mod-pe').innerText = row.pe || '-';
-        document.getElementById('pm-mod-eps').innerText = row.eps || '-';
-        document.getElementById('pm-mod-beta').innerText = row.beta || '-';
-    }
+    // Trading Metrics
+    document.getElementById('pm-mod-inv').innerText = row.invested || '-';
+    document.getElementById('pm-mod-minbuy').innerText = row.minBuy || '-';
+    document.getElementById('pm-mod-maxsell').innerText = row.maxSell || '-';
+    document.getElementById('pm-mod-avgsell').innerText = row.avgSell || '-';
 
     // Load Notes
     let notesData = {};
     try { notesData = JSON.parse(localStorage.getItem('ticker_notes') || '{}'); } catch(e) {}
     document.getElementById('pm-mod-notes').value = notesData[ticker] || '';
 
-    // Resetta il Modale alla tab Overview di default
-    let firstTab = document.querySelector('.pm-tab');
-    if (firstTab) switchPMTab('overview', firstTab);
-
-    // Carica il grafico
+    // Render chart
     renderPMChartWidget(ticker);
 
-    // Mostra il modale
-    const backdrop = document.getElementById('common-backdrop');
-    if (backdrop) backdrop.classList.add('active');
-    document.getElementById('pm-modal').classList.add('active');
+    // APERTURA MODALE NATIVA (risolve i conflitti di scroll e background)
+    document.getElementById('pm-modal').style.display = 'flex';
 }
 
 function closePostMortemModal() {
-    document.getElementById('pm-modal').classList.remove('active');
-    // Remove backdrop only if no other modals are open
-    const activeSheets = document.querySelectorAll('.sheet-modal.active');
-    if (activeSheets.length === 0) {
-        const backdrop = document.getElementById('common-backdrop');
-        if(backdrop) backdrop.classList.remove('active');
-    }
+    // CHIUSURA MODALE NATIVA
+    document.getElementById('pm-modal').style.display = 'none';
 }
 
 function savePostMortemNote(btn) {
