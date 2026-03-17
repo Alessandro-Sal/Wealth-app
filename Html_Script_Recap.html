@@ -570,30 +570,13 @@ function renderCPTerminal() {
 
     const fmt = (val) => (val && val !== "-" && val !== "") ? val : "-";
 
-    // --- RENDER HEADERS ---
+    // Header Rendering
     let headerHtml = `<tr>${th('TICKER', 'ticker')}`;
     if (cpSubView === 'overview') {
-        headerHtml += `
-            ${th('INVESTED', 'invested', true)}
-            ${th('REALIZED P&L', 'realPnL', true)}
-            ${th('DIVIDENDS', 'divs')}
-            ${th('TOTAL P&L', 'totalPnL')}
-            ${th('ROI %', 'roi', true)}
-            ${th('XIRR', 'xirr')}
-            ${th('TWR', 'twr')}
-        `;
+        headerHtml += `${th('INVESTED', 'invested', true)}${th('REALIZED P&L', 'realPnL', true)}${th('DIVS', 'divs')}${th('TOTAL P&L', 'totalPnL')}${th('ROI %', 'roi', true)}${th('XIRR', 'xirr')}${th('TWR', 'twr')}`;
     } else {
-        headerHtml += `
-            ${th('FIRST BUY', 'firstBuy', true)}
-            ${th('LAST ACT.', 'lastAct')}
-            ${th('DAYS HELD', 'daysHeld')}
-            ${th('TRADES', 'trades')}
-            ${th('FIRST PRICE', 'firstPrice', true)}
-            ${th('MIN BUY', 'minBuy')}
-            ${th('MAX BUY', 'maxBuy')}
-            ${th('AVG SELL', 'avgSell', true)}
-            ${th('MAX SELL', 'maxSell')}
-        `;
+        // Aggiunti Win Rate e Profit Factor
+        headerHtml += `${th('FIRST BUY', 'firstBuy', true)}${th('LAST ACT.', 'lastAct')}${th('DAYS HELD', 'daysHeld')}${th('TRADES', 'trades')}${th('WIN RT', 'winRate', true)}${th('PRF FCT', 'profitFactor')}${th('FIRST P.', 'firstPrice', true)}${th('MIN BUY', 'minBuy')}${th('MAX BUY', 'maxBuy')}${th('AVG SELL', 'avgSell', true)}${th('MAX SELL', 'maxSell')}`;
     }
     headerHtml += `</tr>`;
     thead.innerHTML = headerHtml;
@@ -619,9 +602,8 @@ function renderCPTerminal() {
         
         let gPnlColor = groupPnl >= 0 ? 'var(--success)' : 'var(--danger)';
         let fmtGPnl = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(groupPnl);
-        let colSpan = cpSubView === 'overview' ? 8 : 10;
+        let colSpan = cpSubView === 'overview' ? 8 : 12; // Modificato colSpan a 12
 
-        // Inject Group Header Row
         bodyHtml += `
         <tr class="term-group-header">
             <td colspan="${colSpan}" style="background:rgba(0,122,255,0.05); color:var(--text-main); font-weight:800; text-align:left; border-top: 2px solid var(--row-border);">
@@ -630,11 +612,11 @@ function renderCPTerminal() {
             </td>
         </tr>`;
 
-        // Inject Rows for this group
         groupData.forEach(row => {
-            bodyHtml += `<tr onclick="openPostMortemModal('${row.ticker}')" style="cursor:pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,122,255,0.05)'" onmouseout="this.style.background='transparent'">
-                <td><div style="font-weight:800;">${fmt(row.ticker)}</div></td>`;
+            let clickAction = `openPostMortemModal('${row.ticker}')`;
             
+            bodyHtml += `<tr onclick="${clickAction}" style="cursor:pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,122,255,0.05)'" onmouseout="this.style.background='transparent'">
+                         <td><div style="font-weight:800;">${fmt(row.ticker)}</div></td>`;
             if (cpSubView === 'overview') {
                 bodyHtml += `
                     <td class="term-group-divider"><span class="sensitive">${fmt(row.invested)}</span></td>
@@ -646,11 +628,16 @@ function renderCPTerminal() {
                     <td class="term-heatmap" style="${getCPHeatmapStyle(row.twr)}">${fmt(row.twr)}</td>
                 `;
             } else {
+                let wrFloat = parseCPSort(row.winRate);
+                let pfFloat = parseCPSort(row.profitFactor);
+                
                 bodyHtml += `
                     <td class="term-group-divider" style="color:var(--gray);">${fmt(row.firstBuy)}</td>
                     <td style="color:var(--gray);">${fmt(row.lastAct)}</td>
                     <td style="font-weight:700;">${fmt(row.daysHeld)}</td>
                     <td style="font-weight:700;">${fmt(row.trades)}</td>
+                    <td class="term-group-divider" style="${wrFloat >= 50 ? 'color:var(--success)' : (wrFloat < 50 ? 'color:var(--danger)' : 'color:var(--text-main)')}; font-weight:700;">${fmt(row.winRate)}</td>
+                    <td style="${pfFloat >= 1 ? 'color:var(--success)' : (pfFloat < 1 ? 'color:var(--danger)' : 'color:var(--text-main)')}; font-weight:700;">${fmt(row.profitFactor)}</td>
                     <td class="term-group-divider"><span class="sensitive">${fmt(row.firstPrice)}</span></td>
                     <td><span class="sensitive">${fmt(row.minBuy)}</span></td>
                     <td><span class="sensitive">${fmt(row.maxBuy)}</span></td>

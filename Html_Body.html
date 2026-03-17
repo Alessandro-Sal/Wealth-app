@@ -2017,7 +2017,26 @@
                     <div id="pm-mod-last" style="font-weight:800; font-size:14px; color:var(--text-main);">--</div>
                 </div>
             </div>
-            
+            <div style="background: rgba(255, 149, 0, 0.05); padding:15px; border-radius:12px; border:1px solid rgba(255, 149, 0, 0.2); margin-bottom:20px;">
+                <div style="font-size:11px; font-weight:800; color:#ff9500; text-transform:uppercase; margin-bottom:12px; letter-spacing:0.5px; display:flex; align-items:center; gap:6px;">
+                    🔮 Opportunity Cost (If not sold)
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px; border-bottom:1px dashed rgba(255,149,0,0.2); padding-bottom:8px;">
+                    <span style="color:var(--gray); font-size:13px; font-weight:600;">Historical Qty:</span> 
+                    <span id="pm-mod-qty" class="sensitive" style="font-weight:800; color:var(--text-main);">--</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px; border-bottom:1px dashed rgba(255,149,0,0.2); padding-bottom:8px;">
+                    <span style="color:var(--gray); font-size:13px; font-weight:600;">Price Today:</span> 
+                    <span id="pm-mod-today" class="sensitive" style="font-weight:800; color:var(--text-main);">--</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="color:var(--gray); font-size:13px; font-weight:600;">Missed Gain/Loss:</span> 
+                    <div style="text-align:right;">
+                        <span id="pm-mod-missed-eur" class="sensitive" style="font-weight:800; display:block;">--</span>
+                        <span id="pm-mod-missed-pct" style="font-size:11px; font-weight:700;">--</span>
+                    </div>
+                </div>
+            </div>
             <div style="background:var(--section-bg); padding:15px; border-radius:12px; border:1px solid var(--row-border); margin-bottom:20px;">
                 <div style="font-size:11px; font-weight:800; color:var(--gray); text-transform:uppercase; margin-bottom:12px; letter-spacing:0.5px;">Trading Metrics</div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:8px; border-bottom:1px dashed var(--row-border); padding-bottom:8px;"><span style="color:var(--gray); font-size:13px; font-weight:600;">Invested:</span> <span id="pm-mod-inv" class="sensitive" style="font-weight:800; color:var(--text-main);">--</span></div>

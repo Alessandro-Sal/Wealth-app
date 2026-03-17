@@ -2658,24 +2658,47 @@ function mapClosedToLive(cp) {
     return {
         _cat: cat,
         _isClosed: true,
-        t: cp.ticker + " (C)", // (C) per Closed
-        name: "Realized History",
-        sector: "-", ind: "-", ctry: "-", curr: "-",
+        t: cp.ticker + " (C)", 
+        name: cp.name && cp.name !== '-' ? cp.name : "Realized History",
+        sector: cp.sector || "-", 
+        ind: cp.ind || "-", 
+        ctry: cp.ctry || "-", 
+        curr: cp.curr || "-",
         qty: "0",
+        histQty: cp.qty,
         avgPrice: "-", price: "-", pct: "-", dCh: "-",
         val: "€ 0,00",
         unrealizedEur: "-", unrealizedPct: "-",
-        realizedEur: cp.realPnL, // Inietta il profitto realizzato!
-        realizedPct: cp.roi,     
+        realizedEur: cp.realPnL, 
+        realizedPct: cp.realizedPct || cp.roi,     
         balEur: cp.totalPnL,
         balPct: cp.roi,
         div: cp.divs,
-        expectedDividend: "-", yoc: "-", xirrUnrealized: "-",
-        xirrRealized: cp.xirr, twr: cp.twr, bep: "-", delta: "-",
-        winRate: "-", profitFactor: "-", drawdown: "-",
-        firstBuyDate: cp.firstBuy, daysHeld: cp.daysHeld, tradeCount: cp.trades,
-        minBuy: cp.minBuy, maxBuy: cp.maxBuy, maxSell: cp.maxSell, avgSell: cp.avgSell,
-        pe: "-", eps: "-", mkt: "-", beta: "-", vol: "-", avgVol: "-", yearH: "-", yearL: "-"
+        expectedDividend: "-", 
+        yoc: cp.yoc || "-", 
+        xirrUnrealized: "-",
+        xirrRealized: cp.xirr, 
+        twr: cp.twr, 
+        bep: "-", 
+        delta: "-",
+        winRate: cp.winRate || "-", 
+        profitFactor: cp.profitFactor || "-", 
+        drawdown: "-",
+        firstBuyDate: cp.firstBuy, 
+        daysHeld: cp.daysHeld, 
+        tradeCount: cp.trades,
+        minBuy: cp.minBuy, 
+        maxBuy: cp.maxBuy, 
+        maxSell: cp.maxSell, 
+        avgSell: cp.avgSell,
+        pe: cp.pe || "-", 
+        eps: cp.eps || "-", 
+        mkt: cp.mkt || "-", 
+        beta: cp.beta || "-", 
+        vol: "-", 
+        avgVol: "-", 
+        yearH: "-", 
+        yearL: "-"
     };
 }
 
@@ -2715,9 +2738,36 @@ function openPostMortemModal(ticker) {
     document.getElementById('pm-mod-avgsell').innerText = row.avgSell || '-';
     document.getElementById('pm-mod-minbuy').innerText = row.minBuy || '-';
     
+    // (codice esistente...)
     let xirrEl = document.getElementById('pm-mod-xirr');
     xirrEl.innerText = row.xirr || '-';
     xirrEl.style.color = (parseCPSort(row.xirr) >= 0) ? 'var(--success)' : 'var(--danger)';
+
+    // --- NUOVA PARTE: Opportunity Cost ---
+    document.getElementById('pm-mod-qty').innerText = row.qty || '-';
+    document.getElementById('pm-mod-today').innerText = row.priceToday || '-';
+    
+    // Aggiorna anche l'Avg Sell Price in Advanced stats per coerenza se c'è
+    if(row.avgSell && row.avgSell !== "-") document.getElementById('pm-mod-avgsell').innerText = row.avgSell;
+
+    let missedEurEl = document.getElementById('pm-mod-missed-eur');
+    let missedPctEl = document.getElementById('pm-mod-missed-pct');
+    
+    let missedVal = parseCPSort(row.missedEur);
+    
+    missedEurEl.innerText = row.missedEur || '-';
+    missedPctEl.innerText = row.missedPct || '-';
+    
+    if (missedVal > 0) {
+        missedEurEl.style.color = 'var(--success)';
+        missedPctEl.style.color = 'var(--success)';
+    } else if (missedVal < 0) {
+        missedEurEl.style.color = 'var(--danger)';
+        missedPctEl.style.color = 'var(--danger)';
+    } else {
+        missedEurEl.style.color = 'var(--text-main)';
+        missedPctEl.style.color = 'var(--gray)';
+    }
 
     // Load Notes (Shared with Live Notes)
     let notesData = {};
