@@ -573,28 +573,29 @@ function renderCPTerminal() {
     // Header Rendering
     let headerHtml = `<tr>${th('TICKER', 'ticker')}`;
     if (cpSubView === 'overview') {
-        headerHtml += `${th('INVESTED', 'invested', true)}${th('REALIZED P&L', 'realPnL', true)}${th('DIVS', 'divs')}${th('TOTAL P&L', 'totalPnL')}${th('ROI %', 'roi', true)}${th('XIRR', 'xirr')}${th('TWR', 'twr')}`;
+        // AGGIUNTE COLONNE QTY, AVG SELL e PRICE TODAY
+        headerHtml += `${th('QTY', 'qty', true)}${th('AVG SELL', 'avgSell')}${th('PRICE TODAY', 'priceToday')}${th('INVESTED', 'invested', true)}${th('REALIZED P&L', 'realPnL', true)}${th('DIVS', 'divs')}${th('TOTAL P&L', 'totalPnL')}${th('ROI %', 'roi', true)}${th('XIRR', 'xirr')}${th('TWR', 'twr')}`;
     } else {
-        // Aggiunti Win Rate e Profit Factor
         headerHtml += `${th('FIRST BUY', 'firstBuy', true)}${th('LAST ACT.', 'lastAct')}${th('DAYS HELD', 'daysHeld')}${th('TRADES', 'trades')}${th('WIN RT', 'winRate', true)}${th('PRF FCT', 'profitFactor')}${th('FIRST P.', 'firstPrice', true)}${th('MIN BUY', 'minBuy')}${th('MAX BUY', 'maxBuy')}${th('AVG SELL', 'avgSell', true)}${th('MAX SELL', 'maxSell')}`;
     }
     headerHtml += `</tr>`;
     thead.innerHTML = headerHtml;
 
-    // --- RENDER BODY GROUPED BY TYPE ---
     let bodyHtml = '';
     const groupsToRender = ['Stock', 'ETF', 'Crypto', 'Other'];
 
     groupsToRender.forEach(groupName => {
-        // Filter rows for this specific group
         let groupData = sorted.filter(r => {
-            if (groupName === 'Other') return r.type !== 'Stock' && r.type !== 'ETF' && r.type !== 'Crypto';
-            return r.type === groupName;
+            let rawType = String(r.type).trim().toUpperCase();
+            let normType = 'Other';
+            if (rawType === 'STOCK' || rawType === 'STOCKS') normType = 'Stock';
+            else if (rawType === 'ETF' || rawType === 'ETFS') normType = 'ETF';
+            else if (rawType === 'CRYPTO' || rawType === 'CRYPTOS') normType = 'Crypto';
+            return normType === groupName;
         });
 
         if (groupData.length === 0) return;
 
-        // Calculate Group Subtotal P&L
         let groupPnl = groupData.reduce((sum, r) => {
             let pnl = parseCPSort(r.totalPnL);
             return sum + (pnl === -Infinity ? 0 : pnl);
@@ -602,7 +603,9 @@ function renderCPTerminal() {
         
         let gPnlColor = groupPnl >= 0 ? 'var(--success)' : 'var(--danger)';
         let fmtGPnl = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(groupPnl);
-        let colSpan = cpSubView === 'overview' ? 8 : 12; // Modificato colSpan a 12
+        
+        // AGGIORNATO COLSPAN
+        let colSpan = cpSubView === 'overview' ? 11 : 12;
 
         bodyHtml += `
         <tr class="term-group-header">
@@ -619,6 +622,9 @@ function renderCPTerminal() {
                          <td><div style="font-weight:800;">${fmt(row.ticker)}</div></td>`;
             if (cpSubView === 'overview') {
                 bodyHtml += `
+                    <td class="term-group-divider" style="color:var(--gray); font-weight:700;">${fmt(row.qty)}</td>
+                    <td><span class="sensitive" style="font-weight:600;">${fmt(row.avgSell)}</span></td>
+                    <td><span class="sensitive" style="color:var(--gray);">${fmt(row.priceToday)}</span></td>
                     <td class="term-group-divider"><span class="sensitive">${fmt(row.invested)}</span></td>
                     <td class="term-group-divider term-heatmap" style="${getCPHeatmapStyle(row.realPnL)}"><span class="sensitive">${fmt(row.realPnL)}</span></td>
                     <td><span class="sensitive" style="color:var(--primary); font-weight:700;">${fmt(row.divs)}</span></td>
