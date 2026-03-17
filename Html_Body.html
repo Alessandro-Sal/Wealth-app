@@ -754,13 +754,13 @@
         </div>
         
         <div style="display:flex; align-items:center; gap:10px;">
-            <div style="display: flex; align-items: center; background: rgba(0,0,0,0.02); padding: 4px 10px; border-radius: 8px; border: 1px solid var(--row-border);">
-                <span style="font-size: 11px; font-weight: 800; color: var(--gray); text-transform: uppercase;">Graveyard</span>
-                <label class="switch-ios">
-                    <input type="checkbox" id="toggle-closed-market" onchange="toggleMarketClosedPositions(this.checked)">
-                    <span class="slider-ios"></span>
-                </label>
-            </div>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(0,0,0,0.02); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--row-border); height: 32px; box-sizing: border-box;">
+    <span style="font-size: 11px; font-weight: 800; color: var(--gray); text-transform: uppercase; line-height: 1; margin: 0; display: block; padding-top: 1px;">Graveyard</span>
+    <label class="switch-ios" style="margin: 0; display: block;">
+        <input type="checkbox" id="toggle-closed-market" onchange="toggleMarketClosedPositions(this.checked)">
+        <span class="slider-ios"></span>
+    </label>
+</div>
             <button class="term-action-btn" onclick="exportTerminalCSV()" style="box-shadow: 0 1px 3px rgba(0,0,0,0.05);">📥 Export CSV</button>
         </div>
     </div>
