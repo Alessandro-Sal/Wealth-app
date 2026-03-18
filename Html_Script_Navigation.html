@@ -58,7 +58,7 @@
     * Closes all active modal sheets.
     */
    function closeAllSheets() {
-     const sheets = ['calc-sheet', 'search-sheet', 'invest-search-sheet', 'subs-sheet', 'gemini-sheet', 'risk-sheet'];
+     const sheets = ['calc-sheet', 'search-sheet', 'invest-search-sheet', 'subs-sheet', 'gemini-sheet', 'risk-sheet','settings-sheet'];
      sheets.forEach(id => {
          const el = document.getElementById(id);
          if (el) el.classList.remove('active');
@@ -289,4 +289,10 @@
      if (e.key >= '0' && e.key <= '9') addPin(parseInt(e.key));
      if (e.key === 'Backspace') clearPin();
    });
+
+   function openSettings() {
+    closeAllSheets();
+    document.getElementById('settings-sheet').classList.add('active');
+    document.getElementById('common-backdrop').classList.add('active');
+}
 </script>

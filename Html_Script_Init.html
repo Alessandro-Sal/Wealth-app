@@ -714,7 +714,6 @@
        document.getElementById('tax-harvest-total').innerText = "€ " + totFmt;
    }
 
-   // Function to inject the master menu into all placeholders
 function injectMasterMenus() {
   const menuHTML = `
     <div class="kebab-menu-container">
@@ -725,15 +724,14 @@ function injectMasterMenus() {
        </button>
        
        <div class="kebab-dropdown-content">
-          <button type="button" onclick="openPortfolioAlerts()">
-             🔔 Portfolio Alerts
-             <span id="portfolio-badge-count" style="background: #ff3b30; color: white; font-size: 10px; font-weight: 800; border-radius: 10px; padding: 2px 5px; margin-left: 8px; display: none;">0</span>
+          <button type="button" onclick="openSettings()">⚙️ Settings</button> <button type="button" onclick="openPortfolioAlerts()">
+              🔔 Portfolio Alerts
+              <span id="portfolio-badge-count" style="background: #ff3b30; color: white; font-size: 10px; font-weight: 800; border-radius: 10px; padding: 2px 5px; margin-left: 8px; display: none;">0</span>
           </button>
           <button type="button" onclick="startVoiceInput()">🎙️ Voice Input</button>
           <button type="button" onclick="document.getElementById('camInput').click()">📸 Camera Input</button>
           <button type="button" class="theme-toggler" onclick="toggleTheme()">🌙 Theme</button>
           <button type="button" onclick="togglePrivacy()">👁️ Privacy</button>
-          <button type="button" onclick="toggleLanguage()">Change Language</button>
           <button type="button" onclick="openGeminiSheet()">✨ AI</button>
           <button type="button" onclick="openAnalystAI()">🧠 Analyst AI</button>
        </div>
