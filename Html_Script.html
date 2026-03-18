@@ -250,4 +250,31 @@
            }, 10);
        }
    }
+
+  // Toggle menu without needing specific IDs
+function toggleMasterMenu(buttonElement) {
+  // Find the dropdown that is immediately after the clicked button
+  const currentMenu = buttonElement.nextElementSibling;
+  
+  // Close all other open dropdowns
+  const allDropdowns = document.querySelectorAll('.kebab-dropdown-content');
+  allDropdowns.forEach(dropdown => {
+    if (dropdown !== currentMenu && dropdown.classList.contains('show-kebab')) {
+      dropdown.classList.remove('show-kebab');
+    }
+  });
+  
+  // Toggle the current one
+  currentMenu.classList.toggle('show-kebab');
+}
+
+// Close when clicking outside
+window.addEventListener('click', function(event) {
+  if (!event.target.closest('.kebab-trigger')) {
+    const allDropdowns = document.querySelectorAll('.kebab-dropdown-content');
+    allDropdowns.forEach(dropdown => {
+      dropdown.classList.remove('show-kebab');
+    });
+  }
+});
 </script>

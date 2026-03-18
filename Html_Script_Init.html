@@ -713,4 +713,67 @@
        let totFmt = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(data.totalPotential);
        document.getElementById('tax-harvest-total').innerText = "€ " + totFmt;
    }
+
+   // Function to inject the master menu into all placeholders
+function injectMasterMenus() {
+  const menuHTML = `
+    <div class="kebab-menu-container">
+       <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;" onchange="handleImageInput(this)">
+       
+       <button type="button" class="kebab-trigger" onclick="toggleMasterMenu(this)">
+          &#8942;
+       </button>
+       
+       <div class="kebab-dropdown-content">
+          <button type="button" onclick="openPortfolioAlerts()">
+             🔔 Portfolio Alerts
+             <span id="portfolio-badge-count" style="background: #ff3b30; color: white; font-size: 10px; font-weight: 800; border-radius: 10px; padding: 2px 5px; margin-left: 8px; display: none;">0</span>
+          </button>
+          <button type="button" onclick="startVoiceInput()">🎙️ Voice Input</button>
+          <button type="button" onclick="document.getElementById('camInput').click()">📸 Camera Input</button>
+          <button type="button" class="theme-toggler" onclick="toggleTheme()">🌙 Theme</button>
+          <button type="button" onclick="togglePrivacy()">👁️ Privacy</button>
+          <button type="button" onclick="toggleLanguage()">Change Language</button>
+          <button type="button" onclick="openGeminiSheet()">✨ AI</button>
+          <button type="button" onclick="openAnalystAI()">🧠 Analyst AI</button>
+       </div>
+    </div>
+  `;
+
+  // Find all placeholders and insert the HTML
+  const placeholders = document.querySelectorAll('.master-menu-placeholder');
+  placeholders.forEach(placeholder => {
+    placeholder.innerHTML = menuHTML;
+  });
+}
+
+// Toggle menu without needing specific IDs
+function toggleMasterMenu(buttonElement) {
+  // Find the dropdown that is immediately after the clicked button
+  const currentMenu = buttonElement.nextElementSibling;
+  
+  // Close all other open dropdowns
+  const allDropdowns = document.querySelectorAll('.kebab-dropdown-content');
+  allDropdowns.forEach(dropdown => {
+    if (dropdown !== currentMenu && dropdown.classList.contains('show-kebab')) {
+      dropdown.classList.remove('show-kebab');
+    }
+  });
+  
+  // Toggle the current one
+  currentMenu.classList.toggle('show-kebab');
+}
+
+// Close when clicking outside
+window.addEventListener('click', function(event) {
+  if (!event.target.closest('.kebab-trigger')) {
+    const allDropdowns = document.querySelectorAll('.kebab-dropdown-content');
+    allDropdowns.forEach(dropdown => {
+      dropdown.classList.remove('show-kebab');
+    });
+  }
+});
+
+// Call the injection function when the DOM is fully loaded
+document.addEventListener('DOMContentLoaded', injectMasterMenus);
 </script>
