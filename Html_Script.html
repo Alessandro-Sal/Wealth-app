@@ -277,4 +277,31 @@ window.addEventListener('click', function(event) {
     });
   }
 });
+
+// Global variable to store app configuration loaded from Sheets
+let GLOBAL_APP_CONFIG = {
+    categories: {},
+    fixedExpenses: []
+};
+
+// Add this to your window.onload or initialization sequence
+function fetchAppConfigInit() {
+    google.script.run
+        .withSuccessHandler(config => {
+            console.log("App Config Loaded successfully:", config);
+            GLOBAL_APP_CONFIG = config;
+            
+            // If the transaction form is open, update categories immediately
+            handleTypeChange(); 
+        })
+        .withFailureHandler(err => {
+            console.error("Failed to load app config:", err);
+        })
+        .getAppConfig();
+}
+
+// Call this function when the app loads
+document.addEventListener("DOMContentLoaded", function() {
+    fetchAppConfigInit();
+});
 </script>

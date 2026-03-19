@@ -8,45 +8,55 @@
    
    // --- Form Logic ---
    
-   function handleTypeChange() {
-     const type = document.getElementById('tType').value;
-     const standardDiv = document.getElementById('standard-inputs');
-     const pensionDiv = document.getElementById('pension-inputs');
-     const btn = document.querySelector('.btn-save'); 
-     
-     if (type === 'Pension') {
-         standardDiv.style.display = 'none'; 
-         pensionDiv.style.display = 'block'; 
-         if(btn) btn.innerHTML = "💾 SAVE PENSION";
-         
-         const now = new Date(); 
-         now.setMonth(now.getMonth() - 1);
-         document.getElementById('penMonth').value = now.getMonth();
-         const yearSelect = document.getElementById('penYear'); 
-         if(yearSelect) yearSelect.value = now.getFullYear(); 
-     } else {
-         standardDiv.style.display = 'block'; 
-         pensionDiv.style.display = 'none'; 
-         if(btn) btn.innerHTML = "SAVE";
-         loadCategories(); 
-         
-         // AUTO-TOGGLE: Imposta i segni delle banche a seconda della categoria scelta
-         document.querySelectorAll('.sign-toggle').forEach(icon => {
-             let input = icon.parentElement.querySelector('.bank-in');
-             if (type === 'Expense') {
-                 icon.classList.remove('sign-plus');
-                 icon.classList.add('sign-minus');
-                 icon.innerHTML = '&#8722;';
-                 if(input) input.style.color = 'var(--danger)';
-             } else if (type === 'Income' || type === 'Storno') {
-                 icon.classList.remove('sign-minus');
-                 icon.classList.add('sign-plus');
-                 icon.innerText = '+';
-                 if(input) input.style.color = 'var(--stocks-bg)';
-             }
-         });
-     }
-   }
+  /**
+ * Updates the Category dropdown based on the selected Type
+ */
+function handleTypeChange() {
+    const typeSelect = document.getElementById("tType");
+    const catSelect = document.getElementById("tCat");
+    
+    if (!typeSelect || !catSelect) return;
+    
+    const selectedType = typeSelect.value;
+    catSelect.innerHTML = ""; // Clear existing options
+    
+    // Add default empty option
+    const defaultOption = document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.text = "Select Category...";
+    catSelect.appendChild(defaultOption);
+
+    // Retrieve categories from the global configuration fetched from Sheets
+    const dynCategories = GLOBAL_APP_CONFIG.categories[selectedType];
+
+    if (dynCategories && dynCategories.length > 0) {
+        dynCategories.forEach(cat => {
+            const opt = document.createElement("option");
+            opt.value = cat;
+            opt.text = cat;
+            catSelect.appendChild(opt);
+        });
+    } else {
+        // Fallback or specific logic (e.g., Storno, Pension)
+        if (selectedType === "Pension") {
+            const opt = document.createElement("option");
+            opt.value = "Pension Fund";
+            opt.text = "Pension Fund";
+            catSelect.appendChild(opt);
+        }
+    }
+    
+    // Manage specific UI displays (like the Pension inputs)
+    const pensionInputs = document.getElementById("pension-inputs");
+    const standardInputs = document.getElementById("standard-inputs");
+    if (selectedType === "Pension") {
+        if(pensionInputs) pensionInputs.style.display = "block";
+        if(standardInputs) standardInputs.style.display = "none";
+    } else {
+        if(pensionInputs) pensionInputs.style.display = "none";
+        if(standardInputs) standardInputs.style.display = "block";
+    }
+}
    
    function loadCategories() {
      const type = document.getElementById('tType').value;
@@ -370,14 +380,38 @@
    
    // --- Subscriptions ---
    
-   function openSubs() {
-     const sheet = document.getElementById('subs-sheet'); 
-     const backdrop = document.getElementById('common-backdrop');
-     closeAllSheets(); 
-     google.script.run.withSuccessHandler(renderSubsList).getSubsList();
-     sheet.classList.add('active'); 
-     backdrop.classList.add('active');
-   }
+   /**
+ * Opens the Subscriptions/Fixed Expenses sheet and populates the dropdown
+ */
+function openSubs() {
+    closeAllSheets();
+    const subsSheet = document.getElementById('subs-sheet');
+    const backdrop = document.getElementById('common-backdrop');
+    
+    if (subsSheet && backdrop) {
+        subsSheet.classList.add('active');
+        backdrop.classList.add('active');
+        
+        const subsDropdown = document.getElementById("subsDropdown");
+        subsDropdown.innerHTML = '<option value="">Select an expense...</option>';
+        
+        // Loop through the globally fetched fixed expenses
+        GLOBAL_APP_CONFIG.fixedExpenses.forEach(sub => {
+            const opt = document.createElement("option");
+            opt.value = sub.id;
+            
+            // Nuova formattazione: mostra sempre l'importo, e aggiunge l'etichetta SPLIT se necessario
+            let amtDisplay = `€${sub.amt.toFixed(2)}`;
+            if (sub.isSplit) {
+                amtDisplay += " - SPLIT 🔁"; 
+            }
+            
+            opt.text = `${sub.note} (${amtDisplay})`;
+            
+            subsDropdown.appendChild(opt);
+        });
+    }
+}
    
    function renderSubsList(data) {
      const select = document.getElementById('subsDropdown'); 
