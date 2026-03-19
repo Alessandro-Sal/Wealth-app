@@ -295,4 +295,352 @@
     document.getElementById('settings-sheet').classList.add('active');
     document.getElementById('common-backdrop').classList.add('active');
 }
+
+// --- GESTIONE CATEGORIE UNIFICATA ---
+   function manageCategoriesUI() {
+       closeAllSheets(); // Chiude il modal Settings automaticamente
+       const isDark = document.body.classList.contains('dark-mode');
+       
+       Swal.fire({
+           title: `Nuova Categoria`,
+           html: `
+               <select id="swal-cat-type" class="swal2-input" style="width: 80%; margin-bottom: 10px;">
+                   <option value="Expense">Expense (Uscita)</option>
+                   <option value="Income">Income (Entrata)</option>
+                   <option value="Investment">Investment (Investimento)</option>
+                   <option value="Transfer">Transfer (Giroconto)</option>
+               </select>
+               <input id="swal-cat-name" class="swal2-input" placeholder="Nome Categoria (es. Ristorante)" style="width: 80%;">
+           `,
+           showCancelButton: true,
+           confirmButtonText: 'Salva',
+           cancelButtonText: 'Annulla',
+           background: isDark ? '#1c1c1e' : '#fff',
+           color: isDark ? '#fff' : '#000',
+           preConfirm: () => {
+               const type = document.getElementById('swal-cat-type').value;
+               const name = document.getElementById('swal-cat-name').value;
+               if (!name) {
+                   Swal.showValidationMessage('Devi inserire un nome per la categoria!');
+                   return false;
+               }
+               return { type: type, name: name };
+           }
+       }).then((result) => {
+           if (result.isConfirmed) {
+               Swal.fire({ title: 'Salvataggio...', didOpen: () => { Swal.showLoading() }, background: isDark ? '#1c1c1e' : '#fff' });
+               
+               google.script.run.withSuccessHandler(res => {
+                   Swal.fire({ icon: 'success', title: 'Salvato!', showConfirmButton: false, timer: 1500, background: isDark ? '#1c1c1e' : '#fff' });
+                   if (typeof fetchAppConfigInit === 'function') fetchAppConfigInit(); // Ricarica le categorie nel form
+               }).withFailureHandler(err => {
+                   Swal.fire({ icon: 'error', title: 'Errore', text: err.message, background: isDark ? '#1c1c1e' : '#fff' });
+               }).addCategoryToSheet(result.value.type, result.value.name); 
+           }
+       });
+   }
+
+   // --- FIXED EXPENSES MANAGEMENT (Advanced UI with Dynamic Split, Dates & Actual Banks) ---
+   function addFixedExpenseUI() {
+       closeAllSheets(); 
+       const isDark = document.body.classList.contains('dark-mode');
+       
+       // 1. Generate category options dynamically
+       let catOptions = '<option value="">-- Seleziona Categoria --</option>';
+       if (typeof GLOBAL_APP_CONFIG !== 'undefined' && GLOBAL_APP_CONFIG.categories && GLOBAL_APP_CONFIG.categories['Expense']) {
+           GLOBAL_APP_CONFIG.categories['Expense'].forEach(c => {
+               catOptions += `<option value="${c}">${c}</option>`;
+           });
+       }
+
+       // 2. Define Bank options based on your real columns
+       const bankOptions = `
+           <option value="5">Intesa San Paolo</option>
+           <option value="6">N26</option>
+           <option value="7">On the go Wallet</option>
+           <option value="8">BuddyBank</option>
+           <option value="9">Revolut</option>
+           <option value="10">Food stamps</option>
+       `;
+
+       Swal.fire({
+           title: 'Nuova Spesa Fissa',
+           html: `
+               <input id="swal-note" class="swal2-input" placeholder="Nome (es. Netflix, Affitto)" style="width: 80%;">
+               
+               <select id="swal-cat" class="swal2-input" style="width: 80%;">
+                   ${catOptions}
+               </select>
+
+               <div style="display:flex; justify-content:space-between; width:80%; margin: 15px auto 0;">
+                   <div style="width:48%; text-align:left;">
+                       <label style="font-size:11px; color:var(--gray); margin-left:5px;">Data Inizio (Opzionale)</label>
+                       <input id="swal-start" type="date" class="swal2-input" style="width:100%; margin:0; padding: 0 10px;">
+                   </div>
+                   <div style="width:48%; text-align:left;">
+                       <label style="font-size:11px; color:var(--gray); margin-left:5px;">Data Fine (Opzionale)</label>
+                       <input id="swal-end" type="date" class="swal2-input" style="width:100%; margin:0; padding: 0 10px;">
+                   </div>
+               </div>
+               
+               <input id="swal-day" type="number" class="swal2-input" placeholder="Giorno addebito mensile (es. 15)" min="1" max="31" style="width: 80%; margin-top: 15px;">
+
+               <div id="swal-single-bank-container" style="margin-top: 15px;">
+                   <input id="swal-amt" type="number" class="swal2-input" placeholder="Importo Totale (es. 12.99)" step="0.01" style="width: 80%; margin-bottom: 10px;">
+                   <select id="swal-col" class="swal2-input" style="width: 80%;">
+                       <option value="">-- Seleziona Banca --</option>
+                       ${bankOptions}
+                   </select>
+               </div>
+
+               <div style="margin-top: 20px; text-align: left; width: 80%; margin-left: auto; margin-right: auto; background: var(--section-bg); padding: 10px; border-radius: 10px;">
+                   <label style="font-size: 14px; color: var(--text-main); display:flex; align-items:center; gap:8px; cursor:pointer;">
+                       <input type="checkbox" id="swal-split-check" style="width:18px; height:18px;">
+                       🔁 Dividi su più conti (Split)
+                   </label>
+               </div>
+
+               <div id="swal-split-container" style="display:none; margin-top: 10px; background: rgba(255,59,48,0.05); border: 1px solid rgba(255,59,48,0.2); padding: 15px; border-radius: 12px; width: 80%; margin-left: auto; margin-right: auto; text-align: left;">
+                   <div style="font-size: 12px; color: var(--gray); margin-bottom: 12px; line-height:1.4;">
+                       Scegli i conti e gli importi. Il totale verrà calcolato automaticamente.
+                   </div>
+                   
+                   <div id="split-rows-container">
+                       <div class="split-row" style="display:flex; gap:8px; margin-bottom:10px;">
+                           <select class="swal2-input split-bank" style="width:65%; margin:0; padding:0 10px; font-size:13px;">
+                               <option value="">-- Banca --</option>
+                               ${bankOptions}
+                           </select>
+                           <input type="number" class="swal2-input split-amt" placeholder="€" step="0.01" style="width:35%; margin:0; padding:0 10px; font-size:14px; text-align:center;">
+                       </div>
+                       <div class="split-row" style="display:flex; gap:8px; margin-bottom:10px;">
+                           <select class="swal2-input split-bank" style="width:65%; margin:0; padding:0 10px; font-size:13px;">
+                               <option value="">-- Banca --</option>
+                               ${bankOptions}
+                           </select>
+                           <input type="number" class="swal2-input split-amt" placeholder="€" step="0.01" style="width:35%; margin:0; padding:0 10px; font-size:14px; text-align:center;">
+                       </div>
+                   </div>
+                   
+                   <button type="button" id="btn-add-split" style="background:var(--text-main); color:var(--bg-main); border:none; border-radius:8px; padding:6px 12px; font-size:11px; font-weight:bold; cursor:pointer; margin-top:5px;">
+                       + Aggiungi Conto
+                   </button>
+               </div>
+           `,
+           showCancelButton: true,
+           confirmButtonText: 'Aggiungi',
+           cancelButtonText: 'Annulla',
+           background: isDark ? '#1c1c1e' : '#fff',
+           color: isDark ? '#fff' : '#000',
+           
+           // EVENT LISTENERS for dynamic split logic
+           didOpen: () => {
+               const splitCheck = document.getElementById('swal-split-check');
+               const singleCont = document.getElementById('swal-single-bank-container');
+               const splitCont = document.getElementById('swal-split-container');
+               const btnAddSplit = document.getElementById('btn-add-split');
+               const splitRowsCont = document.getElementById('split-rows-container');
+               
+               // Toggle Split view
+               splitCheck.addEventListener('change', (e) => {
+                   if (e.target.checked) {
+                       singleCont.style.display = 'none';
+                       splitCont.style.display = 'block';
+                   } else {
+                       singleCont.style.display = 'block';
+                       splitCont.style.display = 'none';
+                   }
+               });
+
+               // Add new split row dynamically
+               btnAddSplit.addEventListener('click', () => {
+                   const row = document.createElement('div');
+                   row.className = 'split-row';
+                   row.style.cssText = 'display:flex; gap:8px; margin-bottom:10px;';
+                   row.innerHTML = `
+                       <select class="swal2-input split-bank" style="width:65%; margin:0; padding:0 10px; font-size:13px;">
+                           <option value="">-- Banca --</option>
+                           ${bankOptions}
+                       </select>
+                       <input type="number" class="swal2-input split-amt" placeholder="€" step="0.01" style="width:35%; margin:0; padding:0 10px; font-size:14px; text-align:center;">
+                   `;
+                   splitRowsCont.appendChild(row);
+               });
+           },
+           
+           // VALIDATION & DATA CONSTRUCTION
+           preConfirm: () => {
+               const note = document.getElementById('swal-note').value;
+               const cat = document.getElementById('swal-cat').value;
+               const day = document.getElementById('swal-day').value;
+               const start = document.getElementById('swal-start').value;
+               const end = document.getElementById('swal-end').value;
+               const isSplit = document.getElementById('swal-split-check').checked;
+
+               if (!note || !cat) {
+                   Swal.showValidationMessage('Inserisci Nome e Categoria!');
+                   return false;
+               }
+
+               let finalAmt = 0;
+               let bankCol = null;
+               let splitDetails = "";
+
+               if (isSplit) {
+                   // Build the split string (e.g., "5:270|7:180") behind the scenes
+                   const rows = document.querySelectorAll('.split-row');
+                   let splitsArray = [];
+                   
+                   rows.forEach(row => {
+                       const b = row.querySelector('.split-bank').value;
+                       const a = row.querySelector('.split-amt').value;
+                       if (b && a) {
+                           splitsArray.push(`${b}:${parseFloat(a).toFixed(2)}`);
+                           finalAmt += parseFloat(a);
+                       }
+                   });
+                   
+                   if (splitsArray.length < 2) {
+                       Swal.showValidationMessage('Per uno split servono almeno 2 conti con importi validi!');
+                       return false;
+                   }
+                   splitDetails = splitsArray.join('|');
+               } else {
+                   finalAmt = parseFloat(document.getElementById('swal-amt').value);
+                   bankCol = document.getElementById('swal-col').value;
+                   if (!finalAmt || !bankCol) {
+                       Swal.showValidationMessage('Inserisci Importo e Banca!');
+                       return false;
+                   }
+               }
+
+               // Return formatted object for the backend
+               return { 
+                   note: note, 
+                   amt: finalAmt, 
+                   cat: cat, 
+                   bankCol: bankCol ? parseInt(bankCol) : "", 
+                   payDay: day ? parseInt(day) : "",
+                   startDate: start || "", // Send string date or empty
+                   endDate: end || "",     // Send string date or empty
+                   isSplit: isSplit,
+                   splitDetails: splitDetails
+               };
+           }
+       }).then((result) => {
+           if (result.isConfirmed) {
+               Swal.fire({ title: 'Salvataggio...', didOpen: () => { Swal.showLoading() }, background: isDark ? '#1c1c1e' : '#fff' });
+               
+               google.script.run.withSuccessHandler(res => {
+                   Swal.fire({ icon: 'success', title: 'Salvato!', showConfirmButton: false, timer: 1500, background: isDark ? '#1c1c1e' : '#fff' });
+                   if (typeof fetchAppConfigInit === 'function') fetchAppConfigInit(); 
+               }).withFailureHandler(err => {
+                   Swal.fire({ icon: 'error', title: 'Errore', text: err.message, background: isDark ? '#1c1c1e' : '#fff' });
+               }).addFixedExpenseToSheet(result.value);
+           }
+       });
+   }
+
+   // --- ELIMINA SPESA FISSA ---
+   function deleteFixedExpenseUI() {
+       closeAllSheets();
+       const isDark = document.body.classList.contains('dark-mode');
+
+       if (!GLOBAL_APP_CONFIG || !GLOBAL_APP_CONFIG.fixedExpenses || GLOBAL_APP_CONFIG.fixedExpenses.length === 0) {
+           Swal.fire({ icon: 'info', title: 'Nessuna spesa', text: 'Non ci sono spese fisse da eliminare.', background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000' });
+           return;
+       }
+
+       // Crea dinamicamente le opzioni
+       let optionsHtml = '<option value="">-- Seleziona spesa da eliminare --</option>';
+       GLOBAL_APP_CONFIG.fixedExpenses.forEach(sub => {
+           let displayAmt = sub.isSplit ? "Split" : `€ ${sub.amt.toFixed(2)}`;
+           optionsHtml += `<option value="${sub.id}">${sub.note} (${displayAmt})</option>`;
+       });
+
+       Swal.fire({
+           title: 'Elimina Spesa Fissa',
+           html: `<select id="swal-del-expense" class="swal2-input" style="width: 80%;">${optionsHtml}</select>`,
+           showCancelButton: true,
+           confirmButtonText: 'Elimina',
+           confirmButtonColor: '#ff3b30',
+           cancelButtonText: 'Annulla',
+           background: isDark ? '#1c1c1e' : '#fff',
+           color: isDark ? '#fff' : '#000',
+           preConfirm: () => {
+               const val = document.getElementById('swal-del-expense').value;
+               if (!val) {
+                   Swal.showValidationMessage('Devi selezionare una spesa!');
+                   return false;
+               }
+               return val;
+           }
+       }).then((result) => {
+           if (result.isConfirmed) {
+               Swal.fire({ title: 'Eliminazione...', didOpen: () => { Swal.showLoading() }, background: isDark ? '#1c1c1e' : '#fff' });
+               
+               google.script.run.withSuccessHandler(res => {
+                   Swal.fire({ icon: 'success', title: 'Eliminata!', text: res, showConfirmButton: false, timer: 1500, background: isDark ? '#1c1c1e' : '#fff' });
+                   if (typeof fetchAppConfigInit === 'function') fetchAppConfigInit(); // Ricarica i dati
+               }).withFailureHandler(err => {
+                   Swal.fire({ icon: 'error', title: 'Errore', text: err.message, background: isDark ? '#1c1c1e' : '#fff' });
+               }).deleteFixedExpenseFromSheet(result.value);
+           }
+       });
+   }
+
+   // --- ELIMINA CATEGORIA ---
+   function deleteCategoryUI() {
+       closeAllSheets();
+       const isDark = document.body.classList.contains('dark-mode');
+
+       if (!GLOBAL_APP_CONFIG || !GLOBAL_APP_CONFIG.categories) {
+           Swal.fire({ icon: 'error', title: 'Errore', text: 'Categorie non caricate.', background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000' });
+           return;
+       }
+
+       // Crea i gruppi di categorie (Expense, Income, etc.) per il menu a tendina
+       let optionsHtml = '<option value="">-- Seleziona categoria da eliminare --</option>';
+       const types = ['Expense', 'Income', 'Investment', 'Transfer'];
+       types.forEach(t => {
+           if (GLOBAL_APP_CONFIG.categories[t] && GLOBAL_APP_CONFIG.categories[t].length > 0) {
+               optionsHtml += `<optgroup label="--- ${t} ---">`;
+               GLOBAL_APP_CONFIG.categories[t].forEach(c => {
+                   optionsHtml += `<option value="${t}|${c}">${c}</option>`; // Salvo tipo e nome assieme
+               });
+               optionsHtml += `</optgroup>`;
+           }
+       });
+
+       Swal.fire({
+           title: 'Elimina Categoria',
+           html: `<select id="swal-del-cat" class="swal2-input" style="width: 80%;">${optionsHtml}</select>`,
+           showCancelButton: true,
+           confirmButtonText: 'Elimina',
+           confirmButtonColor: '#ff3b30',
+           cancelButtonText: 'Annulla',
+           background: isDark ? '#1c1c1e' : '#fff',
+           color: isDark ? '#fff' : '#000',
+           preConfirm: () => {
+               const val = document.getElementById('swal-del-cat').value;
+               if (!val) {
+                   Swal.showValidationMessage('Devi selezionare una categoria!');
+                   return false;
+               }
+               const [type, name] = val.split('|'); // Divido il tipo dal nome
+               return { type, name };
+           }
+       }).then((result) => {
+           if (result.isConfirmed) {
+               Swal.fire({ title: 'Eliminazione...', didOpen: () => { Swal.showLoading() }, background: isDark ? '#1c1c1e' : '#fff' });
+               
+               google.script.run.withSuccessHandler(res => {
+                   Swal.fire({ icon: 'success', title: 'Eliminata!', text: res, showConfirmButton: false, timer: 1500, background: isDark ? '#1c1c1e' : '#fff' });
+                   if (typeof fetchAppConfigInit === 'function') fetchAppConfigInit(); // Ricarica i dati
+               }).withFailureHandler(err => {
+                   Swal.fire({ icon: 'error', title: 'Errore', text: err.message, background: isDark ? '#1c1c1e' : '#fff' });
+               }).deleteCategoryFromSheet(result.value.type, result.value.name);
+           }
+       });
+   }
 </script>

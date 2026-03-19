@@ -85,3 +85,42 @@ function getAppConfig() {
     fixedExpenses: fixedExpensesData
   };
 }
+
+/**
+ * Elimina una Spesa Fissa dal foglio Settings in base all'ID
+ */
+function deleteFixedExpenseFromSheet(expenseId) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("Config_FixedExpenses");
+  if (!sheet) throw new Error("Foglio Config_FixedExpenses mancante");
+
+  const data = sheet.getDataRange().getValues();
+  // Partiamo da 1 per saltare l'intestazione
+  for (let i = 1; i < data.length; i++) { 
+    if (String(data[i][0]) === String(expenseId)) {
+      const name = data[i][2]; // Il nome/nota si trova in colonna C (indice 2)
+      sheet.deleteRow(i + 1);  // i+1 perché Apps Script è basato su indici 1 per le righe
+      return `Spesa "${name}" eliminata!`;
+    }
+  }
+  throw new Error("Spesa fissa non trovata nel database.");
+}
+
+/**
+ * Elimina una Categoria dal foglio Settings
+ */
+function deleteCategoryFromSheet(type, categoryName) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("Config_Category");
+  if (!sheet) throw new Error("Foglio Config_Category mancante");
+
+  const data = sheet.getDataRange().getValues();
+  // Partiamo da 1 per saltare l'intestazione
+  for (let i = 1; i < data.length; i++) { 
+    if (data[i][0] === type && data[i][1] === categoryName) {
+      sheet.deleteRow(i + 1);
+      return `Categoria "${categoryName}" eliminata con successo!`;
+    }
+  }
+  throw new Error("Categoria non trovata nel database.");
+}

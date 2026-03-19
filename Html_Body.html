@@ -2056,22 +2056,30 @@
    
    <div style="padding: 15px 0;">
       <div class="dash-section-title" style="margin-top:10px;">🔄 Fixed Expenses</div>
-      <div class="card" style="padding:15px; background:var(--white); border-radius:16px;">
-         <p style="font-size:12px; color:var(--gray);">Manage recurring monthly costs like rent, Netflix, or gym.</p>
-         <button onclick="openSubs()" style="width:100%; padding:12px; background:var(--primary); color:white; border:none; border-radius:12px; font-weight:bold;">
-            Manage Subscriptions
-         </button>
+      <div class="dash-list">
+         <div class="dash-list-row" onclick="openSubs()">
+            <span class="dash-list-label">Pay Subscriptions</span>
+            <span style="color:var(--primary);">➔</span>
+         </div>
+         <div class="dash-list-row" onclick="addFixedExpenseUI()">
+            <span class="dash-list-label">Create New Fixed Expense</span>
+            <span style="color:var(--stocks-bg); font-weight:bold; font-size:16px;">+</span>
+         </div>
+         <div class="dash-list-row" onclick="deleteFixedExpenseUI()">
+            <span class="dash-list-label" style="color:var(--danger);">Delete Fixed Expense</span>
+            <span style="color:var(--danger); font-weight:bold; font-size:16px;">-</span>
+         </div>
       </div>
 
       <div class="dash-section-title" style="margin-top:25px;">🏷️ Categories Setup</div>
-      <div class="card" style="padding:15px; background:var(--white); border-radius:16px;">
-         <div class="dash-list-row" onclick="alert('Feature coming soon: Edit Categories')">
-            <span class="dash-list-label">Edit Expense Categories</span>
-            <span style="color:var(--primary);">➔</span>
+      <div class="dash-list">
+         <div class="dash-list-row" onclick="manageCategoriesUI()">
+            <span class="dash-list-label">Add New Category</span>
+            <span style="color:var(--stocks-bg); font-weight:bold; font-size:16px;">+</span>
          </div>
-         <div class="dash-list-row" onclick="alert('Feature coming soon: Edit Income Categories')">
-            <span class="dash-list-label">Edit Income Categories</span>
-            <span style="color:var(--primary);">➔</span>
+         <div class="dash-list-row" onclick="deleteCategoryUI()">
+            <span class="dash-list-label" style="color:var(--danger);">Delete Category</span>
+            <span style="color:var(--danger); font-weight:bold; font-size:16px;">-</span>
          </div>
       </div>
 
@@ -2080,7 +2088,7 @@
          <div class="dash-list-row" onclick="hardResetApp()">
             <span class="dash-list-label" style="color:var(--danger);">Reset App Cache</span>
          </div>
-         <div class="dash-list-row">
+         <div class="dash-list-row" onclick="alert('Export in arrivo!')">
             <span class="dash-list-label">Export Data (CSV)</span>
             <span>📥</span>
          </div>
