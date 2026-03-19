@@ -366,6 +366,7 @@
       </div>
    </div>
    <div id="app-content" style="display:none;"></div>
+   
    <div id="p-news" class="page active-page" style="padding-top: 0;">
       <div class="pc-wrapper">
          <div class="market-header-container">
@@ -383,6 +384,7 @@
                <button type="button" class="mini-theme-btn" onclick="loadNews(currentNewsCategory)" style="font-size: 18px; background:var(--section-bg); border:none; width:36px; height:36px; cursor:pointer;">🔄</button>
             </div>
          </div>
+          <form id="txForm">
          <div class="news-search-container" style="display: flex; gap: 10px;">
             <div style="position: relative; flex: 1;">
                <span class="search-icon">🔍</span>
@@ -406,8 +408,10 @@
                Loading latest news...
             </div>
          </div>
+         </form>
       </div>
    </div>
+   
 <div id="p-add" class="page">
       <form id="txForm">
          <div class="page-header tab-header">
