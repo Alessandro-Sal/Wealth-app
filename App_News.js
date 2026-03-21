@@ -1,8 +1,6 @@
 /**
  * Fetches real-time news from MULTIPLE RSS feeds concurrently based on category.
  * Aggregates Italian and International sources, extracts images, and sorts by date.
- * @param {string} category - The category of news to fetch.
- * @returns {Object} An object containing the articles array and the used tickers.
  */
 function getMarketNews(category = 'market') {
   try {
@@ -37,40 +35,32 @@ function getMarketNews(category = 'market') {
     }
 
    // --- MULTI-SOURCE FEED AGGREGATOR (SAFE VERSION) ---
-    // Removed strict anti-bot servers (like FT, Fortune, NYT) that cause fetchAll to crash
     const feeds = {
       'market': [
         { url: 'https://feeds.a.dj.com/rss/RSSMarketsMain.xml', source: 'Wall Street Journal' },
         { url: 'https://www.ilsole24ore.com/rss/finanza.xml', source: 'Il Sole 24 Ore' },
         { url: 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10001147', source: 'CNBC' },
         { url: 'https://www.teleborsa.it/rss/news.xml', source: 'Teleborsa' },
-        { url: 'http://feeds.marketwatch.com/marketwatch/topstories/', source: 'MarketWatch' },
         { url: 'https://www.milanofinanza.it/rss/news', source: 'Milano Finanza' },
         { url: 'https://finance.yahoo.com/news/rssindex', source: 'Yahoo Finance News' },
-        { url: 'https://www.investing.com/rss/news_25.rss', source: 'Investing.com' },
-        { url: 'http://xml2.corriereobjects.it/rss/economia.xml', source: 'Corriere Economia' },
-        { url: 'https://www.finanzaonline.com/feed', source: 'FinanzaOnline' }
+        { url: 'https://www.investing.com/rss/news_25.rss', source: 'Investing.com' }
       ],
       'portfolio': [
-        // Portfolio remains dynamically generated via Yahoo to track your specific tickers
         { url: portfolioUrl, source: 'Yahoo Finance' }
       ],
       'world': [
         { url: 'http://feeds.bbci.co.uk/news/world/rss.xml', source: 'BBC Global' },
         { url: 'https://www.ansa.it/sito/notizie/mondo/mondo_rss.xml', source: 'ANSA Mondo' },
         { url: 'https://www.theguardian.com/world/rss', source: 'The Guardian' },
-        { url: 'http://xml2.corriereobjects.it/rss/esteri.xml', source: 'Corriere Esteri' },
         { url: 'http://rss.cnn.com/rss/edition_world.rss', source: 'CNN World' },
         { url: 'https://www.aljazeera.com/xml/rss/all.xml', source: 'Al Jazeera' },
-        { url: 'https://www.ilpost.it/feed/', source: 'Il Post' },
-        { url: 'https://tg24.sky.it/rss/mondo.xml', source: 'Sky TG24 Mondo' }
+        { url: 'https://www.ilpost.it/feed/', source: 'Il Post' }
       ],
       'politics': [
         { url: 'http://feeds.bbci.co.uk/news/politics/rss.xml', source: 'BBC Politics' },
         { url: 'https://www.ansa.it/sito/notizie/politica/politica_rss.xml', source: 'ANSA Politica' },
         { url: 'https://www.repubblica.it/rss/politica/rss2.0.xml', source: 'Repubblica Politica' },
         { url: 'https://www.politico.eu/feed/', source: 'Politico Europe' },
-        { url: 'https://tg24.sky.it/rss/politica.xml', source: 'Sky TG24 Politica' },
         { url: 'https://www.ilfattoquotidiano.it/feed/', source: 'Il Fatto Quotidiano' }
       ],
       'science': [ 
@@ -78,25 +68,18 @@ function getMarketNews(category = 'market') {
         { url: 'https://www.theverge.com/rss/index.xml', source: 'The Verge' },
         { url: 'https://www.ansa.it/sito/notizie/tecnologia/tecnologia_rss.xml', source: 'ANSA Tech' },
         { url: 'https://www.wired.it/feed/rss', source: 'Wired IT' },
-        { url: 'http://feeds.arstechnica.com/arstechnica/index', source: 'Ars Technica' },
-        { url: 'https://www.lescienze.it/rss/all/rss2.0.xml', source: 'Le Scienze' },
-        { url: 'https://www.sciencedaily.com/rss/all.xml', source: 'Science Daily' },
-        { url: 'https://www.hwupgrade.it/rss_news.xml', source: 'Hardware Upgrade' }
+        { url: 'https://www.sciencedaily.com/rss/all.xml', source: 'Science Daily' }
       ],
       'culture': [
         { url: 'http://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml', source: 'BBC Culture' },
-        { url: 'http://xml2.corriereobjects.it/rss/spettacoli.xml', source: 'Corriere Spettacoli' },
         { url: 'https://www.ilpost.it/cultura/feed/', source: 'Il Post Cultura' },
-        { url: 'https://www.rollingstone.it/feed/', source: 'Rolling Stone Italia' },
         { url: 'https://variety.com/feed/', source: 'Variety' },
-        { url: 'https://www.wired.com/feed/category/culture/latest/rss', source: 'Wired Culture' },
         { url: 'https://www.repubblica.it/rss/spettacoli_e_cultura/rss2.0.xml', source: 'Repubblica Spettacoli' }
       ]
     };
 
     const selectedFeeds = feeds[category] || feeds['market'];
     
-    // Prepare parallel requests for maximum performance
     const requests = selectedFeeds.map(feed => ({
       url: feed.url,
       method: 'get',
@@ -105,48 +88,30 @@ function getMarketNews(category = 'market') {
 
     let responses = [];
     try {
-      // 1. Attempt simultaneous download (Ultra Fast)
       responses = UrlFetchApp.fetchAll(requests);
     } catch (e) {
-      console.log("Network error in fetchAll, activating sequential fallback...");
-      // 2. EMERGENCY FALLBACK: If a site is down and crashes fetchAll,
-      // download one by one, ignoring broken servers.
-      selectedFeeds.forEach(feed => {
-        try {
-          let res = UrlFetchApp.fetch(feed.url, { method: 'get', muteHttpExceptions: true });
-          responses.push(res);
-        } catch (innerError) {
-          console.log("Feed temporarily unreachable, ignored: " + feed.url);
-          // Create a mock error response to keep indices aligned
-          responses.push({ 
-            getResponseCode: function() { return 500; }, 
-            getContentText: function() { return ""; } 
-          });
-        }
-      });
+      console.error("FetchAll failed totally:", e);
+      // Se c'è un errore gravissimo (es. Google Server offline), ritorna lista vuota e sgancia il frontend
+      return { articles: [], tickers: allTickers };
     }
 
     let newsList = [];
     const mediaNamespace = XmlService.getNamespace('media', 'http://search.yahoo.com/mrss/');
 
-    // Process each feed response
     responses.forEach((response, index) => {
-      // Safe check of the response code (handles our mock response too)
-      if (typeof response.getResponseCode !== 'function' || response.getResponseCode() !== 200) return;
-      
-      const sourceName = selectedFeeds[index].source;
-      const xml = response.getContentText();
-      
+      // Usiamo un Try-Catch interno: se un sito fallisce, salta semplicemente al prossimo senza bloccare tutto
       try {
+        if (!response || response.getResponseCode() !== 200) return;
+        
+        const sourceName = selectedFeeds[index].source;
+        const xml = response.getContentText();
+        
         const document = XmlService.parse(xml);
         const root = document.getRootElement();
         const channel = root.getChild('channel');
         if (!channel) return;
 
-
-        
         const items = channel.getChildren('item');
-        // Take up to 30 articles from EACH source to mix them well
         const maxItems = Math.min(items.length, 30); 
         
         for (let i = 0; i < maxItems; i++) {
@@ -163,7 +128,6 @@ function getMarketNews(category = 'market') {
           const dateObj = new Date(pubDateRaw);
           const isoDate = !isNaN(dateObj.getTime()) ? dateObj.toISOString() : new Date().toISOString();
           
-          // --- IMAGE EXTRACTION ---
           let imageUrl = null;
           const mediaContent = items[i].getChild('content', mediaNamespace);
           if (mediaContent && mediaContent.getAttribute('url')) imageUrl = mediaContent.getAttribute('url').getValue();
@@ -186,7 +150,6 @@ function getMarketNews(category = 'market') {
               imageUrl = imageUrl.replace('http://', 'https://');
           }
           
-          // --- PORTFOLIO TICKER MATCHING ---
           let articleTickers = [];
           if (category === 'portfolio' && allTickers.length > 0) {
             allTickers.forEach(ticker => {
@@ -210,15 +173,12 @@ function getMarketNews(category = 'market') {
           });
         }
       } catch (e) {
-        console.error(`Error parsing XML for ${sourceName}:`, e);
+        // Se c'è un errore nell'XML di un sito specifico, loggalo e vai oltre
+        console.error("Errore lettura feed per: " + selectedFeeds[index].source, e);
       }
     });
 
-    // --- SORT & LIMIT ---
-    // Sort all aggregated news from newest to oldest across all sources
     newsList.sort((a, b) => new Date(b.date) - new Date(a.date));
-    
-    // Keep the top 60 most recent articles overall
     newsList = newsList.slice(0, 100);
     
     return { articles: newsList, tickers: allTickers };
@@ -228,7 +188,6 @@ function getMarketNews(category = 'market') {
     return { articles: [], tickers: [] };
   }
 }
-
 /**
  * Generates an AI summary of the current top news using the universal AI router.
  * @param {Array} newsList - Array of fetched news objects.
