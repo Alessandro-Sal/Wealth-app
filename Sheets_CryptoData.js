@@ -4,7 +4,7 @@
  * @param {string} ticker The cryptocurrency symbol (e.g., "BTC").
  * @param {string} fiat The fiat currency pair (e.g., "EUR", default is "EUR").
  * @customfunction
- */
+ 
 function CRYPTO_DAY_CHANGE(ticker, fiat) {
   if (!ticker) return "";
   
@@ -57,4 +57,4 @@ function CRYPTO_DAY_CHANGE(ticker, fiat) {
     // Return the specific error message to debug
     return "Exception: " + e.message;
   }
-}
+}*/

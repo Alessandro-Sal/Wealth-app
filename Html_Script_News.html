@@ -19,8 +19,16 @@
    
    /**
     * Handles clicks on category buttons, updates UI, and fetches new data.
+    * INCLUDES PREVENT DEFAULT TO AVOID PAGE REDIRECTS.
     */
-   function setNewsCategory(category, buttonElement) {
+   function setNewsCategory(category, buttonElement, event) {
+     // Cattura l'evento (sia che venga da Chrome, Safari, mobile o desktop) e blocca il ricaricamento
+     const e = event || window.event;
+     if (e) {
+         e.preventDefault();
+         e.stopPropagation();
+     }
+     
      const buttons = document.querySelectorAll('.news-cat-btn');
      buttons.forEach(btn => btn.classList.remove('active'));
      buttonElement.classList.add('active');

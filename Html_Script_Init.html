@@ -101,19 +101,12 @@
              
          });
          // Start Live Market Updates & Background Fetches
-         if (typeof loadNews === 'function') loadNews('market'); // Avvia il download delle news all'apertura dell'app
-             
-         // Start Live Market Updates
-         fetchWatchlist();
-         fetchAnalyticsData();
-         fetchTaxOptimizationData();
-         // Start Live Market Updates & Background Fetches
-             if (typeof loadNews === 'function') loadNews('market'); // Avvia il download delle news all'apertura dell'app
-                 
-             // Start Live Market Updates
-             fetchWatchlist();
-             fetchAnalyticsData();
-             fetchTaxOptimizationData();
+      if (typeof loadNews === 'function') loadNews('market'); // Avvia il download delle news all'apertura dell'app
+          
+      // Start Live Market Updates
+      fetchWatchlist();
+      fetchAnalyticsData();
+      fetchTaxOptimizationData();
          setTimeout(() => {
              if (typeof renderNetWorthTrendChart === 'function') {
                  renderNetWorthTrendChart();

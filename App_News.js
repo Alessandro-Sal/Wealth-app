@@ -36,25 +36,18 @@ function getMarketNews(category = 'market') {
       }
     }
 
-   // --- MULTI-SOURCE FEED AGGREGATOR (ULTRA-EXPANDED) ---
-    // Each category now holds an extensive array of highly reliable international and Italian feeds.
+   // --- MULTI-SOURCE FEED AGGREGATOR (SAFE VERSION) ---
+    // Removed strict anti-bot servers (like FT, Fortune, NYT) that cause fetchAll to crash
     const feeds = {
       'market': [
-        // Original & Phase 1 Additions
         { url: 'https://feeds.a.dj.com/rss/RSSMarketsMain.xml', source: 'Wall Street Journal' },
         { url: 'https://www.ilsole24ore.com/rss/finanza.xml', source: 'Il Sole 24 Ore' },
         { url: 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10001147', source: 'CNBC' },
-        { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Business.xml', source: 'New York Times' },
-        { url: 'https://www.repubblica.it/rss/economia/rss2.0.xml', source: 'La Repubblica' },
         { url: 'https://www.teleborsa.it/rss/news.xml', source: 'Teleborsa' },
         { url: 'http://feeds.marketwatch.com/marketwatch/topstories/', source: 'MarketWatch' },
         { url: 'https://www.milanofinanza.it/rss/news', source: 'Milano Finanza' },
-        { url: 'https://www.wallstreetitalia.com/feed/', source: 'Wall Street Italia' },
         { url: 'https://finance.yahoo.com/news/rssindex', source: 'Yahoo Finance News' },
-        // Phase 2: Ultra-Expanded Additions
-        { url: 'https://www.ft.com/?format=rss', source: 'Financial Times' },
         { url: 'https://www.investing.com/rss/news_25.rss', source: 'Investing.com' },
-        { url: 'https://fortune.com/feed/', source: 'Fortune' },
         { url: 'http://xml2.corriereobjects.it/rss/economia.xml', source: 'Corriere Economia' },
         { url: 'https://www.finanzaonline.com/feed', source: 'FinanzaOnline' }
       ],
@@ -63,7 +56,6 @@ function getMarketNews(category = 'market') {
         { url: portfolioUrl, source: 'Yahoo Finance' }
       ],
       'world': [
-        // Original & Phase 1 Additions
         { url: 'http://feeds.bbci.co.uk/news/world/rss.xml', source: 'BBC Global' },
         { url: 'https://www.ansa.it/sito/notizie/mondo/mondo_rss.xml', source: 'ANSA Mondo' },
         { url: 'https://www.theguardian.com/world/rss', source: 'The Guardian' },
@@ -71,29 +63,17 @@ function getMarketNews(category = 'market') {
         { url: 'http://rss.cnn.com/rss/edition_world.rss', source: 'CNN World' },
         { url: 'https://www.aljazeera.com/xml/rss/all.xml', source: 'Al Jazeera' },
         { url: 'https://www.ilpost.it/feed/', source: 'Il Post' },
-        { url: 'https://tg24.sky.it/rss/mondo.xml', source: 'Sky TG24 Mondo' },
-        // Phase 2: Ultra-Expanded Additions
-        { url: 'https://feeds.npr.org/1004/rss.xml', source: 'NPR World' },
-        { url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', source: 'NYT World' },
-        { url: 'https://www.lastampa.it/esteri/rss/', source: 'La Stampa Esteri' },
-        { url: 'https://www.open.online/mondo/feed/', source: 'Open Mondo' }
+        { url: 'https://tg24.sky.it/rss/mondo.xml', source: 'Sky TG24 Mondo' }
       ],
       'politics': [
-        // Original & Phase 1 Additions
         { url: 'http://feeds.bbci.co.uk/news/politics/rss.xml', source: 'BBC Politics' },
         { url: 'https://www.ansa.it/sito/notizie/politica/politica_rss.xml', source: 'ANSA Politica' },
         { url: 'https://www.repubblica.it/rss/politica/rss2.0.xml', source: 'Repubblica Politica' },
         { url: 'https://www.politico.eu/feed/', source: 'Politico Europe' },
         { url: 'https://tg24.sky.it/rss/politica.xml', source: 'Sky TG24 Politica' },
-        { url: 'https://www.ilfattoquotidiano.it/feed/', source: 'Il Fatto Quotidiano' },
-        // Phase 2: Ultra-Expanded Additions
-        { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml', source: 'NYT Politics' },
-        { url: 'https://www.politico.com/rss/politics08.xml', source: 'Politico US' },
-        { url: 'https://www.open.online/politica/feed/', source: 'Open Politica' },
-        { url: 'https://www.lastampa.it/politica/rss/', source: 'La Stampa Politica' }
+        { url: 'https://www.ilfattoquotidiano.it/feed/', source: 'Il Fatto Quotidiano' }
       ],
       'science': [ 
-        // Original & Phase 1 Additions
         { url: 'https://techcrunch.com/feed/', source: 'TechCrunch' },
         { url: 'https://www.theverge.com/rss/index.xml', source: 'The Verge' },
         { url: 'https://www.ansa.it/sito/notizie/tecnologia/tecnologia_rss.xml', source: 'ANSA Tech' },
@@ -101,28 +81,16 @@ function getMarketNews(category = 'market') {
         { url: 'http://feeds.arstechnica.com/arstechnica/index', source: 'Ars Technica' },
         { url: 'https://www.lescienze.it/rss/all/rss2.0.xml', source: 'Le Scienze' },
         { url: 'https://www.sciencedaily.com/rss/all.xml', source: 'Science Daily' },
-        { url: 'https://punto-informatico.it/feed/', source: 'Punto Informatico' },
-        // Phase 2: Ultra-Expanded Additions
-        { url: 'https://www.engadget.com/rss.xml', source: 'Engadget' },
-        { url: 'https://www.technologyreview.com/feed/', source: 'MIT Tech Review' },
-        { url: 'https://www.focus.it/feed', source: 'Focus Italia' },
-        { url: 'https://www.hwupgrade.it/rss_news.xml', source: 'Hardware Upgrade' },
-        { url: 'https://www.nasa.gov/rss/dyn/breaking_news.rss', source: 'NASA Breaking News' }
+        { url: 'https://www.hwupgrade.it/rss_news.xml', source: 'Hardware Upgrade' }
       ],
       'culture': [
-        // Original & Phase 1 Additions
         { url: 'http://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml', source: 'BBC Culture' },
         { url: 'http://xml2.corriereobjects.it/rss/spettacoli.xml', source: 'Corriere Spettacoli' },
-        { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Arts.xml', source: 'NYT Arts' },
-        { url: 'https://feeds.npr.org/1008/rss.xml', source: 'NPR Arts' },
-        { url: 'https://www.newyorker.com/feed/culture', source: 'The New Yorker' },
         { url: 'https://www.ilpost.it/cultura/feed/', source: 'Il Post Cultura' },
         { url: 'https://www.rollingstone.it/feed/', source: 'Rolling Stone Italia' },
-        // Phase 2: Ultra-Expanded Additions
         { url: 'https://variety.com/feed/', source: 'Variety' },
         { url: 'https://www.wired.com/feed/category/culture/latest/rss', source: 'Wired Culture' },
-        { url: 'https://www.repubblica.it/rss/spettacoli_e_cultura/rss2.0.xml', source: 'Repubblica Spettacoli' },
-        { url: 'https://www.rivistastudio.com/feed/', source: 'Rivista Studio' }
+        { url: 'https://www.repubblica.it/rss/spettacoli_e_cultura/rss2.0.xml', source: 'Repubblica Spettacoli' }
       ]
     };
 
@@ -135,14 +103,36 @@ function getMarketNews(category = 'market') {
       muteHttpExceptions: true
     }));
 
-    // Fetch all feeds at exactly the same time
-    const responses = UrlFetchApp.fetchAll(requests);
+    let responses = [];
+    try {
+      // 1. Attempt simultaneous download (Ultra Fast)
+      responses = UrlFetchApp.fetchAll(requests);
+    } catch (e) {
+      console.log("Network error in fetchAll, activating sequential fallback...");
+      // 2. EMERGENCY FALLBACK: If a site is down and crashes fetchAll,
+      // download one by one, ignoring broken servers.
+      selectedFeeds.forEach(feed => {
+        try {
+          let res = UrlFetchApp.fetch(feed.url, { method: 'get', muteHttpExceptions: true });
+          responses.push(res);
+        } catch (innerError) {
+          console.log("Feed temporarily unreachable, ignored: " + feed.url);
+          // Create a mock error response to keep indices aligned
+          responses.push({ 
+            getResponseCode: function() { return 500; }, 
+            getContentText: function() { return ""; } 
+          });
+        }
+      });
+    }
+
     let newsList = [];
     const mediaNamespace = XmlService.getNamespace('media', 'http://search.yahoo.com/mrss/');
 
     // Process each feed response
     responses.forEach((response, index) => {
-      if (response.getResponseCode() !== 200) return;
+      // Safe check of the response code (handles our mock response too)
+      if (typeof response.getResponseCode !== 'function' || response.getResponseCode() !== 200) return;
       
       const sourceName = selectedFeeds[index].source;
       const xml = response.getContentText();
@@ -153,6 +143,8 @@ function getMarketNews(category = 'market') {
         const channel = root.getChild('channel');
         if (!channel) return;
 
+
+        
         const items = channel.getChildren('item');
         // Take up to 30 articles from EACH source to mix them well
         const maxItems = Math.min(items.length, 30); 

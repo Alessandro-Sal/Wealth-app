@@ -395,14 +395,14 @@
             </button>
          </div>
          <div class="news-cat-scroll">
-            <button class="news-cat-btn active" onclick="setNewsCategory('market', this)">📊 Markets</button>
-            <button class="news-cat-btn" onclick="setNewsCategory('portfolio', this)">💼 My Portfolio</button>
-            <button class="news-cat-btn" onclick="setNewsCategory('world', this)">🌍 World</button>
-            <button class="news-cat-btn" onclick="setNewsCategory('politics', this)">🏛️ Politics</button>
-            <button class="news-cat-btn" onclick="setNewsCategory('science', this)">🔬 Science</button>
-            <button class="news-cat-btn" onclick="setNewsCategory('culture', this)">🎭 Culture</button>
-            <button class="news-cat-btn" onclick="setNewsCategory('saved', this)">🔖 Saved</button>
-         </div>
+    <button type="button" class="news-cat-btn active" onclick="setNewsCategory('market', this, event)">📊 Markets</button>
+    <button type="button" class="news-cat-btn" onclick="setNewsCategory('portfolio', this, event)">💼 My Portfolio</button>
+    <button type="button" class="news-cat-btn" onclick="setNewsCategory('world', this, event)">🌍 World</button>
+    <button type="button" class="news-cat-btn" onclick="setNewsCategory('politics', this, event)">🏛️ Politics</button>
+    <button type="button" class="news-cat-btn" onclick="setNewsCategory('science', this, event)">🔬 Science</button>
+    <button type="button" class="news-cat-btn" onclick="setNewsCategory('culture', this, event)">🎭 Culture</button>
+    <button type="button" class="news-cat-btn" onclick="setNewsCategory('saved', this, event)">🔖 Saved</button>
+</div>
          <div id="news-container" class="news-grid">
             <div class="loader" style="text-align: center; color: var(--gray); padding: 40px; grid-column: 1 / -1;">
                Loading latest news...

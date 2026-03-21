@@ -28,8 +28,9 @@ function getDashboardData() {
   let cryptoStr = sheet.getRange(6, 2).getDisplayValue();
   let retries = 0;
   
-  // Wait up to 6 seconds for APIs to resolve
-  while (isCalculating(cryptoRaw, cryptoStr) && retries < 6) {
+  // OPTIMIZED: Reduced wait time to prevent blocking the UI.
+  // We wait max 1 second instead of 6. The 60-second polling will catch any late API responses.
+  while (isCalculating(cryptoRaw, cryptoStr) && retries < 1) {
     Utilities.sleep(1000); 
     SpreadsheetApp.flush(); // Force refresh at each tick to get fresh API data
     cryptoRaw = sheet.getRange(6, 2).getValue();
