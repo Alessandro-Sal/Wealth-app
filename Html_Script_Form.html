@@ -8,8 +8,9 @@
    
    // --- Form Logic ---
    
-  /**
+ /**
  * Updates the Category dropdown based on the selected Type
+ * and toggles sign buttons automatically for Expenses.
  */
 function handleTypeChange() {
     const typeSelect = document.getElementById("tType");
@@ -56,6 +57,24 @@ function handleTypeChange() {
         if(pensionInputs) pensionInputs.style.display = "none";
         if(standardInputs) standardInputs.style.display = "block";
     }
+
+    // Automatically set sign toggles based on selected type
+    document.querySelectorAll('.sign-toggle').forEach(icon => {
+        let input = icon.parentElement.querySelector('.bank-in');
+        if (selectedType === 'Expense') {
+            // Set to minus for Expense
+            icon.classList.remove('sign-plus');
+            icon.classList.add('sign-minus');
+            icon.innerHTML = '&#8722;';
+            if (input) input.style.color = 'var(--danger)';
+        } else {
+            // Revert to plus for Income, Transfer, Investment, etc.
+            icon.classList.remove('sign-minus');
+            icon.classList.add('sign-plus');
+            icon.innerText = '+';
+            if (input) input.style.color = 'var(--stocks-bg)';
+        }
+    });
 }
    
    function loadCategories() {
