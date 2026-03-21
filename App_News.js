@@ -80,10 +80,14 @@ function getMarketNews(category = 'market') {
 
     const selectedFeeds = feeds[category] || feeds['market'];
     
-    const requests = selectedFeeds.map(feed => ({
+  const requests = selectedFeeds.map(feed => ({
       url: feed.url,
       method: 'get',
-      muteHttpExceptions: true
+      muteHttpExceptions: true,
+      // Adding a standard browser User-Agent to bypass anti-bot blocks
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      }
     }));
 
     let responses = [];
