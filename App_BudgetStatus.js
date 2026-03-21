@@ -7,8 +7,8 @@
 function getBudgetStatus() {
   // Define hardcoded monthly budget limits (Categories kept in Italian to match Sheet data)
   const BUDGET_LIMITS = {
-    'Alimentazione': 150, 'Necessità': 150, 'Free-Time': 300, 'Alloggio': 450,
-    'Regali': 50, 'Uscite': 150, 'Trasporti': 100, 'Viaggi': 300, 'Varie': 50
+    'Housing': 500, 'Groceries': 150, 'Dining Out': 100, 'Transportation': 200,
+    'Regali': 50, 'Going Out': 150, 'Personal Habits': 100, 'Travel': 300, 'Extra Utilities': 50
   };
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
