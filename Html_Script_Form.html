@@ -159,18 +159,6 @@ function handleTypeChange() {
              Swal.fire({ icon: 'warning', title: 'Amount?', text: 'Enter the accrued amount.' }); 
              return; 
          }
-     let isSplit = document.getElementById('splitToggle') ? document.getElementById('splitToggle').checked : false;
-     let splitToCollect = 0;
-     let splitWho = "";
-     
-     if (isSplit) {
-         let totalAmount = 0;
-         for (let col in amounts) totalAmount += Math.abs(amounts[col]);
-         let myShare = parseFloat(document.getElementById('splitMyShare').value) || 0;
-         splitToCollect = totalAmount - myShare;
-         splitWho = document.getElementById('splitWho').value || "Friends";
-         if (splitToCollect < 0) splitToCollect = 0;
-     }
          const originalText = btn.innerText; 
          btn.innerText = "⏳ SAVING..."; 
          btn.classList.add('btn-loading');
@@ -227,6 +215,20 @@ function handleTypeChange() {
          return; 
      }
      
+     // --- SPLIT LOGIC ---
+     let isSplit = document.getElementById('splitToggle') ? document.getElementById('splitToggle').checked : false;
+     let splitToCollect = 0;
+     let splitWho = "";
+     
+     if (isSplit) {
+         let totalAmount = 0;
+         for (let col in amounts) totalAmount += Math.abs(amounts[col]);
+         let myShare = parseFloat(document.getElementById('splitMyShare').value) || 0;
+         splitToCollect = totalAmount - myShare;
+         splitWho = document.getElementById('splitWho').value || "Friends";
+         if (splitToCollect < 0) splitToCollect = 0;
+     }
+
      const originalText = btn.innerText; 
      btn.innerText = "⏳ SAVING..."; 
      btn.classList.add('btn-loading');
