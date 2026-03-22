@@ -368,14 +368,16 @@
            return item.category === category;
        });
    
-       const getModeVal = (item) => {
+      const getModeVal = (item) => {
            switch(window.currentBenchMode) {
                case '1m': return item.m1;
                case 'ytd': return item.ytd;
                case '1y': return item.y1;
                case '3y': return item.y3;
                case '5y': return item.y5;
-               default: return item.pct; // daily
+               case '10y': return item.y10; 
+               case '20y': return item.y20; 
+               default: return item.pct; 
            }
        };
    
@@ -391,6 +393,8 @@
                y1: window.portfolioMeData.y1,
                y3: window.portfolioMeData.y3,
                y5: window.portfolioMeData.y5,
+               y10: window.portfolioMeData.y10, // Aggiunto
+               y20: window.portfolioMeData.y20, // Aggiunto
                color: '#007aff',
                isMe: true,
                area: 'Portfolio'
@@ -418,6 +422,8 @@
            case '1y': capLimit = 40; break;
            case '3y': capLimit = 80; break;
            case '5y': capLimit = 150; break;
+           case '10y': capLimit = 300; break; // Aggiunto - limite asse a 300%
+           case '20y': capLimit = 600; break; // Aggiunto - limite asse a 600%
        }
        
        // --- 2. RENDERIZZAZIONE HTML ---
@@ -516,7 +522,7 @@
      
      // Salva l'oggetto ME globale per i filtri
      if (data.me !== undefined) {
-         window.portfolioMeData = { pct: data.me, ytd: data.meYtd, m1: data.me1m, y1: data.me1y, y3: data.me3y, y5: data.me5y };
+         window.portfolioMeData = { pct: data.me, ytd: data.meYtd, m1: data.me1m, y1: data.me1y, y3: data.me3y, y5: data.me5y, y10: data.me10y, y20: data.me20y };
      }
    
      // --- 1. BENCHMARK CARDS & FILTERS ---

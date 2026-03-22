@@ -193,17 +193,12 @@ function getMarketInsightsData(onlyMacro) {
             // Estrazione sicura delle celle del portafoglio (B7 fino a B12)
             const cleanD = (cell) => parseFloat(String(dashSheet.getRange(cell).getDisplayValue()).replace(/[€$£%\s]/g, '').replace(',', '.')) || 0;
             macro.me = cleanD("B7");     // 24H
-            macro.meYtd = cleanD("B8");  // YTD
-            macro.me1m = cleanD("B9");   // 1M
-            macro.me1y = cleanD("B10");  // 1Y
-            macro.me3y = cleanD("B11");  // 3Y
-            macro.me5y = cleanD("B12");  // 5Y
         }
 
         const sheet = ss.getSheetByName("Config_MarketIndex");
         if (sheet) {
           // Legge le colonne da A fino a J (colonna 10)
-          const dataRange = sheet.getRange("A2:J40").getDisplayValues();
+          const dataRange = sheet.getRange("A2:L80").getDisplayValues();
           const mainTickers = ["INDEXSP:.INX", "INDEXNASDAQ:NDX", "INDEXSTOXX:SX5E", "INDEXBIT:FTSEMIB", "GLD", "IBIT", "INDEXNIKKEI:NI225"];
 
           // Helper per gestire percentuali scritte con o senza "%" su Google Sheet
@@ -230,7 +225,7 @@ function getMarketInsightsData(onlyMacro) {
                 ticker: ticker, 
                 category: category, 
                 isMain: mainTickers.includes(ticker),
-                pct: parsePct(row[4]), ytd: parsePct(row[5]), m1: parsePct(row[6]), y1: parsePct(row[7]), y3: parsePct(row[8]), y5: parsePct(row[9])
+                pct: parsePct(row[4]), ytd: parsePct(row[5]), m1: parsePct(row[6]), y1: parsePct(row[7]), y3: parsePct(row[8]), y5: parsePct(row[9]), y10: parsePct(row[10]), y20: parsePct(row[11])
               });
 
               if (ticker === "INDEXSP:.INX") macro.spx = parsePct(row[4]);
