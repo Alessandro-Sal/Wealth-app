@@ -1158,7 +1158,10 @@ function openSubs() {
            <div style="background:var(--white); border:1px solid rgba(0,0,0,0.05); padding:12px; border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
                <div>
                    <div style="font-size:11px; color:var(--gray); font-weight:700;">${c.date} • ${c.category}</div>
-                   <div style="font-size:14px; font-weight:800; color:var(--text-main);">${c.who}</div>
+                   <div style="font-size:14px; font-weight:800; color:var(--text-main); display:flex; align-items:center; gap:5px;">
+                        ${c.who}
+                        <button type="button" onclick="deleteCreditAndTx('${c.id}', '${c.linkedTxId}')" style="background:none; border:none; color:var(--danger); font-size:12px; cursor:pointer; padding:0;">🗑️</button>
+                   </div>
                    <div style="font-size:12px; color:var(--gray);">${c.note}</div>
                </div>
                <div style="text-align:right;">
@@ -1365,6 +1368,32 @@ function openSubs() {
                    fetchBalances();
                    fetchBudgets();
                }).settleGroupedCredits(normalizedName, result.value);
+           }
+       });
+   }
+
+  function deleteCreditAndTx(creditId, linkedTxId) {
+       Swal.fire({
+           title: 'Eliminare l\'intero Split?',
+           text: "Questa azione cancellerà la spesa originale dai tuoi conti e annullerà i debiti di TUTTI gli amici inseriti in questo split. L'azione è irreversibile.",
+           icon: 'warning',
+           showCancelButton: true,
+           confirmButtonColor: '#ff3b30',
+           confirmButtonText: 'Sì, elimina tutto',
+           cancelButtonText: 'Annulla'
+       }).then((result) => {
+           if (result.isConfirmed) {
+               Swal.fire({ title: 'Eliminazione in corso...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+               
+               google.script.run.withSuccessHandler(() => {
+                   Swal.fire({ icon: 'success', title: 'Split Eliminato!', showConfirmButton: false, timer: 1500 });
+                   fetchActiveCredits(); 
+                   fetchHistory();       
+                   fetchBalances();      
+                   fetchBudgets();       
+               }).withFailureHandler((err) => {
+                   Swal.fire('Errore', err.message, 'error');
+               }).removeCreditAndOriginalTx(creditId, linkedTxId);
            }
        });
    }

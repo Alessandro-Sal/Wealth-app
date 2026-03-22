@@ -101,22 +101,26 @@ function addTransaction(data) {
   if (data.splitData && data.splitData.length > 0) {
     const creditSheet = ss.getSheetByName("Active_Credits");
     if (creditSheet) {
+      // Genera un ID di transazione unico se non esiste (lo useremo per collegare credito e spesa)
+      const txId = "TX_" + new Date().getTime() + "_" + newRow;
+      // Salva l'ID nella riga della spesa in Expenses Tracker (usiamo la colonna 35 / AI come fai per gli investimenti)
+      sheet.getRange(newRow, 35).setValue(txId);
+
       data.splitData.forEach(friend => {
-        // Generate unique ID for each friend's debt
         const creditId = "CR_" + new Date().getTime() + "_" + Math.floor(Math.random()*1000);
         
         creditSheet.appendRow([
           creditId,
           dateVal,
-          friend.who, // Single friend name
+          friend.who,
           data.category,
           data.details,
-          friend.amount // Specific debt for this friend
+          friend.amount,
+          txId // Salviamo l'ID della transazione originale nella colonna 7 (G) di Active_Credits
         ]);
       });
     }
   }
-  // ----------------------------------------------------
   return "Saved Successfully";
 }
 /**
@@ -130,16 +134,16 @@ function getActiveCredits() {
   const data = sheet.getDataRange().getValues();
   let credits = [];
   
-  // Partiamo dalla riga 2 (indice 1) per saltare l'intestazione
   for (let i = 1; i < data.length; i++) {
-    if(data[i][0]) { // Se l'ID esiste
+    if(data[i][0]) { 
       credits.push({
         id: data[i][0],
         date: data[i][1] ? Utilities.formatDate(new Date(data[i][1]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
         who: data[i][2],
         category: data[i][3],
         note: data[i][4],
-        amount: parseFloat(data[i][5]) || 0
+        amount: parseFloat(data[i][5]) || 0,
+        linkedTxId: data[i][6] || "" // Recupera l'ID collegato dalla colonna 7 (G)
       });
     }
   }

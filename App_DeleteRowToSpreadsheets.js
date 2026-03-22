@@ -93,3 +93,50 @@ function findAndDeleteById(ss, targetSheetName, id, colIndex) {
     }
   }
 }
+/**
+ * Rimuove TUTTI i crediti di uno split e la transazione originale associata.
+ */
+function removeCreditAndOriginalTx(creditId, linkedTxId) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const creditSheet = ss.getSheetByName("Active_Credits");
+  const currentYear = new Date().getFullYear();
+  const expSheetName = "Expenses Tracker " + currentYear;
+  const expSheet = ss.getSheetByName(expSheetName);
+
+  if (!creditSheet) throw new Error("Foglio Active_Credits mancante.");
+
+  const cData = creditSheet.getDataRange().getValues();
+
+  // 1. Elimina TUTTI i crediti in Active_Credits associati a questa spesa
+  if (linkedTxId) {
+    // Ciclo al contrario per eliminare righe multiple in sicurezza
+    for (let i = cData.length - 1; i >= 1; i--) {
+      // Controlliamo la colonna G (indice 6) dove abbiamo salvato il linkedTxId
+      if (String(cData[i][6]).trim() === String(linkedTxId).trim()) {
+        creditSheet.deleteRow(i + 1);
+      }
+    }
+  } else {
+    // Fallback di sicurezza: se per vecchi split non c'è l'ID collegato, elimina almeno questo
+    for (let i = cData.length - 1; i >= 1; i--) {
+      if (String(cData[i][0]) === String(creditId)) {
+        creditSheet.deleteRow(i + 1);
+        break;
+      }
+    }
+  }
+
+  // 2. Trova ed elimina la spesa madre nel foglio Expenses
+  if (linkedTxId && expSheet) {
+    const eData = expSheet.getRange(20, 35, expSheet.getLastRow() - 19, 1).getValues(); // Colonna AI (35)
+    for (let i = eData.length - 1; i >= 0; i--) {
+      if (String(eData[i][0]).trim() === String(linkedTxId).trim()) {
+        // Usa la funzione deleteRow dell'app per assicurare che si sincronizzi tutto (es. investimenti se presenti)
+        deleteRow(expSheetName, i + 20); 
+        break; 
+      }
+    }
+  }
+  
+  return "Success";
+}
