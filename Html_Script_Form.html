@@ -159,7 +159,18 @@ function handleTypeChange() {
              Swal.fire({ icon: 'warning', title: 'Amount?', text: 'Enter the accrued amount.' }); 
              return; 
          }
-         
+     let isSplit = document.getElementById('splitToggle') ? document.getElementById('splitToggle').checked : false;
+     let splitToCollect = 0;
+     let splitWho = "";
+     
+     if (isSplit) {
+         let totalAmount = 0;
+         for (let col in amounts) totalAmount += Math.abs(amounts[col]);
+         let myShare = parseFloat(document.getElementById('splitMyShare').value) || 0;
+         splitToCollect = totalAmount - myShare;
+         splitWho = document.getElementById('splitWho').value || "Friends";
+         if (splitToCollect < 0) splitToCollect = 0;
+     }
          const originalText = btn.innerText; 
          btn.innerText = "⏳ SAVING..."; 
          btn.classList.add('btn-loading');
@@ -233,7 +244,7 @@ function handleTypeChange() {
          btn.innerText = originalText; 
          btn.classList.remove('btn-loading'); 
          Swal.fire({ icon: 'error', title: 'Error', text: err.message }); 
-     }).addTransaction({ type, category, details: details || "No Note", amounts });
+     }).addTransaction({ type, category, details: details || "No Note", amounts, splitToCollect, splitWho });
    }
    
    function deleteTx(sheet, row) {
@@ -989,5 +1000,39 @@ function openSubs() {
            console.error("Error fetching subs status:", e);
            container.innerHTML = '<div style="font-size:12px; color:var(--danger); text-align:center; padding: 20px 0;">Failed to load data.</div>';
        });
+   }
+
+   function toggleSplitSection() {
+     const isChecked = document.getElementById('splitToggle').checked;
+     const details = document.getElementById('split-details');
+     details.style.display = isChecked ? 'block' : 'none';
+     
+     if (isChecked) {
+         calculateSplit(); // Calcola subito se ci sono già importi nelle banche
+     } else {
+         document.getElementById('splitMyShare').value = "";
+         document.getElementById('splitWho').value = "";
+         document.getElementById('splitToCollect').innerText = "€ 0.00";
+     }
+   }
+   
+   function calculateSplit() {
+     // 1. Calcola il totale inserito nelle banche
+     let totalAmount = 0;
+     document.querySelectorAll('.input-wrapper').forEach(wrapper => { 
+         let input = wrapper.querySelector('.bank-in');
+         if(input && input.value) {
+             totalAmount += Math.abs(parseFloat(input.value) || 0); 
+         }
+     });
+     
+     // 2. Prendi la quota dell'utente
+     let myShare = parseFloat(document.getElementById('splitMyShare').value) || 0;
+     
+     // 3. Calcola quanto recuperare
+     let toCollect = totalAmount - myShare;
+     if (toCollect < 0) toCollect = 0; // Evita numeri negativi se si sbaglia a digitare
+     
+     document.getElementById('splitToCollect').innerText = "€ " + toCollect.toFixed(2);
    }
 </script>

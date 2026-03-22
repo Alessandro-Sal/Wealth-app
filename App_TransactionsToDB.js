@@ -97,7 +97,23 @@ function addTransaction(data) {
       }
     }
   }
-  // ----------------------------------------------------
-
+// --- 3. SPLIT WITH FRIENDS LOGIC ---
+  if (data.splitToCollect && data.splitToCollect > 0) {
+    const creditSheet = ss.getSheetByName("Active_Credits");
+    if (creditSheet) {
+      // Generate Unique ID for the credit
+      const creditId = "CR_" + new Date().getTime();
+      
+      // Write to Active_Credits: [ID, Date, Who, Category, Note, Amount]
+      creditSheet.appendRow([
+        creditId,
+        dateVal,
+        data.splitWho,
+        data.category,
+        data.details,
+        data.splitToCollect
+      ]);
+    }
+  }
   return "Saved Successfully";
 }
