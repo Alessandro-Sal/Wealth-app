@@ -44,6 +44,7 @@ function getMonthlySavings() {
         // Aggregate totals based on transaction type
         if(row[1] === 'Income') income += amt;
         if(row[1] === 'Expense') expenses += Math.abs(amt); 
+        if(row[1] === 'Refund') expenses -= Math.abs(amt); // Decreases total expenses
       }
     }
   });

@@ -45,6 +45,8 @@ function getMonthlyChartData(year) {
            incomeData[monthIndex] += amount;
         } else if (row[1] === 'Expense') {
            expenseData[monthIndex] += Math.abs(amount);
+        } else if (row[1] === 'Refund') {
+           expenseData[monthIndex] -= Math.abs(amount); // Decreases expense for the month
         }
       }
     }
@@ -128,6 +130,12 @@ function getMonthlyCategoryBreakdown(year) {
         expenseMap[cat][month] += amount;
         totalExpenseVal += amount;
       } 
+      else if (type === 'Refund') {
+        amount = Math.abs(amount);
+        if (!expenseMap[cat]) expenseMap[cat] = new Array(12).fill(0);
+        expenseMap[cat][month] -= amount; // Decreases expense category
+        totalExpenseVal -= amount;
+      }
       else if (type === 'Income') {
         if (!incomeMap[cat]) incomeMap[cat] = new Array(12).fill(0);
         incomeMap[cat][month] += amount;
