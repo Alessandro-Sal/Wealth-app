@@ -207,6 +207,12 @@
      } else {
          input.style.color = 'var(--stocks-bg)';
      }
+     
+     // --- NUOVA RIGA PER LO SPLIT ---
+     // Ricalcola lo split in tempo reale quando si digitano importi nelle banche
+     if(document.getElementById('splitToggle') && document.getElementById('splitToggle').checked) {
+         if (typeof updateSplitMath === 'function') updateSplitMath('friends');
+     }
    }
    /**
     * Switches the active sub-tab inside the Recap (Dashboard) page.

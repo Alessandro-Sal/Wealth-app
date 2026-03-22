@@ -556,17 +556,22 @@
             </div>
             
             <div id="split-details" style="display:none; margin-top:15px; border-top: 1px dashed rgba(0, 122, 255, 0.2); padding-top: 15px;">
-               <div style="display:flex; gap:10px; margin-bottom:10px;">
-                  <div style="flex:1;">
-                     <label style="margin-top:0; font-size:11px; color:var(--gray);">My Share (€)</label>
-                     <input type="number" inputmode="decimal" id="splitMyShare" placeholder="Es. 25.00" oninput="calculateSplit()" style="background:white; margin-top:4px;">
-                  </div>
-                  <div style="flex:1;">
-                     <label style="margin-top:0; font-size:11px; color:var(--gray);">Who owes you?</label>
-                     <input type="text" id="splitWho" placeholder="Mario, Giulia..." style="background:white; margin-top:4px;">
-                  </div>
+               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                  <span style="font-size:12px; font-weight:800; color:var(--gray);">Total Paid: <span id="split-total-paid" style="color:var(--text-main);">€ 0.00</span></span>
+                  <button type="button" onclick="splitEqually()" style="background:rgba(0,122,255,0.1); color:var(--primary); border:none; padding:4px 10px; border-radius:8px; font-size:11px; font-weight:bold; cursor:pointer;">➗ Split Equally</button>
                </div>
-               <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:12px 15px; border-radius:12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+               
+               <div style="margin-bottom:10px;">
+                  <label style="margin-top:0; font-size:11px; color:var(--gray);">My Share (€)</label>
+                  <input type="number" inputmode="decimal" id="splitMyShare" placeholder="0.00" oninput="updateSplitMath('share')" style="background:white; margin-top:4px;">
+               </div>
+               
+               <label style="margin-top:0; font-size:11px; color:var(--gray);">Friends</label>
+               <div id="split-friends-list" style="display:flex; flex-direction:column; gap:8px;">
+                  </div>
+               <button type="button" onclick="addSplitFriend()" style="width:100%; background:white; border:1px dashed var(--primary); color:var(--primary); padding:8px; border-radius:8px; font-size:12px; font-weight:bold; margin-top:10px; cursor:pointer;">+ Add Friend</button>
+               
+               <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:12px 15px; border-radius:12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); margin-top:15px;">
                   <span style="font-size:12px; font-weight:800; color:var(--gray); text-transform:uppercase;">To Collect:</span>
                   <span id="splitToCollect" class="sensitive" style="font-size:18px; font-weight:900; color:var(--stocks-bg);">€ 0.00</span>
                </div>
@@ -580,6 +585,15 @@
          <div class="card" style="margin-top:15px; padding:15px 15px 5px 15px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
             <div id="budget-container">
                <div style="text-align:center; color:var(--gray); font-size:12px; padding:10px;">Loading Budgets...</div>
+            </div>
+         </div>
+         <div class="dash-widget span-2 span-pc-2" id="active-credits-widget">
+            <div class="widget-title">
+               <div class="badge-icon bg-blue">🤝</div>
+               To Collect (Credits)
+            </div>
+            <div id="active-credits-list" style="display:flex; flex-direction:column; gap:12px; margin-top:5px; max-height: 280px; overflow-y: auto;">
+               <div style="font-size:12px; color:var(--gray); text-align:center; padding: 20px 0;">Loading credits...</div>
             </div>
          </div>
          <div class="dash-widget span-2 span-pc-2" id="subs-status-widget">

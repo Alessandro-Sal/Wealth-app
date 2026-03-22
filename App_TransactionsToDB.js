@@ -98,22 +98,85 @@ function addTransaction(data) {
     }
   }
 // --- 3. SPLIT WITH FRIENDS LOGIC ---
-  if (data.splitToCollect && data.splitToCollect > 0) {
+  if (data.splitData && data.splitData.length > 0) {
     const creditSheet = ss.getSheetByName("Active_Credits");
     if (creditSheet) {
-      // Generate Unique ID for the credit
-      const creditId = "CR_" + new Date().getTime();
-      
-      // Write to Active_Credits: [ID, Date, Who, Category, Note, Amount]
-      creditSheet.appendRow([
-        creditId,
-        dateVal,
-        data.splitWho,
-        data.category,
-        data.details,
-        data.splitToCollect
-      ]);
+      data.splitData.forEach(friend => {
+        // Generate unique ID for each friend's debt
+        const creditId = "CR_" + new Date().getTime() + "_" + Math.floor(Math.random()*1000);
+        
+        creditSheet.appendRow([
+          creditId,
+          dateVal,
+          friend.who, // Single friend name
+          data.category,
+          data.details,
+          friend.amount // Specific debt for this friend
+        ]);
+      });
     }
   }
+  // ----------------------------------------------------
   return "Saved Successfully";
+}
+/**
+ * Recupera la lista dei crediti attivi dal foglio
+ */
+function getActiveCredits() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("Active_Credits");
+  if (!sheet) return [];
+  
+  const data = sheet.getDataRange().getValues();
+  let credits = [];
+  
+  // Partiamo dalla riga 2 (indice 1) per saltare l'intestazione
+  for (let i = 1; i < data.length; i++) {
+    if(data[i][0]) { // Se l'ID esiste
+      credits.push({
+        id: data[i][0],
+        date: data[i][1] ? Utilities.formatDate(new Date(data[i][1]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
+        who: data[i][2],
+        category: data[i][3],
+        note: data[i][4],
+        amount: parseFloat(data[i][5]) || 0
+      });
+    }
+  }
+  return credits;
+}
+
+/**
+ * Salda il debito: lo cancella dal foglio Active_Credits e crea un "Refund"
+ */
+function settleActiveCredit(id, amount, category, note, bankCol) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const creditSheet = ss.getSheetByName("Active_Credits");
+  if (!creditSheet) throw new Error("Foglio Active_Credits mancante.");
+
+  const data = creditSheet.getDataRange().getValues();
+  let found = false;
+  
+  // 1. Elimina la riga dal foglio Active_Credits
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]) === String(id)) {
+      creditSheet.deleteRow(i + 1);
+      found = true;
+      break;
+    }
+  }
+  if (!found) throw new Error("Credito non trovato o già saldato.");
+
+  // 2. Crea l'oggetto importi associandolo alla banca scelta dall'utente
+  let amountsObj = {};
+  amountsObj[bankCol] = amount; // Inserisce l'importo (positivo) nella colonna corretta
+
+  // 3. Richiama la funzione di aggiunta transazione passandogli "Refund"
+  // (In questo modo scalerà le spese dai grafici come abbiamo configurato prima!)
+  return addTransaction({
+    type: 'Refund',
+    category: category,
+    details: "Settled from: " + note,
+    amounts: amountsObj
+  });
 }
