@@ -211,7 +211,8 @@
      // --- NUOVA RIGA PER LO SPLIT ---
      // Ricalcola lo split in tempo reale quando si digitano importi nelle banche
      if(document.getElementById('splitToggle') && document.getElementById('splitToggle').checked) {
-         if (typeof updateSplitMath === 'function') updateSplitMath('friends');
+         // Passiamo 'null' in modo che il Caso 1 della funzione si attivi correttamente
+         if (typeof updateSplitMath === 'function') updateSplitMath(null);
      }
    }
    /**

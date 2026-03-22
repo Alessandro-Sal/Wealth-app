@@ -1013,7 +1013,7 @@ function openSubs() {
        });
    }
 
-   // --- Logica Modulo Split with Friends ---
+   // --- LOGICA MODULO SPLIT DINAMICO ---
    let splitFriendsCount = 0;
    
    function toggleSplitSection() {
@@ -1022,15 +1022,26 @@ function openSubs() {
      details.style.display = isChecked ? 'block' : 'none';
      
      if (isChecked) {
-         if(splitFriendsCount === 0) addSplitFriend(); // Adds 1st friend by default
-         updateSplitMath(); 
+         if(splitFriendsCount === 0) addSplitFriend(); 
+         // Passiamo 'null' per forzare l'assorbimento dell'importo se la banca era già compilata
+         updateSplitMath(null); 
      } else {
-         // Reset when closing
          document.getElementById('splitMyShare').value = "";
          document.getElementById('split-friends-list').innerHTML = "";
          splitFriendsCount = 0;
          document.getElementById('splitToCollect').innerText = "€ 0.00";
      }
+   }
+
+   function getSplitTotalPaid() {
+       let totalAmount = 0;
+       // MODIFICA CRITICA: Cerca direttamente TUTTI i campi input delle banche bypassando i wrapper
+       document.querySelectorAll('.bank-in').forEach(input => { 
+           if(input && input.value) {
+               totalAmount += Math.abs(parseFloat(input.value) || 0); 
+           }
+       });
+       return totalAmount;
    }
    
    function addSplitFriend() {
@@ -1042,7 +1053,7 @@ function openSubs() {
        row.id = id;
        row.style.display = 'flex';
        row.style.gap = '8px';
-       row.style.alignItems = 'center'; // Allinea il cestino verticalmente
+       row.style.alignItems = 'center';
        
        row.innerHTML = `
            <div style="flex:2;">
@@ -1055,13 +1066,11 @@ function openSubs() {
        `;
        container.appendChild(row);
 
-       // Ricalcola lo split dividendo in automatico quando entra una persona nuova
        splitEqually();
    }
    
    function removeSplitFriend(id) {
        document.getElementById(id).remove();
-       // Ricalcola per assorbire la quota della persona eliminata
        splitEqually();
    }
 
@@ -1073,42 +1082,39 @@ function openSubs() {
        let friendInputs = Array.from(document.querySelectorAll('.split-friend-amount'));
        let allInputs = [myShareInput, ...friendInputs];
        
-       // CASO 1: Nessun input toccato (es. hai inserito l'importo nella banca)
+       // CASO 1: Nessun input toccato (inserimento automatico da banca)
        if (!changedInput) {
            let sum = 0;
            friendInputs.forEach(i => sum += (parseFloat(i.value) || 0));
            if(sum > totalPaid) {
-               splitEqually(); // Se il nuovo totale è troppo basso, fai reset
+               splitEqually(); 
                return;
            }
-           myShareInput.value = (totalPaid - sum).toFixed(2);
+           if (myShareInput) {
+               myShareInput.value = (totalPaid - sum).toFixed(2);
+           }
            document.getElementById('splitToCollect').innerText = "€ " + sum.toFixed(2);
            return;
        }
        
-       // Previene numeri negativi
        if(parseFloat(changedInput.value) < 0) changedInput.value = 0;
-       
        let changedVal = parseFloat(changedInput.value) || 0;
 
-       // REGOLA 1: Il valore digitato non può MAI superare il totale speso
        if (changedVal > totalPaid) {
            changedVal = totalPaid;
            changedInput.value = changedVal.toFixed(2);
        }
        
-       // REGOLA 2: Distribuisci la rimanenza in modo uguale tra TUTTI gli altri 
        let remainder = totalPaid - changedVal;
        let others = allInputs.filter(input => input !== changedInput);
        
        if (others.length > 0) {
            let splitPerOther = remainder / others.length;
            others.forEach(input => {
-               input.value = splitPerOther.toFixed(2);
+               if(input) input.value = splitPerOther.toFixed(2);
            });
        }
        
-       // Ricalcola e mostra quanto devi recuperare in totale (somma degli amici)
        let toCollect = 0;
        friendInputs.forEach(i => toCollect += (parseFloat(i.value) || 0));
        document.getElementById('splitToCollect').innerText = "€ " + toCollect.toFixed(2);
@@ -1117,7 +1123,7 @@ function openSubs() {
    function splitEqually() {
        let totalPaid = getSplitTotalPaid();
        let friendInputs = document.querySelectorAll('.split-friend-amount');
-       let peopleCount = friendInputs.length + 1; // Amici + Te stesso
+       let peopleCount = friendInputs.length + 1; 
        
        if (peopleCount > 0 && totalPaid >= 0) {
            let splitAmount = totalPaid / peopleCount;
