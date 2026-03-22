@@ -171,18 +171,6 @@ function addSelectedSubs(selectedIds) {
 }
 
 /**
- * Aggiunge una nuova Categoria dal menu Settings
- */
-function addCategoryToSheet(type, categoryName) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("Config_Category");
-  if (!sheet) throw new Error("Foglio Config_Category mancante");
-  
-  sheet.appendRow([type, categoryName]);
-  return `Categoria ${categoryName} aggiunta con successo!`;
-}
-
-/**
  * Aggiunge una nuova Spesa Fissa dal menu Settings
  */
 function addFixedExpenseToSheet(data) {

@@ -11,7 +11,8 @@ function getAppConfig() {
     Expense: [],
     Income: [],
     Transfer: [],
-    Investment: []
+    Investment: [],
+    Refund: [] // <-- AGGIUNTO PER SUPPORTO RIMBORSI
   };
 
   if (catSheet) {
@@ -28,24 +29,21 @@ function getAppConfig() {
   }
 
   // --- 2. FETCH FIXED EXPENSES ---
+  // ... (Il resto della funzione rimane identico) ...
   const expSheet = ss.getSheetByName("Config_FixedExpenses");
   let fixedExpensesData = [];
 
   if (expSheet) {
     const expRows = expSheet.getDataRange().getValues();
-    // Start from 1 to skip the header row
     for (let i = 1; i < expRows.length; i++) {
       let row = expRows[i];
-      if (row[0] === "") continue; // Skip empty rows
+      if (row[0] === "") continue; 
 
-      // Parse amounts carefully (handling '€' and commas ',')
       let rawAmt = String(row[3]).replace('€', '').replace(',', '.').trim();
       let amount = parseFloat(rawAmt) || 0;
 
-      // Handle dates appropriately
       let startDateStr = row[6] ? Utilities.formatDate(new Date(row[6]), Session.getScriptTimeZone(), 'yyyy-MM-dd') : null;
       let endDateStr = row[7] ? Utilities.formatDate(new Date(row[7]), Session.getScriptTimeZone(), 'yyyy-MM-dd') : null;
-
       let isSplitVal = row[8] === true || String(row[8]).toUpperCase() === 'TRUE';
 
       let sub = {
@@ -60,10 +58,9 @@ function getAppConfig() {
         isSplit: isSplitVal
       };
 
-      // Handle split logic
       if (sub.isSplit && row[9]) {
         let splits = [];
-        let splitParts = String(row[9]).split('|'); // e.g. "5:270,00|7:180,00"
+        let splitParts = String(row[9]).split('|'); 
         splitParts.forEach(part => {
           let [col, amtStr] = part.split(':');
           if (col && amtStr) {
@@ -75,7 +72,6 @@ function getAppConfig() {
         });
         sub.splits = splits;
       }
-
       fixedExpensesData.push(sub);
     }
   }
@@ -108,6 +104,7 @@ function deleteFixedExpenseFromSheet(expenseId) {
 
 /**
  * Elimina una Categoria dal foglio Settings
+ * Se viene eliminata una Expense, elimina anche la rispettiva categoria Refund.
  */
 function deleteCategoryFromSheet(type, categoryName) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -115,12 +112,47 @@ function deleteCategoryFromSheet(type, categoryName) {
   if (!sheet) throw new Error("Foglio Config_Category mancante");
 
   const data = sheet.getDataRange().getValues();
-  // Partiamo da 1 per saltare l'intestazione
-  for (let i = 1; i < data.length; i++) { 
-    if (data[i][0] === type && data[i][1] === categoryName) {
+  let deletedCount = 0;
+  
+  // Ciclo al contrario per permettere l'eliminazione di più righe in sicurezza
+  for (let i = data.length - 1; i >= 1; i--) { 
+    const rowType = data[i][0];
+    const rowCat = data[i][1];
+    
+    // Elimina la riga originariamente selezionata dall'utente
+    if (rowType === type && rowCat === categoryName) {
       sheet.deleteRow(i + 1);
-      return `Categoria "${categoryName}" eliminata con successo!`;
+      deletedCount++;
+    }
+    // Elimina in automatico anche il Refund collegato se si sta eliminando una Expense
+    else if (type === "Expense" && rowType === "Refund" && rowCat === categoryName) {
+      sheet.deleteRow(i + 1);
+      deletedCount++;
     }
   }
+  
+  if (deletedCount > 0) {
+      return `Categoria "${categoryName}" eliminata con successo!`;
+  }
   throw new Error("Categoria non trovata nel database.");
+}
+
+/**
+ * Aggiunge una nuova categoria. 
+ * Se è di tipo 'Expense', ne crea automaticamente una identica di tipo 'Refund'.
+ */
+function addCategoryToSheet(type, categoryName) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("Config_Category");
+  if (!sheet) throw new Error("Foglio Config_Category mancante");
+
+  // Aggiunge la categoria principale
+  sheet.appendRow([type, categoryName]);
+
+  // Seleziona se creare anche la controparte "Refund"
+  if (type === "Expense") {
+      sheet.appendRow(["Refund", categoryName]);
+  }
+  
+  return "Categoria aggiunta!";
 }
