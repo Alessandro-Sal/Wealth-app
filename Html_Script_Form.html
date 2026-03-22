@@ -1184,4 +1184,58 @@ function openSubs() {
            }
        });
    }
+   function convertSplitCurrency() {
+       const amt = parseFloat(document.getElementById('splitForeignAmt').value);
+       const currency = document.getElementById('splitCurrency').value;
+       
+       if (!amt || isNaN(amt)) {
+           Swal.fire({icon: 'warning', title: 'Importo mancante', text: 'Inserisci un importo estero da convertire.', confirmButtonColor: 'var(--primary)'});
+           return;
+       }
+
+       const btn = document.querySelector('button[onclick="convertSplitCurrency()"]');
+       const origText = btn.innerText;
+       btn.innerText = "⏳...";
+
+       google.script.run.withSuccessHandler(res => {
+           btn.innerText = origText;
+           if (String(res).includes("Err") || isNaN(parseFloat(res))) {
+               Swal.fire({icon: 'error', title: 'Errore', text: 'Impossibile recuperare il tasso di cambio live.'});
+           } else {
+               const eurAmount = parseFloat(res);
+               Swal.fire({
+                   title: 'Live Exchange 💱',
+                   text: `${amt} ${currency} = € ${eurAmount.toFixed(2)}`,
+                   icon: 'info',
+                   showCancelButton: true,
+                   confirmButtonColor: 'var(--stocks-bg)',
+                   confirmButtonText: 'Usa questo importo',
+                   cancelButtonText: 'Annulla'
+               }).then((result) => {
+                   if (result.isConfirmed) {
+                       // 1. Fill the first available Bank input with EUR amount
+                       let bankInputs = Array.from(document.querySelectorAll('.bank-in')).filter(input => input.offsetParent !== null);
+                       if (bankInputs.length > 0) {
+                           bankInputs[0].value = eurAmount.toFixed(2);
+                           if (typeof syncIconColor === 'function') syncIconColor(bankInputs[0]); // Force recalculation
+                           
+                           // 2. Automatically append currency detail to Notes
+                           let noteEl = document.getElementById('tDet');
+                           let noteText = `[Bill: ${amt} ${currency}]`;
+                           if (noteEl.value === "") {
+                               noteEl.value = noteText;
+                           } else if (!noteEl.value.includes(currency)) {
+                               noteEl.value += ` ${noteText}`;
+                           }
+                           
+                           // 3. Clear the foreign input to prevent double clicks
+                           document.getElementById('splitForeignAmt').value = "";
+                       } else {
+                           Swal.fire('Attenzione', 'Nessun conto bancario visibile per inserire l\'importo.', 'warning');
+                       }
+                   }
+               });
+           }
+       }).getConversionRate(amt, currency, 'EUR');
+   }
 </script>

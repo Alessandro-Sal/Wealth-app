@@ -147,32 +147,49 @@ function getActiveCredits() {
 }
 
 /**
- * Salda il debito: lo cancella dal foglio Active_Credits e crea un "Refund"
+ * Salda il debito: lo sposta nel foglio Settled_Credits e crea un "Refund"
  */
 function settleActiveCredit(id, amount, category, note, bankCol) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const creditSheet = ss.getSheetByName("Active_Credits");
+  const settledSheet = ss.getSheetByName("Settled_Credits");
+  
   if (!creditSheet) throw new Error("Foglio Active_Credits mancante.");
+  if (!settledSheet) throw new Error("Crea prima il foglio 'Settled_Credits'!");
 
   const data = creditSheet.getDataRange().getValues();
   let found = false;
+  let rowData = [];
   
-  // 1. Elimina la riga dal foglio Active_Credits
+  // 1. Find, copy, and delete the row from Active_Credits
   for (let i = data.length - 1; i >= 1; i--) {
     if (String(data[i][0]) === String(id)) {
-      creditSheet.deleteRow(i + 1);
+      rowData = data[i]; // Save original data
+      creditSheet.deleteRow(i + 1); 
       found = true;
       break;
     }
   }
   if (!found) throw new Error("Credito non trovato o già saldato.");
 
-  // 2. Crea l'oggetto importi associandolo alla banca scelta dall'utente
-  let amountsObj = {};
-  amountsObj[bankCol] = amount; // Inserisce l'importo (positivo) nella colonna corretta
+  // 2. Save to History (Settled_Credits)
+  const settleDate = new Date();
+  settledSheet.appendRow([
+    rowData[0], // Original ID
+    rowData[1], // Original Date
+    rowData[2], // Who
+    rowData[3], // Category
+    rowData[4], // Note
+    rowData[5], // Amount
+    settleDate, // Settled Date
+    bankCol     // Bank Col
+  ]);
 
-  // 3. Richiama la funzione di aggiunta transazione passandogli "Refund"
-  // (In questo modo scalerà le spese dai grafici come abbiamo configurato prima!)
+  // 3. Create amounts object for the Refund
+  let amountsObj = {};
+  amountsObj[bankCol] = amount; 
+
+  // 4. Record the Refund transaction
   return addTransaction({
     type: 'Refund',
     category: category,
