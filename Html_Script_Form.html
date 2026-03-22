@@ -1013,7 +1013,7 @@ function openSubs() {
        });
    }
 
-   // --- LOGICA MODULO SPLIT DINAMICO ---
+   // --- LOGICA MODULO SPLIT CON SMART LOCKS ---
    let splitFriendsCount = 0;
    
    function toggleSplitSection() {
@@ -1023,10 +1023,15 @@ function openSubs() {
      
      if (isChecked) {
          if(splitFriendsCount === 0) addSplitFriend(); 
-         // Passiamo 'null' per forzare l'assorbimento dell'importo se la banca era già compilata
          updateSplitMath(null); 
      } else {
-         document.getElementById('splitMyShare').value = "";
+         let myShareInput = document.getElementById('splitMyShare');
+         if(myShareInput) {
+             myShareInput.value = "";
+             myShareInput.dataset.locked = 'false';
+             let btn = myShareInput.nextElementSibling;
+             if(btn && btn.classList.contains('split-lock-btn')) { btn.innerText = '🔓'; btn.style.opacity = '0.5'; }
+         }
          document.getElementById('split-friends-list').innerHTML = "";
          splitFriendsCount = 0;
          document.getElementById('splitToCollect').innerText = "€ 0.00";
@@ -1035,11 +1040,8 @@ function openSubs() {
 
    function getSplitTotalPaid() {
        let totalAmount = 0;
-       // MODIFICA CRITICA: Cerca direttamente TUTTI i campi input delle banche bypassando i wrapper
        document.querySelectorAll('.bank-in').forEach(input => { 
-           if(input && input.value) {
-               totalAmount += Math.abs(parseFloat(input.value) || 0); 
-           }
+           if(input && input.value) totalAmount += Math.abs(parseFloat(input.value) || 0); 
        });
        return totalAmount;
    }
@@ -1059,13 +1061,13 @@ function openSubs() {
            <div style="flex:2;">
                <input type="text" class="split-friend-name" placeholder="Name" style="background:white; margin-top:0;">
            </div>
-           <div style="flex:1;">
-               <input type="number" inputmode="decimal" class="split-friend-amount" placeholder="€" oninput="updateSplitMath(this)" style="background:white; margin-top:0;">
+           <div style="flex:1; display:flex; align-items:center; gap:2px;">
+               <input type="number" inputmode="decimal" class="split-friend-amount" placeholder="€" oninput="updateSplitMath(this)" data-locked="false" style="background:white; margin-top:0; width:100%;">
+               <button type="button" class="split-lock-btn" onclick="toggleSplitLock(this)" style="background:none; border:none; font-size:16px; cursor:pointer; opacity:0.5; padding:0 2px;">🔓</button>
            </div>
            <button type="button" onclick="removeSplitFriend('${id}')" style="background:rgba(255, 59, 48, 0.1); border:none; color:var(--danger); font-size:14px; cursor:pointer; padding:8px 12px; border-radius:8px;">🗑️</button>
        `;
        container.appendChild(row);
-
        splitEqually();
    }
    
@@ -1074,45 +1076,82 @@ function openSubs() {
        splitEqually();
    }
 
+   function toggleSplitLock(btn) {
+       let input = btn.previousElementSibling;
+       if (input.dataset.locked === 'true') {
+           input.dataset.locked = 'false';
+           btn.innerText = '🔓';
+           btn.style.opacity = '0.5';
+       } else {
+           input.dataset.locked = 'true';
+           btn.innerText = '🔒';
+           btn.style.opacity = '1';
+       }
+       updateSplitMath(null);
+   }
+
    function updateSplitMath(changedInput) {
        let totalPaid = getSplitTotalPaid();
        document.getElementById('split-total-paid').innerText = "€ " + totalPaid.toFixed(2);
        
        let myShareInput = document.getElementById('splitMyShare');
        let friendInputs = Array.from(document.querySelectorAll('.split-friend-amount'));
-       let allInputs = [myShareInput, ...friendInputs];
+       let allInputs = [myShareInput, ...friendInputs].filter(el => el != null);
        
-       // CASO 1: Nessun input toccato (inserimento automatico da banca)
-       if (!changedInput) {
-           let sum = 0;
-           friendInputs.forEach(i => sum += (parseFloat(i.value) || 0));
-           if(sum > totalPaid) {
-               splitEqually(); 
-               return;
-           }
-           if (myShareInput) {
-               myShareInput.value = (totalPaid - sum).toFixed(2);
-           }
-           document.getElementById('splitToCollect').innerText = "€ " + sum.toFixed(2);
-           return;
-       }
-       
-       if(parseFloat(changedInput.value) < 0) changedInput.value = 0;
-       let changedVal = parseFloat(changedInput.value) || 0;
+       if (changedInput && parseFloat(changedInput.value) < 0) changedInput.value = 0;
 
-       if (changedVal > totalPaid) {
-           changedVal = totalPaid;
-           changedInput.value = changedVal.toFixed(2);
+       // 1. AUTO-LOCK: Chiudi il lucchetto dell'input che l'utente sta digitando a mano
+       if (changedInput && changedInput.dataset.locked !== 'true') {
+           changedInput.dataset.locked = 'true';
+           let btn = changedInput.nextElementSibling;
+           if (btn && btn.classList.contains('split-lock-btn')) {
+               btn.innerText = '🔒';
+               btn.style.opacity = '1';
+           }
        }
+
+       // 2. Calcola somma dei bloccati
+       let lockedSum = 0;
+       let unlockedInputs = [];
        
-       let remainder = totalPaid - changedVal;
-       let others = allInputs.filter(input => input !== changedInput);
-       
-       if (others.length > 0) {
-           let splitPerOther = remainder / others.length;
-           others.forEach(input => {
-               if(input) input.value = splitPerOther.toFixed(2);
+       allInputs.forEach(input => {
+           if (input.dataset.locked === 'true' || input === changedInput) {
+               lockedSum += (parseFloat(input.value) || 0);
+           } else {
+               unlockedInputs.push(input);
+           }
+       });
+
+       // 3. Regola Salvavita: se i bloccati superano il totale pagato
+       if (lockedSum > totalPaid) {
+           if (changedInput) {
+               let otherLockedSum = lockedSum - (parseFloat(changedInput.value) || 0);
+               let maxAllowed = totalPaid - otherLockedSum;
+               if (maxAllowed < 0) maxAllowed = 0;
+               changedInput.value = maxAllowed.toFixed(2);
+               lockedSum = otherLockedSum + maxAllowed;
+           }
+       }
+
+       // 4. Distribuisci la rimanenza SOLO agli sbloccati
+       let remainder = totalPaid - lockedSum;
+       if (remainder < 0) remainder = 0;
+
+       if (unlockedInputs.length > 0) {
+           let splitPerOther = remainder / unlockedInputs.length;
+           unlockedInputs.forEach(input => {
+               input.value = splitPerOther.toFixed(2);
            });
+       } else if (remainder > 0 && changedInput) {
+           // 5. Se tutti sono bloccati e abbassi un importo: assorbilo in "My Share" sbloccandoti in automatico
+           if (myShareInput !== changedInput && myShareInput.dataset.locked === 'true') {
+               myShareInput.dataset.locked = 'false';
+               let btn = myShareInput.nextElementSibling;
+               if(btn) { btn.innerText = '🔓'; btn.style.opacity = '0.5'; }
+               myShareInput.value = (parseFloat(myShareInput.value) + remainder).toFixed(2);
+           } else {
+               changedInput.value = (parseFloat(changedInput.value) + remainder).toFixed(2);
+           }
        }
        
        let toCollect = 0;
@@ -1123,14 +1162,25 @@ function openSubs() {
    function splitEqually() {
        let totalPaid = getSplitTotalPaid();
        let friendInputs = document.querySelectorAll('.split-friend-amount');
+       let allInputs = [document.getElementById('splitMyShare'), ...Array.from(friendInputs)];
+       
+       // Sblocca tutti i lucchetti per fare reset
+       allInputs.forEach(input => {
+           if(input) {
+               input.dataset.locked = 'false';
+               let btn = input.nextElementSibling;
+               if(btn && btn.classList.contains('split-lock-btn')) {
+                   btn.innerText = '🔓';
+                   btn.style.opacity = '0.5';
+               }
+           }
+       });
+
        let peopleCount = friendInputs.length + 1; 
        
        if (peopleCount > 0 && totalPaid >= 0) {
            let splitAmount = totalPaid / peopleCount;
-           
-           let myShareInput = document.getElementById('splitMyShare');
-           if(myShareInput) myShareInput.value = splitAmount.toFixed(2);
-           friendInputs.forEach(input => input.value = splitAmount.toFixed(2));
+           allInputs.forEach(input => { if(input) input.value = splitAmount.toFixed(2); });
            
            document.getElementById('split-total-paid').innerText = "€ " + totalPaid.toFixed(2);
            let toCollect = splitAmount * friendInputs.length;

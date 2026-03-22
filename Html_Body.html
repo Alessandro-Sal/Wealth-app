@@ -583,7 +583,10 @@
                
                <div style="margin-bottom:10px;">
                   <label style="margin-top:0; font-size:11px; color:var(--gray);">My Share (€)</label>
-                  <input type="number" inputmode="decimal" id="splitMyShare" placeholder="0.00" oninput="updateSplitMath(this)" style="background:white; margin-top:4px;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                      <input type="number" inputmode="decimal" id="splitMyShare" placeholder="0.00" oninput="updateSplitMath(this)" data-locked="false" style="background:white; margin-top:4px; flex:1;">
+                      <button type="button" class="split-lock-btn" onclick="toggleSplitLock(this)" style="background:none; border:none; font-size:16px; cursor:pointer; opacity:0.5; padding:5px;">🔓</button>
+                  </div>
                </div>
                
                <label style="margin-top:0; font-size:11px; color:var(--gray);">Friends</label>
