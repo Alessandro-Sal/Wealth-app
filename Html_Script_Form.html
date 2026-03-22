@@ -1203,21 +1203,49 @@ function openSubs() {
                Swal.fire({icon: 'error', title: 'Errore', text: 'Impossibile recuperare il tasso di cambio live.'});
            } else {
                const eurAmount = parseFloat(res);
+               
+               // Dynamically generate the list of available banks from the DOM
+               let bankOptions = '<option value="" disabled selected>-- Seleziona Conto --</option>';
+               document.querySelectorAll('.bank-in').forEach(input => {
+                   let bankRow = input.closest('.row');
+                   if (bankRow) {
+                       let bankName = bankRow.querySelector('.bank-info span').innerText;
+                       let col = input.getAttribute('data-col');
+                       bankOptions += `<option value="${col}">${bankName}</option>`;
+                   }
+               });
+
                Swal.fire({
                    title: 'Live Exchange 💱',
-                   text: `${amt} ${currency} = € ${eurAmount.toFixed(2)}`,
-                   icon: 'info',
+                   html: `
+                       <div style="font-size:14px; margin-bottom:15px; color:var(--gray);">
+                           ${amt} ${currency} = <b style="color:var(--text-main);">€ ${eurAmount.toFixed(2)}</b><br><br>
+                           Da quale conto hai pagato?
+                       </div>
+                       <select id="convert-bank-select" style="width:100%; box-sizing:border-box; padding:15px; border-radius:12px; border:1px solid rgba(0,0,0,0.1); font-size:16px; background:var(--section-bg); color:var(--text-main); outline:none; font-weight:600; text-align:center;">
+                           ${bankOptions}
+                       </select>
+                   `,
                    showCancelButton: true,
                    confirmButtonColor: 'var(--stocks-bg)',
-                   confirmButtonText: 'Usa questo importo',
-                   cancelButtonText: 'Annulla'
+                   confirmButtonText: 'Applica e Compila',
+                   cancelButtonText: 'Annulla',
+                   preConfirm: () => {
+                       const bankCol = document.getElementById('convert-bank-select').value;
+                       if (!bankCol) {
+                           Swal.showValidationMessage('Per favore, seleziona un conto!');
+                       }
+                       return bankCol;
+                   }
                }).then((result) => {
-                   if (result.isConfirmed) {
-                       // 1. Fill the first available Bank input with EUR amount
-                       let bankInputs = Array.from(document.querySelectorAll('.bank-in')).filter(input => input.offsetParent !== null);
-                       if (bankInputs.length > 0) {
-                           bankInputs[0].value = eurAmount.toFixed(2);
-                           if (typeof syncIconColor === 'function') syncIconColor(bankInputs[0]); // Force recalculation
+                   if (result.isConfirmed && result.value) {
+                       const selectedCol = result.value;
+                       const targetInput = document.querySelector(`.bank-in[data-col="${selectedCol}"]`);
+                       
+                       if (targetInput) {
+                           // 1. Fill the selected Bank input with EUR amount
+                           targetInput.value = eurAmount.toFixed(2);
+                           if (typeof syncIconColor === 'function') syncIconColor(targetInput); 
                            
                            // 2. Automatically append currency detail to Notes
                            let noteEl = document.getElementById('tDet');
@@ -1228,10 +1256,8 @@ function openSubs() {
                                noteEl.value += ` ${noteText}`;
                            }
                            
-                           // 3. Clear the foreign input to prevent double clicks
+                           // 3. Clear the foreign input
                            document.getElementById('splitForeignAmt').value = "";
-                       } else {
-                           Swal.fire('Attenzione', 'Nessun conto bancario visibile per inserire l\'importo.', 'warning');
                        }
                    }
                });

@@ -83,3 +83,38 @@ function closeAllSheets() {
     const backdrop = document.getElementById('common-backdrop');
     if (backdrop) backdrop.classList.remove('active');
 }
+
+/**
+ * Ottiene il tasso di cambio e converte un importo.
+ * Sfrutta GoogleFinance tramite una formula temporanea sul foglio o una chiamata API.
+ * @param {number} amount L'importo da convertire.
+ * @param {string} fromCurrency La valuta di origine (es. "USD").
+ * @param {string} toCurrency La valuta di destinazione (es. "EUR").
+ * @returns {number|string} L'importo convertito o una stringa di errore.
+ */
+function getConversionRate(amount, fromCurrency, toCurrency) {
+  if (!amount || !fromCurrency || !toCurrency) return "Err: Parametri mancanti";
+  if (fromCurrency === toCurrency) return amount;
+
+  try {
+    // URL per l'API pubblica (ad es. un servizio gratuito o Google Finance se accessibile via UrlFetchApp)
+    // Usiamo qui un approccio alternativo veloce tramite un API aperta per i tassi di cambio
+    const url = `https://api.exchangerate-api.com/v4/latest/${fromCurrency}`;
+    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    
+    if (response.getResponseCode() !== 200) {
+      return "Err: Impossibile recuperare il tasso";
+    }
+    
+    const data = JSON.parse(response.getContentText());
+    if (data && data.rates && data.rates[toCurrency]) {
+      const rate = data.rates[toCurrency];
+      const convertedAmount = amount * rate;
+      return convertedAmount.toFixed(2);
+    } else {
+      return "Err: Tasso non trovato";
+    }
+  } catch (e) {
+    return "Err: " + e.message;
+  }
+}
