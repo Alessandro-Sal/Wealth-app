@@ -1041,72 +1041,94 @@ function openSubs() {
        const row = document.createElement('div');
        row.id = id;
        row.style.display = 'flex';
-       row.style.gap = '10px';
+       row.style.gap = '8px';
+       row.style.alignItems = 'center'; // Allinea il cestino verticalmente
        
        row.innerHTML = `
            <div style="flex:2;">
                <input type="text" class="split-friend-name" placeholder="Name" style="background:white; margin-top:0;">
            </div>
            <div style="flex:1;">
-               <input type="number" inputmode="decimal" class="split-friend-amount" placeholder="€" oninput="updateSplitMath('friends')" style="background:white; margin-top:0;">
+               <input type="number" inputmode="decimal" class="split-friend-amount" placeholder="€" oninput="updateSplitMath(this)" style="background:white; margin-top:0;">
            </div>
-           <button type="button" onclick="removeSplitFriend('${id}')" style="background:none; border:none; color:var(--danger); font-size:18px; cursor:pointer; padding:0 5px;">✕</button>
+           <button type="button" onclick="removeSplitFriend('${id}')" style="background:rgba(255, 59, 48, 0.1); border:none; color:var(--danger); font-size:14px; cursor:pointer; padding:8px 12px; border-radius:8px;">🗑️</button>
        `;
        container.appendChild(row);
+
+       // Ricalcola lo split dividendo in automatico quando entra una persona nuova
+       splitEqually();
    }
    
    function removeSplitFriend(id) {
        document.getElementById(id).remove();
-       updateSplitMath('friends');
+       // Ricalcola per assorbire la quota della persona eliminata
+       splitEqually();
    }
-   
-   function getSplitTotalPaid() {
-       let totalAmount = 0;
-       document.querySelectorAll('.input-wrapper').forEach(wrapper => { 
-           let input = wrapper.querySelector('.bank-in');
-           if(input && input.value) totalAmount += Math.abs(parseFloat(input.value) || 0); 
-       });
-       return totalAmount;
-   }
-   
-   function updateSplitMath(source) {
+
+   function updateSplitMath(changedInput) {
        let totalPaid = getSplitTotalPaid();
        document.getElementById('split-total-paid').innerText = "€ " + totalPaid.toFixed(2);
        
-       let toCollect = 0;
-       let friendInputs = document.querySelectorAll('.split-friend-amount');
+       let myShareInput = document.getElementById('splitMyShare');
+       let friendInputs = Array.from(document.querySelectorAll('.split-friend-amount'));
+       let allInputs = [myShareInput, ...friendInputs];
        
-       if (source === 'share') {
-           // If user changes 'My Share', distribute the rest to friends
-           let myShare = parseFloat(document.getElementById('splitMyShare').value) || 0;
-           toCollect = totalPaid - myShare;
-           if(toCollect < 0) toCollect = 0;
-           
-           if (friendInputs.length > 0) {
-               let splitPerFriend = toCollect / friendInputs.length;
-               friendInputs.forEach(input => input.value = splitPerFriend.toFixed(2));
+       // CASO 1: Nessun input toccato (es. hai inserito l'importo nella banca)
+       if (!changedInput) {
+           let sum = 0;
+           friendInputs.forEach(i => sum += (parseFloat(i.value) || 0));
+           if(sum > totalPaid) {
+               splitEqually(); // Se il nuovo totale è troppo basso, fai reset
+               return;
            }
-       } else {
-           // If user changes 'Friends', calculate 'My Share' automatically
-           friendInputs.forEach(input => toCollect += parseFloat(input.value) || 0);
-           let myShare = totalPaid - toCollect;
-           if (myShare < 0) myShare = 0;
-           document.getElementById('splitMyShare').value = myShare.toFixed(2);
+           myShareInput.value = (totalPaid - sum).toFixed(2);
+           document.getElementById('splitToCollect').innerText = "€ " + sum.toFixed(2);
+           return;
        }
        
+       // Previene numeri negativi
+       if(parseFloat(changedInput.value) < 0) changedInput.value = 0;
+       
+       let changedVal = parseFloat(changedInput.value) || 0;
+
+       // REGOLA 1: Il valore digitato non può MAI superare il totale speso
+       if (changedVal > totalPaid) {
+           changedVal = totalPaid;
+           changedInput.value = changedVal.toFixed(2);
+       }
+       
+       // REGOLA 2: Distribuisci la rimanenza in modo uguale tra TUTTI gli altri 
+       let remainder = totalPaid - changedVal;
+       let others = allInputs.filter(input => input !== changedInput);
+       
+       if (others.length > 0) {
+           let splitPerOther = remainder / others.length;
+           others.forEach(input => {
+               input.value = splitPerOther.toFixed(2);
+           });
+       }
+       
+       // Ricalcola e mostra quanto devi recuperare in totale (somma degli amici)
+       let toCollect = 0;
+       friendInputs.forEach(i => toCollect += (parseFloat(i.value) || 0));
        document.getElementById('splitToCollect').innerText = "€ " + toCollect.toFixed(2);
    }
    
    function splitEqually() {
        let totalPaid = getSplitTotalPaid();
        let friendInputs = document.querySelectorAll('.split-friend-amount');
-       let peopleCount = friendInputs.length + 1; // Friends + You
+       let peopleCount = friendInputs.length + 1; // Amici + Te stesso
        
-       if(peopleCount > 0 && totalPaid > 0) {
+       if (peopleCount > 0 && totalPaid >= 0) {
            let splitAmount = totalPaid / peopleCount;
-           document.getElementById('splitMyShare').value = splitAmount.toFixed(2);
+           
+           let myShareInput = document.getElementById('splitMyShare');
+           if(myShareInput) myShareInput.value = splitAmount.toFixed(2);
            friendInputs.forEach(input => input.value = splitAmount.toFixed(2));
-           updateSplitMath('friends');
+           
+           document.getElementById('split-total-paid').innerText = "€ " + totalPaid.toFixed(2);
+           let toCollect = splitAmount * friendInputs.length;
+           document.getElementById('splitToCollect').innerText = "€ " + toCollect.toFixed(2);
        }
    }
 
@@ -1118,6 +1140,7 @@ function openSubs() {
    }
 
    function renderActiveCredits(credits) {
+       window.currentCredits = credits;
        const container = document.getElementById('active-credits-list');
        if (!credits || credits.length === 0) {
            container.innerHTML = '<div style="font-size:12px; color:var(--gray); text-align:center; padding: 20px 0;">🎉 No pending credits!</div>';
@@ -1263,5 +1286,80 @@ function openSubs() {
                });
            }
        }).getConversionRate(amt, currency, 'EUR');
+   }
+
+   function showCreditsSummary() {
+       if (!window.currentCredits || window.currentCredits.length === 0) {
+           Swal.fire({icon: 'info', title: 'Nessun credito', text: 'Non ci sono crediti da raggruppare.', confirmButtonColor: 'var(--primary)'});
+           return;
+       }
+
+       // Raggruppa per nome amico
+       let summary = {};
+       window.currentCredits.forEach(c => {
+           let nameKey = c.who.trim().toUpperCase(); 
+           if(!summary[nameKey]) summary[nameKey] = { total: 0, itemsCount: 0, displayName: c.who.trim() };
+           summary[nameKey].total += c.amount;
+           summary[nameKey].itemsCount += 1;
+       });
+
+       // Costruisci il layout del popup
+       let html = '<div style="text-align:left; max-height: 350px; overflow-y: auto;">';
+       for (let key in summary) {
+           let p = summary[key];
+           html += `
+           <div style="background: rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.05); border-radius: 12px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+               <div>
+                   <div style="font-size: 16px; font-weight: 900; color: var(--text-main);">${p.displayName}</div>
+                   <div style="font-size: 12px; color: var(--gray);">Per ${p.itemsCount} spese</div>
+               </div>
+               <div style="text-align: right;">
+                   <div style="font-size: 18px; font-weight: 900; color: var(--stocks-bg); margin-bottom: 5px;">€ ${p.total.toFixed(2)}</div>
+                   <button type="button" onclick="settlePerson('${key}', ${p.total}, '${p.displayName}')" style="background: rgba(52, 199, 89, 0.1); color: var(--success); border: none; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 11px; cursor: pointer;">Settle All ✅</button>
+               </div>
+           </div>`;
+       }
+       html += '</div>';
+
+       Swal.fire({ title: 'Riepilogo Totali 👥', html: html, showConfirmButton: false, showCloseButton: true });
+   }
+
+   function settlePerson(normalizedName, total, displayName) {
+       Swal.fire({
+           title: 'Incassa da ' + displayName,
+           html: `
+               <div style="font-size:14px; margin-bottom:15px; color:var(--gray);">
+                   Stai chiudendo <b>tutti</b> i conti aperti con ${displayName}. Dove hai ricevuto i <b style="color:var(--stocks-bg);">€${total.toFixed(2)}</b>?
+               </div>
+               <select id="settle-bulk-bank" style="width:100%; padding:15px; border-radius:12px; border:1px solid rgba(0,0,0,0.1); font-size:16px; background:var(--section-bg); color:var(--text-main); outline:none; font-weight:600; text-align:center;">
+                   <option value="" disabled selected>-- Seleziona Conto --</option>
+                   <option value="5">Intesa SP</option>
+                   <option value="6">N26</option>
+                   <option value="7">Wallet</option>
+                   <option value="8">Buddy</option>
+                   <option value="9">Revolut</option>
+               </select>
+           `,
+           showCancelButton: true,
+           confirmButtonText: 'Schianta i Debiti 💥',
+           confirmButtonColor: 'var(--success)',
+           preConfirm: () => {
+               const bank = document.getElementById('settle-bulk-bank').value;
+               if (!bank) Swal.showValidationMessage('Seleziona un conto!');
+               return bank;
+           }
+       }).then((result) => {
+           if (result.isConfirmed && result.value) {
+               Swal.fire({ title: 'Sistemazione conti...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+               
+               google.script.run.withSuccessHandler(() => {
+                   Swal.fire({ icon: 'success', title: 'Fatto!', text: `I debiti di ${displayName} sono saldati.`, showConfirmButton: false, timer: 1500 });
+                   fetchActiveCredits();
+                   fetchHistory();
+                   fetchBalances();
+                   fetchBudgets();
+               }).settleGroupedCredits(normalizedName, result.value);
+           }
+       });
    }
 </script>

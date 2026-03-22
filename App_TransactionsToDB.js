@@ -197,3 +197,62 @@ function settleActiveCredit(id, amount, category, note, bankCol) {
     amounts: amountsObj
   });
 }
+
+/**
+ * Salda tutti i debiti di una persona specifica in blocco.
+ * Conserva la precisione delle categorie dividendo il rimborso su più transazioni.
+ */
+function settleGroupedCredits(normalizedName, bankCol) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const creditSheet = ss.getSheetByName("Active_Credits");
+  const settledSheet = ss.getSheetByName("Settled_Credits");
+
+  if (!creditSheet || !settledSheet) throw new Error("Fogli crediti mancanti.");
+
+  const data = creditSheet.getDataRange().getValues();
+  const settleDate = new Date();
+  let itemsToSettle = [];
+  
+  // 1. Trova ed estrai TUTTE le righe associate a quella persona (partendo dal basso)
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][2]).trim().toUpperCase() === normalizedName) {
+      itemsToSettle.push(data[i]);
+      creditSheet.deleteRow(i + 1);
+    }
+  }
+
+  if (itemsToSettle.length === 0) throw new Error("Nessun credito trovato per questa persona.");
+
+  let categoryTotals = {};
+  
+  // 2. Scrivi tutto nello storico (Settled_Credits) e raggruppa le somme per Categoria
+  itemsToSettle.forEach(row => {
+    settledSheet.appendRow([
+      row[0], row[1], row[2], row[3], row[4], row[5], settleDate, bankCol
+    ]);
+
+    let cat = row[3];
+    let amt = parseFloat(row[5]) || 0;
+    if(!categoryTotals[cat]) categoryTotals[cat] = 0;
+    categoryTotals[cat] += amt;
+  });
+
+  // 3. Crea automaticamente un Refund separato per ogni categoria coinvolta
+  let resultMsg = "Saldato";
+  let personName = itemsToSettle[0][2]; // Nome originale per la nota
+  
+  for (let cat in categoryTotals) {
+     let amountsObj = {};
+     amountsObj[bankCol] = categoryTotals[cat]; // Associa l'importo totale della categoria al conto scelto
+
+     // Sfruttiamo la tua funzione addTransaction per fare il lavoro sporco
+     resultMsg = addTransaction({
+       type: 'Refund',
+       category: cat,
+       details: `Bulk settlement from: ${personName}`, 
+       amounts: amountsObj
+     });
+  }
+  
+  return resultMsg;
+}
