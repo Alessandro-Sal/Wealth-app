@@ -112,11 +112,18 @@ function handleTypeChange() {
    }
    
    function resetForm() {
-     document.getElementById('txForm').reset();
-     document.getElementById('tCat').innerHTML = '';
+     // Reset the standard form fields using the new unique ID
+     document.getElementById('addTxForm').reset();
+     
+     // Reset the category dropdown to empty state
+     const catSelect = document.getElementById('tCat');
+     if (catSelect) {
+         catSelect.innerHTML = '<option value="">Choose Type...</option>';
+     }
+     
      document.getElementById('f-stat').innerText = '';
      
-     // Resetta tutti i bottoni in modalità "Entrata" di default
+     // Reset all buttons to "Income" (Plus) mode by default
      document.querySelectorAll('.sign-toggle').forEach(icon => {
          icon.classList.remove('sign-minus');
          icon.classList.add('sign-plus');
@@ -124,6 +131,12 @@ function handleTypeChange() {
          let input = icon.parentElement.querySelector('.bank-in');
          if (input) input.style.color = 'var(--stocks-bg)';
      });
+
+     // Reset UI blocks visibility (Hide pension, show standard)
+     const pensionInputs = document.getElementById("pension-inputs");
+     const standardInputs = document.getElementById("standard-inputs");
+     if(pensionInputs) pensionInputs.style.display = "none";
+     if(standardInputs) standardInputs.style.display = "block";
    }
    
    /**
@@ -155,8 +168,9 @@ function handleTypeChange() {
              btn.innerText = originalText; 
              btn.classList.remove('btn-loading'); 
              Swal.fire({ icon: 'success', title: 'Done!', text: res, showConfirmButton: false, timer: 1500 }); 
-             document.getElementById('penAmount').value = ""; 
              fetchPensionData(); 
+             // Call resetForm to clear everything
+             setTimeout(resetForm, 500);
          }).withFailureHandler(err => { 
              btn.innerText = originalText; 
              btn.classList.remove('btn-loading'); 
@@ -212,7 +226,8 @@ function handleTypeChange() {
          Swal.fire({ icon: 'success', title: 'Saved!', text: details || 'Transaction recorded', showConfirmButton: false, timer: 1500 }); 
          fetchHistory(); 
          fetchBalances(); 
-         fetchBudgets(); 
+         fetchBudgets();
+         fetchSubsStatus(); // <-- Added to update Subs & Installments widget
          setTimeout(resetForm, 500); 
      }).withFailureHandler(err => { 
          btn.innerText = originalText; 
@@ -485,7 +500,8 @@ function openSubs() {
                  Swal.fire({ icon: 'success', title: 'Done!', text: 'Subscription added.', showConfirmButton: false, timer: 1500 }); 
                  fetchHistory(); 
                  fetchBalances(); 
-                 fetchBudgets(); 
+                 fetchBudgets();
+                 fetchSubsStatus(); 
              }).withFailureHandler(e => { 
                  Swal.fire({ icon: 'error', title: 'Error', text: e.message }); 
                  status.innerText = ""; 
