@@ -55,7 +55,7 @@ function addTransaction(data) {
     let isCrypto = false;
 
     // Check Category to determine destination (Strings must match Dropdown values)
-    if (data.category === "Azioni") destSheetName = "History B/S Stocks";
+    if (data.category === "Stocks") destSheetName = "History B/S Stocks";
     if (data.category === "Crypto") { destSheetName = "History B/S Crypto"; isCrypto = true; }
 
     if (destSheetName) {
@@ -89,8 +89,14 @@ function addTransaction(data) {
         // Write ID to History (Col M = 13)
         destSheet.getRange(histRow, 13).setValue(newId);
 
-        // WRITE ID TO EXPENSES (Col AI = 35) - Links the two rows
-        sheet.getRange(newRow, 35).setValue(newId);
+        // WRITE ID TO EXPENSES - Links the two rows by finding the column dynamically
+        const headerRowTx = 2;
+        const headersTx = sheet.getRange(headerRowTx, 1, 1, sheet.getLastColumn()).getValues()[0];
+        const syncColIndexTx = headersTx.indexOf("Controllo Automatismi") + 1;
+        
+        if (syncColIndexTx > 0) {
+          sheet.getRange(newRow, syncColIndexTx).setValue(newId);
+        }
         
         // Force save to ensure data integrity across sheets
         SpreadsheetApp.flush();
@@ -103,8 +109,14 @@ function addTransaction(data) {
     if (creditSheet) {
       // Genera un ID di transazione unico se non esiste (lo useremo per collegare credito e spesa)
       const txId = "TX_" + new Date().getTime() + "_" + newRow;
-      // Salva l'ID nella riga della spesa in Expenses Tracker (usiamo la colonna 35 / AI come fai per gli investimenti)
-      sheet.getRange(newRow, 35).setValue(txId);
+      // Salva l'ID nella riga della spesa in Expenses Tracker dynamically
+      const headerRowSplit = 2;
+      const headersSplit = sheet.getRange(headerRowSplit, 1, 1, sheet.getLastColumn()).getValues()[0];
+      const syncColIndexSplit = headersSplit.indexOf("Controllo Automatismi") + 1;
+      
+      if (syncColIndexSplit > 0) {
+        sheet.getRange(newRow, syncColIndexSplit).setValue(txId);
+      }
 
       data.splitData.forEach(friend => {
         const creditId = "CR_" + new Date().getTime() + "_" + Math.floor(Math.random()*1000);

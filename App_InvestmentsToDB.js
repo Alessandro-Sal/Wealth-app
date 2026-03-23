@@ -98,7 +98,7 @@ function addInvestTransaction(data) {
         }
       }
 
-      const category = isCrypto ? "Crypto" : "Azioni";
+      const category = isCrypto ? "Crypto" : "Stocks";
       
       // --- CLEAN NOTES LOGIC ---
       // Only write user input notes. Keep cell empty if no note provided.
@@ -118,7 +118,17 @@ function addInvestTransaction(data) {
 
       // --- CRITICAL: SYNC ID WRITING ---
       // Column AI (35) is used for hidden IDs in Expenses Tracker
-      expSheet.getRange(targetRow, 35).setValue(transactionId);
+      // --- CRITICAL: SYNC ID WRITING ---
+      // Dynamically find "Controllo Automatismi" column (assuming headers are on row 2)
+      const headerRowExp = 2;
+      const headersExp = expSheet.getRange(headerRowExp, 1, 1, expSheet.getLastColumn()).getValues()[0];
+      const syncColIndexExp = headersExp.indexOf("Controllo Automatismi") + 1; // +1 because arrays are 0-indexed
+      
+      if (syncColIndexExp > 0) {
+        expSheet.getRange(targetRow, syncColIndexExp).setValue(transactionId);
+      } else {
+        return "Error: Column 'Controllo Automatismi' not found in Expenses Tracker.";
+      }
     }
   }
   return "Investment Saved (" + data.type + ")";
