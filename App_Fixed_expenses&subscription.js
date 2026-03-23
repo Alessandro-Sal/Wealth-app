@@ -121,17 +121,17 @@ function getSubsStatus() {
 }
 
 /**
- * Aggiunge le spese selezionate all'Expenses Tracker
+ * Aggiunge le spese selezionate all'Expenses Tracker (OPTIMIZED)
  */
 function addSelectedSubs(selectedIds) {
-  const allSubs = getAppConfig().fixedExpenses; // Usa il nuovo config!
+  const allSubs = getAppConfig().fixedExpenses;
   const idsNumbers = selectedIds.map(id => Number(id));
   const subsToAdd = allSubs.filter(sub => idsNumbers.includes(Number(sub.id)));
 
   if (subsToAdd.length === 0) return "Nessuna spesa trovata nel database.";
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const year = new Date().getFullYear(); // Anno dinamico
+  const year = new Date().getFullYear(); 
   const sheet = ss.getSheetByName("Expenses Tracker " + year);
   if (!sheet) return "Errore: Foglio Expenses Tracker " + year + " non trovato";
 
@@ -148,26 +148,38 @@ function addSelectedSubs(selectedIds) {
   }
 
   const today = new Date();
+  const maxCols = sheet.getLastColumn();
+  const rowsToAppend = []; // Array per impacchettare tutte le spese
   
   subsToAdd.forEach(sub => {
-    if (newRow > sheet.getMaxRows()) sheet.insertRowAfter(sheet.getMaxRows());
+    let rowData = new Array(maxCols).fill("");
     
-    sheet.getRange(newRow, 1).setValue(today);
-    sheet.getRange(newRow, 2).setValue("Expense");
-    sheet.getRange(newRow, 3).setValue(sub.cat);
-    sheet.getRange(newRow, 4).setValue(sub.note);
+    rowData[0] = today;           // A: Date
+    rowData[1] = "Expense";       // B: Type
+    rowData[2] = sub.cat;         // C: Category
+    rowData[3] = sub.note;        // D: Note
 
     if (sub.isSplit && sub.splits) {
         sub.splits.forEach(splitItem => {
-            sheet.getRange(newRow, splitItem.col).setValue(-Math.abs(splitItem.amt));
+            if (splitItem.col > 0) rowData[splitItem.col - 1] = -Math.abs(splitItem.amt);
         });
     } else {
-        sheet.getRange(newRow, sub.bankCol).setValue(-Math.abs(sub.amt));
+        if (sub.bankCol > 0) rowData[sub.bankCol - 1] = -Math.abs(sub.amt);
     }
-    newRow++;
+    
+    rowsToAppend.push(rowData);
   });
 
-  return "Aggiunto: " + subsToAdd.map(s => s.note).join(", ");
+  // Scrive l'intero blocco di spese in una singola chiamata API
+  if (rowsToAppend.length > 0) {
+    // Se serve, aggiunge righe vuote prima di incollare
+    if (newRow + rowsToAppend.length - 1 > sheet.getMaxRows()) {
+      sheet.insertRowsAfter(sheet.getMaxRows(), rowsToAppend.length);
+    }
+    sheet.getRange(newRow, 1, rowsToAppend.length, maxCols).setValues(rowsToAppend);
+  }
+
+  return "Added: " + subsToAdd.map(s => s.note).join(", ");
 }
 
 /**

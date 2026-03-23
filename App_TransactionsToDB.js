@@ -241,11 +241,12 @@ function settleGroupedCredits(normalizedName, bankCol) {
 
   if (itemsToSettle.length === 0) throw new Error("Nessun credito trovato per questa persona.");
 
-  let categoryTotals = {};
+ let categoryTotals = {};
+  let settledRowsToAppend = [];
   
-  // 2. Scrivi tutto nello storico (Settled_Credits) e raggruppa le somme per Categoria
+  // 2. Prepara l'array per Settled_Credits e raggruppa le somme (OPTIMIZED)
   itemsToSettle.forEach(row => {
-    settledSheet.appendRow([
+    settledRowsToAppend.push([
       row[0], row[1], row[2], row[3], row[4], row[5], settleDate, bankCol
     ]);
 
@@ -254,6 +255,12 @@ function settleGroupedCredits(normalizedName, bankCol) {
     if(!categoryTotals[cat]) categoryTotals[cat] = 0;
     categoryTotals[cat] += amt;
   });
+
+  // Scrive nello storico Settled_Credits in una singola operazione
+  if (settledRowsToAppend.length > 0) {
+    const lastSettledRow = settledSheet.getLastRow();
+    settledSheet.getRange(lastSettledRow + 1, 1, settledRowsToAppend.length, 8).setValues(settledRowsToAppend);
+  }
 
   // 3. Crea automaticamente un Refund separato per ogni categoria coinvolta
   let resultMsg = "Saldato";

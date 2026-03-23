@@ -54,28 +54,28 @@ function addInvestTransaction(data) {
     finalTicker = finalTicker.toUpperCase();
   }
 
-  // Write to History Sheet
-  sheet.getRange(newRow, 1).setValue(new Date(data.date));
-  sheet.getRange(newRow, 2).setValue(finalTicker);
-  sheet.getRange(newRow, 3).setValue(data.action);
-  sheet.getRange(newRow, 4).setValue(quantity);
+// --- OPTIMIZED BATCH WRITE TO HISTORY ---
+  let histRowData = new Array(13).fill("");
+  
+  histRowData[0] = new Date(data.date);
+  histRowData[1] = finalTicker;
+  histRowData[2] = data.action;
+  histRowData[3] = quantity;
 
   if (isCrypto) {
-      sheet.getRange(newRow, 5).setValue(totalCostEur);
-      sheet.getRange(newRow, 7).setValue(totalCostUsd);
-      // Write ID to Column M (13) for sync
-      sheet.getRange(newRow, 13).setValue(transactionId);
+      histRowData[4] = totalCostEur;
+      histRowData[6] = totalCostUsd;
+      histRowData[12] = transactionId; // M = 13
   } else {
-      let assetClass = "";
-      if (data.action === "Withdrawal") { assetClass = "x"; } 
-      else { assetClass = (data.type === "Stocks") ? "Stock" : "ETF"; }
-      
-      sheet.getRange(newRow, 5).setValue(assetClass);
-      sheet.getRange(newRow, 6).setValue(unitPrice);
-      sheet.getRange(newRow, 7).setValue(totalCostUsd);
-      // Write ID to Column M (13) for sync
-      sheet.getRange(newRow, 13).setValue(transactionId);
+      let assetClass = (data.action === "Withdrawal") ? "x" : ((data.type === "Stocks") ? "Stock" : "ETF");
+      histRowData[4] = assetClass;
+      histRowData[5] = unitPrice;
+      histRowData[6] = totalCostUsd;
+      histRowData[12] = transactionId; // M = 13
   }
+
+  // Scrive tutta la riga in un colpo solo
+  sheet.getRange(newRow, 1, 1, 13).setValues([histRowData]);
 
   // --- PART 2: EXPENSES TRACKER (Withdrawals Only) ---
   if (data.action === "Withdrawal") {
