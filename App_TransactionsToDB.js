@@ -11,8 +11,14 @@
  */
 function addTransaction(data) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("Expenses Tracker 2026");
-  if (!sheet) return "Error: Sheet not found";
+  
+  // Dynamically determine the target sheet based on the current year
+  const dateVal = new Date();
+  const currentYear = dateVal.getFullYear();
+  const sheetName = "Expenses Tracker " + currentYear;
+  
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return "Error: Sheet not found (" + sheetName + ")";
 
   const startRow = 20;
   
@@ -36,7 +42,6 @@ function addTransaction(data) {
   // PREPARE OPTIMIZED BATCH ARRAY FOR EXPENSES
   const numCols = Math.max(maxCols, syncColIndexTx);
   let txRowData = new Array(numCols).fill("");
-  const dateVal = new Date();
 
   txRowData[0] = dateVal;
   txRowData[1] = data.type;
