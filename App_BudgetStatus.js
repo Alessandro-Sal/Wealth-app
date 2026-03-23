@@ -31,7 +31,6 @@ function getBudgetStatus() {
   
   const now = new Date(); 
   const currentMonth = now.getMonth(); 
-  const currentYear = now.getFullYear();
   
   // Initialize spending accumulators
   let spending = {}; 
