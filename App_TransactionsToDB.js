@@ -138,7 +138,7 @@ function addTransaction(data) {
     }
   }
 
-  if (generatedTxId) SpreadsheetApp.flush();
+  //if (generatedTxId) SpreadsheetApp.flush();
   
   return "Saved Successfully";
 }
