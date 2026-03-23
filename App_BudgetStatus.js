@@ -12,10 +12,12 @@ function getBudgetStatus() {
   };
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  // Access the specific tracker sheet
-  const sheet = ss.getSheetByName("Expenses Tracker 2026");
+  // Access the specific tracker sheet dynamically
+  const currentYear = new Date().getFullYear();
+  const sheet = ss.getSheetByName("Expenses Tracker " + currentYear);
   
   if (!sheet) return []; // Return empty if sheet missing
+  
   const startRow = 20; 
   const lastRow = sheet.getLastRow();
 

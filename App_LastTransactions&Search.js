@@ -5,8 +5,9 @@
  */
 function getLastTransactions() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  // Target specific year sheet (Hardcoded to 2026, could be dynamic)
-  const sheet = ss.getSheetByName("Expenses Tracker 2026");
+  // Target dynamic year sheet
+  const currentYear = new Date().getFullYear();
+  const sheet = ss.getSheetByName("Expenses Tracker " + currentYear);
   
   if (!sheet) return [];
   
@@ -61,7 +62,7 @@ function searchTransactions(query, typeFilter, categoryFilter, monthFilter, year
   // --- YEAR SELECTION LOGIC ---
   // If a year filter is provided, use it to construct the sheet name.
   // Otherwise, default to the current year (2026).
-  let targetYear = yearFilter ? String(yearFilter) : "2026";
+  let targetYear = yearFilter ? String(yearFilter) : String(new Date().getFullYear());
   let sheetName = "Expenses Tracker " + targetYear; 
   // ----------------------------
 

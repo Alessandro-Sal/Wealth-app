@@ -8,8 +8,8 @@ function getAutocompleteData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   // --- 1. EXPENSE NOTES AUTOCOMPLETE ---
-  // Currently points to 2026. Ideally, this could scan the current year dynamically.
-  const expSheet = ss.getSheetByName("Expenses Tracker 2026");
+  const currentYear = new Date().getFullYear();
+  const expSheet = ss.getSheetByName("Expenses Tracker " + currentYear);
   let notesMap = {};
 
   if (expSheet && expSheet.getLastRow() >= 20) {

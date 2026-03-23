@@ -7,8 +7,13 @@
  */
 function getMonthlySavings() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  // Target specific year sheet
-  const sheet = ss.getSheetByName("Expenses Tracker 2026");
+  const now = new Date();
+  const curMonth = now.getMonth();
+  const curYear = now.getFullYear();
+  
+  // Target dynamic year sheet
+  const sheet = ss.getSheetByName("Expenses Tracker " + curYear);
+  if (!sheet) return { income: "0.00", expenses: "0.00", savings: "0.00", rate: "0.0" };
   
   const lastRow = sheet.getLastRow();
   
@@ -20,9 +25,6 @@ function getMonthlySavings() {
   // Read data from Row 20 to the end, first 10 columns
   const data = sheet.getRange(20, 1, lastRow-19, 10).getValues();
   
-  const now = new Date();
-  const curMonth = now.getMonth();
-  const curYear = now.getFullYear();
   
   let income = 0; 
   let expenses = 0;
