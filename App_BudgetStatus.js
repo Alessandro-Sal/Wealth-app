@@ -16,7 +16,6 @@ function getBudgetStatus() {
   const sheet = ss.getSheetByName("Expenses Tracker 2026");
   
   if (!sheet) return []; // Return empty if sheet missing
-
   const startRow = 20; 
   const lastRow = sheet.getLastRow();
 
