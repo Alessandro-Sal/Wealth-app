@@ -650,46 +650,96 @@
             <div class="master-menu-placeholder"></div>
          </div>
          <label>Asset Class</label>
-         <select id="invType">
+         <select id="invType" onchange="toggleInvestAssets()">
             <option value="Stocks">Stocks 🏢</option>
             <option value="ETF">ETF (Indices) 🌐</option>
             <option value="Crypto">Crypto ₿</option>
+            <option value="Bond">Bonds / BTP 📜</option>
+            <option value="RealEstate">Real Estate 🏠</option>
          </select>
+         
          <label>Date</label>
          <input type="date" id="invDate">
-         <label>Ticker</label>
-         <input type="text" id="invTicker" placeholder="e.g. AAPL" style="text-transform:uppercase;" list="tickerList">
-         <datalist id="tickerList"></datalist>
-         <label>Action</label>
-         <select id="invAction">
-            <option value="Buy">Buy</option>
-            <option value="Sell">Sell</option>
-            <option value="Dividend">Dividend</option>
-            <option value="Withdrawal">Withdrawal</option>
-            <option value="Deposit">Deposit</option>
-         </select>
-         <div id="bank-select-container" style="display:none; margin-top:10px; background: #f0f0f5; padding:10px; border-radius:8px;">
-            <label style="margin-top:0; color:var(--primary);">Deposit to Bank:</label>
-            <select id="invBankCol" style="background:white; font-weight:bold;">
-               <option value="">-- Select Bank --</option>
-               <option value="5">Intesa SP</option>
-               <option value="6">N26</option>
-               <option value="7">Wallet</option>
-               <option value="8">Buddy</option>
-               <option value="9">Revolut</option>
-            </select>
-            <label style="margin-top:0; color:var(--gray);">Withdrawal Note:</label>
-            <input type="text" id="invWithdrawalNote" placeholder="Additional details..." style="background:white;">
+
+         <div id="standard-invest-inputs">
+             <label>Ticker</label>
+             <input type="text" id="invTicker" placeholder="e.g. AAPL" style="text-transform:uppercase;" list="tickerList">
+             <datalist id="tickerList"></datalist>
+             
+             <label>Action</label>
+             <select id="invAction">
+                <option value="Buy">Buy</option>
+                <option value="Sell">Sell</option>
+                <option value="Dividend">Dividend / Coupon</option>
+                <option value="Withdrawal">Withdrawal</option>
+                <option value="Deposit">Deposit</option>
+             </select>
+             
+             <div id="bank-select-container" style="display:none; margin-top:10px; background: #f0f0f5; padding:10px; border-radius:8px;">
+                <label style="margin-top:0; color:var(--primary);">Deposit to Bank:</label>
+                <select id="invBankCol" style="background:white; font-weight:bold;">
+                   <option value="">-- Select Bank --</option>
+                   <option value="5">Intesa SP</option>
+                   <option value="6">N26</option>
+                   <option value="7">Wallet</option>
+                   <option value="8">Buddy</option>
+                   <option value="9">Revolut</option>
+                </select>
+                <label style="margin-top:0; color:var(--gray);">Withdrawal Note:</label>
+                <input type="text" id="invWithdrawalNote" placeholder="Additional details..." style="background:white;">
+             </div>
+             
+             <div style="display:flex; gap:10px;">
+                <div style="flex:1">
+                   <label>Quantity</label>
+                   <input type="number" inputmode="decimal" step="0.00000001" id="invQty" placeholder="0.00">
+                </div>
+                <div style="flex:1">
+                   <label>Total EUR</label>
+                   <input type="number" inputmode="decimal" step="0.01" id="invCostEur" placeholder="€ Total">
+                </div>
+             </div>
          </div>
-         <div style="display:flex; gap:10px;">
-            <div style="flex:1">
-               <label>Quantity</label>
-               <input type="number" inputmode="decimal" step="0.00000001" id="invQty" placeholder="0.00">
+
+         <div id="realestate-inputs" style="display:none; background:rgba(0,122,255,0.05); padding:15px; border-radius:12px; margin-top:15px; border:1px solid rgba(0,122,255,0.1);">
+            <div style="font-size:12px; color:var(--primary); margin-bottom:10px; font-weight:bold;">🏠 REAL ESTATE DETAILS</div>
+            <label style="margin-top:0">Market Value (€)</label>
+            <input type="number" inputmode="decimal" id="reMarketVal" placeholder="e.g. 250000">
+            <label>Loan Amount (Principal €)</label>
+            <input type="number" inputmode="decimal" id="reLoanAmt" placeholder="e.g. 200000">
+            <div style="display:flex; gap:10px;">
+               <div style="flex:1;">
+                  <label>Annual Rate (%)</label>
+                  <input type="number" inputmode="decimal" id="reRate" step="0.01" placeholder="2.5">
+               </div>
+               <div style="flex:1;">
+                  <label>Duration (Years)</label>
+                  <input type="number" inputmode="decimal" id="reYears" placeholder="30">
+               </div>
             </div>
-            <div style="flex:1">
-               <label>Total EUR</label>
-               <input type="number" inputmode="decimal" step="0.01" id="invCostEur" placeholder="€ Total">
+            <label>Start Date</label>
+            <input type="date" id="reStartDate">
+         </div>
+
+         <div id="bond-inputs" style="display:none; background:rgba(88, 86, 214, 0.05); padding:15px; border-radius:12px; margin-top:15px; border:1px solid rgba(88, 86, 214, 0.1);">
+            <div style="font-size:12px; color:var(--purple); margin-bottom:10px; font-weight:bold;">📜 BOND DETAILS</div>
+            <label style="margin-top:0">Nominal Value (€)</label>
+            <input type="number" inputmode="decimal" id="bondNominal" placeholder="e.g. 10000">
+            <div style="display:flex; gap:10px;">
+               <div style="flex:1;">
+                  <label>Price</label>
+                  <input type="number" inputmode="decimal" id="bondPrice" step="0.01" placeholder="e.g. 98.50">
+               </div>
+               <div style="flex:1;">
+                  <label>Coupon (%)</label>
+                  <input type="number" inputmode="decimal" id="bondCoupon" step="0.01" placeholder="e.g. 4.0">
+               </div>
             </div>
+            <label>Taxation</label>
+            <select id="bondTax">
+               <option value="true">12.5% (Gov Bonds / White List)</option>
+               <option value="false">26% (Corporate Bonds)</option>
+            </select>
          </div>
          <p style="font-size:11px; color:var(--gray); margin-top:5px; margin-bottom:0;">*Unit Price calculated automatically.</p>
          <label>Total USD (or Foreign)</label>
@@ -1387,6 +1437,14 @@
                         <div class="dash-list-row row">
                            <span class="dash-list-label label">Crypto</span>
                            <div><span id="sum-y-a" class="dash-list-value amt sensitive">--</span><span id="sum-y-p" class="dash-list-pct pct">--</span></div>
+                        </div>
+                        <div class="dash-list-row row">
+                           <span class="dash-list-label label">Bonds / BTP</span>
+                           <div><span id="sum-b-a" class="dash-list-value amt sensitive">€ 0.00</span><span id="sum-b-p" class="dash-list-pct pct">0.0%</span></div>
+                        </div>
+                        <div class="dash-list-row row">
+                           <span class="dash-list-label label">Real Estate (Equity)</span>
+                           <div><span id="sum-re-a" class="dash-list-value amt sensitive">€ 0.00</span><span id="sum-re-p" class="dash-list-pct pct">0.0%</span></div>
                         </div>
                         <div class="dash-list-row row">
                            <span class="dash-list-label label">Others</span>

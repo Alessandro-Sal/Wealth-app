@@ -295,27 +295,55 @@ function handleTypeChange() {
      const action = document.getElementById('invAction').value; 
      const bankCol = document.getElementById('invBankCol').value; 
      const withdrawalNote = document.getElementById('invWithdrawalNote').value;
+     const type = document.getElementById('invType').value;
      
      if (action === 'Withdrawal' && bankCol === "") { 
          Swal.fire({ icon: 'warning', title: 'Missing Bank', text: 'Select where to credit the withdrawal.' }); 
          return; 
      }
      
-     const data = { 
-         type: document.getElementById('invType').value, 
+     // Initialize base data object
+     let data = { 
+         type: type, 
          date: document.getElementById('invDate').value, 
-         ticker: document.getElementById('invTicker').value, 
          action: action, 
-         qty: document.getElementById('invQty').value, 
-         costEur: document.getElementById('invCostEur').value, 
-         costUsd: document.getElementById('invCostUsd').value, 
          bankCol: bankCol, 
          note: withdrawalNote 
      };
-     
-     if (!data.date || !data.ticker || !data.qty || !data.costEur) { 
-         Swal.fire({ icon: 'warning', title: 'Missing Data', text: 'Fill in Date, Ticker, Qty, and Cost EUR', timer: 2500 }); 
-         return; 
+
+     // Branching logic based on Asset Class
+     if (type === 'RealEstate') {
+         data.marketVal = document.getElementById('reMarketVal').value;
+         data.loanAmt = document.getElementById('reLoanAmt').value;
+         data.rate = document.getElementById('reRate').value;
+         data.years = document.getElementById('reYears').value;
+         data.startDate = document.getElementById('reStartDate').value;
+
+         if (!data.date || !data.marketVal) {
+             Swal.fire({ icon: 'warning', title: 'Missing Data', text: 'Fill in Date and Market Value', timer: 2500 });
+             return;
+         }
+     } else if (type === 'Bond') {
+         data.nominal = document.getElementById('bondNominal').value;
+         data.price = document.getElementById('bondPrice').value;
+         data.coupon = document.getElementById('bondCoupon').value;
+         data.tax = document.getElementById('bondTax').value;
+
+         if (!data.date || !data.nominal || !data.price) {
+             Swal.fire({ icon: 'warning', title: 'Missing Data', text: 'Fill in Date, Nominal Value, and Price', timer: 2500 });
+             return;
+         }
+     } else {
+         // Standard Assets (Stocks, ETFs, Crypto)
+         data.ticker = document.getElementById('invTicker').value;
+         data.qty = document.getElementById('invQty').value;
+         data.costEur = document.getElementById('invCostEur').value;
+         data.costUsd = document.getElementById('invCostUsd').value;
+
+         if (!data.date || !data.ticker || !data.qty || !data.costEur) { 
+             Swal.fire({ icon: 'warning', title: 'Missing Data', text: 'Fill in Date, Ticker, Qty, and Cost EUR', timer: 2500 }); 
+             return; 
+         }
      }
      
      const originalText = btn.innerText; 
@@ -326,14 +354,20 @@ function handleTypeChange() {
          btn.innerText = originalText; 
          btn.classList.remove('btn-loading'); 
          Swal.fire({ icon: 'success', title: 'Saved!', text: m, showConfirmButton: false, timer: 1500 }); 
-         fetchInvestHistory(); 
-         if(action === 'Withdrawal') fetchBalances(); 
+         
+         if(typeof fetchInvestHistory === 'function') fetchInvestHistory(); 
+         if(action === 'Withdrawal' && typeof fetchBalances === 'function') fetchBalances(); 
+         
          setTimeout(() => { 
              document.getElementById('invForm').reset(); 
              document.getElementById('bank-select-container').style.display = 'none'; 
              document.getElementById('invBankCol').value = ""; 
              document.getElementById('invWithdrawalNote').value = ""; 
-             setTodayDate(); 
+             
+             // Reset dynamic inputs UI back to default
+             if(typeof toggleInvestAssets === 'function') toggleInvestAssets();
+             
+             if(typeof setTodayDate === 'function') setTodayDate(); 
          }, 1000); 
      }).withFailureHandler(err => { 
          btn.innerText = originalText; 
@@ -1483,4 +1517,24 @@ function openSubs() {
            }
        });
    }
+
+   function toggleInvestAssets() {
+    const type = document.getElementById('invType').value;
+    const reInputs = document.getElementById('realestate-inputs');
+    const bondInputs = document.getElementById('bond-inputs');
+    const standardInputs = document.getElementById('standard-invest-inputs');
+    
+    // Reset display
+    if(reInputs) reInputs.style.display = 'none';
+    if(bondInputs) bondInputs.style.display = 'none';
+    if(standardInputs) standardInputs.style.display = 'none';
+    
+    if (type === 'RealEstate') {
+        if(reInputs) reInputs.style.display = 'block';
+    } else if (type === 'Bond') {
+        if(bondInputs) bondInputs.style.display = 'block';
+    } else {
+        if(standardInputs) standardInputs.style.display = 'block';
+    }
+}
 </script>
