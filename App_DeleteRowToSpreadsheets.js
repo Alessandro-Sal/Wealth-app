@@ -17,13 +17,19 @@ function deleteRow(sheetName, rowIndex) {
   let idToDelete = "";
   let isFromExpenses = sheetName.startsWith("Expenses Tracker");
   let isFromHistory = sheetName.includes("History B/S");
+  let expSyncCol = 35; // Fallback
 
   try {
-    // If in Expenses, ID is in Column 35 (AI)
+    // Seleziona la colonna dinamicamente se siamo in Expenses (intestazione alla riga 2)
     if (isFromExpenses) {
-      idToDelete = sheet.getRange(rowIndex, 35).getValue();
+      const headers = sheet.getRange(2, 1, 1, sheet.getLastColumn()).getValues()[0];
+      expSyncCol = headers.indexOf("Controllo Automatismi") + 1;
+      
+      if (expSyncCol > 0) {
+        idToDelete = sheet.getRange(rowIndex, expSyncCol).getValue();
+      }
     } 
-    // If in History, ID is in Column 13 (M)
+    // If in History, ID is always in Column 13 (M)
     else if (isFromHistory) {
       idToDelete = sheet.getRange(rowIndex, 13).getValue();
     }
@@ -43,13 +49,19 @@ function deleteRow(sheetName, rowIndex) {
     
     // CASE B: Deleting from HISTORY -> Sync delete in Expenses
     else if (isFromHistory) {
-      // Determine which year to search. 
-      // Defaults to checking the current year's sheet.
       const currentYear = new Date().getFullYear();
       const expSheetName = "Expenses Tracker " + currentYear;
+      const targetExpSheet = ss.getSheetByName(expSheetName);
       
-      // Note: To support past years, logic should be extended here.
-      findAndDeleteById(ss, expSheetName, id, 35); // 35 = Col AI
+      if (targetExpSheet) {
+        // Find dynamic column for the target expenses sheet (intestazione alla riga 2)
+        const headers = targetExpSheet.getRange(2, 1, 1, targetExpSheet.getLastColumn()).getValues()[0];
+        const targetExpCol = headers.indexOf("Controllo Automatismi") + 1;
+        
+        if (targetExpCol > 0) {
+          findAndDeleteById(ss, expSheetName, id, targetExpCol);
+        }
+      }
     }
   }
 
@@ -70,8 +82,6 @@ function findAndDeleteById(ss, targetSheetName, id, colIndex) {
   if (!targetSheet) return;
 
   const lastRow = targetSheet.getLastRow();
-  
-  // Expenses sheet data starts at row 20; History usually starts at row 1 or 3.
   const startRow = targetSheetName.startsWith("Expenses") ? 20 : 1;
   
   if (lastRow < startRow) return;
@@ -83,16 +93,13 @@ function findAndDeleteById(ss, targetSheetName, id, colIndex) {
   // Reverse loop to safely delete rows without messing up indices
   for (let i = values.length - 1; i >= 0; i--) {
     if (String(values[i][0]).trim() === id) {
-      // Found match! Delete the actual row
-      // Index 'i' is relative to the range (0-based). Actual Row = startRow + i
       targetSheet.deleteRow(startRow + i);
       console.log("Sync Delete: Removed linked row in " + targetSheetName);
-      
-      // Break after first match (IDs are assumed unique)
       break; 
     }
   }
 }
+
 /**
  * Rimuove TUTTI i crediti di uno split e la transazione originale associata.
  */
@@ -106,34 +113,40 @@ function removeCreditAndOriginalTx(creditId, linkedTxId) {
   if (!creditSheet) throw new Error("Foglio Active_Credits mancante.");
 
   const cData = creditSheet.getDataRange().getValues();
+  let rowsToDelete = [];
 
-  // 1. Elimina TUTTI i crediti in Active_Credits associati a questa spesa
+  // 1. Raccoglie le righe da eliminare (ottimizzato per bulk virtuale)
   if (linkedTxId) {
-    // Ciclo al contrario per eliminare righe multiple in sicurezza
     for (let i = cData.length - 1; i >= 1; i--) {
-      // Controlliamo la colonna G (indice 6) dove abbiamo salvato il linkedTxId
       if (String(cData[i][6]).trim() === String(linkedTxId).trim()) {
-        creditSheet.deleteRow(i + 1);
+        rowsToDelete.push(i + 1);
       }
     }
   } else {
-    // Fallback di sicurezza: se per vecchi split non c'è l'ID collegato, elimina almeno questo
     for (let i = cData.length - 1; i >= 1; i--) {
       if (String(cData[i][0]) === String(creditId)) {
-        creditSheet.deleteRow(i + 1);
+        rowsToDelete.push(i + 1);
         break;
       }
     }
   }
 
-  // 2. Trova ed elimina la spesa madre nel foglio Expenses
+  // Elimina le righe dei crediti (dal basso verso l'alto per sicurezza)
+  rowsToDelete.forEach(r => creditSheet.deleteRow(r));
+
+  // 2. Trova ed elimina la spesa madre nel foglio Expenses in modo dinamico
   if (linkedTxId && expSheet) {
-    const eData = expSheet.getRange(20, 35, expSheet.getLastRow() - 19, 1).getValues(); // Colonna AI (35)
-    for (let i = eData.length - 1; i >= 0; i--) {
-      if (String(eData[i][0]).trim() === String(linkedTxId).trim()) {
-        // Usa la funzione deleteRow dell'app per assicurare che si sincronizzi tutto (es. investimenti se presenti)
-        deleteRow(expSheetName, i + 20); 
-        break; 
+    // Intestazione alla riga 2
+    const headers = expSheet.getRange(2, 1, 1, expSheet.getLastColumn()).getValues()[0];
+    const syncColIndex = headers.indexOf("Controllo Automatismi") + 1;
+
+    if (syncColIndex > 0) {
+      const eData = expSheet.getRange(20, syncColIndex, expSheet.getLastRow() - 19, 1).getValues(); 
+      for (let i = eData.length - 1; i >= 0; i--) {
+        if (String(eData[i][0]).trim() === String(linkedTxId).trim()) {
+          deleteRow(expSheetName, i + 20); 
+          break; 
+        }
       }
     }
   }
