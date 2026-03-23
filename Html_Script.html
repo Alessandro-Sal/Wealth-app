@@ -48,16 +48,6 @@
    let isFullDataLoaded = false;
    let marketInterval = null;
    
-   // Categories configuration for Dropdowns
-   // NOTE: Values kept in Italian to match Spreadsheet Data Validation
-   const categories = {
-     'Expense': ['Alloggio', 'Free-Time', 'Trasporti', 'Alimentazione', 'Regali', 'Famiglia', 'Uscite', 'Necessità', 'Altro', 'Viaggi', 'Mamma Calabria'],
-     'Income': ['Stipendio', 'Famiglia', 'Parenti', 'Altro','Mamma Calabria'],
-     'Transfer': ['Trasferimenti'],
-     'Storno': ['Storno'],
-     'Investment': ['Azioni', 'Crypto']
-   };
-   
    // --- Immediate Execution Functions ---
    (function checkSession() {
      // FORCE: Privacy Mode ALWAYS active on app launch.

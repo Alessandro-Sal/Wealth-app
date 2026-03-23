@@ -87,8 +87,10 @@ function handleTypeChange() {
      defaultOpt.text = "-- Select Category --"; 
      select.add(defaultOpt);
      
-     if (categories[type]) {
-         categories[type].forEach(c => { 
+     // Usa le categorie dinamiche
+     const dynamicCats = GLOBAL_APP_CONFIG.categories[type];
+     if (dynamicCats) {
+         dynamicCats.forEach(c => { 
              let o = document.createElement('option'); 
              o.value = o.text = c; 
              select.add(o); 
@@ -397,10 +399,15 @@ function handleTypeChange() {
          catSelect.add(opt); 
      });
      
-     if (type && categories[type]) { 
-         addOpts(categories[type]); 
+     // Usa le categorie dinamiche caricate dal database
+     const dynamicCats = GLOBAL_APP_CONFIG.categories;
+     
+     if (type && dynamicCats[type]) { 
+         addOpts(dynamicCats[type]); 
      } else if (!type) { 
-         for (const t in categories) { addOpts(categories[t]); } 
+         for (const t in dynamicCats) { 
+             if (dynamicCats[t]) addOpts(dynamicCats[t]); 
+         } 
      }
    }
    
