@@ -11,13 +11,12 @@
  */
 function addTransaction(data) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  // Target Sheet: Expenses Tracker 2026 (Hardcoded year for now)
   const sheet = ss.getSheetByName("Expenses Tracker 2026");
   if (!sheet) return "Error: Sheet not found";
 
   const startRow = 20;
   
-  // Logic to find the first truly empty row in the tracker
+  // Logic to find the first truly empty row
   const colB = sheet.getRange(startRow, 2, Math.max(1, sheet.getLastRow() - startRow + 1), 1).getValues();
   let newRow = startRow;
   for (let i = 0; i < colB.length; i++) {
@@ -28,111 +27,114 @@ function addTransaction(data) {
     if (i === colB.length - 1) newRow = startRow + i + 1;
   }
 
-  // 1. WRITE TO EXPENSES TRACKER (Standard Operation)
+  // Find "Controllo Automatismi" column dynamically
+  const headerRowTx = 2;
+  const maxCols = sheet.getLastColumn();
+  const headersTx = sheet.getRange(headerRowTx, 1, 1, maxCols).getValues()[0];
+  const syncColIndexTx = headersTx.indexOf("Controllo Automatismi") + 1;
+  
+  // PREPARE OPTIMIZED BATCH ARRAY FOR EXPENSES
+  const numCols = Math.max(maxCols, syncColIndexTx);
+  let txRowData = new Array(numCols).fill("");
   const dateVal = new Date();
-  sheet.getRange(newRow, 1).setValue(dateVal);
-  sheet.getRange(newRow, 2).setValue(data.type);
-  sheet.getRange(newRow, 3).setValue(data.category);
-  sheet.getRange(newRow, 4).setValue(data.details);
 
-  // Write amounts and calculate total for potential investment sync
+  txRowData[0] = dateVal;
+  txRowData[1] = data.type;
+  txRowData[2] = data.category;
+  txRowData[3] = data.details;
+
   let totalInvestAmount = 0;
   for (let col in data.amounts) {
+    let colIdx = parseInt(col);
     let val = parseFloat(data.amounts[col]);
-    sheet.getRange(newRow, parseInt(col)).setValue(val);
     
-    // Sum absolute values if columns are between 5 (E) and 9 (I) - Typical Bank Columns
-    if (parseInt(col) >= 5 && parseInt(col) <= 9) {
+    if (colIdx > 0) {
+      txRowData[colIdx - 1] = val; // -1 because Array is 0-indexed
+    }
+    
+    // IMPORTANT: Verify these column numbers match your new bank columns!
+    if (colIdx >= 5 && colIdx <= 9) {
       totalInvestAmount += Math.abs(val || 0);
     }
   }
 
+  let generatedTxId = null;
+
   // --- 2. IMMEDIATE SYNCHRONIZATION (AUTO-LINK) ---
-  // If Type is "Investment", immediately copy to History as a "Deposit"
   if (data.type === "Investment") {
-    
     let destSheetName = null;
     let isCrypto = false;
 
-    // Check Category to determine destination (Strings must match Dropdown values)
     if (data.category === "Stocks") destSheetName = "History B/S Stocks";
     if (data.category === "Crypto") { destSheetName = "History B/S Crypto"; isCrypto = true; }
 
     if (destSheetName) {
       const destSheet = ss.getSheetByName(destSheetName);
       if (destSheet) {
-        // Generate Unique ID based on timestamp and row
-        const newId = "ID_" + new Date().getTime() + "_" + newRow;
+        generatedTxId = "ID_" + new Date().getTime() + "_" + newRow;
 
-        // Find empty row in History sheet
         const lastHistRow = destSheet.getLastRow();
         let histRow = 1;
-        
-        // Search for first free row by checking Column A (Date) backwards
         const histDates = destSheet.getRange("A1:A" + (lastHistRow + 1)).getValues();
         for (let j = histDates.length - 1; j >= 0; j--) {
           if (histDates[j][0] !== "" && histDates[j][0] != null) {
-            histRow = j + 2;
-            break;
+            histRow = j + 2; break;
           }
         }
         if (lastHistRow === 0) histRow = 1;
 
-        // Write to History: A=Date, B=Ticker(Cash), C=Action(Deposit), D=Qty(1), E=Class(x), F=Amount
-        destSheet.getRange(histRow, 1, 1, 6).setValues([[dateVal, "Cash", "Deposit", 1, "x", totalInvestAmount]]);
+        // OPTIMIZED BATCH WRITE TO HISTORY
+        let histRowData = new Array(13).fill("");
+        histRowData[0] = dateVal;
+        histRowData[1] = "Cash";
+        histRowData[2] = "Deposit";
+        histRowData[3] = 1;
+        histRowData[4] = "x";
+        histRowData[5] = totalInvestAmount;
         
-        // If Crypto, write amount to Col H (8) as well (specific formatting for Crypto sheet)
         if (isCrypto) {
-          destSheet.getRange(histRow, 8).setValue(totalInvestAmount);
+          histRowData[7] = totalInvestAmount; // Col H (8)
         }
+        histRowData[12] = generatedTxId; // Col M (13)
 
-        // Write ID to History (Col M = 13)
-        destSheet.getRange(histRow, 13).setValue(newId);
-
-        // WRITE ID TO EXPENSES - Links the two rows by finding the column dynamically
-        const headerRowTx = 2;
-        const headersTx = sheet.getRange(headerRowTx, 1, 1, sheet.getLastColumn()).getValues()[0];
-        const syncColIndexTx = headersTx.indexOf("Controllo Automatismi") + 1;
-        
-        if (syncColIndexTx > 0) {
-          sheet.getRange(newRow, syncColIndexTx).setValue(newId);
-        }
-        
-        // Force save to ensure data integrity across sheets
-        SpreadsheetApp.flush();
+        // Write History in one call
+        destSheet.getRange(histRow, 1, 1, 13).setValues([histRowData]);
       }
     }
   }
-// --- 3. SPLIT WITH FRIENDS LOGIC ---
+
+  // --- 3. SPLIT WITH FRIENDS LOGIC ---
+  let splitDataToAppend = [];
   if (data.splitData && data.splitData.length > 0) {
+    if (!generatedTxId) {
+      generatedTxId = "TX_" + new Date().getTime() + "_" + newRow;
+    }
+    
+    data.splitData.forEach(friend => {
+      const creditId = "CR_" + new Date().getTime() + "_" + Math.floor(Math.random()*1000);
+      splitDataToAppend.push([creditId, dateVal, friend.who, data.category, data.details, friend.amount, generatedTxId]);
+    });
+  }
+
+  // Add the Sync ID to the Expenses Array if it was generated
+  if (generatedTxId && syncColIndexTx > 0) {
+    txRowData[syncColIndexTx - 1] = generatedTxId;
+  }
+
+  // WRITE EXPENSES ROW IN ONE SINGLE CALL (Massive speedup)
+  sheet.getRange(newRow, 1, 1, numCols).setValues([txRowData]);
+
+  // Write Active Credits if needed
+  if (splitDataToAppend.length > 0) {
     const creditSheet = ss.getSheetByName("Active_Credits");
     if (creditSheet) {
-      // Genera un ID di transazione unico se non esiste (lo useremo per collegare credito e spesa)
-      const txId = "TX_" + new Date().getTime() + "_" + newRow;
-      // Salva l'ID nella riga della spesa in Expenses Tracker dynamically
-      const headerRowSplit = 2;
-      const headersSplit = sheet.getRange(headerRowSplit, 1, 1, sheet.getLastColumn()).getValues()[0];
-      const syncColIndexSplit = headersSplit.indexOf("Controllo Automatismi") + 1;
-      
-      if (syncColIndexSplit > 0) {
-        sheet.getRange(newRow, syncColIndexSplit).setValue(txId);
-      }
-
-      data.splitData.forEach(friend => {
-        const creditId = "CR_" + new Date().getTime() + "_" + Math.floor(Math.random()*1000);
-        
-        creditSheet.appendRow([
-          creditId,
-          dateVal,
-          friend.who,
-          data.category,
-          data.details,
-          friend.amount,
-          txId // Salviamo l'ID della transazione originale nella colonna 7 (G) di Active_Credits
-        ]);
-      });
+      const creditStartRow = creditSheet.getLastRow() + 1;
+      creditSheet.getRange(creditStartRow, 1, splitDataToAppend.length, 7).setValues(splitDataToAppend);
     }
   }
+
+  if (generatedTxId) SpreadsheetApp.flush();
+  
   return "Saved Successfully";
 }
 /**

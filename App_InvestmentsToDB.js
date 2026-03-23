@@ -84,52 +84,46 @@ function addInvestTransaction(data) {
     const expSheetName = "Expenses Tracker " + year;
     const expSheet = ss.getSheetByName(expSheetName);
     
-    // Ensure sheet exists and a bank column was selected
     if (expSheet && data.bankCol) {
       const startRowExp = 20;
       
-      // Find empty row logic for Expenses Sheet
+      // Find empty row logic
       const colB = expSheet.getRange(startRowExp, 2, Math.max(1, expSheet.getLastRow() - startRowExp + 2), 1).getValues();
       let targetRow = startRowExp;
       for (let i = 0; i < colB.length; i++) {
-        if (!colB[i][0]) { 
-          targetRow = startRowExp + i;
-          break;
-        }
+        if (!colB[i][0]) { targetRow = startRowExp + i; break; }
       }
 
       const category = isCrypto ? "Crypto" : "Stocks";
-      
-      // --- CLEAN NOTES LOGIC ---
-      // Only write user input notes. Keep cell empty if no note provided.
       const userNote = (data.note && data.note.trim() !== "") ? data.note : "";
 
-      // Write Expense Row
-      expSheet.getRange(targetRow, 1).setValue(txDate);        // A: Date
-      expSheet.getRange(targetRow, 2).setValue('Investment');  // B: Type
-      expSheet.getRange(targetRow, 3).setValue(category);      // C: Category
-      expSheet.getRange(targetRow, 4).setValue(userNote);      // D: Note
-      
-      // Write Amount to the specific Bank Column
-      const colIndex = parseInt(data.bankCol);
-      if (!isNaN(colIndex)) {
-        expSheet.getRange(targetRow, colIndex).setValue(Math.abs(totalCostEur));
-      }
-
-      // --- CRITICAL: SYNC ID WRITING ---
-      // Column AI (35) is used for hidden IDs in Expenses Tracker
-      // --- CRITICAL: SYNC ID WRITING ---
-      // Dynamically find "Controllo Automatismi" column (assuming headers are on row 2)
+      // Dynamically find "Controllo Automatismi" column
       const headerRowExp = 2;
-      const headersExp = expSheet.getRange(headerRowExp, 1, 1, expSheet.getLastColumn()).getValues()[0];
-      const syncColIndexExp = headersExp.indexOf("Controllo Automatismi") + 1; // +1 because arrays are 0-indexed
+      const maxCols = expSheet.getLastColumn();
+      const headersExp = expSheet.getRange(headerRowExp, 1, 1, maxCols).getValues()[0];
+      const syncColIndexExp = headersExp.indexOf("Controllo Automatismi") + 1; 
+      
+      // OPTIMIZED BATCH WRITE FOR EXPENSES
+      // Create an array large enough to hold all data up to the sync column
+      const numCols = Math.max(maxCols, syncColIndexExp);
+      let expRowData = new Array(numCols).fill(""); 
+      
+      expRowData[0] = txDate;         // A: Date
+      expRowData[1] = 'Investment';   // B: Type
+      expRowData[2] = category;       // C: Category
+      expRowData[3] = userNote;       // D: Note
+      
+      const colIndex = parseInt(data.bankCol);
+      if (!isNaN(colIndex) && colIndex > 0) {
+        expRowData[colIndex - 1] = Math.abs(totalCostEur); // -1 because Array is 0-indexed
+      }
       
       if (syncColIndexExp > 0) {
-        expSheet.getRange(targetRow, syncColIndexExp).setValue(transactionId);
-      } else {
-        return "Error: Column 'Controllo Automatismi' not found in Expenses Tracker.";
+        expRowData[syncColIndexExp - 1] = transactionId;
       }
+
+      // Write everything in a single API call
+      expSheet.getRange(targetRow, 1, 1, numCols).setValues([expRowData]);
     }
   }
-  return "Investment Saved (" + data.type + ")";
-}
+  return "Investment Saved (" + data.type + ")";}
