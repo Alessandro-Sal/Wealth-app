@@ -74,8 +74,28 @@ function addInvestTransaction(data) {
     rowData[11] = "Active"; 
 
     if (data.type === "RealEstate") {
-      rowData[5] = parseFloat(data.marketVal); 
+      let marketVal = parseFloat(data.marketVal);
+      let loanAmt = parseFloat(data.loanAmt) || 0;
+      
+      rowData[5] = marketVal; // Purchase Price
       rowData[10] = linkedDebtId; 
+
+      // --- NUOVO: Sottrae l'anticipo versato dal conto in banca ---
+      let upfrontCash = marketVal - loanAmt;
+      if (upfrontCash > 0 && data.bankCol) {
+          let amountsObj = {};
+          amountsObj[data.bankCol] = upfrontCash;
+          try {
+              // Sfruttiamo il motore transazioni per registrare l'uscita
+              addTransaction({
+                  type: 'Expense',
+                  category: 'Real Estate',
+                  details: 'Acquisto / Anticipo: ' + data.name,
+                  amounts: amountsObj
+              });
+          } catch(e) { Logger.log("Errore registrazione anticipo cassa: " + e.message); }
+      }
+
     } else if (data.type === "Bond") {
       let nominal = parseFloat(data.nominal);
       let price = parseFloat(data.price);

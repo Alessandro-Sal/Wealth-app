@@ -289,6 +289,7 @@ function settleGroupedCredits(normalizedName, bankCol) {
 
 /**
  * Records a standalone debt and auto-creates the monthly fixed expense.
+ * Supports standard amortization and Balloon payments (Maxirata).
  */
 function addStandaloneDebt(data) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -299,21 +300,28 @@ function addStandaloneDebt(data) {
   
   // Calcoli finanziari
   let principal = parseFloat(data.amount);
-  let rateDec = parseFloat(data.rate) / 100; // FIX 250%: Invia 0.025 al DB
+  let balloon = parseFloat(data.balloon) || 0;
+  let rateDec = parseFloat(data.rate) / 100; 
   let years = parseFloat(data.years);
   let months = Math.round(years * 12);
   
-  // Calcolo Rata Mensile (Ammortamento alla Francese)
+  // Calcolo Rata Mensile con Maxirata (Ammortamento alla Francese Modificato)
   let monthlyRate = rateDec / 12;
-  let monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
-  if (isNaN(monthlyPayment) || monthlyRate === 0) monthlyPayment = principal / months; // Fallback Tasso Zero
+  let monthlyPayment = 0;
+  
+  if (monthlyRate === 0) {
+      monthlyPayment = (principal - balloon) / months;
+  } else {
+      // Formula: PMT = [ (PV * (1+r)^n) - FV ] * r / [ (1+r)^n - 1 ]
+      monthlyPayment = ((principal * Math.pow(1 + monthlyRate, months)) - balloon) * monthlyRate / (Math.pow(1 + monthlyRate, months) - 1);
+  }
 
   // Calcolo Date
   let start = new Date(data.date);
   let end = new Date(start);
   end.setMonth(end.getMonth() + months);
 
-  // 1. Scrittura nel DB_Debts
+  // 1. Scrittura nel DB_Debts (inclusa colonna I per la Maxirata)
   dbDebts.appendRow([
     debtId,
     data.name,
@@ -322,7 +330,8 @@ function addStandaloneDebt(data) {
     rateDec, 
     years,
     Number(monthlyPayment.toFixed(2)),
-    "Active"
+    "Active",
+    balloon > 0 ? balloon : "" // Colonna I
   ]);
 
   // 2. Scrittura automatica in Config_FixedExpenses
@@ -332,9 +341,9 @@ function addStandaloneDebt(data) {
         note: "Rata " + data.name,
         amt: Number(monthlyPayment.toFixed(2)),
         startDate: Utilities.formatDate(start, Session.getScriptTimeZone(), "yyyy-MM-dd"),
-        endDate: Utilities.formatDate(end, Session.getScriptTimeZone(), "yyyy-MM-dd"), // <-- Calcola fine in base agli anni (anni * 12 mesi)
+        endDate: Utilities.formatDate(end, Session.getScriptTimeZone(), "yyyy-MM-dd"),
         payDay: start.getDate(),
-        bankCol: data.bankCol, // <--- NUOVO: Passiamo la banca al DB
+        bankCol: data.bankCol, 
         isSplit: false
       });
   } catch (e) {

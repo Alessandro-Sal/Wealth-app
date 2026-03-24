@@ -167,17 +167,18 @@ function sendTransaction() {
      const type = document.getElementById('tType').value;
      const btn = document.querySelector('.btn-save:not(.btn-invest)'); 
      
-    // --- NEW: DEBT LOGIC BRANCH ---
+    // All'interno di sendTransaction(), trova il blocco: if (type === 'Debt') { ... } e sostituiscilo con:
      if (type === 'Debt') {
          const dName = document.getElementById('debtName').value;
          const dAmt = parseFloat(document.getElementById('debtAmount').value);
+         const dBalloon = parseFloat(document.getElementById('debtBalloon').value) || 0; // NUOVO CAMPO
          const dRate = parseFloat(document.getElementById('debtRate').value);
          const dYears = parseFloat(document.getElementById('debtYears').value);
          const dDate = document.getElementById('debtStartDate').value;
-         const dBankCol = document.getElementById('debtBankCol').value; // <--- NUOVO
+         const dBankCol = document.getElementById('debtBankCol').value; 
 
          if (!dName || isNaN(dAmt) || isNaN(dRate) || isNaN(dYears) || !dDate || !dBankCol) {
-             Swal.fire({ icon: 'warning', title: 'Missing Data', text: 'Fill in all Debt fields, including the Bank Account.' });
+             Swal.fire({ icon: 'warning', title: 'Missing Data', text: 'Fill in all required Debt fields.' });
              return;
          }
 
@@ -194,7 +195,7 @@ function sendTransaction() {
              btn.innerText = originalText; 
              btn.classList.remove('btn-loading'); 
              Swal.fire({ icon: 'error', title: 'Error', text: err.message }); 
-         }).addStandaloneDebt({ name: dName, amount: dAmt, rate: dRate, years: dYears, date: dDate, bankCol: dBankCol }); // <--- Passiamo bankCol
+         }).addStandaloneDebt({ name: dName, amount: dAmt, balloon: dBalloon, rate: dRate, years: dYears, date: dDate, bankCol: dBankCol });
          return;
      }
 
