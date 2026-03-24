@@ -1,10 +1,10 @@
 /**
- * Adds a new investment transaction to the History sheets.
+ * Adds a new investment transaction to the History sheets or Real Assets DB.
  * If the action is a "Withdrawal" (Cash Out), it automatically syncs the entry 
  * to the current year's "Expenses Tracker" as an Investment expense/transfer.
  * Generates a unique Transaction ID to allow synchronized deletion later.
- * * * @param {Object} data - The transaction data object.
- * @param {string} data.type - "Crypto" or "Stocks".
+ * * @param {Object} data - The transaction data object.
+ * @param {string} data.type - "Crypto", "Stocks", "RealEstate", or "Bond".
  * @param {string} data.action - "Deposit", "Withdrawal", "Buy", "Sell".
  * @param {string} data.ticker - The asset symbol (e.g., "BTC", "AAPL").
  * @param {number} data.qty - Quantity of the asset.
@@ -16,6 +16,60 @@
  */
 function addInvestTransaction(data) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // --- NEW: REAL ASSETS & BONDS (Write to DB_RealAssets & DB_Debts) ---
+  if (data.type === "RealEstate" || data.type === "Bond") {
+    const dbAssets = ss.getSheetByName("DB_RealAssets");
+    if (!dbAssets) return "Error: DB_RealAssets sheet missing. Please create it.";
+    
+    let assetId = (data.type === "RealEstate" ? "RE-" : "BND-") + new Date().getTime().toString().slice(-6);
+    let linkedDebtId = "";
+    
+    // If Real Estate has an associated mortgage, create the Debt first
+    if (data.type === "RealEstate" && parseFloat(data.loanAmt) > 0) {
+      const dbDebts = ss.getSheetByName("DB_Debts");
+      if (dbDebts) {
+        linkedDebtId = "DBT-" + new Date().getTime().toString().slice(-6);
+        dbDebts.appendRow([
+          linkedDebtId, 
+          "Mutuo Ipotecario", 
+          data.startDate || data.date, 
+          parseFloat(data.loanAmt), 
+          parseFloat(data.rate), 
+          parseFloat(data.years), 
+          "", // Monthly payment will be calculated/handled outside
+          "Active"
+        ]);
+      }
+    }
+
+    // Prepare row for DB_RealAssets (14 columns total based on our schema)
+    let rowData = new Array(14).fill("");
+    rowData[0] = assetId;
+    rowData[1] = data.type === "RealEstate" ? "Real Estate" : (data.tax === "true" ? "Government Bond" : "Corporate Bond");
+    rowData[2] = data.name;
+    rowData[3] = data.type === "Bond" ? data.isin : ""; // ISIN
+    rowData[4] = data.startDate || data.date; // Purchase Date
+    rowData[11] = "Active"; // Status
+
+    if (data.type === "RealEstate") {
+      rowData[5] = parseFloat(data.marketVal); // Purchase Price
+      rowData[10] = linkedDebtId; // Linked Debt ID
+    } else if (data.type === "Bond") {
+      let nominal = parseFloat(data.nominal);
+      let price = parseFloat(data.price);
+      
+      rowData[5] = (nominal * price) / 100; // Purchase Price total cost
+      rowData[6] = nominal; // Nominal Value
+      rowData[7] = parseFloat(data.coupon); // Coupon Rate
+      rowData[9] = data.tax === "true" ? "WhiteList" : "Standard"; // Tax Status
+      rowData[12] = data.isin; // Ticker Yahoo (ISIN used as fallback ticker)
+    }
+    
+    dbAssets.appendRow(rowData);
+    return data.type === "RealEstate" ? "Real Estate & Mortgage Added!" : "Bond Added!";
+  }
+
   
   // Generate a unique ID to link History and Expenses entries (crucial for synchronized deletion)
   const transactionId = "ID_" + new Date().getTime() + "_" + Math.floor(Math.random() * 1000);
@@ -54,7 +108,7 @@ function addInvestTransaction(data) {
     finalTicker = finalTicker.toUpperCase();
   }
 
-// --- OPTIMIZED BATCH WRITE TO HISTORY ---
+  // --- OPTIMIZED BATCH WRITE TO HISTORY ---
   let histRowData = new Array(13).fill("");
   
   histRowData[0] = new Date(data.date);
@@ -126,4 +180,5 @@ function addInvestTransaction(data) {
       expSheet.getRange(targetRow, 1, 1, numCols).setValues([expRowData]);
     }
   }
-  return "Investment Saved (" + data.type + ")";}
+  return "Investment Saved (" + data.type + ")";
+}

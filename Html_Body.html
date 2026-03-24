@@ -457,6 +457,7 @@
             <option value="Storno">⚪ Refund</option>
             <option value="Investment">🟠 Investment</option>
             <option value="Pension">🐢 Pension</option>
+            <option value="Debt">🏦 Debt / Loan</option>
          </select>
          <div id="pension-inputs" style="display:none; background:#f0f0f5; padding:15px; border-radius:12px; margin-top:15px; border:1px solid #d1d1d6;">
             <div style="font-size:12px; color:#555; margin-bottom:10px; font-weight:bold;">PENSION FUND DETAILS</div>
@@ -490,6 +491,25 @@
             </div>
             <label>Amount accrued (€)</label>
             <input type="number" inputmode="decimal" id="penAmount" step="0.01" placeholder="Ex. 120.50" style="font-size:24px; font-weight:bold; color:#2c3e50;">
+         </div>
+         <div id="debt-inputs" style="display:none; background:rgba(255, 59, 48, 0.05); padding:15px; border-radius:12px; margin-top:15px; border:1px solid rgba(255, 59, 48, 0.1);">
+            <div style="font-size:12px; color:var(--danger); margin-bottom:10px; font-weight:bold;">🏦 DEBT / LOAN DETAILS</div>
+            <label style="margin-top:0">Loan Name / Scope</label>
+            <input type="text" id="debtName" placeholder="e.g. Car Loan" style="background:white; font-weight:bold;">
+            <label>Amount Borrowed (€)</label>
+            <input type="number" inputmode="decimal" id="debtAmount" placeholder="e.g. 15000" style="background:white; font-size:20px; font-weight:bold;">
+            <div style="display:flex; gap:10px; margin-top:10px;">
+               <div style="flex:1;">
+                  <label>Annual Rate (%)</label>
+                  <input type="number" inputmode="decimal" id="debtRate" step="0.01" placeholder="e.g. 5.5" style="background:white;">
+               </div>
+               <div style="flex:1;">
+                  <label>Duration (Years)</label>
+                  <input type="number" inputmode="decimal" id="debtYears" placeholder="e.g. 5" style="background:white;">
+               </div>
+            </div>
+            <label>Start Date</label>
+            <input type="date" id="debtStartDate" style="background:white;">
          </div>
          <div id="standard-inputs">
             <label>Category</label>
@@ -703,7 +723,9 @@
 
          <div id="realestate-inputs" style="display:none; background:rgba(0,122,255,0.05); padding:15px; border-radius:12px; margin-top:15px; border:1px solid rgba(0,122,255,0.1);">
             <div style="font-size:12px; color:var(--primary); margin-bottom:10px; font-weight:bold;">🏠 REAL ESTATE DETAILS</div>
-            <label style="margin-top:0">Market Value (€)</label>
+            <label style="margin-top:0">Property Name</label>
+            <input type="text" id="reName" placeholder="e.g. Casa Milano">
+            <label>Market Value (€)</label>
             <input type="number" inputmode="decimal" id="reMarketVal" placeholder="e.g. 250000">
             <label>Loan Amount (Principal €)</label>
             <input type="number" inputmode="decimal" id="reLoanAmt" placeholder="e.g. 200000">
@@ -723,7 +745,11 @@
 
          <div id="bond-inputs" style="display:none; background:rgba(88, 86, 214, 0.05); padding:15px; border-radius:12px; margin-top:15px; border:1px solid rgba(88, 86, 214, 0.1);">
             <div style="font-size:12px; color:var(--purple); margin-bottom:10px; font-weight:bold;">📜 BOND DETAILS</div>
-            <label style="margin-top:0">Nominal Value (€)</label>
+            <label style="margin-top:0">Bond Name</label>
+            <input type="text" id="bondName" placeholder="e.g. BTP Valore 2027">
+            <label>ISIN / Yahoo Ticker</label>
+            <input type="text" id="bondIsin" placeholder="e.g. IT0005547408.MI">
+            <label>Nominal Value (€)</label>
             <input type="number" inputmode="decimal" id="bondNominal" placeholder="e.g. 10000">
             <div style="display:flex; gap:10px;">
                <div style="flex:1;">

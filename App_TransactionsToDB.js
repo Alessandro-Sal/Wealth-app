@@ -286,3 +286,27 @@ function settleGroupedCredits(normalizedName, bankCol) {
   
   return resultMsg;
 }
+/**
+ * Records a standalone debt (Loan, Personal Financing) in the DB_Debts sheet.
+ */
+function addStandaloneDebt(data) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const dbDebts = ss.getSheetByName("DB_Debts");
+  
+  if (!dbDebts) throw new Error("Sheet DB_Debts not found.");
+
+  const debtId = "DBT-" + new Date().getTime().toString().slice(-6);
+  
+  dbDebts.appendRow([
+    debtId,
+    data.name,
+    data.date,
+    parseFloat(data.amount),
+    parseFloat(data.rate),
+    parseFloat(data.years),
+    "", // Monthly payment
+    "Active"
+  ]);
+
+  return "Debt recorded successfully.";
+}
