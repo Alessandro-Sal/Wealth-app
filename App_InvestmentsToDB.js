@@ -20,50 +20,70 @@ function addInvestTransaction(data) {
   // --- NEW: REAL ASSETS & BONDS (Write to DB_RealAssets & DB_Debts) ---
   if (data.type === "RealEstate" || data.type === "Bond") {
     const dbAssets = ss.getSheetByName("DB_RealAssets");
-    if (!dbAssets) return "Error: DB_RealAssets sheet missing. Please create it.";
+    if (!dbAssets) return "Error: DB_RealAssets sheet missing.";
     
     let assetId = (data.type === "RealEstate" ? "RE-" : "BND-") + new Date().getTime().toString().slice(-6);
     let linkedDebtId = "";
     
-    // If Real Estate has an associated mortgage, create the Debt first
+    // Se è un immobile col Mutuo, crea il Debito e la Spesa Fissa
     if (data.type === "RealEstate" && parseFloat(data.loanAmt) > 0) {
       const dbDebts = ss.getSheetByName("DB_Debts");
       if (dbDebts) {
         linkedDebtId = "DBT-" + new Date().getTime().toString().slice(-6);
+        
+        let principal = parseFloat(data.loanAmt);
+        let rateDec = parseFloat(data.rate) / 100; // FIX 250%
+        let years = parseFloat(data.years);
+        let months = Math.round(years * 12);
+        
+        let monthlyRate = rateDec / 12;
+        let monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
+        if (isNaN(monthlyPayment) || monthlyRate === 0) monthlyPayment = principal / months;
+
+        let start = new Date(data.startDate || data.date);
+        let end = new Date(start);
+        end.setMonth(end.getMonth() + months);
+
         dbDebts.appendRow([
-          linkedDebtId, 
-          "Mutuo Ipotecario", 
-          data.startDate || data.date, 
-          parseFloat(data.loanAmt), 
-          parseFloat(data.rate), 
-          parseFloat(data.years), 
-          "", // Monthly payment will be calculated/handled outside
-          "Active"
+          linkedDebtId, "Mutuo Ipotecario", data.startDate || data.date, 
+          principal, rateDec, years, Number(monthlyPayment.toFixed(2)), "Active"
         ]);
+
+        // Auto-add alla Dashboard delle spese fisse
+        try {
+            addFixedExpenseToSheet({
+              cat: "Mutuo Immobile",
+              note: "Rata " + data.name,
+              amt: Number(monthlyPayment.toFixed(2)),
+              startDate: Utilities.formatDate(start, Session.getScriptTimeZone(), "yyyy-MM-dd"),
+              endDate: Utilities.formatDate(end, Session.getScriptTimeZone(), "yyyy-MM-dd"),
+              payDay: start.getDate(),
+              bankCol: data.bankCol, // <--- NUOVO: Passiamo la banca al DB
+              isSplit: false
+            });
+        } catch(e) {}
       }
     }
 
-    // Prepare row for DB_RealAssets (14 columns total based on our schema)
     let rowData = new Array(14).fill("");
     rowData[0] = assetId;
     rowData[1] = data.type === "RealEstate" ? "Real Estate" : (data.tax === "true" ? "Government Bond" : "Corporate Bond");
     rowData[2] = data.name;
-    rowData[3] = data.type === "Bond" ? data.isin : ""; // ISIN
-    rowData[4] = data.startDate || data.date; // Purchase Date
-    rowData[11] = "Active"; // Status
+    rowData[3] = data.type === "Bond" ? data.isin : ""; 
+    rowData[4] = data.startDate || data.date; 
+    rowData[11] = "Active"; 
 
     if (data.type === "RealEstate") {
-      rowData[5] = parseFloat(data.marketVal); // Purchase Price
-      rowData[10] = linkedDebtId; // Linked Debt ID
+      rowData[5] = parseFloat(data.marketVal); 
+      rowData[10] = linkedDebtId; 
     } else if (data.type === "Bond") {
       let nominal = parseFloat(data.nominal);
       let price = parseFloat(data.price);
-      
-      rowData[5] = (nominal * price) / 100; // Purchase Price total cost
-      rowData[6] = nominal; // Nominal Value
-      rowData[7] = parseFloat(data.coupon); // Coupon Rate
-      rowData[9] = data.tax === "true" ? "WhiteList" : "Standard"; // Tax Status
-      rowData[12] = data.isin; // Ticker Yahoo (ISIN used as fallback ticker)
+      rowData[5] = (nominal * price) / 100; 
+      rowData[6] = nominal; 
+      rowData[7] = parseFloat(data.coupon) / 100; // FIX 250% anche per le cedole
+      rowData[9] = data.tax === "true" ? "WhiteList" : "Standard"; 
+      rowData[12] = data.isin; 
     }
     
     dbAssets.appendRow(rowData);

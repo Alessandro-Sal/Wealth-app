@@ -510,6 +510,15 @@
             </div>
             <label>Start Date</label>
             <input type="date" id="debtStartDate" style="background:white;">
+            <label style="margin-top:10px;">Payment Account (For Installments)</label>
+            <select id="debtBankCol" style="background:white;">
+               <option value="" disabled selected>-- Select Bank --</option>
+               <option value="5">Intesa SP</option>
+               <option value="6">N26</option>
+               <option value="7">Wallet</option>
+               <option value="8">Buddy</option>
+               <option value="9">Revolut</option>
+            </select>
          </div>
          <div id="standard-inputs">
             <label>Category</label>
@@ -741,6 +750,15 @@
             </div>
             <label>Start Date</label>
             <input type="date" id="reStartDate">
+           <label style="margin-top:10px;">Mortgage Payment Account</label>
+            <select id="reBankCol" style="background:white;">
+               <option value="" disabled selected>-- Select Bank --</option>
+               <option value="5">Intesa SP</option>
+               <option value="6">N26</option>
+               <option value="7">Wallet</option>
+               <option value="8">Buddy</option>
+               <option value="9">Revolut</option>
+            </select>
          </div>
 
          <div id="bond-inputs" style="display:none; background:rgba(88, 86, 214, 0.05); padding:15px; border-radius:12px; margin-top:15px; border:1px solid rgba(88, 86, 214, 0.1);">

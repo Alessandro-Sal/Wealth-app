@@ -122,18 +122,13 @@ function handleTypeChange() {
    }
    
    function resetForm() {
-     // Reset the standard form fields using the new unique ID
      document.getElementById('addTxForm').reset();
      
-     // Reset the category dropdown to empty state
      const catSelect = document.getElementById('tCat');
-     if (catSelect) {
-         catSelect.innerHTML = '<option value="">Choose Type...</option>';
-     }
+     if (catSelect) catSelect.innerHTML = '<option value="">Choose Type...</option>';
      
      document.getElementById('f-stat').innerText = '';
      
-     // Reset all buttons to "Income" (Plus) mode by default
      document.querySelectorAll('.sign-toggle').forEach(icon => {
          icon.classList.remove('sign-minus');
          icon.classList.add('sign-plus');
@@ -142,13 +137,19 @@ function handleTypeChange() {
          if (input) input.style.color = 'var(--stocks-bg)';
      });
 
-     // Reset UI blocks visibility (Hide pension, show standard)
+     // --- NUOVO: Nasconde tutti i moduli speciali ---
      const pensionInputs = document.getElementById("pension-inputs");
      const standardInputs = document.getElementById("standard-inputs");
+     const debtInputs = document.getElementById("debt-inputs");
+     const reInputs = document.getElementById('realestate-inputs');
+     const bondInputs = document.getElementById('bond-inputs');
+     
      if(pensionInputs) pensionInputs.style.display = "none";
+     if(debtInputs) debtInputs.style.display = "none";
+     if(reInputs) reInputs.style.display = "none";
+     if(bondInputs) bondInputs.style.display = "none";
      if(standardInputs) standardInputs.style.display = "block";
 
-     // Reset Split Section
      const splitToggle = document.getElementById('splitToggle');
      if (splitToggle) {
          splitToggle.checked = false;
@@ -166,16 +167,17 @@ function sendTransaction() {
      const type = document.getElementById('tType').value;
      const btn = document.querySelector('.btn-save:not(.btn-invest)'); 
      
-     // --- NEW: DEBT LOGIC BRANCH ---
+    // --- NEW: DEBT LOGIC BRANCH ---
      if (type === 'Debt') {
          const dName = document.getElementById('debtName').value;
          const dAmt = parseFloat(document.getElementById('debtAmount').value);
          const dRate = parseFloat(document.getElementById('debtRate').value);
          const dYears = parseFloat(document.getElementById('debtYears').value);
          const dDate = document.getElementById('debtStartDate').value;
+         const dBankCol = document.getElementById('debtBankCol').value; // <--- NUOVO
 
-         if (!dName || isNaN(dAmt) || isNaN(dRate) || isNaN(dYears) || !dDate) {
-             Swal.fire({ icon: 'warning', title: 'Missing Data', text: 'Fill in all Debt fields.' });
+         if (!dName || isNaN(dAmt) || isNaN(dRate) || isNaN(dYears) || !dDate || !dBankCol) {
+             Swal.fire({ icon: 'warning', title: 'Missing Data', text: 'Fill in all Debt fields, including the Bank Account.' });
              return;
          }
 
@@ -192,7 +194,7 @@ function sendTransaction() {
              btn.innerText = originalText; 
              btn.classList.remove('btn-loading'); 
              Swal.fire({ icon: 'error', title: 'Error', text: err.message }); 
-         }).addStandaloneDebt({ name: dName, amount: dAmt, rate: dRate, years: dYears, date: dDate });
+         }).addStandaloneDebt({ name: dName, amount: dAmt, rate: dRate, years: dYears, date: dDate, bankCol: dBankCol }); // <--- Passiamo bankCol
          return;
      }
 
@@ -349,7 +351,6 @@ function sendInvestment() {
          note: withdrawalNote 
      };
 
-     // Branching logic based on Asset Class
      if (type === 'RealEstate') {
          data.name = document.getElementById('reName').value;
          data.marketVal = document.getElementById('reMarketVal').value;
@@ -357,9 +358,15 @@ function sendInvestment() {
          data.rate = document.getElementById('reRate').value;
          data.years = document.getElementById('reYears').value;
          data.startDate = document.getElementById('reStartDate').value;
+         data.bankCol = document.getElementById('reBankCol').value; // <--- NUOVO
 
-         if (!data.date || !data.marketVal || !data.name) {
+         if (!data.startDate || !data.marketVal || !data.name) {
              Swal.fire({ icon: 'warning', title: 'Missing Data', text: 'Fill in Date, Name, and Market Value', timer: 2500 });
+             return;
+         }
+         // Controlla che la banca sia selezionata se c'è un mutuo
+         if (parseFloat(data.loanAmt) > 0 && !data.bankCol) {
+             Swal.fire({ icon: 'warning', title: 'Missing Bank', text: 'Select a bank account for the mortgage payments.', timer: 2500 });
              return;
          }
      } else if (type === 'Bond') {

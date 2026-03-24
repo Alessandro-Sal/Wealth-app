@@ -286,27 +286,60 @@ function settleGroupedCredits(normalizedName, bankCol) {
   
   return resultMsg;
 }
+
 /**
- * Records a standalone debt (Loan, Personal Financing) in the DB_Debts sheet.
+ * Records a standalone debt and auto-creates the monthly fixed expense.
  */
 function addStandaloneDebt(data) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const dbDebts = ss.getSheetByName("DB_Debts");
-  
   if (!dbDebts) throw new Error("Sheet DB_Debts not found.");
 
   const debtId = "DBT-" + new Date().getTime().toString().slice(-6);
   
+  // Calcoli finanziari
+  let principal = parseFloat(data.amount);
+  let rateDec = parseFloat(data.rate) / 100; // FIX 250%: Invia 0.025 al DB
+  let years = parseFloat(data.years);
+  let months = Math.round(years * 12);
+  
+  // Calcolo Rata Mensile (Ammortamento alla Francese)
+  let monthlyRate = rateDec / 12;
+  let monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
+  if (isNaN(monthlyPayment) || monthlyRate === 0) monthlyPayment = principal / months; // Fallback Tasso Zero
+
+  // Calcolo Date
+  let start = new Date(data.date);
+  let end = new Date(start);
+  end.setMonth(end.getMonth() + months);
+
+  // 1. Scrittura nel DB_Debts
   dbDebts.appendRow([
     debtId,
     data.name,
     data.date,
-    parseFloat(data.amount),
-    parseFloat(data.rate),
-    parseFloat(data.years),
-    "", // Monthly payment
+    principal,
+    rateDec, 
+    years,
+    Number(monthlyPayment.toFixed(2)),
     "Active"
   ]);
+
+  // 2. Scrittura automatica in Config_FixedExpenses
+  try {
+      addFixedExpenseToSheet({
+        cat: "Debiti/Prestiti",
+        note: "Rata " + data.name,
+        amt: Number(monthlyPayment.toFixed(2)),
+        startDate: Utilities.formatDate(start, Session.getScriptTimeZone(), "yyyy-MM-dd"),
+        endDate: Utilities.formatDate(end, Session.getScriptTimeZone(), "yyyy-MM-dd"), // <-- Calcola fine in base agli anni (anni * 12 mesi)
+        payDay: start.getDate(),
+        bankCol: data.bankCol, // <--- NUOVO: Passiamo la banca al DB
+        isSplit: false
+      });
+  } catch (e) {
+      Logger.log("Could not auto-add to FixedExpenses: " + e.message);
+  }
 
   return "Debt recorded successfully.";
 }

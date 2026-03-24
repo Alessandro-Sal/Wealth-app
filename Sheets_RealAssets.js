@@ -29,7 +29,7 @@ function ASSET_IMMOBILE_EQUITY(marketValue, loanAmount, annualRate, years, start
   if (isNaN(startDate.getTime()) || startDate > today) return marketValue;
 
   // 2. French Amortization Calculation
-  let r = (annualRate / 100) / 12; // Monthly rate
+  let r = annualRate  / 12; // Monthly rate
   let n = years * 12;              // Total number of payments
   
   // Calculate Monthly Payment (Standard Formula)
