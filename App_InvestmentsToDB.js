@@ -32,7 +32,7 @@ function addInvestTransaction(data) {
         linkedDebtId = "DBT-" + new Date().getTime().toString().slice(-6);
         
         let principal = parseFloat(data.loanAmt);
-        let rateDec = parseFloat(data.rate) / 100; // FIX 250%
+        let rateDec = parseFloat(data.rate) / 100;
         let years = parseFloat(data.years);
         let months = Math.round(years * 12);
         
@@ -46,10 +46,9 @@ function addInvestTransaction(data) {
 
         dbDebts.appendRow([
           linkedDebtId, "Mutuo Ipotecario", data.startDate || data.date, 
-          principal, rateDec, years, Number(monthlyPayment.toFixed(2)), "Active"
+          principal, rateDec, years, Number(monthlyPayment.toFixed(2)), "Active", ""
         ]);
 
-        // Auto-add alla Dashboard delle spese fisse
         try {
             addFixedExpenseToSheet({
               cat: "Mutuo Immobile",
@@ -77,14 +76,14 @@ function addInvestTransaction(data) {
       let marketVal = parseFloat(data.marketVal);
       let loanAmt = parseFloat(data.loanAmt) || 0;
       
-      rowData[5] = marketVal; // Purchase Price
+      rowData[5] = marketVal; 
       rowData[10] = linkedDebtId; 
 
-      // --- Sottrae l'anticipo versato dal conto in banca (Come Investment) ---
+      // --- Sottrae l'anticipo dal conto in IN NEGATIVO ---
       let upfrontCash = marketVal - loanAmt;
       if (upfrontCash > 0 && data.bankCol) {
           let amountsObj = {};
-          amountsObj[data.bankCol] = upfrontCash;
+          amountsObj[data.bankCol] = -Math.abs(upfrontCash); // FIX: Importo Negativo
           try {
               addTransaction({
                   type: 'Investment', 
@@ -92,7 +91,7 @@ function addInvestTransaction(data) {
                   details: 'Acquisto / Anticipo: ' + data.name,
                   amounts: amountsObj
               });
-          } catch(e) { Logger.log("Errore registrazione anticipo cassa: " + e.message); }
+          } catch(e) { Logger.log("Errore cassa: " + e.message); }
       }
 
     } else if (data.type === "Bond") {
@@ -100,16 +99,16 @@ function addInvestTransaction(data) {
       let price = parseFloat(data.price);
       let totalCost = (nominal * price) / 100;
       
-      rowData[5] = totalCost; // Costo effettivo sborsato
+      rowData[5] = totalCost; 
       rowData[6] = nominal; 
-      rowData[7] = parseFloat(data.coupon) / 100; // FIX 250% anche per le cedole
+      rowData[7] = parseFloat(data.coupon) / 100;
       rowData[9] = data.tax === "true" ? "WhiteList" : "Standard"; 
       rowData[12] = data.isin; 
 
-      // --- Sottrae il costo del Bond dal conto in banca (Come Investment) ---
+      // --- Sottrae il costo del Bond IN NEGATIVO ---
       if (totalCost > 0 && data.bankCol) {
           let amountsObj = {};
-          amountsObj[data.bankCol] = totalCost;
+          amountsObj[data.bankCol] = -Math.abs(totalCost); // FIX: Importo Negativo
           try {
               addTransaction({
                   type: 'Investment', 
@@ -117,7 +116,7 @@ function addInvestTransaction(data) {
                   details: 'Acquisto Bond: ' + data.name,
                   amounts: amountsObj
               });
-          } catch(e) { Logger.log("Errore registrazione costo bond: " + e.message); }
+          } catch(e) { Logger.log("Errore cassa bond: " + e.message); }
       }
     }
     
@@ -125,22 +124,17 @@ function addInvestTransaction(data) {
     return data.type === "RealEstate" ? "Real Estate & Mortgage Added!" : "Bond Added!";
   }
 
-  // Generate a unique ID to link History and Expenses entries (crucial for synchronized deletion)
   const transactionId = "ID_" + new Date().getTime() + "_" + Math.floor(Math.random() * 1000);
-
-  // --- PART 1: INVESTMENT HISTORY (History B/S) ---
   const isCrypto = data.type === "Crypto";
   const sheetName = isCrypto ? "History B/S Crypto" : "History B/S Stocks";
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) return "Error: Sheet missing (" + sheetName + ")";
 
-  // Find first empty row in History (Starting from Row 3)
   const lastRow = sheet.getLastRow();
   let newRow = lastRow + 1;
   const startRowHist = 3;
   
   if (lastRow >= startRowHist) {
-    // Scan Column A to find the first actual empty cell
     const colA = sheet.getRange(startRowHist, 1, lastRow - startRowHist + 2, 1).getValues();
     for (let i = 0; i < colA.length; i++) {
       if (!colA[i][0]) { newRow = startRowHist + i; break; }
@@ -154,17 +148,11 @@ function addInvestTransaction(data) {
   const totalCostUsd = parseFloat(data.costUsd) || 0;
   let unitPrice = quantity !== 0 ? totalCostEur / quantity : 0;
 
-  // Ticker Normalization
   let finalTicker = data.ticker.trim();
-  if (finalTicker.toLowerCase() === "cash") {
-    finalTicker = "Cash"; 
-  } else {
-    finalTicker = finalTicker.toUpperCase();
-  }
+  if (finalTicker.toLowerCase() === "cash") finalTicker = "Cash"; 
+  else finalTicker = finalTicker.toUpperCase();
 
-  // --- OPTIMIZED BATCH WRITE TO HISTORY ---
   let histRowData = new Array(13).fill("");
-  
   histRowData[0] = new Date(data.date);
   histRowData[1] = finalTicker;
   histRowData[2] = data.action;
@@ -173,29 +161,24 @@ function addInvestTransaction(data) {
   if (isCrypto) {
       histRowData[4] = totalCostEur;
       histRowData[6] = totalCostUsd;
-      histRowData[12] = transactionId; // M = 13
+      histRowData[12] = transactionId;
   } else {
       let assetClass = (data.action === "Withdrawal") ? "x" : ((data.type === "Stocks") ? "Stock" : "ETF");
       histRowData[4] = assetClass;
       histRowData[5] = unitPrice;
       histRowData[6] = totalCostUsd;
-      histRowData[12] = transactionId; // M = 13
+      histRowData[12] = transactionId;
   }
 
-  // Scrive tutta la riga in un colpo solo
   sheet.getRange(newRow, 1, 1, 13).setValues([histRowData]);
 
-  // --- PART 2: EXPENSES TRACKER (Withdrawals Only) ---
   if (data.action === "Withdrawal") {
     const txDate = new Date(data.date);
-    const year = txDate.getFullYear();
-    const expSheetName = "Expenses Tracker " + year;
+    const expSheetName = "Expenses Tracker " + txDate.getFullYear();
     const expSheet = ss.getSheetByName(expSheetName);
     
     if (expSheet && data.bankCol) {
       const startRowExp = 20;
-      
-      // Find empty row logic
       const colB = expSheet.getRange(startRowExp, 2, Math.max(1, expSheet.getLastRow() - startRowExp + 2), 1).getValues();
       let targetRow = startRowExp;
       for (let i = 0; i < colB.length; i++) {
@@ -204,33 +187,21 @@ function addInvestTransaction(data) {
 
       const category = isCrypto ? "Crypto" : "Stocks";
       const userNote = (data.note && data.note.trim() !== "") ? data.note : "";
-
-      // Dynamically find "Controllo Automatismi" column
-      const headerRowExp = 2;
-      const maxCols = expSheet.getLastColumn();
-      const headersExp = expSheet.getRange(headerRowExp, 1, 1, maxCols).getValues()[0];
+      const headersExp = expSheet.getRange(2, 1, 1, expSheet.getLastColumn()).getValues()[0];
       const syncColIndexExp = headersExp.indexOf("Controllo Automatismi") + 1; 
       
-      // OPTIMIZED BATCH WRITE FOR EXPENSES
-      // Create an array large enough to hold all data up to the sync column
-      const numCols = Math.max(maxCols, syncColIndexExp);
+      const numCols = Math.max(expSheet.getLastColumn(), syncColIndexExp);
       let expRowData = new Array(numCols).fill(""); 
       
-      expRowData[0] = txDate;         // A: Date
-      expRowData[1] = 'Investment';   // B: Type
-      expRowData[2] = category;       // C: Category
-      expRowData[3] = userNote;       // D: Note
+      expRowData[0] = txDate;         
+      expRowData[1] = 'Investment';   
+      expRowData[2] = category;       
+      expRowData[3] = userNote;       
       
       const colIndex = parseInt(data.bankCol);
-      if (!isNaN(colIndex) && colIndex > 0) {
-        expRowData[colIndex - 1] = Math.abs(totalCostEur); // -1 because Array is 0-indexed
-      }
-      
-      if (syncColIndexExp > 0) {
-        expRowData[syncColIndexExp - 1] = transactionId;
-      }
+      if (!isNaN(colIndex) && colIndex > 0) expRowData[colIndex - 1] = Math.abs(totalCostEur); 
+      if (syncColIndexExp > 0) expRowData[syncColIndexExp - 1] = transactionId;
 
-      // Write everything in a single API call
       expSheet.getRange(targetRow, 1, 1, numCols).setValues([expRowData]);
     }
   }
@@ -245,6 +216,7 @@ function manageAssetBackend(payload) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const dbAssets = ss.getSheetByName("DB_RealAssets");
   const aData = dbAssets.getDataRange().getValues();
+  const todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
   
   let aRow = -1; let asset = null;
   for(let i=1; i<aData.length; i++) {
@@ -254,46 +226,69 @@ function manageAssetBackend(payload) {
 
   if(action === 'Update') {
      if(asset.type !== "Real Estate") throw new Error("Puoi aggiornare manualmente solo gli Immobili.");
-     dbAssets.getRange(aRow, 6).setValue(parseFloat(newVal)); // Colonna F: Purchase_Price / Market_Value
+     dbAssets.getRange(aRow, 6).setValue(parseFloat(newVal)); 
      return "Valore di mercato aggiornato a €" + newVal;
   }
 
   if(action === 'Sell') {
-     dbAssets.getRange(aRow, 12).setValue("Sold"); // Imposta Status su Sold
+     dbAssets.getRange(aRow, 12).setValue("Sold"); 
      let cashIn = parseFloat(sellPrice);
      let notes = `Vendita Asset: ${asset.name}`;
 
-     // Gestione Mutuo Collegato (Estinzione Contestuale)
      if(asset.linkedDebt && closeDebt) {
         try {
-           // Chiama in background l'estinzione totale, ma senza fargli registrare la spesa (lo compensiamo qui)
-           // Per semplicità logica, calcoliamo il residuo e lo sottraiamo dall'incasso
            const dbDebts = ss.getSheetByName("DB_Debts");
+           const dbFixed = ss.getSheetByName("Config_FixedExpenses"); // FIX: Carica foglio spese
            let dData = dbDebts.getDataRange().getValues();
+           let debtName = "";
+           
            for(let j=1; j<dData.length; j++) {
               if(dData[j][0] === asset.linkedDebt) {
-                 let d = { start: new Date(dData[j][2]), prin: parseFloat(dData[j][3]), rate: parseFloat(dData[j][4]), yrs: parseFloat(dData[j][5]) };
+                 debtName = dData[j][1];
+                 let d = { 
+                     start: new Date(dData[j][2]), 
+                     prin: parseFloat(dData[j][3]), 
+                     rate: parseFloat(dData[j][4]), 
+                     yrs: parseFloat(dData[j][5]),
+                     balloon: parseFloat(dData[j][8]) || 0 
+                 };
                  let mPassed = (new Date().getFullYear() - d.start.getFullYear())*12 + (new Date().getMonth() - d.start.getMonth());
                  let mR = d.rate/12; let tM = d.yrs*12;
                  let out = d.prin;
+                 
                  if(mPassed>0 && mPassed<tM) {
-                    let p = d.prin * (mR * Math.pow(1+mR, tM)) / (Math.pow(1+mR, tM) - 1);
-                    if(isNaN(p)) p = d.prin/tM;
-                    out = p * (1 - Math.pow(1+mR, -(tM-mPassed))) / mR;
+                    let p = 0;
+                    if (mR === 0) p = (d.prin - d.balloon) / tM;
+                    else p = ((d.prin * Math.pow(1+mR, tM)) - d.balloon) * mR / (Math.pow(1+mR, tM) - 1);
+                    
+                    let remM = tM - mPassed;
+                    if (mR === 0) out = (p * remM) + d.balloon;
+                    else out = (p * (1 - Math.pow(1+mR, -remM)) / mR) + (d.balloon * Math.pow(1+mR, -remM));
                  }
-                 cashIn -= out; // Sottrae il debito residuo dall'incasso netto
+                 
+                 cashIn -= out; 
                  notes += ` (Estinto mutuo di €${out.toFixed(2)})`;
                  dbDebts.getRange(j+1, 8).setValue("Paid_Off");
                  break;
               }
            }
+           
+           // FIX: SPEGNE EFFETTIVAMENTE LA RATA DEL MUTUO NELLE SPESE FISSE!
+           if(dbFixed && debtName) {
+              let fData = dbFixed.getDataRange().getValues();
+              for(let i=1; i<fData.length; i++) {
+                 if(String(fData[i][2]).includes(debtName) && fData[i][8] !== true) {
+                     dbFixed.getRange(i+1, 8).setValue(todayStr);
+                 }
+              }
+           }
         } catch(e) { Logger.log("Errore estinzione mutuo collegato: " + e.message); }
      }
 
-     // Registra l'Entrata netta
-     let amountsObj = {}; amountsObj[bank] = cashIn;
+     // Registra l'Entrata netta IN POSITIVO (Perché la vendita è un incasso!)
+     let amountsObj = {}; amountsObj[bank] = Math.abs(cashIn);
      addTransaction({ type: 'Income', category: "Investimenti", details: notes, amounts: amountsObj });
      
-     return `Asset venduto. Incasso netto (post-mutuo) accreditato: €${cashIn.toFixed(2)}`;
+     return `Asset venduto. Incasso netto accreditato: €${cashIn.toFixed(2)}`;
   }
 }

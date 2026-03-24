@@ -500,6 +500,7 @@ function getActiveRealAssets() {
   if(!sheet) return [];
   const data = sheet.getDataRange().getValues();
   let active = [];
+  // Evitiamo la riga di intestazione partendo da i = 1
   for(let i = 1; i < data.length; i++) {
     if(data[i][11] === "Active") active.push({ id: data[i][0], type: data[i][1], name: data[i][2] });
   }
@@ -522,37 +523,45 @@ function repayDebtBackend(payload) {
   for(let i = 1; i < debtsData.length; i++) {
     if(debtsData[i][0] === id) {
       debtRow = i + 1;
-      debt = { name: debtsData[i][1], start: new Date(debtsData[i][2]), principal: parseFloat(debtsData[i][3]), rate: parseFloat(debtsData[i][4]), years: parseFloat(debtsData[i][5]) };
+      debt = { 
+          name: debtsData[i][1], 
+          start: new Date(debtsData[i][2]), 
+          principal: parseFloat(debtsData[i][3]), 
+          rate: parseFloat(debtsData[i][4]), 
+          years: parseFloat(debtsData[i][5]),
+          balloon: parseFloat(debtsData[i][8]) || 0 
+      };
       break;
     }
   }
   if(!debt) throw new Error("Debito non trovato.");
 
-  // Calcolo Debito Residuo Attuale (come in rinegoziazione)
   let monthsPassed = (new Date().getFullYear() - debt.start.getFullYear()) * 12 + (new Date().getMonth() - debt.start.getMonth());
   let mRate = debt.rate / 12; let totMonths = debt.years * 12;
   let outstanding = debt.principal;
   
   if(monthsPassed > 0 && monthsPassed < totMonths) {
-     let pmt = debt.principal * (mRate * Math.pow(1 + mRate, totMonths)) / (Math.pow(1 + mRate, totMonths) - 1);
-     if(isNaN(pmt)) pmt = debt.principal / totMonths;
+     let pmt = 0;
+     if (mRate === 0) pmt = (debt.principal - debt.balloon) / totMonths;
+     else pmt = ((debt.principal * Math.pow(1 + mRate, totMonths)) - debt.balloon) * mRate / (Math.pow(1 + mRate, totMonths) - 1);
+     
      let remMonths = totMonths - monthsPassed;
-     outstanding = pmt * (1 - Math.pow(1 + mRate, -remMonths)) / mRate;
+     if (mRate === 0) outstanding = (pmt * remMonths) + debt.balloon;
+     else outstanding = (pmt * (1 - Math.pow(1 + mRate, -remMonths)) / mRate) + (debt.balloon * Math.pow(1 + mRate, -remMonths));
   }
 
   let amountPaid = type === 'Total' ? outstanding : parseFloat(amt);
 
-  // Registra l'uscita di cassa
-  let amountsObj = {}; amountsObj[bank] = amountPaid;
+  // Registra l'uscita di cassa IN NEGATIVO
+  let amountsObj = {}; amountsObj[bank] = -Math.abs(amountPaid); // FIX NEGATIVO
   addTransaction({ type: 'Expense', category: "Debiti/Prestiti", details: `Estinzione ${type} - ${debt.name}`, amounts: amountsObj });
 
   if(type === 'Total') {
-     // Chiudi Debito e Ferma Spesa Fissa
      dbDebts.getRange(debtRow, 8).setValue("Paid_Off");
      if(dbFixed) {
         let fData = dbFixed.getDataRange().getValues();
         for(let i=1; i<fData.length; i++) {
-           if(String(fData[i][2]).includes(debt.name) && fData[i][8] !== true) dbFixed.getRange(i+1, 8).setValue(todayStr);
+           if(String(fData[i][2]).includes(debt.name) && fData[i][8] !== true) dbFixed.getRange(i+1, 8).setValue(todayStr); // Spegne spesa fissa
         }
      }
      return "Estinzione totale completata. Pagati €" + amountPaid.toFixed(2);
@@ -561,23 +570,44 @@ function repayDebtBackend(payload) {
      let newPrincipal = outstanding - amountPaid;
      if(newPrincipal <= 0) throw new Error("L'importo inserito è superiore al debito residuo. Usa l'estinzione totale.");
      
-     dbDebts.getRange(debtRow, 8).setValue("Partially_Paid"); // Chiudi vecchio
+     dbDebts.getRange(debtRow, 8).setValue("Partially_Paid"); 
      const newId = "DBT-" + new Date().getTime().toString().slice(-6);
      
-     // Ricalcola nuova rata sui mesi rimanenti
      let remMonths = totMonths - monthsPassed;
-     let newPmt = newPrincipal * (mRate * Math.pow(1 + mRate, remMonths)) / (Math.pow(1 + mRate, remMonths) - 1);
-     if(isNaN(newPmt)) newPmt = newPrincipal / remMonths;
+     let newPmt = 0;
+     if(mRate === 0) newPmt = (newPrincipal - debt.balloon) / remMonths;
+     else newPmt = ((newPrincipal * Math.pow(1 + mRate, remMonths)) - debt.balloon) * mRate / (Math.pow(1 + mRate, remMonths) - 1);
 
-     dbDebts.appendRow([newId, debt.name + " (Ridotto)", todayStr, newPrincipal, debt.rate, (remMonths/12), Number(newPmt.toFixed(2)), "Active"]);
+     dbDebts.appendRow([newId, debt.name + " (Ridotto)", todayStr, newPrincipal, debt.rate, (remMonths/12), Number(newPmt.toFixed(2)), "Active", debt.balloon > 0 ? debt.balloon : ""]);
      
-     // Aggiorna Assets se collegato
      const dbAssets = ss.getSheetByName("DB_RealAssets");
      if(dbAssets) {
         let aData = dbAssets.getDataRange().getValues();
         for(let i=1; i<aData.length; i++) if(aData[i][10] === id) dbAssets.getRange(i+1, 11).setValue(newId);
      }
+
+     // FIX: SOSTITUISCE LA VECCHIA SPESA FISSA CON LA NUOVA RATA PIU' BASSA
+     if(dbFixed) {
+        let fData = dbFixed.getDataRange().getValues();
+        for(let i=1; i<fData.length; i++) {
+           if(String(fData[i][2]).includes(debt.name) && fData[i][8] !== true) dbFixed.getRange(i+1, 8).setValue(todayStr);
+        }
+        
+        let start = new Date();
+        let end = new Date();
+        end.setMonth(end.getMonth() + remMonths);
+        addFixedExpenseToSheet({
+          cat: debt.name.includes("Mutuo") ? "Mutuo Immobile" : "Debiti/Prestiti",
+          note: "Rata " + debt.name + " (Ridotto)",
+          amt: Number(newPmt.toFixed(2)),
+          startDate: Utilities.formatDate(start, Session.getScriptTimeZone(), "yyyy-MM-dd"),
+          endDate: Utilities.formatDate(end, Session.getScriptTimeZone(), "yyyy-MM-dd"),
+          payDay: start.getDate(),
+          bankCol: bank, 
+          isSplit: false
+        });
+     }
+
      return `Estinzione parziale completata. Nuovo residuo: €${newPrincipal.toFixed(2)}`;
   }
 }
-

@@ -1738,11 +1738,14 @@ function openSubs() {
    function initAssetManagement() {
        if (navigator.vibrate) navigator.vibrate(50);
        Swal.fire({ title: 'Caricamento...', didOpen: () => Swal.showLoading() });
-       google.script.run.withSuccessHandler(showAssetWizard).getActiveRealAssets();
+       google.script.run
+           .withSuccessHandler(showAssetWizard)
+           .withFailureHandler(err => Swal.fire('Errore Server', err.message, 'error'))
+           .getActiveRealAssets(); // Chiama il backend
    }
 
    function showAssetWizard(assets) {
-       if(!assets || assets.length === 0) return Swal.fire('Info', 'Nessun asset attivo.', 'info');
+       if(!assets || assets.length === 0) return Swal.fire('Info', 'Nessun asset attivo da gestire.', 'info');
        
        let options = '<option value="" disabled selected>-- Seleziona Asset --</option>';
        assets.forEach(a => options += `<option value="${a.id}">${a.name} (${a.type})</option>`);
@@ -1751,19 +1754,20 @@ function openSubs() {
            title: 'Gestione Asset 🛠️',
            html: `
                <div style="text-align:left; font-size:14px;">
-                   <select id="ast-id" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px;">${options}</select>
-                   <select id="ast-action" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px;" onchange="toggleAssetUI(this.value)">
+                   <select id="ast-id" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #ccc;">${options}</select>
+                   <select id="ast-action" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #ccc;" onchange="toggleAssetUI(this.value)">
                        <option value="Update">Aggiorna Valore di Mercato (Solo Casa)</option>
                        <option value="Sell">Vendi / Liquida Asset</option>
                    </select>
                    
                    <div id="ast-update-ui">
-                       <input type="number" id="ast-val" placeholder="Nuovo Valore (€)" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px;">
+                       <input type="number" id="ast-val" placeholder="Nuovo Valore (€)" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #ccc;">
                    </div>
 
                    <div id="ast-sell-ui" style="display:none;">
-                       <input type="number" id="ast-sell-price" placeholder="Prezzo di Vendita / Incasso (€)" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px;">
-                       <select id="ast-bank" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px;">
+                       <input type="number" id="ast-sell-price" placeholder="Prezzo di Vendita / Incasso (€)" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #ccc;">
+                       
+                       <select id="ast-bank" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #ccc;">
                           <option value="" disabled selected>-- Conto di accredito --</option>
                           <option value="5">Intesa SP</option>
                           <option value="6">N26</option>
@@ -1771,7 +1775,12 @@ function openSubs() {
                           <option value="8">Buddy</option>
                           <option value="9">Revolut</option>
                        </select>
-                       <label style="font-size:12px; color:var(--gray);"><input type="checkbox" id="ast-close-debt" checked> Chiudi eventuale mutuo associato scalandolo dal ricavato</label>
+                       
+                       <label style="font-size:12px; font-weight:bold; color:var(--text-color);">Estinguere mutuo associato (se presente)?</label>
+                       <select id="ast-close-debt" style="width:100%; padding:10px; margin-top:5px; border-radius:8px; border:1px solid #ccc;">
+                          <option value="true" selected>✅ Sì, chiudi mutuo e scala debito</option>
+                          <option value="false">❌ No, mantieni mutuo attivo</option>
+                       </select>
                    </div>
                </div>
            `,
@@ -1783,7 +1792,8 @@ function openSubs() {
                const newVal = document.getElementById('ast-val').value;
                const sellPrice = document.getElementById('ast-sell-price').value;
                const bank = document.getElementById('ast-bank').value;
-               const closeDebt = document.getElementById('ast-close-debt').checked;
+               // FIX: Ora legge il valore "true" o "false" dal menu a tendina
+               const closeDebt = document.getElementById('ast-close-debt').value === 'true';
                
                if(!id) Swal.showValidationMessage('Seleziona un asset');
                if(action === 'Update' && !newVal) Swal.showValidationMessage('Inserisci il nuovo valore');
