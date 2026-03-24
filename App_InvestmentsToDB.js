@@ -58,7 +58,7 @@ function addInvestTransaction(data) {
               startDate: Utilities.formatDate(start, Session.getScriptTimeZone(), "yyyy-MM-dd"),
               endDate: Utilities.formatDate(end, Session.getScriptTimeZone(), "yyyy-MM-dd"),
               payDay: start.getDate(),
-              bankCol: data.bankCol, // <--- NUOVO: Passiamo la banca al DB
+              bankCol: data.bankCol, 
               isSplit: false
             });
         } catch(e) {}
@@ -80,15 +80,14 @@ function addInvestTransaction(data) {
       rowData[5] = marketVal; // Purchase Price
       rowData[10] = linkedDebtId; 
 
-      // --- NUOVO: Sottrae l'anticipo versato dal conto in banca ---
+      // --- Sottrae l'anticipo versato dal conto in banca (Come Investment) ---
       let upfrontCash = marketVal - loanAmt;
       if (upfrontCash > 0 && data.bankCol) {
           let amountsObj = {};
           amountsObj[data.bankCol] = upfrontCash;
           try {
-              // Sfruttiamo il motore transazioni per registrare l'uscita
               addTransaction({
-                  type: 'Expense',
+                  type: 'Investment', 
                   category: 'Real Estate',
                   details: 'Acquisto / Anticipo: ' + data.name,
                   amounts: amountsObj
@@ -99,18 +98,33 @@ function addInvestTransaction(data) {
     } else if (data.type === "Bond") {
       let nominal = parseFloat(data.nominal);
       let price = parseFloat(data.price);
-      rowData[5] = (nominal * price) / 100; 
+      let totalCost = (nominal * price) / 100;
+      
+      rowData[5] = totalCost; // Costo effettivo sborsato
       rowData[6] = nominal; 
       rowData[7] = parseFloat(data.coupon) / 100; // FIX 250% anche per le cedole
       rowData[9] = data.tax === "true" ? "WhiteList" : "Standard"; 
       rowData[12] = data.isin; 
+
+      // --- Sottrae il costo del Bond dal conto in banca (Come Investment) ---
+      if (totalCost > 0 && data.bankCol) {
+          let amountsObj = {};
+          amountsObj[data.bankCol] = totalCost;
+          try {
+              addTransaction({
+                  type: 'Investment', 
+                  category: 'Bond',
+                  details: 'Acquisto Bond: ' + data.name,
+                  amounts: amountsObj
+              });
+          } catch(e) { Logger.log("Errore registrazione costo bond: " + e.message); }
+      }
     }
     
     dbAssets.appendRow(rowData);
     return data.type === "RealEstate" ? "Real Estate & Mortgage Added!" : "Bond Added!";
   }
 
-  
   // Generate a unique ID to link History and Expenses entries (crucial for synchronized deletion)
   const transactionId = "ID_" + new Date().getTime() + "_" + Math.floor(Math.random() * 1000);
 

@@ -377,9 +377,10 @@ function sendInvestment() {
          data.price = document.getElementById('bondPrice').value;
          data.coupon = document.getElementById('bondCoupon').value;
          data.tax = document.getElementById('bondTax').value;
+         data.bankCol = document.getElementById('bondBankCol').value; // <--- NUOVO
 
-         if (!data.date || !data.nominal || !data.price || !data.isin || !data.name) {
-             Swal.fire({ icon: 'warning', title: 'Missing Data', text: 'Fill in Date, Name, ISIN, Nominal Value, and Price', timer: 2500 });
+         if (!data.date || !data.nominal || !data.price || !data.isin || !data.name || !data.bankCol) {
+             Swal.fire({ icon: 'warning', title: 'Missing Data', text: 'Fill in Date, Name, ISIN, Nominal, Price and Bank Account', timer: 2500 });
              return;
          }
      } else {
