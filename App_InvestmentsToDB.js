@@ -51,7 +51,7 @@ function addInvestTransaction(data) {
 
         try {
             addFixedExpenseToSheet({
-              cat: "Mutuo Immobile",
+              cat: "Housing",
               note: "Rata " + data.name,
               amt: Number(monthlyPayment.toFixed(2)),
               startDate: Utilities.formatDate(start, Session.getScriptTimeZone(), "yyyy-MM-dd"),
@@ -238,19 +238,14 @@ function manageAssetBackend(payload) {
      if(asset.linkedDebt && closeDebt) {
         try {
            const dbDebts = ss.getSheetByName("DB_Debts");
-           const dbFixed = ss.getSheetByName("Config_FixedExpenses"); // FIX: Carica foglio spese
+           const dbFixed = ss.getSheetByName("Config_FixedExpenses"); 
            let dData = dbDebts.getDataRange().getValues();
-           let debtName = "";
            
            for(let j=1; j<dData.length; j++) {
               if(dData[j][0] === asset.linkedDebt) {
-                 debtName = dData[j][1];
                  let d = { 
-                     start: new Date(dData[j][2]), 
-                     prin: parseFloat(dData[j][3]), 
-                     rate: parseFloat(dData[j][4]), 
-                     yrs: parseFloat(dData[j][5]),
-                     balloon: parseFloat(dData[j][8]) || 0 
+                     start: new Date(dData[j][2]), prin: parseFloat(dData[j][3]), 
+                     rate: parseFloat(dData[j][4]), yrs: parseFloat(dData[j][5]), balloon: parseFloat(dData[j][8]) || 0 
                  };
                  let mPassed = (new Date().getFullYear() - d.start.getFullYear())*12 + (new Date().getMonth() - d.start.getMonth());
                  let mR = d.rate/12; let tM = d.yrs*12;
@@ -273,11 +268,12 @@ function manageAssetBackend(payload) {
               }
            }
            
-           // FIX: SPEGNE EFFETTIVAMENTE LA RATA DEL MUTUO NELLE SPESE FISSE!
-           if(dbFixed && debtName) {
+           // FIX BUG CRITICO: Usa asset.name per spegnere la spesa fissa (non il nome generico del debito!)
+           if(dbFixed && asset.name) {
               let fData = dbFixed.getDataRange().getValues();
               for(let i=1; i<fData.length; i++) {
-                 if(String(fData[i][2]).includes(debtName) && fData[i][8] !== true) {
+                 // Cerca la nota che contiene il nome della casa es. "Rata Casa Nuova"
+                 if(String(fData[i][2]).includes(asset.name) && fData[i][8] !== true) {
                      dbFixed.getRange(i+1, 8).setValue(todayStr);
                  }
               }
@@ -285,9 +281,13 @@ function manageAssetBackend(payload) {
         } catch(e) { Logger.log("Errore estinzione mutuo collegato: " + e.message); }
      }
 
-     // Registra l'Entrata netta IN POSITIVO (Perché la vendita è un incasso!)
      let amountsObj = {}; amountsObj[bank] = Math.abs(cashIn);
-     addTransaction({ type: 'Income', category: "Investimenti", details: notes, amounts: amountsObj });
+     addTransaction({ 
+         type: 'Income', 
+         category: "Other Income", // <--- FIX CATEGORIA
+         details: notes, 
+         amounts: amountsObj 
+     });
      
      return `Asset venduto. Incasso netto accreditato: €${cashIn.toFixed(2)}`;
   }
