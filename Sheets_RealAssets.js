@@ -309,3 +309,31 @@ function UPDATE_ALL_BOND_PRICES() {
     dbAssetsSheet.getRange(2, livePriceIdx + 1, updates.length, 1).setValues(updates);
   }
 }
+
+/**
+ * Scansione automatica dei Bond. Se sono scaduti, li contrassegna come "Matured".
+ * Va inserita nel trigger di fine mese.
+ */
+function CHECK_BOND_MATURITIES() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const dbAssets = ss.getSheetByName("DB_RealAssets");
+  if(!dbAssets) return;
+  
+  const data = dbAssets.getDataRange().getValues();
+  const today = new Date();
+  let updates = [];
+  
+  for(let i=1; i<data.length; i++) {
+    let type = data[i][1];
+    let status = data[i][11];
+    let maturityDate = new Date(data[i][8]); // Colonna I
+    
+    if(status === "Active" && (type === "Government Bond" || type === "Corporate Bond")) {
+       if(!isNaN(maturityDate.getTime()) && today >= maturityDate) {
+          // Segna come scaduto
+          dbAssets.getRange(i+1, 12).setValue("Matured");
+          Logger.log(`Bond ${data[i][2]} is Matured.`);
+       }
+    }
+  }
+}

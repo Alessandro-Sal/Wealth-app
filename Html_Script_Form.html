@@ -1671,4 +1671,137 @@ function openSubs() {
            }
        });
    }
+
+   // ==========================================
+   // WIZARD ESTINZIONE DEBITI (Totale/Parziale)
+   // ==========================================
+   function initDebtRepayment() {
+       if (navigator.vibrate) navigator.vibrate(50);
+       Swal.fire({ title: 'Caricamento...', didOpen: () => Swal.showLoading() });
+       google.script.run.withSuccessHandler(showRepaymentWizard).getActiveDebts();
+   }
+
+   function showRepaymentWizard(debts) {
+       if(!debts || debts.length === 0) return Swal.fire('Info', 'Nessun debito attivo.', 'info');
+       
+       let options = '<option value="" disabled selected>-- Seleziona --</option>';
+       debts.forEach(d => options += `<option value="${d.id}">${d.name}</option>`);
+
+       Swal.fire({
+           title: 'Estinzione Debito 💸',
+           html: `
+               <div style="text-align:left; font-size:14px;">
+                   <select id="rep-id" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px;">${options}</select>
+                   <select id="rep-type" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px;" onchange="document.getElementById('rep-amt-div').style.display = this.value === 'Partial' ? 'block' : 'none'">
+                       <option value="Total">Estinzione Totale (Chiudi debito)</option>
+                       <option value="Partial">Estinzione Parziale (Abbatti capitale)</option>
+                   </select>
+                   <div id="rep-amt-div" style="display:none;">
+                       <input type="number" id="rep-amt" placeholder="Importo versato (€)" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px;">
+                   </div>
+                   <select id="rep-bank" style="width:100%; padding:10px; border-radius:8px;">
+                      <option value="" disabled selected>-- Conto di addebito --</option>
+                      <option value="5">Intesa SP</option>
+                      <option value="6">N26</option>
+                      <option value="7">Wallet</option>
+                      <option value="8">Buddy</option>
+                      <option value="9">Revolut</option>
+                   </select>
+               </div>
+           `,
+           showCancelButton: true,
+           confirmButtonText: 'Procedi',
+           preConfirm: () => {
+               const id = document.getElementById('rep-id').value;
+               const type = document.getElementById('rep-type').value;
+               const amt = document.getElementById('rep-amt').value;
+               const bank = document.getElementById('rep-bank').value;
+               if(!id || !bank || (type === 'Partial' && !amt)) Swal.showValidationMessage('Compila i campi!');
+               return {id, type, amt, bank};
+           }
+       }).then(res => {
+           if(res.isConfirmed) {
+               Swal.fire({ title: 'Elaborazione...', didOpen: () => Swal.showLoading() });
+               google.script.run
+                   .withSuccessHandler(msg => { Swal.fire('Fatto!', msg, 'success'); if(typeof resetForm === 'function') resetForm(); fetchHistory(); fetchBalances(); })
+                   .withFailureHandler(e => Swal.fire('Errore', e.message, 'error'))
+                   .repayDebtBackend(res.value);
+           }
+       });
+   }
+
+   // ==========================================
+   // WIZARD GESTIONE ASSET (Vendi / Aggiorna)
+   // ==========================================
+   function initAssetManagement() {
+       if (navigator.vibrate) navigator.vibrate(50);
+       Swal.fire({ title: 'Caricamento...', didOpen: () => Swal.showLoading() });
+       google.script.run.withSuccessHandler(showAssetWizard).getActiveRealAssets();
+   }
+
+   function showAssetWizard(assets) {
+       if(!assets || assets.length === 0) return Swal.fire('Info', 'Nessun asset attivo.', 'info');
+       
+       let options = '<option value="" disabled selected>-- Seleziona Asset --</option>';
+       assets.forEach(a => options += `<option value="${a.id}">${a.name} (${a.type})</option>`);
+
+       Swal.fire({
+           title: 'Gestione Asset 🛠️',
+           html: `
+               <div style="text-align:left; font-size:14px;">
+                   <select id="ast-id" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px;">${options}</select>
+                   <select id="ast-action" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px;" onchange="toggleAssetUI(this.value)">
+                       <option value="Update">Aggiorna Valore di Mercato (Solo Casa)</option>
+                       <option value="Sell">Vendi / Liquida Asset</option>
+                   </select>
+                   
+                   <div id="ast-update-ui">
+                       <input type="number" id="ast-val" placeholder="Nuovo Valore (€)" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px;">
+                   </div>
+
+                   <div id="ast-sell-ui" style="display:none;">
+                       <input type="number" id="ast-sell-price" placeholder="Prezzo di Vendita / Incasso (€)" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px;">
+                       <select id="ast-bank" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px;">
+                          <option value="" disabled selected>-- Conto di accredito --</option>
+                          <option value="5">Intesa SP</option>
+                          <option value="6">N26</option>
+                          <option value="7">Wallet</option>
+                          <option value="8">Buddy</option>
+                          <option value="9">Revolut</option>
+                       </select>
+                       <label style="font-size:12px; color:var(--gray);"><input type="checkbox" id="ast-close-debt" checked> Chiudi eventuale mutuo associato scalandolo dal ricavato</label>
+                   </div>
+               </div>
+           `,
+           showCancelButton: true,
+           confirmButtonText: 'Conferma',
+           preConfirm: () => {
+               const id = document.getElementById('ast-id').value;
+               const action = document.getElementById('ast-action').value;
+               const newVal = document.getElementById('ast-val').value;
+               const sellPrice = document.getElementById('ast-sell-price').value;
+               const bank = document.getElementById('ast-bank').value;
+               const closeDebt = document.getElementById('ast-close-debt').checked;
+               
+               if(!id) Swal.showValidationMessage('Seleziona un asset');
+               if(action === 'Update' && !newVal) Swal.showValidationMessage('Inserisci il nuovo valore');
+               if(action === 'Sell' && (!sellPrice || !bank)) Swal.showValidationMessage('Inserisci prezzo e banca');
+               
+               return {id, action, newVal, sellPrice, bank, closeDebt};
+           }
+       }).then(res => {
+           if(res.isConfirmed) {
+               Swal.fire({ title: 'Elaborazione...', didOpen: () => Swal.showLoading() });
+               google.script.run
+                   .withSuccessHandler(msg => { Swal.fire('Fatto!', msg, 'success'); if(typeof resetForm === 'function') resetForm(); fetchHistory(); fetchBalances(); })
+                   .withFailureHandler(e => Swal.fire('Errore', e.message, 'error'))
+                   .manageAssetBackend(res.value);
+           }
+       });
+   }
+   
+   function toggleAssetUI(action) {
+       document.getElementById('ast-update-ui').style.display = action === 'Update' ? 'block' : 'none';
+       document.getElementById('ast-sell-ui').style.display = action === 'Sell' ? 'block' : 'none';
+   }
 </script>

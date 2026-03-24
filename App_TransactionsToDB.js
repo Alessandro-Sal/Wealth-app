@@ -482,3 +482,93 @@ function renegotiateDebtBackend(oldDebtId, newRatePct, newYears, newDateStr, ban
 
   return "Rinegoziazione completata con successo!\nNuovo capitale ricalcolato: € " + outstandingAmount.toFixed(2) + "\nNuova rata: € " + newPmt.toFixed(2);
 }
+
+/**
+ * Recupera gli asset attivi per la UI.
+ */
+function getActiveRealAssets() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("DB_RealAssets");
+  if(!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  let active = [];
+  for(let i = 1; i < data.length; i++) {
+    if(data[i][11] === "Active") active.push({ id: data[i][0], type: data[i][1], name: data[i][2] });
+  }
+  return active;
+}
+
+/**
+ * BACKEND: Gestisce Estinzioni Debiti (Totali o Parziali)
+ */
+function repayDebtBackend(payload) {
+  const { id, type, amt, bank } = payload;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const dbDebts = ss.getSheetByName("DB_Debts");
+  const dbFixed = ss.getSheetByName("Config_FixedExpenses");
+  const todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
+
+  const debtsData = dbDebts.getDataRange().getValues();
+  let debtRow = -1; let debt = null;
+  
+  for(let i = 1; i < debtsData.length; i++) {
+    if(debtsData[i][0] === id) {
+      debtRow = i + 1;
+      debt = { name: debtsData[i][1], start: new Date(debtsData[i][2]), principal: parseFloat(debtsData[i][3]), rate: parseFloat(debtsData[i][4]), years: parseFloat(debtsData[i][5]) };
+      break;
+    }
+  }
+  if(!debt) throw new Error("Debito non trovato.");
+
+  // Calcolo Debito Residuo Attuale (come in rinegoziazione)
+  let monthsPassed = (new Date().getFullYear() - debt.start.getFullYear()) * 12 + (new Date().getMonth() - debt.start.getMonth());
+  let mRate = debt.rate / 12; let totMonths = debt.years * 12;
+  let outstanding = debt.principal;
+  
+  if(monthsPassed > 0 && monthsPassed < totMonths) {
+     let pmt = debt.principal * (mRate * Math.pow(1 + mRate, totMonths)) / (Math.pow(1 + mRate, totMonths) - 1);
+     if(isNaN(pmt)) pmt = debt.principal / totMonths;
+     let remMonths = totMonths - monthsPassed;
+     outstanding = pmt * (1 - Math.pow(1 + mRate, -remMonths)) / mRate;
+  }
+
+  let amountPaid = type === 'Total' ? outstanding : parseFloat(amt);
+
+  // Registra l'uscita di cassa
+  let amountsObj = {}; amountsObj[bank] = amountPaid;
+  addTransaction({ type: 'Expense', category: "Debiti/Prestiti", details: `Estinzione ${type} - ${debt.name}`, amounts: amountsObj });
+
+  if(type === 'Total') {
+     // Chiudi Debito e Ferma Spesa Fissa
+     dbDebts.getRange(debtRow, 8).setValue("Paid_Off");
+     if(dbFixed) {
+        let fData = dbFixed.getDataRange().getValues();
+        for(let i=1; i<fData.length; i++) {
+           if(String(fData[i][2]).includes(debt.name) && fData[i][8] !== true) dbFixed.getRange(i+1, 8).setValue(todayStr);
+        }
+     }
+     return "Estinzione totale completata. Pagati €" + amountPaid.toFixed(2);
+  } else {
+     // Estinzione Parziale: Abbassa il capitale e crea nuovo debito
+     let newPrincipal = outstanding - amountPaid;
+     if(newPrincipal <= 0) throw new Error("L'importo inserito è superiore al debito residuo. Usa l'estinzione totale.");
+     
+     dbDebts.getRange(debtRow, 8).setValue("Partially_Paid"); // Chiudi vecchio
+     const newId = "DBT-" + new Date().getTime().toString().slice(-6);
+     
+     // Ricalcola nuova rata sui mesi rimanenti
+     let remMonths = totMonths - monthsPassed;
+     let newPmt = newPrincipal * (mRate * Math.pow(1 + mRate, remMonths)) / (Math.pow(1 + mRate, remMonths) - 1);
+     if(isNaN(newPmt)) newPmt = newPrincipal / remMonths;
+
+     dbDebts.appendRow([newId, debt.name + " (Ridotto)", todayStr, newPrincipal, debt.rate, (remMonths/12), Number(newPmt.toFixed(2)), "Active"]);
+     
+     // Aggiorna Assets se collegato
+     const dbAssets = ss.getSheetByName("DB_RealAssets");
+     if(dbAssets) {
+        let aData = dbAssets.getDataRange().getValues();
+        for(let i=1; i<aData.length; i++) if(aData[i][10] === id) dbAssets.getRange(i+1, 11).setValue(newId);
+     }
+     return `Estinzione parziale completata. Nuovo residuo: €${newPrincipal.toFixed(2)}`;
+  }
+}
+

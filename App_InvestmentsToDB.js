@@ -202,3 +202,64 @@ function addInvestTransaction(data) {
   }
   return "Investment Saved (" + data.type + ")";
 }
+
+/**
+ * BACKEND: Gestisce Vendita o Aggiornamento Stima Asset
+ */
+function manageAssetBackend(payload) {
+  const { id, action, newVal, sellPrice, bank, closeDebt } = payload;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const dbAssets = ss.getSheetByName("DB_RealAssets");
+  const aData = dbAssets.getDataRange().getValues();
+  
+  let aRow = -1; let asset = null;
+  for(let i=1; i<aData.length; i++) {
+     if(aData[i][0] === id) { aRow = i+1; asset = { name: aData[i][2], type: aData[i][1], linkedDebt: aData[i][10] }; break; }
+  }
+  if(!asset) throw new Error("Asset non trovato");
+
+  if(action === 'Update') {
+     if(asset.type !== "Real Estate") throw new Error("Puoi aggiornare manualmente solo gli Immobili.");
+     dbAssets.getRange(aRow, 6).setValue(parseFloat(newVal)); // Colonna F: Purchase_Price / Market_Value
+     return "Valore di mercato aggiornato a €" + newVal;
+  }
+
+  if(action === 'Sell') {
+     dbAssets.getRange(aRow, 12).setValue("Sold"); // Imposta Status su Sold
+     let cashIn = parseFloat(sellPrice);
+     let notes = `Vendita Asset: ${asset.name}`;
+
+     // Gestione Mutuo Collegato (Estinzione Contestuale)
+     if(asset.linkedDebt && closeDebt) {
+        try {
+           // Chiama in background l'estinzione totale, ma senza fargli registrare la spesa (lo compensiamo qui)
+           // Per semplicità logica, calcoliamo il residuo e lo sottraiamo dall'incasso
+           const dbDebts = ss.getSheetByName("DB_Debts");
+           let dData = dbDebts.getDataRange().getValues();
+           for(let j=1; j<dData.length; j++) {
+              if(dData[j][0] === asset.linkedDebt) {
+                 let d = { start: new Date(dData[j][2]), prin: parseFloat(dData[j][3]), rate: parseFloat(dData[j][4]), yrs: parseFloat(dData[j][5]) };
+                 let mPassed = (new Date().getFullYear() - d.start.getFullYear())*12 + (new Date().getMonth() - d.start.getMonth());
+                 let mR = d.rate/12; let tM = d.yrs*12;
+                 let out = d.prin;
+                 if(mPassed>0 && mPassed<tM) {
+                    let p = d.prin * (mR * Math.pow(1+mR, tM)) / (Math.pow(1+mR, tM) - 1);
+                    if(isNaN(p)) p = d.prin/tM;
+                    out = p * (1 - Math.pow(1+mR, -(tM-mPassed))) / mR;
+                 }
+                 cashIn -= out; // Sottrae il debito residuo dall'incasso netto
+                 notes += ` (Estinto mutuo di €${out.toFixed(2)})`;
+                 dbDebts.getRange(j+1, 8).setValue("Paid_Off");
+                 break;
+              }
+           }
+        } catch(e) { Logger.log("Errore estinzione mutuo collegato: " + e.message); }
+     }
+
+     // Registra l'Entrata netta
+     let amountsObj = {}; amountsObj[bank] = cashIn;
+     addTransaction({ type: 'Income', category: "Investimenti", details: notes, amounts: amountsObj });
+     
+     return `Asset venduto. Incasso netto (post-mutuo) accreditato: €${cashIn.toFixed(2)}`;
+  }
+}

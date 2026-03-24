@@ -523,6 +523,9 @@
             <button type="button" onclick="initRenegotiation()" style="margin-top:20px; width:100%; background:rgba(0,122,255,0.1); color:var(--primary); border:none; padding:12px; border-radius:12px; font-weight:bold; cursor:pointer; font-size:14px; display:flex; justify-content:center; align-items:center; gap:8px;">
                 <span style="font-size:16px;">🔄</span> Rinegozia o Estendi Debito
             </button>
+            <button type="button" onclick="initDebtRepayment()" style="margin-top:10px; width:100%; background:rgba(52, 199, 89, 0.1); color:var(--success); border:none; padding:12px; border-radius:12px; font-weight:bold; cursor:pointer; font-size:14px; display:flex; justify-content:center; align-items:center; gap:8px;">
+                <span style="font-size:16px;">💸</span> Estinzione Anticipata
+            </button>
          </div>
          <div id="standard-inputs">
             <label>Category</label>
@@ -763,6 +766,9 @@
                <option value="8">Buddy</option>
                <option value="9">Revolut</option>
             </select>
+            <button type="button" onclick="initAssetManagement()" style="margin-bottom:15px; width:100%; background:rgba(255, 149, 0, 0.1); color:#ff9500; border:none; padding:10px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:13px; display:flex; justify-content:center; align-items:center; gap:8px;">
+                <span style="font-size:15px;">🛠️</span> Gestisci (Vendi o Aggiorna Valore)
+            </button>
          </div>
 
          <div id="bond-inputs" style="display:none; background:rgba(88, 86, 214, 0.05); padding:15px; border-radius:12px; margin-top:15px; border:1px solid rgba(88, 86, 214, 0.1);">
@@ -788,6 +794,9 @@
                <option value="true">12.5% (Gov Bonds / White List)</option>
                <option value="false">26% (Corporate Bonds)</option>
             </select>
+            <button type="button" onclick="initAssetManagement()" style="margin-bottom:15px; width:100%; background:rgba(255, 149, 0, 0.1); color:#ff9500; border:none; padding:10px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:13px; display:flex; justify-content:center; align-items:center; gap:8px;">
+                <span style="font-size:15px;">🛠️</span> Gestisci (Vendi o Aggiorna Valore)
+            </button>
          </div>
          <p style="font-size:11px; color:var(--gray); margin-top:5px; margin-bottom:0;">*Unit Price calculated automatically.</p>
          <label>Total USD (or Foreign)</label>
