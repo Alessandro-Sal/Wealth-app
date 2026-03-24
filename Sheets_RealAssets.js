@@ -101,3 +101,211 @@ function GET_TOTAL_REAL_ESTATE(rangeValues) {
   }
   return total;
 }
+
+/**
+ * Automates the periodic snapshot for Real Assets and Debts.
+ * Reads active items from DB_RealAssets and DB_Debts, calculates current equity,
+ * and appends new rows to the Log_Valuations sheet.
+ */
+function ARCHIVE_REAL_ASSETS() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const dbAssetsSheet = ss.getSheetByName("DB_RealAssets");
+  const dbDebtsSheet = ss.getSheetByName("DB_Debts");
+  const logSheet = ss.getSheetByName("Log_Valuations");
+
+  if (!dbAssetsSheet || !dbDebtsSheet || !logSheet) {
+    Logger.log("Error: One or more Real Assets database sheets are missing.");
+    return;
+  }
+
+  // Retrieve data ranges
+  const assetsData = dbAssetsSheet.getDataRange().getValues();
+  const debtsData = dbDebtsSheet.getDataRange().getValues();
+  
+  const assetsHeaders = assetsData[0];
+  const debtsHeaders = debtsData[0];
+  
+  // Create a dictionary of active debts for fast lookup by Debt_ID
+  const activeDebts = {};
+  for (let i = 1; i < debtsData.length; i++) {
+    let row = debtsData[i];
+    let status = row[debtsHeaders.indexOf("Status")];
+    if (status === "Active") {
+      activeDebts[row[debtsHeaders.indexOf("Debt_ID")]] = {
+        startDate: row[debtsHeaders.indexOf("Start_Date")],
+        amount: row[debtsHeaders.indexOf("Original_Amount")],
+        rate: row[debtsHeaders.indexOf("Annual_Rate_%")],
+        years: row[debtsHeaders.indexOf("Duration_Years")]
+      };
+    }
+  }
+
+  const today = new Date();
+  const logDateStr = Utilities.formatDate(today, Session.getScriptTimeZone(), "yyyy-MM-dd");
+  const yearMonthStr = Utilities.formatDate(today, Session.getScriptTimeZone(), "yyyy-MM");
+  
+  const newLogRows = [];
+
+  // Iterate through assets to generate valuation logs
+  for (let i = 1; i < assetsData.length; i++) {
+    let row = assetsData[i];
+    let status = row[assetsHeaders.indexOf("Status")];
+    
+    if (status !== "Active") continue;
+
+    let assetId = row[assetsHeaders.indexOf("Asset_ID")];
+    let type = row[assetsHeaders.indexOf("Type")];
+    let purchasePrice = row[assetsHeaders.indexOf("Purchase_Price")];
+    
+    // Fallback: using Purchase Price as current Market Value if no external API is connected yet
+    let marketValue = purchasePrice; 
+    let outstandingDebt = "";
+    let netEquity = 0;
+
+    if (type === "Real Estate") {
+      let linkedDebtId = row[assetsHeaders.indexOf("Linked_Debt_ID")];
+      
+      if (linkedDebtId && activeDebts[linkedDebtId]) {
+        let debt = activeDebts[linkedDebtId];
+        
+        // Calculate equity using the existing French Amortization function
+        netEquity = ASSET_IMMOBILE_EQUITY(marketValue, debt.amount, debt.rate, debt.years, debt.startDate);
+        
+        // Derive outstanding debt 
+        outstandingDebt = Number((marketValue - netEquity).toFixed(2)); 
+      } else {
+        // Property owned outright
+        netEquity = marketValue; 
+      }
+      
+      newLogRows.push([logDateStr, yearMonthStr, assetId, marketValue, outstandingDebt, netEquity, "Automated Monthly Snapshot"]);
+      
+    } else if (type === "Government Bond" || type === "Corporate Bond") {
+      let nominal = row[assetsHeaders.indexOf("Nominal_Value")];
+      let isWhiteList = (row[assetsHeaders.indexOf("Tax_Status")] === "WhiteList");
+      let couponRate = row[assetsHeaders.indexOf("Coupon_Rate_%")];
+      
+      // Retrieve the freshly updated live price from the dedicated column
+      let livePriceIdx = assetsHeaders.indexOf("Live_Price");
+      let currentPrice = row[livePriceIdx];
+      
+      // Fallback in case the column is empty
+      if (!currentPrice || currentPrice === "") {
+         currentPrice = 100; 
+      }
+      
+      netEquity = ASSET_BTP_VALORE(nominal, currentPrice, couponRate, isWhiteList);
+      
+      newLogRows.push([logDateStr, yearMonthStr, assetId, currentPrice, "", netEquity, "Automated Monthly Snapshot"]);
+    }
+  }
+
+  // Batch append all generated rows to Log_Valuations
+  if (newLogRows.length > 0) {
+    logSheet.getRange(logSheet.getLastRow() + 1, 1, newLogRows.length, newLogRows[0].length).setValues(newLogRows);
+  }
+}
+
+/**
+ * Fetches live market prices for multiple tickers from Yahoo Finance API in a single request.
+ * @param {Array<string>} tickers Array of Yahoo Finance ticker symbols.
+ * @return {Object} Dictionary mapping tickers to their current market price.
+ */
+function FETCH_YAHOO_BOND_PRICES_BATCH(tickers) {
+  const prices = {};
+  if (!tickers || tickers.length === 0) return prices;
+
+  // Filter out empty strings and build comma-separated string
+  const validTickers = tickers.filter(t => t && t.trim() !== "");
+  if (validTickers.length === 0) return prices;
+
+  const symbolsStr = encodeURIComponent(validTickers.join(","));
+  // Endpoint changed to 'quote' to support multiple symbols at once
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolsStr}`;
+  
+  try {
+    const options = { "method": "get", "muteHttpExceptions": true };
+    const response = UrlFetchApp.fetch(url, options);
+    
+    if (response.getResponseCode() === 200) {
+      const json = JSON.parse(response.getContentText());
+      if (json.quoteResponse && json.quoteResponse.result) {
+        json.quoteResponse.result.forEach(item => {
+          if (item.symbol && item.regularMarketPrice) {
+            prices[item.symbol] = Number(item.regularMarketPrice.toFixed(2));
+          }
+        });
+      }
+    } else {
+      Logger.log(`API Error batch fetch: Status ${response.getResponseCode()}`);
+    }
+  } catch (e) {
+    Logger.log(`Batch Fetch Exception: ${e.message}`);
+  }
+  
+  return prices;
+}
+
+/**
+ * Updates the Live_Price column in DB_RealAssets for all active Bonds.
+ * Uses a single batch request to save UrlFetchApp daily quota and run instantly.
+ */
+function UPDATE_ALL_BOND_PRICES() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const dbAssetsSheet = ss.getSheetByName("DB_RealAssets");
+  
+  if (!dbAssetsSheet) return;
+  
+  const data = dbAssetsSheet.getDataRange().getValues();
+  if (data.length <= 1) return;
+  
+  const headers = data[0];
+  const typeIdx = headers.indexOf("Type");
+  const statusIdx = headers.indexOf("Status");
+  const tickerIdx = headers.indexOf("Ticker_Yahoo");
+  const livePriceIdx = headers.indexOf("Live_Price");
+  
+  if (tickerIdx === -1 || livePriceIdx === -1) {
+    Logger.log("Columns 'Ticker_Yahoo' or 'Live_Price' not found.");
+    return;
+  }
+  
+  // 1. Collect all unique valid tickers to fetch
+  const tickersToFetch = [];
+  for (let i = 1; i < data.length; i++) {
+    let type = data[i][typeIdx];
+    let status = data[i][statusIdx];
+    let ticker = data[i][tickerIdx];
+    
+    if (status === "Active" && (type === "Government Bond" || type === "Corporate Bond") && ticker) {
+      if (!tickersToFetch.includes(ticker)) {
+        tickersToFetch.push(ticker);
+      }
+    }
+  }
+  
+  // 2. Fetch all prices in one single go
+  const livePricesMap = FETCH_YAHOO_BOND_PRICES_BATCH(tickersToFetch);
+  
+  // 3. Prepare updates array mapping the new prices back to their rows
+  const updates = [];
+  for (let i = 1; i < data.length; i++) {
+    let type = data[i][typeIdx];
+    let status = data[i][statusIdx];
+    let ticker = data[i][tickerIdx];
+    
+    if (status === "Active" && (type === "Government Bond" || type === "Corporate Bond")) {
+      // Fallback to 100 or to the old price if the API returns undefined
+      let currentStoredPrice = data[i][livePriceIdx];
+      let livePrice = livePricesMap[ticker] || currentStoredPrice || 100; 
+      updates.push([livePrice]);
+    } else {
+      updates.push([data[i][livePriceIdx]]); 
+    }
+  }
+  
+  // 4. Batch write to the Sheet
+  if (updates.length > 0) {
+    dbAssetsSheet.getRange(2, livePriceIdx + 1, updates.length, 1).setValues(updates);
+  }
+}

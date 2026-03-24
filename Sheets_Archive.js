@@ -18,7 +18,14 @@ function congelaSoloFineMese() {
     console.log("Not end of month. Script terminated.");
     return;
   }
+  // Update bond prices before saving the history
+  // UPDATE_ALL_BOND_PRICES();
+  
+  // Take the snapshot of real estate and bonds
+  // ARCHIVE_REAL_ASSETS();
 
+  // Force sheet recalculation with the new bond prices
+  // SpreadsheetApp.flush();
   // --- 2. DRIVE BACKUP LOGIC ---
   const folderName = "Backup NW AnaliticoFineMese";
   const fileName = "Backup_NW_" + Utilities.formatDate(OGGI, SS.getSpreadsheetTimeZone(), "yyyy-MM-dd_HHmm");
