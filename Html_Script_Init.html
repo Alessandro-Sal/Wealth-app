@@ -381,6 +381,7 @@
      fetchTaxOptimizationData();
      fetchPortfolioCashflow(year);
      fetchHistoricalPortfolioEvo(year);
+     loadRealAssetsDashboard();
      fetchClosedPositions();
      google.script.run.withSuccessHandler(f => {
          document.getElementById('flow-in').innerText = "€ " + f.income;

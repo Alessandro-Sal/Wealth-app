@@ -116,3 +116,64 @@ function getDashboardData() {
     }
   };
 }
+
+/**
+ * Recupera la sintesi degli Asset Reali e delle Passività dall'ultimo mese registrato nel Log.
+ * Da richiamare per popolare le card della Dashboard.
+ */
+function getRealAssetsSummary() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const logSheet = ss.getSheetByName("Log_Valuations");
+  if (!logSheet) return null;
+
+  const data = logSheet.getDataRange().getValues();
+  if (data.length <= 1) return null;
+
+  // 1. Trova l'ultimo mese registrato
+  let latestDate = new Date(0);
+  for (let i = 1; i < data.length; i++) {
+     let d = new Date(data[i][0]);
+     if (!isNaN(d.getTime()) && d > latestDate) latestDate = d;
+  }
+  let latestMonthStr = Utilities.formatDate(latestDate, Session.getScriptTimeZone(), "yyyy-MM");
+
+  // 2. Prepara l'oggetto di sintesi
+  let summary = {
+     realEstate: { gross: 0, debt: 0, net: 0 },
+     bonds: { gross: 0, debt: 0, net: 0 },
+     liabilities: { gross: 0, debt: 0, net: 0 }, // Debiti puri (senza asset collegato)
+     totalNetWorthImpact: 0
+  };
+
+  // 3. Somma i dati dell'ultimo mese
+  for (let i = 1; i < data.length; i++) {
+     let rowDate = new Date(data[i][0]);
+     if (isNaN(rowDate.getTime())) continue;
+     
+     if (Utilities.formatDate(rowDate, Session.getScriptTimeZone(), "yyyy-MM") === latestMonthStr) {
+        let type = data[i][1];
+        let gross = parseFloat(data[i][3]) || 0;
+        let debt = parseFloat(data[i][4]) || 0;
+        let net = parseFloat(data[i][5]) || 0;
+
+        if (type === "Real Estate") {
+           summary.realEstate.gross += gross;
+           summary.realEstate.debt += debt;
+           summary.realEstate.net += net;
+        } else if (type.includes("Bond")) {
+           summary.bonds.gross += gross;
+           summary.bonds.debt += debt;
+           summary.bonds.net += net;
+        } else if (type === "Liability") {
+           summary.liabilities.gross += gross;
+           summary.liabilities.debt += debt;
+           summary.liabilities.net += net;
+        }
+        
+        // Calcola l'impatto totale sul patrimonio netto
+        summary.totalNetWorthImpact += net;
+     }
+  }
+  
+  return summary;
+}

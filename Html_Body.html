@@ -1527,8 +1527,56 @@
                   </div>
                </div>
             </div>
-            <div class="dash-list-wrapper">
-               <div class="dash-list">
+            <div class="grid-2-col" style="margin-top: 20px; margin-bottom: 20px;"> 
+               
+               <div class="dash-list" style="margin: 0;">
+                  <div class="dash-list-row row" style="padding: 20px 0;">
+                     <span class="dash-list-label label" style="display:flex; align-items:center; gap:12px;">
+                        <div class="badge-icon" style="width:36px; height:36px; font-size:18px; background:rgba(52, 199, 89, 0.15); color:#34C759; display:flex; align-items:center; justify-content:center; border-radius:10px;">🏘️</div>
+                        Real Estate
+                     </span>
+                     <div style="text-align:right;">
+                        <div id="dash-re-net" class="dash-list-value amt sensitive" style="font-size:22px;">--</div>
+                        <div style="font-size:12px; font-weight:600; color:var(--gray); margin-top:4px;">Lordo: <span id="dash-re-gross" class="amt sensitive">--</span></div>
+                     </div>
+                  </div>
+                  <div style="padding: 15px 0; border-top: 1px dashed var(--row-border);">
+                     <div class="row" style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border:none;">
+                        <span class="label" style="font-size:13px; color:var(--gray); font-weight:600;">Mutui Associati</span>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                           <span id="dash-re-debt" class="amt sensitive" style="font-size:14px; font-weight:700; color:#FF3B30;">--</span>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+
+               <div class="dash-list" style="margin: 0;">
+                  <div class="dash-list-row row" style="padding: 20px 0;">
+                     <span class="dash-list-label label" style="display:flex; align-items:center; gap:12px;">
+                        <div class="badge-icon" style="width:36px; height:36px; font-size:18px; background:rgba(0, 122, 255, 0.15); color:#007AFF; display:flex; align-items:center; justify-content:center; border-radius:10px;">📜</div>
+                        Obbligazioni (Bonds)
+                     </span>
+                     <div style="text-align:right;">
+                        <div id="dash-bond-net" class="dash-list-value amt sensitive" style="font-size:22px;">--</div>
+                        <div style="font-size:12px; font-weight:600; color:var(--gray); margin-top:4px;">Capitale a Mercato</div>
+                     </div>
+                  </div>
+               </div>
+
+               <div class="dash-list" style="margin: 0;">
+                  <div class="dash-list-row row" style="padding: 20px 0;">
+                     <span class="dash-list-label label" style="display:flex; align-items:center; gap:12px;">
+                        <div class="badge-icon" style="width:36px; height:36px; font-size:18px; background:rgba(255, 59, 48, 0.15); color:#FF3B30; display:flex; align-items:center; justify-content:center; border-radius:10px;">💸</div>
+                        Passività Libere
+                     </span>
+                     <div style="text-align:right;">
+                        <div id="dash-liab-net" class="dash-list-value amt sensitive" style="font-size:22px; color:#FF3B30;">--</div>
+                        <div style="font-size:12px; font-weight:600; color:var(--gray); margin-top:4px;">Finanziamenti & Prestiti</div>
+                     </div>
+                  </div>
+               </div>
+
+               <div class="dash-list" style="margin: 0;">
                   <div class="dash-list-row row" style="padding: 20px 0;">
                      <span class="dash-list-label label" style="display:flex; align-items:center; gap:12px;">
                         <div class="badge-icon bg-green" style="width:36px; height:36px; font-size:18px;">📈</div>
@@ -1563,7 +1611,8 @@
                      </div>
                   </div>
                </div>
-               <div class="dash-list">
+               
+               <div class="dash-list" style="margin: 0;">
                   <div class="dash-list-row row" style="padding: 20px 0;">
                      <span class="dash-list-label label" style="display:flex; align-items:center; gap:12px;">
                         <div class="badge-icon" style="background:#8e8e93; width:36px; height:36px; font-size:18px;">📦</div>
@@ -1598,7 +1647,8 @@
                      </div>
                   </div>
                </div>
-               <div class="dash-list span-pc-2">
+               
+               <div class="dash-list" style="margin: 0;">
                   <div class="dash-list-row row" style="padding: 20px 0;">
                      <span class="dash-list-label label" style="display:flex; align-items:center; gap:12px;">
                         <div class="badge-icon bg-orange" style="width:36px; height:36px; font-size:18px;">₿</div>
@@ -1633,6 +1683,7 @@
                      </div>
                   </div>
                </div>
+               
             </div>
             <div class="dash-widget span-2 span-pc-4" style="margin-bottom: 30px;">
                <div class="widget-title">📈 Net Worth & Asset Growth</div>

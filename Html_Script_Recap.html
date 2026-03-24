@@ -747,4 +747,31 @@ function renderCPScatterChart() {
         }
     });
 }
+/**
+ * Chiama il backend per recuperare la sintesi di Real Estate, Bonds e Liabilities 
+ * e popola le righe native del p-recap.
+ */
+function loadRealAssetsDashboard() {
+    google.script.run.withSuccessHandler(function(summary) {
+        if (!summary) return;
+        
+        // Formattatore Valuta elegante
+        const fmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
+        
+        // 1. Popola Real Estate
+        document.getElementById('dash-re-net').innerText = fmt.format(summary.realEstate.net);
+        document.getElementById('dash-re-gross').innerText = fmt.format(summary.realEstate.gross);
+        document.getElementById('dash-re-debt').innerText = "-" + fmt.format(summary.realEstate.debt);
+        
+        // 2. Popola Bonds
+        document.getElementById('dash-bond-net').innerText = fmt.format(summary.bonds.net);
+        
+        // 3. Popola Liabilities (Essendo passività mettiamo il format, il colore HTML è già rosso)
+        document.getElementById('dash-liab-net').innerText = fmt.format(summary.liabilities.net);
+        
+        // Salva per il Net Worth Totale
+        window.realAssetsNetImpact = summary.totalNetWorthImpact; 
+        
+    }).getRealAssetsSummary();
+}
 </script>
