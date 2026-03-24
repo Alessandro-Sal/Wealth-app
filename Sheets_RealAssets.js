@@ -103,106 +103,123 @@ function GET_TOTAL_REAL_ESTATE(rangeValues) {
 }
 
 /**
- * Automates the periodic snapshot for Real Assets and Debts.
- * Reads active items from DB_RealAssets and DB_Debts, calculates current equity,
- * and appends new rows to the Log_Valuations sheet.
+ * ARCHIVE_REAL_ASSETS
+ * Congela il valore mensile di Immobili, Obbligazioni e Passività nel foglio Log_Valuations.
+ * - Idempotente: sovrascrive i dati se eseguita più volte nello stesso mese per evitare duplicati.
+ * - Calcola dinamicamente il valore di mercato attuale e l'ammortamento dei debiti.
+ * - Estrae Gross Value, Debt Value e Net Equity.
  */
 function ARCHIVE_REAL_ASSETS() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const dbAssetsSheet = ss.getSheetByName("DB_RealAssets");
-  const dbDebtsSheet = ss.getSheetByName("DB_Debts");
+  const dbAssets = ss.getSheetByName("DB_RealAssets");
+  const dbDebts = ss.getSheetByName("DB_Debts");
   const logSheet = ss.getSheetByName("Log_Valuations");
 
-  if (!dbAssetsSheet || !dbDebtsSheet || !logSheet) {
-    Logger.log("Error: One or more Real Assets database sheets are missing.");
-    return;
-  }
-
-  // Retrieve data ranges
-  const assetsData = dbAssetsSheet.getDataRange().getValues();
-  const debtsData = dbDebtsSheet.getDataRange().getValues();
-  
-  const assetsHeaders = assetsData[0];
-  const debtsHeaders = debtsData[0];
-  
-  // Create a dictionary of active debts for fast lookup by Debt_ID
-  const activeDebts = {};
-  for (let i = 1; i < debtsData.length; i++) {
-    let row = debtsData[i];
-    let status = row[debtsHeaders.indexOf("Status")];
-    if (status === "Active") {
-      activeDebts[row[debtsHeaders.indexOf("Debt_ID")]] = {
-        startDate: row[debtsHeaders.indexOf("Start_Date")],
-        amount: row[debtsHeaders.indexOf("Original_Amount")],
-        rate: row[debtsHeaders.indexOf("Annual_Rate_%")],
-        years: row[debtsHeaders.indexOf("Duration_Years")]
-      };
-    }
-  }
+  if (!dbAssets || !dbDebts || !logSheet) return;
 
   const today = new Date();
-  const logDateStr = Utilities.formatDate(today, Session.getScriptTimeZone(), "yyyy-MM-dd");
-  const yearMonthStr = Utilities.formatDate(today, Session.getScriptTimeZone(), "yyyy-MM");
-  
-  const newLogRows = [];
+  const currentMonthStr = Utilities.formatDate(today, Session.getScriptTimeZone(), "yyyy-MM");
 
-  // Iterate through assets to generate valuation logs
-  for (let i = 1; i < assetsData.length; i++) {
-    let row = assetsData[i];
-    let status = row[assetsHeaders.indexOf("Status")];
-    
-    if (status !== "Active") continue;
-
-    let assetId = row[assetsHeaders.indexOf("Asset_ID")];
-    let type = row[assetsHeaders.indexOf("Type")];
-    let purchasePrice = row[assetsHeaders.indexOf("Purchase_Price")];
-    
-    // Fallback: using Purchase Price as current Market Value if no external API is connected yet
-    let marketValue = purchasePrice; 
-    let outstandingDebt = "";
-    let netEquity = 0;
-
-    if (type === "Real Estate") {
-      let linkedDebtId = row[assetsHeaders.indexOf("Linked_Debt_ID")];
-      
-      if (linkedDebtId && activeDebts[linkedDebtId]) {
-        let debt = activeDebts[linkedDebtId];
-        
-        // Calculate equity using the existing French Amortization function
-        netEquity = ASSET_IMMOBILE_EQUITY(marketValue, debt.amount, debt.rate, debt.years, debt.startDate);
-        
-        // Derive outstanding debt 
-        outstandingDebt = Number((marketValue - netEquity).toFixed(2)); 
-      } else {
-        // Property owned outright
-        netEquity = marketValue; 
-      }
-      
-      newLogRows.push([logDateStr, yearMonthStr, assetId, marketValue, outstandingDebt, netEquity, "Automated Monthly Snapshot"]);
-      
-    } else if (type === "Government Bond" || type === "Corporate Bond") {
-      let nominal = row[assetsHeaders.indexOf("Nominal_Value")];
-      let isWhiteList = (row[assetsHeaders.indexOf("Tax_Status")] === "WhiteList");
-      let couponRate = row[assetsHeaders.indexOf("Coupon_Rate_%")];
-      
-      // Retrieve the freshly updated live price from the dedicated column
-      let livePriceIdx = assetsHeaders.indexOf("Live_Price");
-      let currentPrice = row[livePriceIdx];
-      
-      // Fallback in case the column is empty
-      if (!currentPrice || currentPrice === "") {
-         currentPrice = 100; 
-      }
-      
-      netEquity = ASSET_BTP_VALORE(nominal, currentPrice, couponRate, isWhiteList);
-      
-      newLogRows.push([logDateStr, yearMonthStr, assetId, currentPrice, "", netEquity, "Automated Monthly Snapshot"]);
+  // 1. IDEMPOTENZA: Rimuove eventuali log già salvati per il mese in corso
+  let logData = logSheet.getDataRange().getValues();
+  for (let i = logData.length - 1; i > 0; i--) { // Ciclo al contrario per non sballare gli indici durante l'eliminazione
+    let rowDate = logData[i][0];
+    if (rowDate instanceof Date) {
+       let rowMonthStr = Utilities.formatDate(rowDate, Session.getScriptTimeZone(), "yyyy-MM");
+       if (rowMonthStr === currentMonthStr) {
+          logSheet.deleteRow(i + 1);
+       }
     }
   }
 
-  // Batch append all generated rows to Log_Valuations
-  if (newLogRows.length > 0) {
-    logSheet.getRange(logSheet.getLastRow() + 1, 1, newLogRows.length, newLogRows[0].length).setValues(newLogRows);
+  // Lista degli stati terminali da ignorare (come richiesto)
+  const terminalStatuses = ["Sold", "Matured", "Paid_Off", "Renegotiated", "Partially_Paid", "Closed"];
+
+  // 2. Lettura Debiti e calcolo ammortamento residuo esatto
+  const debtsData = dbDebts.getDataRange().getValues();
+  let activeDebts = {};
+
+  for (let i = 1; i < debtsData.length; i++) {
+     let dId = debtsData[i][0];
+     let dName = debtsData[i][1];
+     let dStart = new Date(debtsData[i][2]);
+     let dPrin = parseFloat(debtsData[i][3]) || 0;
+     let dRate = parseFloat(debtsData[i][4]) || 0;
+     let dYrs = parseFloat(debtsData[i][5]) || 0;
+     let dStatus = debtsData[i][7];
+     let dBalloon = parseFloat(debtsData[i][8]) || 0;
+
+     if (terminalStatuses.includes(dStatus)) continue;
+
+     let outstanding = dPrin;
+     let totMonths = dYrs * 12;
+     let mPassed = (today.getFullYear() - dStart.getFullYear()) * 12 + (today.getMonth() - dStart.getMonth());
+
+     if (mPassed > 0 && mPassed < totMonths) {
+        let mR = dRate / 12;
+        let pmt = 0;
+        if (mR === 0) pmt = (dPrin - dBalloon) / totMonths;
+        else pmt = ((dPrin * Math.pow(1 + mR, totMonths)) - dBalloon) * mR / (Math.pow(1 + mR, totMonths) - 1);
+
+        let remM = totMonths - mPassed;
+        if (mR === 0) outstanding = (pmt * remM) + dBalloon;
+        else outstanding = (pmt * (1 - Math.pow(1 + mR, -remM)) / mR) + (dBalloon * Math.pow(1 + mR, -remM));
+     } else if (mPassed >= totMonths) {
+        outstanding = dBalloon > 0 ? dBalloon : 0;
+     }
+
+     activeDebts[dId] = { name: dName, outstanding: outstanding, linked: false };
+  }
+
+  // 3. Lettura Asset, Match con Debiti e Preparazione Batch
+  const assetsData = dbAssets.getDataRange().getValues();
+  let logsToAppend = [];
+
+  for (let i = 1; i < assetsData.length; i++) {
+     let aId = assetsData[i][0];
+     let aType = assetsData[i][1];
+     let aName = assetsData[i][2];
+     let aGross = parseFloat(assetsData[i][5]) || 0; // Purchase_Price / Market_Val per Immobili
+     let aDebtId = assetsData[i][10];
+     let aStatus = assetsData[i][11];
+     let aLivePrice = parseFloat(assetsData[i][13]) || 0; // Colonna N: Prezzo Live Yahoo per i Bond
+
+     if (terminalStatuses.includes(aStatus)) continue;
+
+     let grossVal = aGross;
+     
+     // Se è un Bond, calcola il valore di mercato attuale: (Nominale * Prezzo Live) / 100
+     if (aType.includes("Bond") && aLivePrice > 0) {
+        let nominal = parseFloat(assetsData[i][6]) || 0;
+        grossVal = (nominal * aLivePrice) / 100;
+     }
+
+     let debtVal = 0;
+     if (aDebtId && activeDebts[aDebtId]) {
+        debtVal = activeDebts[aDebtId].outstanding;
+        activeDebts[aDebtId].linked = true; // Segniamo il debito come "consumato" (legato a un asset)
+     }
+
+     let netVal = grossVal - debtVal;
+
+     logsToAppend.push([
+        today, aType, aName, grossVal, debtVal, netVal, aId, aDebtId || ""
+     ]);
+  }
+
+  // 4. Aggiunta Debiti "Standalone" (es. prestiti auto non legati a case)
+  for (let dId in activeDebts) {
+     if (!activeDebts[dId].linked) {
+        let dObj = activeDebts[dId];
+        logsToAppend.push([
+           today, "Liability", dObj.name, 0, dObj.outstanding, -dObj.outstanding, dId, ""
+        ]);
+     }
+  }
+
+  // 5. Scrittura Batch Veloce sul Foglio Log
+  if (logsToAppend.length > 0) {
+     logSheet.getRange(logSheet.getLastRow() + 1, 1, logsToAppend.length, 8).setValues(logsToAppend);
   }
 }
 
