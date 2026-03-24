@@ -1585,4 +1585,90 @@ function openSubs() {
         if(standardInputs) standardInputs.style.display = 'block';
     }
 }
+
+// --- LOGICA DI RINEGOZIAZIONE DEBITI / MUTUI ---
+   function initRenegotiation() {
+       if (navigator.vibrate) navigator.vibrate(50);
+       Swal.fire({ title: 'Caricamento debiti...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+       
+       // Richiede al backend la lista dei debiti attivi
+       google.script.run
+           .withSuccessHandler(showRenegotiateWizard)
+           .withFailureHandler(e => Swal.fire('Errore', e.message, 'error'))
+           .getActiveDebts();
+   }
+
+   function showRenegotiateWizard(debts) {
+       if(!debts || debts.length === 0) {
+           Swal.fire({icon: 'info', title: 'Nessun debito', text: 'Non hai debiti attivi da rinegoziare.', confirmButtonColor: 'var(--primary)'});
+           return;
+       }
+       
+       let options = '<option value="" disabled selected>-- Seleziona Debito/Mutuo --</option>';
+       debts.forEach(d => {
+           options += `<option value="${d.id}">${d.name} (Iniziato il ${d.startDate})</option>`;
+       });
+
+       Swal.fire({
+           title: 'Rinegoziazione 🔄',
+           html: `
+               <div style="text-align:left; font-size:14px; color:var(--gray);">
+                   <p style="margin-bottom:15px;">Il sistema calcolerà automaticamente il debito residuo e chiuderà la pratica precedente.</p>
+                   
+                   <label>Debito da Surrogare/Rinegoziare</label>
+                   <select id="ren-id" style="width:100%; padding:12px; margin-bottom:15px; border-radius:10px; border:1px solid rgba(0,0,0,0.1); background:var(--section-bg); font-size:14px;">${options}</select>
+                   
+                   <label>Data del nuovo Accordo</label>
+                   <input type="date" id="ren-date" style="width:100%; padding:12px; margin-bottom:15px; border-radius:10px; border:1px solid rgba(0,0,0,0.1); background:var(--section-bg); font-size:14px;">
+                   
+                   <div style="display:flex; gap:10px; margin-bottom:15px;">
+                       <div style="flex:1;">
+                           <label>Nuovo Tasso (%)</label>
+                           <input type="number" step="0.01" id="ren-rate" placeholder="es. 2.5" style="width:100%; padding:12px; border-radius:10px; border:1px solid rgba(0,0,0,0.1); background:var(--section-bg); font-size:14px;">
+                       </div>
+                       <div style="flex:1;">
+                           <label>Nuovi Anni</label>
+                           <input type="number" id="ren-years" placeholder="es. 20" style="width:100%; padding:12px; border-radius:10px; border:1px solid rgba(0,0,0,0.1); background:var(--section-bg); font-size:14px;">
+                       </div>
+                   </div>
+                   
+                   <label>Conto Addebito Rata</label>
+                   <select id="ren-bank" style="width:100%; padding:12px; border-radius:10px; border:1px solid rgba(0,0,0,0.1); background:var(--section-bg); font-size:14px;">
+                      <option value="" disabled selected>-- Seleziona Banca --</option>
+                      <option value="5">Intesa SP</option>
+                      <option value="6">N26</option>
+                      <option value="7">Wallet</option>
+                      <option value="8">Buddy</option>
+                      <option value="9">Revolut</option>
+                   </select>
+               </div>
+           `,
+           showCancelButton: true,
+           confirmButtonText: 'Rinegozia e Ricalcola',
+           confirmButtonColor: 'var(--primary)',
+           cancelButtonText: 'Annulla',
+           preConfirm: () => {
+               const id = document.getElementById('ren-id').value;
+               const date = document.getElementById('ren-date').value;
+               const rate = document.getElementById('ren-rate').value;
+               const years = document.getElementById('ren-years').value;
+               const bank = document.getElementById('ren-bank').value;
+               
+               if(!id || !date || !rate || !years || !bank) Swal.showValidationMessage('Compila tutti i campi!');
+               return {id, date, rate, years, bank};
+           }
+       }).then(res => {
+           if(res.isConfirmed) {
+               Swal.fire({ title: 'Ricalcolo ammortamento...', text: 'Aggiornamento dei Database in corso.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+               
+               google.script.run
+                   .withSuccessHandler(msg => {
+                       Swal.fire('Completato!', msg, 'success');
+                       if(typeof resetForm === 'function') resetForm();
+                   })
+                   .withFailureHandler(e => Swal.fire('Errore Server', e.message, 'error'))
+                   .renegotiateDebtBackend(res.value.id, res.value.rate, res.value.years, res.value.date, res.value.bank);
+           }
+       });
+   }
 </script>

@@ -343,3 +343,142 @@ function addStandaloneDebt(data) {
 
   return "Debt recorded successfully.";
 }
+
+/**
+ * Recupera tutti i debiti con stato "Active" per la tendina del Wizard.
+ */
+function getActiveDebts() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("DB_Debts");
+  if(!sheet) return [];
+  
+  const data = sheet.getDataRange().getValues();
+  let active = [];
+  
+  for(let i = 1; i < data.length; i++) {
+    if(data[i][7] === "Active") {
+      active.push({
+        id: data[i][0],
+        name: data[i][1],
+        startDate: data[i][2] instanceof Date ? Utilities.formatDate(data[i][2], Session.getScriptTimeZone(), 'dd/MM/yyyy') : data[i][2]
+      });
+    }
+  }
+  return active;
+}
+
+/**
+ * Esegue la logica completa di Rinegoziazione o Surroga:
+ * 1. Calcola debito residuo.
+ * 2. Archivia vecchio debito.
+ * 3. Crea nuovo debito e lo ricollega agli Asset.
+ * 4. Stoppa la vecchia rata mensile e ne crea una nuova.
+ */
+function renegotiateDebtBackend(oldDebtId, newRatePct, newYears, newDateStr, bankCol) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const dbDebts = ss.getSheetByName("DB_Debts");
+  const dbAssets = ss.getSheetByName("DB_RealAssets");
+  const dbFixed = ss.getSheetByName("Config_FixedExpenses");
+  
+  const debtsData = dbDebts.getDataRange().getValues();
+  let oldDebtRowIdx = -1;
+  let oldDebt = null;
+  
+  // Trova il debito da chiudere
+  for(let i = 1; i < debtsData.length; i++) {
+    if(debtsData[i][0] === oldDebtId) {
+      oldDebtRowIdx = i + 1;
+      oldDebt = {
+         name: debtsData[i][1],
+         startDate: new Date(debtsData[i][2]),
+         principal: parseFloat(debtsData[i][3]),
+         rateDec: parseFloat(debtsData[i][4]), // Questo è già es. 0.025
+         years: parseFloat(debtsData[i][5])
+      };
+      break;
+    }
+  }
+  if(!oldDebt) throw new Error("Debito originale non trovato nel DB.");
+
+  // --- CALCOLO DEBITO RESIDUO (Formula Inversa Ammortamento Francese) ---
+  const newDate = new Date(newDateStr);
+  let monthsPassed = (newDate.getFullYear() - oldDebt.startDate.getFullYear()) * 12 + (newDate.getMonth() - oldDebt.startDate.getMonth());
+  
+  let oldMonthlyRate = oldDebt.rateDec / 12;
+  let oldTotalMonths = oldDebt.years * 12;
+  let outstandingAmount = oldDebt.principal; 
+  
+  if(monthsPassed > 0 && monthsPassed < oldTotalMonths) {
+     // Calcolo Rata originaria
+     let pmt = oldDebt.principal * (oldMonthlyRate * Math.pow(1 + oldMonthlyRate, oldTotalMonths)) / (Math.pow(1 + oldMonthlyRate, oldTotalMonths) - 1);
+     if(isNaN(pmt)) pmt = oldDebt.principal / oldTotalMonths; // Fallback tasso zero
+     
+     // Attualizzazione delle rate rimanenti
+     let monthsRemaining = oldTotalMonths - monthsPassed;
+     outstandingAmount = pmt * (1 - Math.pow(1 + oldMonthlyRate, -monthsRemaining)) / oldMonthlyRate;
+  } else if (monthsPassed >= oldTotalMonths) {
+     throw new Error("Impossibile rinegoziare: questo debito risulta già estinto nella data indicata.");
+  }
+
+  // 1. Chiudi vecchio debito
+  dbDebts.getRange(oldDebtRowIdx, 8).setValue("Renegotiated");
+
+  // 2. Crea nuovo debito
+  const newDebtId = "DBT-" + new Date().getTime().toString().slice(-6);
+  let newRateDec = parseFloat(newRatePct) / 100; // Come sempre formattiamo il tasso
+  let newMonths = Math.round(parseFloat(newYears) * 12);
+  let newMonthlyRate = newRateDec / 12;
+  
+  let newPmt = outstandingAmount * (newMonthlyRate * Math.pow(1 + newMonthlyRate, newMonths)) / (Math.pow(1 + newMonthlyRate, newMonths) - 1);
+  if(isNaN(newPmt) || newMonthlyRate === 0) newPmt = outstandingAmount / newMonths;
+
+  dbDebts.appendRow([
+    newDebtId,
+    oldDebt.name + " (Rin.)",
+    newDateStr,
+    outstandingAmount, // Il nuovo capitale erogato è il residuo precedente!
+    newRateDec,
+    newYears,
+    Number(newPmt.toFixed(2)),
+    "Active"
+  ]);
+
+  // 3. Aggiorna DB_RealAssets (Se il debito è legato a una casa, sostituisce il link)
+  if (dbAssets) {
+     let assetsData = dbAssets.getDataRange().getValues();
+     for(let i = 1; i < assetsData.length; i++) {
+        if(assetsData[i][10] === oldDebtId) { // Linked_Debt_ID è colonna K
+           dbAssets.getRange(i + 1, 11).setValue(newDebtId);
+        }
+     }
+  }
+
+  // 4. Aggiorna Spese Fisse (Config_FixedExpenses)
+  if (dbFixed) {
+     let fixedData = dbFixed.getDataRange().getValues();
+     // Blocca l'addebito della vecchia rata sovrascrivendo l'EndDate con la data di rinegoziazione
+     for(let i = 1; i < fixedData.length; i++) {
+        let note = String(fixedData[i][2]);
+        if(note.includes(oldDebt.name) && fixedData[i][8] !== true) { // Cerca la nota e assicurati non sia uno split
+           dbFixed.getRange(i + 1, 8).setValue(newDateStr); // Colonna H: endDate
+        }
+     }
+     
+     // Calcola la scadenza del nuovo accordo
+     let endNewDate = new Date(newDate);
+     endNewDate.setMonth(endNewDate.getMonth() + newMonths);
+     
+     addFixedExpenseToSheet({
+        cat: oldDebt.name.includes("Mutuo") ? "Mutuo Immobile" : "Debiti/Prestiti",
+        note: "Rata " + oldDebt.name + " (Rin.)",
+        amt: Number(newPmt.toFixed(2)),
+        startDate: Utilities.formatDate(newDate, Session.getScriptTimeZone(), "yyyy-MM-dd"),
+        endDate: Utilities.formatDate(endNewDate, Session.getScriptTimeZone(), "yyyy-MM-dd"),
+        payDay: newDate.getDate(),
+        bankCol: bankCol,
+        isSplit: false
+     });
+  }
+
+  return "Rinegoziazione completata con successo!\nNuovo capitale ricalcolato: € " + outstandingAmount.toFixed(2) + "\nNuova rata: € " + newPmt.toFixed(2);
+}
