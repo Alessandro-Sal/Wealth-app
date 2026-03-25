@@ -1,26 +1,19 @@
 /**
  * Retrieves key metrics from the "Net Worth OGGI" sheet.
- * Maps specific rows for Total and Liquid Net Worth based on user configuration.
- * * @return {Object} Dashboard data object containing summary stats and section-specific details.
+ * Includes Real Assets & Liabilities to calculate a global holistic Net Worth and accurate allocation percentages.
+ * @return {Object} Dashboard data object containing summary stats and section-specific details.
  */
 function getDashboardData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName("Net Worth OGGI");
   if (!sheet) return { error: "Sheet 'Net Worth OGGI' not found" };
 
-  // --- ULTIMATE FIX: FORCE CALCULATION & CATCH "0" ---
-  // 1. Force Google Sheets to apply any pending formulas immediately
   SpreadsheetApp.flush(); 
 
-  // 2. Check if it's calculating (Errors, "Loading", or even temporarily "0")
   const isCalculating = (rawVal, displayVal) => {
     const str = String(displayVal).toUpperCase();
     const hasErrorString = str === "" || str.includes("#") || str.includes("LOAD") || str.includes("ERROR") || str.includes("N/A");
-    
-    // Many crypto formulas (like IFERROR) return 0 while loading from CoinGecko/Binance.
-    // We treat 0 as a "temporary" state and wait a few seconds just to be sure.
     const isTemporaryZero = (rawVal === 0 || rawVal === "0" || str === "€ 0,00" || str === "0,00 €");
-    
     return hasErrorString || isTemporaryZero;
   };
 
@@ -28,92 +21,90 @@ function getDashboardData() {
   let cryptoStr = sheet.getRange(6, 2).getDisplayValue();
   let retries = 0;
   
-  // OPTIMIZED: Reduced wait time to prevent blocking the UI.
-  // We wait max 1 second instead of 6. The 60-second polling will catch any late API responses.
   while (isCalculating(cryptoRaw, cryptoStr) && retries < 1) {
     Utilities.sleep(1000); 
-    SpreadsheetApp.flush(); // Force refresh at each tick to get fresh API data
+    SpreadsheetApp.flush(); 
     cryptoRaw = sheet.getRange(6, 2).getValue();
     cryptoStr = sheet.getRange(6, 2).getDisplayValue();
     retries++;
   }
 
-  // If it's still showing an ERROR string after 6s, abort to protect UI.
-  // (Note: If it's still '0' after 6 seconds, we accept it, because you might genuinely have 0 balance)
   const isStillError = (displayVal) => {
      const str = String(displayVal).toUpperCase();
      return str === "" || str.includes("#") || str.includes("LOAD") || str.includes("ERROR") || str.includes("N/A");
   };
 
   if (isStillError(cryptoStr)) {
-    console.log("Crypto values are in error state. Skipping update.");
     return { error: "Sheet is recalculating or API down. Skipping update." };
   }
 
-  // Helper to read Value (Col B=2) and Percentage (Col C=3) for top tables
-  const getRowData = (row) => {
+  // --- 1. INTEGRAZIONE ASSET REALI ALLA RADICE ---
+  let realAssets = getRealAssetsSummary() || { 
+      realEstate: { net: 0 }, 
+      bonds: { net: 0 }, 
+      totalNetWorthImpact: 0 
+  };
+
+  // Calcolo VERO GRAND TOTAL (Liquidità + Immobili + Bond - Debiti)
+  let rawBaseTotal = parseFloat(sheet.getRange(24, 1).getValue()) || 0;
+  let grandTotal = rawBaseTotal + realAssets.totalNetWorthImpact;
+  
+  const fmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+
+  // --- 2. RICALCOLO PERCENTUALI SUL NUOVO TOTALONE ---
+  const getRecalculatedRow = (row) => {
     const val = sheet.getRange(row, 2).getDisplayValue(); 
-    const raw = sheet.getRange(row, 2).getValue();
-    const pct = sheet.getRange(row, 3).getDisplayValue(); 
-    return { amount: val, raw: (typeof raw === 'number' ? raw : 0), percent: pct };
+    const raw = parseFloat(sheet.getRange(row, 2).getValue()) || 0;
+    let pct = grandTotal > 0 ? ((raw / grandTotal) * 100).toFixed(1) + "%" : "0.0%";
+    return { amount: val, raw: raw, percent: pct };
   };
 
   const getSectionData = (startRow) => {
     return {
-      unrealized: { 
-        amount: sheet.getRange(startRow, 2).getDisplayValue(),     
-        percent: sheet.getRange(startRow, 3).getDisplayValue() 
-      },
-      realized: { 
-        amount: sheet.getRange(startRow + 1, 2).getDisplayValue(), 
-        percent: sheet.getRange(startRow + 1, 3).getDisplayValue() 
-      },
-      balance: { 
-        amount: sheet.getRange(startRow + 2, 2).getDisplayValue(), 
-        percent: sheet.getRange(startRow + 2, 3).getDisplayValue() 
-      },
-      invested: {
-        amount: sheet.getRange(startRow + 3, 2).getDisplayValue(), 
-        percent: "" 
-      }
+      unrealized: { amount: sheet.getRange(startRow, 2).getDisplayValue(), percent: sheet.getRange(startRow, 3).getDisplayValue() },
+      realized: { amount: sheet.getRange(startRow + 1, 2).getDisplayValue(), percent: sheet.getRange(startRow + 1, 3).getDisplayValue() },
+      balance: { amount: sheet.getRange(startRow + 2, 2).getDisplayValue(), percent: sheet.getRange(startRow + 2, 3).getDisplayValue() },
+      invested: { amount: sheet.getRange(startRow + 3, 2).getDisplayValue(), percent: "" }
     };
   };
 
+  const pensionRaw = parseFloat(sheet.getRange(24, 4).getValue()) || 0;
+
   return {
-    // Liquid NW at Row 26 (Col A=1 EUR, Col B=2 USD)
     liquidNetWorth: sheet.getRange(26, 1).getDisplayValue(),    
     liquidNetWorthUSD: sheet.getRange(26, 2).getDisplayValue(), 
     
-    // Total NW at Row 24 (Col A=1 EUR, Col B=2 USD)
-    totalNetWorth: sheet.getRange(24, 1).getDisplayValue(),     
-    totalNetWorthUSD: sheet.getRange(24, 2).getDisplayValue(),  
+    totalNetWorth: fmt.format(grandTotal), // <-- RESTITUISCE IL NUMERONE AGGIORNATO AL 100%
+    totalNetWorthUSD: sheet.getRange(24, 2).getDisplayValue(), 
 
     summary: { 
-      etfs: getRowData(2),      
-      stocks: getRowData(3),    
-      cash: getRowData(4),      
-      cashEq: getRowData(5),    
-      crypto: getRowData(6),    
-      others: getRowData(7),
+      etfs: getRecalculatedRow(2),      
+      stocks: getRecalculatedRow(3),    
+      cash: getRecalculatedRow(4),      
+      cashEq: getRecalculatedRow(5),    
+      crypto: getRecalculatedRow(6),    
+      others: getRecalculatedRow(7),
       pension: {
         amount: sheet.getRange(24, 4).getDisplayValue(), 
-        raw: (typeof sheet.getRange(24, 4).getValue() === 'number' ? sheet.getRange(24, 4).getValue() : 0),
-        percent: sheet.getRange(24, 5).getDisplayValue() 
+        raw: pensionRaw,
+        percent: grandTotal > 0 ? ((pensionRaw / grandTotal) * 100).toFixed(1) + "%" : "0.0%"
+      },
+      // Inseriamo anche Real Estate e Bonds nel summary con la % calcolata!
+      realEstate: {
+        amount: fmt.format(realAssets.realEstate.net),
+        raw: realAssets.realEstate.net,
+        percent: grandTotal > 0 ? ((realAssets.realEstate.net / grandTotal) * 100).toFixed(1) + "%" : "0.0%"
+      },
+      bonds: {
+        amount: fmt.format(realAssets.bonds.net),
+        raw: realAssets.bonds.net,
+        percent: grandTotal > 0 ? ((realAssets.bonds.net / grandTotal) * 100).toFixed(1) + "%" : "0.0%"
       }
     },
 
-    cryptoSection: {
-      main: getRowData(6), 
-      ...getSectionData(9) 
-    },
-    stocksSection: {
-      main: getRowData(3),
-      ...getSectionData(14)
-    },
-    etfSection: {
-      main: getRowData(2),
-      ...getSectionData(19)
-    }
+    cryptoSection: { main: getRecalculatedRow(6), ...getSectionData(9) },
+    stocksSection: { main: getRecalculatedRow(3), ...getSectionData(14) },
+    etfSection: { main: getRecalculatedRow(2), ...getSectionData(19) }
   };
 }
 

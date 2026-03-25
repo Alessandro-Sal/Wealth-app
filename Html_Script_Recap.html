@@ -748,22 +748,21 @@ function renderCPScatterChart() {
     });
 }
 /**
- * Chiama il backend per recuperare la sintesi di Real Estate, Bonds e Liabilities 
- * e popola le righe native del p-recap, la legenda e innesca i ricalcoli totali.
+ * Chiama il backend per recuperare la sintesi di Real Estate, Bonds e Liabilities.
+ * Utilizza la LocalStorage Cache per un rendering UI istantaneo senza attese.
  */
 function loadRealAssetsDashboard() {
-    google.script.run.withSuccessHandler(function(summary) {
-        if (!summary) return;
-        
+    // Helper interno per stampare a schermo i dati
+    const renderData = (summary) => {
         const fmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
         
         // 1. Popola i Widget a Griglia
-        document.getElementById('dash-re-net').innerText = fmt.format(summary.realEstate.net);
-        document.getElementById('dash-re-gross').innerText = fmt.format(summary.realEstate.gross);
-        document.getElementById('dash-re-debt').innerText = "-" + fmt.format(summary.realEstate.debt);
+        if(document.getElementById('dash-re-net')) document.getElementById('dash-re-net').innerText = fmt.format(summary.realEstate.net);
+        if(document.getElementById('dash-re-gross')) document.getElementById('dash-re-gross').innerText = fmt.format(summary.realEstate.gross);
+        if(document.getElementById('dash-re-debt')) document.getElementById('dash-re-debt').innerText = "-" + fmt.format(summary.realEstate.debt);
         
-        document.getElementById('dash-bond-net').innerText = fmt.format(summary.bonds.net);
-        document.getElementById('dash-liab-net').innerText = fmt.format(summary.liabilities.net);
+        if(document.getElementById('dash-bond-net')) document.getElementById('dash-bond-net').innerText = fmt.format(summary.bonds.net);
+        if(document.getElementById('dash-liab-net')) document.getElementById('dash-liab-net').innerText = fmt.format(summary.liabilities.net);
 
         // 2. Popola la Legenda sotto al Grafico a Torta
         if(document.getElementById('sum-re-a')) document.getElementById('sum-re-a').innerText = fmt.format(summary.realEstate.net);
@@ -779,7 +778,19 @@ function loadRealAssetsDashboard() {
         if (typeof recalculateGrandTotal === "function") recalculateGrandTotal();
         const cachedSummary = JSON.parse(localStorage.getItem('dashboard_cache'))?.summary || {};
         if (typeof renderAssetChart === "function") renderAssetChart(cachedSummary);
-        
+    };
+
+    // --- FASE 1: FAST RENDER DA CACHE ---
+    const cachedRealAssets = localStorage.getItem('realAssets_cache');
+    if (cachedRealAssets) {
+        try { renderData(JSON.parse(cachedRealAssets)); } catch(e) {}
+    }
+
+    // --- FASE 2: FETCH IN BACKGROUND ---
+    google.script.run.withSuccessHandler(function(summary) {
+        if (!summary) return;
+        localStorage.setItem('realAssets_cache', JSON.stringify(summary)); // Salva in cache
+        renderData(summary); // Aggiorna i dati invisibilmente
     }).getRealAssetsSummary();
 }
 </script>

@@ -102,13 +102,8 @@
      }).getMonthlyChartData(year);
    }
    
-   /**
-    * Renders the Asset Allocation Doughnut Chart.
-    * 
-    */
-   /**
+/**
  * Renders the Asset Allocation Doughnut Chart.
- * Aggiornato per includere Real Estate e Bonds.
  */
 function renderAssetChart(summary) {
   const canvas = document.getElementById('assetAllocationChart');
@@ -127,18 +122,15 @@ function renderAssetChart(summary) {
   const valCash = s.cash?.raw || 0; 
   const totalLiquid = valCashEq > 0 ? valCashEq : valCash;
 
-  // --- NUOVI VALORI: ASSET REALI ---
-  const valRealEstate = window.globalRealEstateNet || 0;
-  const valBonds = window.globalBondsNet || 0;
+  // Pesca in maniera nativa i dati strutturati dal server
+  const valRealEstate = s.realEstate?.raw || 0;
+  const valBonds = s.bonds?.raw || 0;
   
-  // Aggiunte le etichette per Bonds e Real Estate
   const labels = ['Stocks', 'Liquid', 'ETFs', 'Crypto', 'Bonds', 'Real Estate', 'Others', 'Pension'];
   const values = [valStocks, totalLiquid, valEtfs, valCrypto, valBonds, valRealEstate, valOthers, valPension];
   
   const totalCheck = values.reduce((a, b) => a + b, 0);
   const finalValues = totalCheck > 0 ? values : [1]; 
-  
-  // Aggiunti due nuovi colori alla palette: #32ade6 (Azzurro/Bonds) e #34c759 (Verde/Real Estate)
   const finalColors = totalCheck > 0 ? ['#28a745', '#007aff', '#555555', '#ffc107', '#32ade6', '#34c759', '#ff2d55', '#fd7e14'] : ['#e5e5ea'];
   
   assetChart = new Chart(ctx, {
