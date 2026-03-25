@@ -119,7 +119,7 @@ function renderAssetChart(summary) {
   const valOthers = s.others?.raw || 0; 
   const valPension = s.pension?.raw || 0;
   
-  // Utilizza l'esatta logica della Dashboard per il settore "Liquid"
+  // Utilizza l'esatta logica della Dashboard per il settore "Liquid" (Non fa doppi conteggi)
   const valCash = s.cash?.raw || 0; 
   const valCashEq = s.cashEq?.raw || 0; 
   const totalLiquid = valCashEq > 0 ? valCashEq : valCash; 
@@ -134,8 +134,8 @@ function renderAssetChart(summary) {
   const finalValues = totalCheck > 0 ? values : [1]; 
   const finalColors = totalCheck > 0 ? ['#28a745', '#007aff', '#555555', '#ffc107', '#32ade6', '#34c759', '#ff2d55', '#fd7e14'] : ['#e5e5ea'];
   
-  // Il grafico attinge al Totale Master Assoluto calcolato dal server
-  const chartGrandTotal = s.grandTotal > 0 ? s.grandTotal : totalCheck;
+  // FIX: Usa AllocatedTotal per allineare le % al 100% esatto senza lo sfasamento dei debiti
+  const chartGrandTotal = s.allocatedTotal > 0 ? s.allocatedTotal : totalCheck;
 
   assetChart = new Chart(ctx, {
       type: 'doughnut',

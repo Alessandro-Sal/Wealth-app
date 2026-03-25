@@ -1,6 +1,6 @@
 /**
  * Retrieves key metrics from the "Net Worth OGGI" sheet.
- * Computes a true mathGrandTotal from scratch to guarantee 100% distribution allocation.
+ * Separates Net Worth (including liabilities) from Allocated Total (pure assets) for perfect 100% percentages.
  */
 function getDashboardData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -30,7 +30,7 @@ function getDashboardData() {
     return { error: "Sheet is recalculating. Skipping update." };
   }
 
-  // --- 1. ESTRATTORE NUMERICO BLINDATO ---
+  // --- 1. ESTRATTORE NUMERICO ---
   const getSafeNum = (row, col) => {
     let val = sheet.getRange(row, col).getValue();
     if (typeof val === 'number') return val;
@@ -51,19 +51,23 @@ function getDashboardData() {
   try { realAssets = getRealAssetsSummary(); } catch(e) {}
   if (!realAssets) realAssets = { realEstate: { net: 0 }, bonds: { net: 0 }, totalNetWorthImpact: 0 };
 
-  // --- 3. COSTRUZIONE VERO TOTALE MATEMATICO ---
-  // Per il totale usiamo CashEq se esiste, altrimenti il Cash normale (evita doppi conteggi)
+  // --- 3. SEPARAZIONE: NET WORTH vs ASSET ALLOCATION ---
   const effectiveCash = valCashEq > 0 ? valCashEq : valCash;
   const mathLiquidNW = valStocks + valEtfs + effectiveCash + valCrypto + valOthers;
+  
+  // A. Il Vero Patrimonio Netto (Inclusi i debiti/passività = Numerone in cima all'app)
   const mathGrandTotal = mathLiquidNW + valPension + realAssets.totalNetWorthImpact;
+
+  // B. Il Totale Allocato (Esclusi i debiti liberi = Base per il Grafico a Torta al 100%)
+  const mathAllocatedTotal = mathLiquidNW + valPension + realAssets.realEstate.net + realAssets.bonds.net;
 
   const fmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 
-  // --- 4. CALCOLO PERCENTUALI AL 100% ---
-  const calcPct = (raw) => mathGrandTotal > 0 ? ((raw / mathGrandTotal) * 100).toFixed(1) + "%" : "0.0%";
+  // --- 4. CALCOLO PERCENTUALI (Sulla torta allocata) ---
+  const calcPct = (raw) => mathAllocatedTotal > 0 ? ((raw / mathAllocatedTotal) * 100).toFixed(1) + "%" : "0.0%";
 
-  const getRecalcRow = (row, rawNum) => {
-    return { amount: sheet.getRange(row, 2).getDisplayValue(), raw: rawNum, percent: calcPct(rawNum) };
+  const getRecalcRow = (row, rawNum, hidePct = false) => {
+    return { amount: sheet.getRange(row, 2).getDisplayValue(), raw: rawNum, percent: hidePct ? "" : calcPct(rawNum) };
   };
 
   const getSectionData = (startRow) => {
@@ -78,15 +82,18 @@ function getDashboardData() {
   return {
     liquidNetWorth: fmt.format(mathLiquidNW),    
     liquidNetWorthUSD: sheet.getRange(26, 2).getDisplayValue(), 
-    totalNetWorth: fmt.format(mathGrandTotal), // USA IL VERO TOTALE
+    totalNetWorth: fmt.format(mathGrandTotal), // NUMERONE PRINCIPALE (Include debiti)
     totalNetWorthUSD: sheet.getRange(24, 2).getDisplayValue(), 
 
     summary: { 
-      grandTotal: mathGrandTotal, 
+      allocatedTotal: mathAllocatedTotal, // <-- INVIATO AL GRAFICO FRONTEND
       etfs: getRecalcRow(2, valEtfs),      
       stocks: getRecalcRow(3, valStocks),    
-      cash: getRecalcRow(4, valCash),      
-      cashEq: getRecalcRow(5, valCashEq),    
+      
+      // LOGICA ANTI-DOPPIONE: Nasconde la % di uno se esiste l'altro
+      cash: getRecalcRow(4, valCash, valCashEq > 0),      
+      cashEq: getRecalcRow(5, valCashEq, valCashEq === 0),    
+      
       crypto: getRecalcRow(6, valCrypto),    
       others: getRecalcRow(7, valOthers),
       pension: { amount: sheet.getRange(24, 4).getDisplayValue(), raw: valPension, percent: calcPct(valPension) },
