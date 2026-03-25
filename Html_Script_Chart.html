@@ -119,16 +119,13 @@ function renderAssetChart(summary) {
   const valOthers = s.others?.raw || 0; 
   const valPension = s.pension?.raw || 0;
   
-  // Utilizza l'esatta logica della Dashboard per il settore "Liquid" (Non fa doppi conteggi)
-  const valCash = s.cash?.raw || 0; 
-  const valCashEq = s.cashEq?.raw || 0; 
-  const totalLiquid = valCashEq > 0 ? valCashEq : valCash; 
+ const valLiquid = s.liquid?.raw || 0;
 
   const valRealEstate = s.realEstate?.raw || 0;
   const valBonds = s.bonds?.raw || 0;
   
-  const labels = ['Stocks', 'Liquid', 'ETFs', 'Crypto', 'Bonds', 'Real Estate', 'Others', 'Pension'];
-  const values = [valStocks, totalLiquid, valEtfs, valCrypto, valBonds, valRealEstate, valOthers, valPension];
+  const labels = ['Stocks', 'Liquidità', 'ETFs', 'Crypto', 'Bonds', 'Real Estate', 'Others', 'Pension'];
+  const values = [valStocks, valLiquid, valEtfs, valCrypto, valBonds, valRealEstate, valOthers, valPension];
   
   const totalCheck = values.reduce((a, b) => a + b, 0);
   const finalValues = totalCheck > 0 ? values : [1]; 

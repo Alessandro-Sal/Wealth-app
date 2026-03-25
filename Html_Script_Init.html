@@ -327,21 +327,21 @@ function updateDashboardDOM(d) {
   
   if (d.summary) {
       if(d.summary.stocks) { document.getElementById('sum-s-a').innerText = d.summary.stocks.amount; setP('sum-s-p', d.summary.stocks.percent); }
-      if(d.summary.cash) { document.getElementById('sum-c-a').innerText = d.summary.cash.amount; setP('sum-c-p', d.summary.cash.percent); }
-      if(document.getElementById('sum-ceq-a')) {
-          if (d.summary.cashEq) { document.getElementById('sum-ceq-a').innerText = d.summary.cashEq.amount; setP('sum-ceq-p', d.summary.cashEq.percent); }
-          else { document.getElementById('sum-ceq-a').innerText = "€ 0,00"; setP('sum-ceq-p', "0%"); }
+      
+      // FIX PUNTO 3: Voce Unificata Liquidità per Legenda e Card
+      if(d.summary.liquid) { 
+          if(document.getElementById('sum-liq-a')) document.getElementById('sum-liq-a').innerText = d.summary.liquid.amount; 
+          if(document.getElementById('sum-liq-p')) setP('sum-liq-p', d.summary.liquid.percent); 
+          if(document.getElementById('dash-liq-main')) document.getElementById('dash-liq-main').innerText = d.summary.liquid.amount;
       }
+      
       if(d.summary.etfs) { document.getElementById('sum-e-a').innerText = d.summary.etfs.amount; setP('sum-e-p', d.summary.etfs.percent); }
       if(d.summary.crypto) { document.getElementById('sum-y-a').innerText = d.summary.crypto.amount; setP('sum-y-p', d.summary.crypto.percent); }
       if(d.summary.others) { document.getElementById('sum-o-a').innerText = d.summary.others.amount; setP('sum-o-p', d.summary.others.percent); }
-      
-      // FIX CRITICO: Aggiunto l'aggiornamento della Pensione
       if(d.summary.pension) { 
           if(document.getElementById('sum-p-a')) document.getElementById('sum-p-a').innerText = d.summary.pension.amount; 
           if(document.getElementById('sum-p-p')) setP('sum-p-p', d.summary.pension.percent); 
       }
-
       if(d.summary.realEstate) { 
           if(document.getElementById('sum-re-a')) document.getElementById('sum-re-a').innerText = d.summary.realEstate.amount;
           if(document.getElementById('sum-re-p')) setP('sum-re-p', d.summary.realEstate.percent);
@@ -363,13 +363,25 @@ function updateDashboardDOM(d) {
       setP(`${prefix}-det-re-p`, data.realized.percent);
       document.getElementById(`${prefix}-det-bal-a`).innerText = data.balance.amount; 
       setP(`${prefix}-det-bal-p`, data.balance.percent);
-      if(document.getElementById(`${prefix}-det-inv`) && data.invested) 
-          document.getElementById(`${prefix}-det-inv`).innerText = data.invested.amount;
   };
 
   renderSection('y', d.cryptoSection);
   renderSection('s', d.stocksSection);
   renderSection('e', d.etfSection);
+
+  // Autocaricamento asincrono scomposizione conti bancari nella nuova Card
+  google.script.run.withSuccessHandler(banksData => {
+      const container = document.getElementById('dash-banks-container');
+      if(!container || !banksData || !banksData.banks) return;
+      let html = '';
+      banksData.banks.forEach(b => {
+          html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;">
+                      <span class="label" style="font-size:13px; color:var(--gray); font-weight:600;">${b.name}</span>
+                      <span class="amt sensitive" style="font-size:14px; font-weight:700; color:var(--text-main);">€ ${b.balance}</span>
+                   </div>`;
+      });
+      container.innerHTML = html;
+  }).getBankBalances();
 }
    
    // --- Fetchers (Helpers) ---
