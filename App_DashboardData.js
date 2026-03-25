@@ -11,9 +11,7 @@ function getDashboardData() {
 
   const isCalculating = (rawVal, displayVal) => {
     const str = String(displayVal).toUpperCase();
-    const hasErrorString = str === "" || str.includes("#") || str.includes("LOAD") || str.includes("ERROR") || str.includes("N/A");
-    const isTemporaryZero = (rawVal === 0 || rawVal === "0" || str === "€ 0,00" || str === "0,00 €");
-    return hasErrorString || isTemporaryZero;
+    return str === "" || str.includes("#") || str.includes("LOAD") || str.includes("ERROR") || str.includes("N/A") || rawVal === 0 || str === "€ 0,00";
   };
 
   let cryptoRaw = sheet.getRange(6, 2).getValue();
@@ -37,33 +35,43 @@ function getDashboardData() {
     return { error: "Sheet is recalculating or API down. Skipping update." };
   }
 
-  // --- FIX CRITICO: Pulitore di numeri a prova di bomba ---
-  const parseSheetNumber = (val) => {
-    if (typeof val === 'number') return val;
-    if (!val) return 0;
-    // Rimuove la valuta, i punti delle migliaia e converte la virgola decimale in punto
-    return parseFloat(String(val).replace(/[^0-9,-]+/g,"").replace(',', '.')) || 0;
+  // --- 1. ESTRATTORE SICURO NATIVO ---
+  const getNum = (r, c) => {
+      let v = sheet.getRange(r, c).getValue();
+      return typeof v === 'number' ? v : 0;
   };
 
-  // 1. Lettura Asset Reali
+  // --- 2. LETTURA DI TUTTI I COMPONENTI ---
+  const valStocks = getNum(3, 2);
+  const valEtfs = getNum(2, 2);
+  const valCash = getNum(4, 2);
+  const valCashEq = getNum(5, 2);
+  const valCrypto = getNum(6, 2);
+  const valOthers = getNum(7, 2);
+  const valPension = getNum(24, 4);
+
   let realAssets = getRealAssetsSummary() || { 
       realEstate: { net: 0 }, 
       bonds: { net: 0 }, 
       totalNetWorthImpact: 0 
   };
 
-  // 2. Calcolo VERO GRAND TOTAL (Sempre perfetto)
-  let rawBaseTotal = parseSheetNumber(sheet.getRange(24, 1).getValue());
-  let grandTotal = rawBaseTotal + realAssets.totalNetWorthImpact;
+  // --- 3. COSTRUZIONE DEL VERO TOTALE MATEMATICO ---
+  // Se esiste il CashEq usiamo quello, altrimenti il Cash normale (evita doppi conteggi)
+  const effectiveCash = valCashEq > 0 ? valCashEq : valCash;
   
+  let mathLiquidNW = valStocks + valEtfs + effectiveCash + valCrypto + valOthers;
+  let mathGrandTotal = mathLiquidNW + valPension + realAssets.totalNetWorthImpact;
+
   const fmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 
-  // 3. Ricalcolo Matematico Percentuali
+  // --- 4. RICALCOLO PERCENTUALI GARANTITO ---
+  const calcPct = (raw) => mathGrandTotal > 0 ? ((raw / mathGrandTotal) * 100).toFixed(1) + "%" : "0.0%";
+
   const getRecalculatedRow = (row) => {
     const val = sheet.getRange(row, 2).getDisplayValue(); 
-    const raw = parseSheetNumber(sheet.getRange(row, 2).getValue());
-    let pct = grandTotal > 0 ? ((raw / grandTotal) * 100).toFixed(1) + "%" : "0.0%";
-    return { amount: val, raw: raw, percent: pct };
+    const raw = getNum(row, 2);
+    return { amount: val, raw: raw, percent: calcPct(raw) };
   };
 
   const getSectionData = (startRow) => {
@@ -75,16 +83,14 @@ function getDashboardData() {
     };
   };
 
-  const pensionRaw = parseSheetNumber(sheet.getRange(24, 4).getValue());
-
   return {
-    liquidNetWorth: sheet.getRange(26, 1).getDisplayValue(),    
+    liquidNetWorth: fmt.format(mathLiquidNW),    
     liquidNetWorthUSD: sheet.getRange(26, 2).getDisplayValue(), 
-    totalNetWorth: fmt.format(grandTotal), 
+    totalNetWorth: fmt.format(mathGrandTotal), 
     totalNetWorthUSD: sheet.getRange(24, 2).getDisplayValue(), 
 
     summary: { 
-      grandTotal: grandTotal, // <-- ESPORTIAMO IL TOTALE PER OBBILIGARE IL GRAFICO ALLA COERENZA
+      grandTotal: mathGrandTotal, // ESPORTIAMO IL VERO TOTALE PER IL GRAFICO
       etfs: getRecalculatedRow(2),      
       stocks: getRecalculatedRow(3),    
       cash: getRecalculatedRow(4),      
@@ -93,18 +99,18 @@ function getDashboardData() {
       others: getRecalculatedRow(7),
       pension: {
         amount: sheet.getRange(24, 4).getDisplayValue(), 
-        raw: pensionRaw,
-        percent: grandTotal > 0 ? ((pensionRaw / grandTotal) * 100).toFixed(1) + "%" : "0.0%"
+        raw: valPension,
+        percent: calcPct(valPension)
       },
       realEstate: {
         amount: fmt.format(realAssets.realEstate.net),
         raw: realAssets.realEstate.net,
-        percent: grandTotal > 0 ? ((realAssets.realEstate.net / grandTotal) * 100).toFixed(1) + "%" : "0.0%"
+        percent: calcPct(realAssets.realEstate.net)
       },
       bonds: {
         amount: fmt.format(realAssets.bonds.net),
         raw: realAssets.bonds.net,
-        percent: grandTotal > 0 ? ((realAssets.bonds.net / grandTotal) * 100).toFixed(1) + "%" : "0.0%"
+        percent: calcPct(realAssets.bonds.net)
       }
     },
 

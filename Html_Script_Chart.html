@@ -119,10 +119,10 @@ function renderAssetChart(summary) {
   const valOthers = s.others?.raw || 0; 
   const valPension = s.pension?.raw || 0;
   
-  // FIX 1: Sommiamo Cash e CashEq nativamente per disegnare la fetta Liquid
+  // Utilizza l'esatta logica della Dashboard per il settore "Liquid"
   const valCash = s.cash?.raw || 0; 
   const valCashEq = s.cashEq?.raw || 0; 
-  const totalLiquid = valCash + valCashEq; 
+  const totalLiquid = valCashEq > 0 ? valCashEq : valCash; 
 
   const valRealEstate = s.realEstate?.raw || 0;
   const valBonds = s.bonds?.raw || 0;
@@ -134,7 +134,7 @@ function renderAssetChart(summary) {
   const finalValues = totalCheck > 0 ? values : [1]; 
   const finalColors = totalCheck > 0 ? ['#28a745', '#007aff', '#555555', '#ffc107', '#32ade6', '#34c759', '#ff2d55', '#fd7e14'] : ['#e5e5ea'];
   
-  // FIX 2: Costringiamo il grafico a usare il Totale Master per allineare i tooltip alla Dashboard
+  // Il grafico attinge al Totale Master Assoluto calcolato dal server
   const chartGrandTotal = s.grandTotal > 0 ? s.grandTotal : totalCheck;
 
   assetChart = new Chart(ctx, {
@@ -151,7 +151,6 @@ function renderAssetChart(summary) {
                           let label = context.label || ''; if (label) label += ': ';
                           let val = context.raw;
                           
-                          // Calcolo della percentuale col Totalone!
                           let percentage = chartGrandTotal > 0 ? ((val / chartGrandTotal) * 100).toFixed(1) + '%' : '0.0%';
                           
                           if (document.body.classList.contains('privacy-mode')) return `${label} **** (${percentage})`;
