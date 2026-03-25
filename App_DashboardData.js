@@ -1,6 +1,6 @@
 /**
  * Retrieves key metrics from the "Net Worth OGGI" sheet.
- * Includes Real Assets & Liabilities to calculate a global holistic Net Worth and accurate allocation percentages.
+ * Computes a true mathGrandTotal from scratch to guarantee 100% distribution allocation.
  */
 function getDashboardData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -11,7 +11,7 @@ function getDashboardData() {
 
   const isCalculating = (rawVal, displayVal) => {
     const str = String(displayVal).toUpperCase();
-    return str === "" || str.includes("#") || str.includes("LOAD") || str.includes("ERROR") || str.includes("N/A") || rawVal === 0 || str === "€ 0,00";
+    return str === "" || str.includes("#") || str.includes("LOAD") || str.includes("ERROR") || str.includes("N/A");
   };
 
   let cryptoRaw = sheet.getRange(6, 2).getValue();
@@ -26,52 +26,44 @@ function getDashboardData() {
     retries++;
   }
 
-  const isStillError = (displayVal) => {
-     const str = String(displayVal).toUpperCase();
-     return str === "" || str.includes("#") || str.includes("LOAD") || str.includes("ERROR") || str.includes("N/A");
-  };
-
-  if (isStillError(cryptoStr)) {
-    return { error: "Sheet is recalculating or API down. Skipping update." };
+  if (isCalculating(cryptoRaw, cryptoStr)) {
+    return { error: "Sheet is recalculating. Skipping update." };
   }
 
-  // --- 1. ESTRATTORE SICURO NATIVO ---
-  const getNum = (r, c) => {
-      let v = sheet.getRange(r, c).getValue();
-      return typeof v === 'number' ? v : 0;
+  // --- 1. ESTRATTORE NUMERICO BLINDATO ---
+  const getSafeNum = (row, col) => {
+    let val = sheet.getRange(row, col).getValue();
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    return parseFloat(String(val).replace(/[^0-9,-]+/g,"").replace(',', '.')) || 0;
   };
 
-  // --- 2. LETTURA DI TUTTI I COMPONENTI ---
-  const valStocks = getNum(3, 2);
-  const valEtfs = getNum(2, 2);
-  const valCash = getNum(4, 2);
-  const valCashEq = getNum(5, 2);
-  const valCrypto = getNum(6, 2);
-  const valOthers = getNum(7, 2);
-  const valPension = getNum(24, 4);
+  // --- 2. LETTURA COMPONENTI INDIVIDUALI ---
+  const valEtfs = getSafeNum(2, 2);
+  const valStocks = getSafeNum(3, 2);
+  const valCash = getSafeNum(4, 2);
+  const valCashEq = getSafeNum(5, 2);
+  const valCrypto = getSafeNum(6, 2);
+  const valOthers = getSafeNum(7, 2);
+  const valPension = getSafeNum(24, 4);
 
-  let realAssets = getRealAssetsSummary() || { 
-      realEstate: { net: 0 }, 
-      bonds: { net: 0 }, 
-      totalNetWorthImpact: 0 
-  };
+  let realAssets;
+  try { realAssets = getRealAssetsSummary(); } catch(e) {}
+  if (!realAssets) realAssets = { realEstate: { net: 0 }, bonds: { net: 0 }, totalNetWorthImpact: 0 };
 
-  // --- 3. COSTRUZIONE DEL VERO TOTALE MATEMATICO ---
-  // Se esiste il CashEq usiamo quello, altrimenti il Cash normale (evita doppi conteggi)
+  // --- 3. COSTRUZIONE VERO TOTALE MATEMATICO ---
+  // Per il totale usiamo CashEq se esiste, altrimenti il Cash normale (evita doppi conteggi)
   const effectiveCash = valCashEq > 0 ? valCashEq : valCash;
-  
-  let mathLiquidNW = valStocks + valEtfs + effectiveCash + valCrypto + valOthers;
-  let mathGrandTotal = mathLiquidNW + valPension + realAssets.totalNetWorthImpact;
+  const mathLiquidNW = valStocks + valEtfs + effectiveCash + valCrypto + valOthers;
+  const mathGrandTotal = mathLiquidNW + valPension + realAssets.totalNetWorthImpact;
 
   const fmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 
-  // --- 4. RICALCOLO PERCENTUALI GARANTITO ---
+  // --- 4. CALCOLO PERCENTUALI AL 100% ---
   const calcPct = (raw) => mathGrandTotal > 0 ? ((raw / mathGrandTotal) * 100).toFixed(1) + "%" : "0.0%";
 
-  const getRecalculatedRow = (row) => {
-    const val = sheet.getRange(row, 2).getDisplayValue(); 
-    const raw = getNum(row, 2);
-    return { amount: val, raw: raw, percent: calcPct(raw) };
+  const getRecalcRow = (row, rawNum) => {
+    return { amount: sheet.getRange(row, 2).getDisplayValue(), raw: rawNum, percent: calcPct(rawNum) };
   };
 
   const getSectionData = (startRow) => {
@@ -86,37 +78,25 @@ function getDashboardData() {
   return {
     liquidNetWorth: fmt.format(mathLiquidNW),    
     liquidNetWorthUSD: sheet.getRange(26, 2).getDisplayValue(), 
-    totalNetWorth: fmt.format(mathGrandTotal), 
+    totalNetWorth: fmt.format(mathGrandTotal), // USA IL VERO TOTALE
     totalNetWorthUSD: sheet.getRange(24, 2).getDisplayValue(), 
 
     summary: { 
-      grandTotal: mathGrandTotal, // ESPORTIAMO IL VERO TOTALE PER IL GRAFICO
-      etfs: getRecalculatedRow(2),      
-      stocks: getRecalculatedRow(3),    
-      cash: getRecalculatedRow(4),      
-      cashEq: getRecalculatedRow(5),    
-      crypto: getRecalculatedRow(6),    
-      others: getRecalculatedRow(7),
-      pension: {
-        amount: sheet.getRange(24, 4).getDisplayValue(), 
-        raw: valPension,
-        percent: calcPct(valPension)
-      },
-      realEstate: {
-        amount: fmt.format(realAssets.realEstate.net),
-        raw: realAssets.realEstate.net,
-        percent: calcPct(realAssets.realEstate.net)
-      },
-      bonds: {
-        amount: fmt.format(realAssets.bonds.net),
-        raw: realAssets.bonds.net,
-        percent: calcPct(realAssets.bonds.net)
-      }
+      grandTotal: mathGrandTotal, 
+      etfs: getRecalcRow(2, valEtfs),      
+      stocks: getRecalcRow(3, valStocks),    
+      cash: getRecalcRow(4, valCash),      
+      cashEq: getRecalcRow(5, valCashEq),    
+      crypto: getRecalcRow(6, valCrypto),    
+      others: getRecalcRow(7, valOthers),
+      pension: { amount: sheet.getRange(24, 4).getDisplayValue(), raw: valPension, percent: calcPct(valPension) },
+      realEstate: { amount: fmt.format(realAssets.realEstate.net), raw: realAssets.realEstate.net, percent: calcPct(realAssets.realEstate.net) },
+      bonds: { amount: fmt.format(realAssets.bonds.net), raw: realAssets.bonds.net, percent: calcPct(realAssets.bonds.net) }
     },
 
-    cryptoSection: { main: getRecalculatedRow(6), ...getSectionData(9) },
-    stocksSection: { main: getRecalculatedRow(3), ...getSectionData(14) },
-    etfSection: { main: getRecalculatedRow(2), ...getSectionData(19) }
+    cryptoSection: { main: getRecalcRow(6, valCrypto), ...getSectionData(9) },
+    stocksSection: { main: getRecalcRow(3, valStocks), ...getSectionData(14) },
+    etfSection: { main: getRecalcRow(2, valEtfs), ...getSectionData(19) }
   };
 }
 

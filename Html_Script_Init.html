@@ -336,7 +336,12 @@ function updateDashboardDOM(d) {
       if(d.summary.crypto) { document.getElementById('sum-y-a').innerText = d.summary.crypto.amount; setP('sum-y-p', d.summary.crypto.percent); }
       if(d.summary.others) { document.getElementById('sum-o-a').innerText = d.summary.others.amount; setP('sum-o-p', d.summary.others.percent); }
       
-      // La legenda del Real Estate si popola magicamente e nativamente
+      // FIX CRITICO: Aggiunto l'aggiornamento della Pensione
+      if(d.summary.pension) { 
+          if(document.getElementById('sum-p-a')) document.getElementById('sum-p-a').innerText = d.summary.pension.amount; 
+          if(document.getElementById('sum-p-p')) setP('sum-p-p', d.summary.pension.percent); 
+      }
+
       if(d.summary.realEstate) { 
           if(document.getElementById('sum-re-a')) document.getElementById('sum-re-a').innerText = d.summary.realEstate.amount;
           if(document.getElementById('sum-re-p')) setP('sum-re-p', d.summary.realEstate.percent);
