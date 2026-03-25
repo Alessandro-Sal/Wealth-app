@@ -118,11 +118,12 @@ function renderAssetChart(summary) {
   const valCrypto = s.crypto?.raw || 0; 
   const valOthers = s.others?.raw || 0; 
   const valPension = s.pension?.raw || 0;
-  const valCashEq = s.cashEq?.raw || 0; 
+  
+  // FIX 1: Sommiamo Cash e CashEq nativamente per disegnare la fetta Liquid
   const valCash = s.cash?.raw || 0; 
-  const totalLiquid = valCashEq > 0 ? valCashEq : valCash;
+  const valCashEq = s.cashEq?.raw || 0; 
+  const totalLiquid = valCash + valCashEq; 
 
-  // Pesca in maniera nativa i dati strutturati dal server
   const valRealEstate = s.realEstate?.raw || 0;
   const valBonds = s.bonds?.raw || 0;
   
@@ -133,6 +134,9 @@ function renderAssetChart(summary) {
   const finalValues = totalCheck > 0 ? values : [1]; 
   const finalColors = totalCheck > 0 ? ['#28a745', '#007aff', '#555555', '#ffc107', '#32ade6', '#34c759', '#ff2d55', '#fd7e14'] : ['#e5e5ea'];
   
+  // FIX 2: Costringiamo il grafico a usare il Totale Master per allineare i tooltip alla Dashboard
+  const chartGrandTotal = s.grandTotal > 0 ? s.grandTotal : totalCheck;
+
   assetChart = new Chart(ctx, {
       type: 'doughnut',
       data: { labels: labels, datasets: [{ data: finalValues, backgroundColor: finalColors, borderWidth: 0, hoverOffset: 4, borderRadius: 5 }] },
@@ -145,11 +149,13 @@ function renderAssetChart(summary) {
                   callbacks: {
                       label: function(context) {
                           let label = context.label || ''; if (label) label += ': ';
-                          let total = context.chart._metasets[context.datasetIndex].total; let val = context.raw;
-                          let percentage = total > 0 ? ((val / total) * 100).toFixed(2) + '%' : '0%';
+                          let val = context.raw;
+                          
+                          // Calcolo della percentuale col Totalone!
+                          let percentage = chartGrandTotal > 0 ? ((val / chartGrandTotal) * 100).toFixed(1) + '%' : '0.0%';
                           
                           if (document.body.classList.contains('privacy-mode')) return `${label} **** (${percentage})`;
-                          if (context.raw !== null) label += new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(context.raw);
+                          if (val !== null) label += new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val);
                           return `${label} (${percentage})`;
                       }
                   }

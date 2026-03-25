@@ -1,7 +1,6 @@
 /**
  * Retrieves key metrics from the "Net Worth OGGI" sheet.
  * Includes Real Assets & Liabilities to calculate a global holistic Net Worth and accurate allocation percentages.
- * @return {Object} Dashboard data object containing summary stats and section-specific details.
  */
 function getDashboardData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -38,23 +37,31 @@ function getDashboardData() {
     return { error: "Sheet is recalculating or API down. Skipping update." };
   }
 
-  // --- 1. INTEGRAZIONE ASSET REALI ALLA RADICE ---
+  // --- FIX CRITICO: Pulitore di numeri a prova di bomba ---
+  const parseSheetNumber = (val) => {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    // Rimuove la valuta, i punti delle migliaia e converte la virgola decimale in punto
+    return parseFloat(String(val).replace(/[^0-9,-]+/g,"").replace(',', '.')) || 0;
+  };
+
+  // 1. Lettura Asset Reali
   let realAssets = getRealAssetsSummary() || { 
       realEstate: { net: 0 }, 
       bonds: { net: 0 }, 
       totalNetWorthImpact: 0 
   };
 
-  // Calcolo VERO GRAND TOTAL (Liquidità + Immobili + Bond - Debiti)
-  let rawBaseTotal = parseFloat(sheet.getRange(24, 1).getValue()) || 0;
+  // 2. Calcolo VERO GRAND TOTAL (Sempre perfetto)
+  let rawBaseTotal = parseSheetNumber(sheet.getRange(24, 1).getValue());
   let grandTotal = rawBaseTotal + realAssets.totalNetWorthImpact;
   
   const fmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 
-  // --- 2. RICALCOLO PERCENTUALI SUL NUOVO TOTALONE ---
+  // 3. Ricalcolo Matematico Percentuali
   const getRecalculatedRow = (row) => {
     const val = sheet.getRange(row, 2).getDisplayValue(); 
-    const raw = parseFloat(sheet.getRange(row, 2).getValue()) || 0;
+    const raw = parseSheetNumber(sheet.getRange(row, 2).getValue());
     let pct = grandTotal > 0 ? ((raw / grandTotal) * 100).toFixed(1) + "%" : "0.0%";
     return { amount: val, raw: raw, percent: pct };
   };
@@ -68,16 +75,16 @@ function getDashboardData() {
     };
   };
 
-  const pensionRaw = parseFloat(sheet.getRange(24, 4).getValue()) || 0;
+  const pensionRaw = parseSheetNumber(sheet.getRange(24, 4).getValue());
 
   return {
     liquidNetWorth: sheet.getRange(26, 1).getDisplayValue(),    
     liquidNetWorthUSD: sheet.getRange(26, 2).getDisplayValue(), 
-    
-    totalNetWorth: fmt.format(grandTotal), // <-- RESTITUISCE IL NUMERONE AGGIORNATO AL 100%
+    totalNetWorth: fmt.format(grandTotal), 
     totalNetWorthUSD: sheet.getRange(24, 2).getDisplayValue(), 
 
     summary: { 
+      grandTotal: grandTotal, // <-- ESPORTIAMO IL TOTALE PER OBBILIGARE IL GRAFICO ALLA COERENZA
       etfs: getRecalculatedRow(2),      
       stocks: getRecalculatedRow(3),    
       cash: getRecalculatedRow(4),      
@@ -89,7 +96,6 @@ function getDashboardData() {
         raw: pensionRaw,
         percent: grandTotal > 0 ? ((pensionRaw / grandTotal) * 100).toFixed(1) + "%" : "0.0%"
       },
-      // Inseriamo anche Real Estate e Bonds nel summary con la % calcolata!
       realEstate: {
         amount: fmt.format(realAssets.realEstate.net),
         raw: realAssets.realEstate.net,
