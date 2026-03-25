@@ -1,6 +1,6 @@
 /**
  * Retrieves key metrics from the "Net Worth OGGI" sheet.
- * Implements strict definitions for Liquid vs Total NW and a Cache Fallback for Crypto APIs.
+ * Implements foolproof Deep Server Cache for Crypto to prevent #N/A phantom zeroing.
  */
 function getDashboardData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -9,76 +9,35 @@ function getDashboardData() {
 
   SpreadsheetApp.flush(); 
 
-  const isCalculating = (rawVal, displayVal) => {
-    const str = String(displayVal).toUpperCase();
-    return str === "" || str.includes("#") || str.includes("LOAD") || str.includes("ERROR") || str.includes("N/A") || rawVal === 0 || str === "€ 0,00";
+  // Funzione infallibile che riconosce se la cella è in errore o sta caricando
+  const isErrorText = (text) => {
+    const str = String(text).toUpperCase();
+    return str === "" || str.includes("#") || str.includes("LOAD") || str.includes("ERROR") || str.includes("N/A");
   };
 
-  let cryptoRaw = sheet.getRange(6, 2).getValue();
+  // FIX CRITICO: Estrazione intelligente. Se c'è un errore, restituisce NULL, non 0.
+  const getSafeNum = (row, col) => {
+    const displayVal = sheet.getRange(row, col).getDisplayValue();
+    if (isErrorText(displayVal)) return null; // Segnale chiaro che la formula è rotta/in caricamento
+
+    const val = sheet.getRange(row, col).getValue();
+    if (typeof val === 'number') return val;
+    const parsed = parseFloat(String(val).replace(/[^0-9,-]+/g,"").replace(',', '.'));
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   let cryptoStr = sheet.getRange(6, 2).getDisplayValue();
+  let cryptoNum = getSafeNum(6, 2);
   let retries = 0;
   
-  // Aumentati i retry a 4 secondi per dare tempo alle API esterne
-  while (isCalculating(cryptoRaw, cryptoStr) && retries < 4) {
+  // Aspetta SOLO se la cella è palesemente in errore (null)
+  while (cryptoNum === null && retries < 4) {
     Utilities.sleep(1000); 
     SpreadsheetApp.flush(); 
-    cryptoRaw = sheet.getRange(6, 2).getValue();
     cryptoStr = sheet.getRange(6, 2).getDisplayValue();
+    cryptoNum = getSafeNum(6, 2);
     retries++;
   }
-
-  // --- FIX PUNTO 4: CACHE DI EMERGENZA CRYPTO ---
-  const cache = CacheService.getUserCache();
-  if (!isCalculating(cryptoRaw, cryptoStr) && cryptoRaw > 0) {
-      // Se il dato è buono, lo salviamo in memoria per 6 ore
-      cache.put('last_crypto_raw', cryptoRaw.toString(), 21600);
-      cache.put('last_crypto_str', cryptoStr, 21600);
-  } else {
-      // Se le API sono ancora rotte/a zero, peschiamo l'ultimo dato noto!
-      const cachedRaw = cache.get('last_crypto_raw');
-      const cachedStr = cache.get('last_crypto_str');
-      if (cachedRaw) {
-          cryptoRaw = parseFloat(cachedRaw);
-          cryptoStr = cachedStr;
-      }
-  }
-
-  const getSafeNum = (val) => {
-    if (typeof val === 'number') return val;
-    if (!val) return 0;
-    return parseFloat(String(val).replace(/[^0-9,-]+/g,"").replace(',', '.')) || 0;
-  };
-
-  const valEtfs = getSafeNum(sheet.getRange(2, 2).getValue());
-  const valStocks = getSafeNum(sheet.getRange(3, 2).getValue());
-  const valCash = getSafeNum(sheet.getRange(4, 2).getValue());
-  const valCashEq = getSafeNum(sheet.getRange(5, 2).getValue());
-  const valCrypto = getSafeNum(cryptoRaw);
-  const valOthers = getSafeNum(sheet.getRange(7, 2).getValue());
-  const valPension = getSafeNum(sheet.getRange(24, 4).getValue());
-
-  let realAssets;
-  try { realAssets = getRealAssetsSummary(); } catch(e) {}
-  if (!realAssets) realAssets = { realEstate: { net: 0 }, bonds: { net: 0 }, totalNetWorthImpact: 0 };
-
-  // --- FIX PUNTI 1 E 2: LE NUOVE DEFINIZIONI MATEMATICHE ---
-  const effectiveCash = valCashEq > 0 ? valCashEq : valCash;
-  
-  // Liquid NW = Stocks + Crypto + Cash eq + Etfs
-  const mathLiquidNW = valStocks + valCrypto + effectiveCash + valEtfs;
-  
-  // Total NW = LiquidNW + Others + Real Estate + Bonds + Pension + (Eventuali Debiti)
-  const mathGrandTotal = mathLiquidNW + valOthers + valPension + realAssets.totalNetWorthImpact;
-
-  // Base 100% pura per il grafico a torta (Asset Allocation senza debiti liberi)
-  const mathAllocatedTotal = mathLiquidNW + valOthers + valPension + realAssets.realEstate.net + realAssets.bonds.net;
-
-  const fmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
-  const calcPct = (raw) => mathAllocatedTotal > 0 ? ((raw / mathAllocatedTotal) * 100).toFixed(1) + "%" : "0.0%";
-
-  const getRecalcRow = (row, rawNum) => {
-    return { amount: sheet.getRange(row, 2).getDisplayValue(), raw: rawNum, percent: calcPct(rawNum) };
-  };
 
   const getSectionData = (startRow) => {
     return {
@@ -86,6 +45,60 @@ function getDashboardData() {
       realized: { amount: sheet.getRange(startRow + 1, 2).getDisplayValue(), percent: sheet.getRange(startRow + 1, 3).getDisplayValue() },
       balance: { amount: sheet.getRange(startRow + 2, 2).getDisplayValue(), percent: sheet.getRange(startRow + 2, 3).getDisplayValue() }
     };
+  };
+
+  // --- DEEP CACHE SALVAVITA CRYPTO ---
+  const scriptProps = PropertiesService.getScriptProperties();
+  let cryptoSectionData;
+
+  if (cryptoNum !== null) {
+      // Dati perfetti (Anche se fosse legittimamente 0€)! -> Aggiorniamo il Vault
+      cryptoSectionData = getSectionData(9);
+      const validCryptoState = { raw: cryptoNum, str: cryptoStr, section: cryptoSectionData };
+      scriptProps.setProperty('DEEP_CACHE_CRYPTO', JSON.stringify(validCryptoState));
+  } else {
+      // La cella è rimasta rotta/N/A -> Peschiamo dal Vault per evitare lo zero in UI!
+      const deepCache = scriptProps.getProperty('DEEP_CACHE_CRYPTO');
+      if (deepCache) {
+          try {
+              const parsed = JSON.parse(deepCache);
+              cryptoNum = parsed.raw;
+              cryptoStr = parsed.str;
+              cryptoSectionData = parsed.section;
+          } catch(e) {}
+      }
+      // Se il Vault è vuoto, forziamo a 0 per non far crashare l'app
+      if (cryptoNum === null) {
+          cryptoNum = 0;
+          cryptoStr = "€ 0,00";
+          cryptoSectionData = { unrealized: { amount: "--", percent: "--" }, realized: { amount: "--", percent: "--" }, balance: { amount: "--", percent: "--" } };
+      }
+  }
+
+  // --- LETTURA ASSET (I null diventano 0 automaticamente per evitare bug matematici) ---
+  const valEtfs = getSafeNum(2, 2) || 0;
+  const valStocks = getSafeNum(3, 2) || 0;
+  const valCash = getSafeNum(4, 2) || 0;
+  const valCashEq = getSafeNum(5, 2) || 0;
+  const valOthers = getSafeNum(7, 2) || 0;
+  const valPension = getSafeNum(24, 4) || 0;
+  const valCrypto = cryptoNum; // Già validato dal Vault
+
+  let realAssets;
+  try { realAssets = getRealAssetsSummary(); } catch(e) {}
+  if (!realAssets) realAssets = { realEstate: { net: 0 }, bonds: { net: 0 }, totalNetWorthImpact: 0 };
+
+  // --- REGOLE NW E CALCOLO PERCENTUALI ---
+  const effectiveCash = valCashEq > 0 ? valCashEq : valCash;
+  const mathLiquidNW = valStocks + valCrypto + effectiveCash + valEtfs;
+  const mathGrandTotal = mathLiquidNW + valOthers + valPension + realAssets.totalNetWorthImpact;
+  const mathAllocatedTotal = mathLiquidNW + valOthers + valPension + realAssets.realEstate.net + realAssets.bonds.net;
+
+  const fmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+  const calcPct = (raw) => mathAllocatedTotal > 0 ? ((raw / mathAllocatedTotal) * 100).toFixed(1) + "%" : "0.0%";
+
+  const getRecalcRow = (row, rawNum) => {
+    return { amount: sheet.getRange(row, 2).getDisplayValue(), raw: rawNum, percent: calcPct(rawNum) };
   };
 
   return {
@@ -98,10 +111,7 @@ function getDashboardData() {
       allocatedTotal: mathAllocatedTotal, 
       etfs: getRecalcRow(2, valEtfs),      
       stocks: getRecalcRow(3, valStocks),    
-      
-      // FIX PUNTO 3: Unifichiamo Cash in un solo blocco per la UI
       liquid: { amount: fmt.format(effectiveCash), raw: effectiveCash, percent: calcPct(effectiveCash) },   
-      
       crypto: { amount: cryptoStr, raw: valCrypto, percent: calcPct(valCrypto) },    
       others: getRecalcRow(7, valOthers),
       pension: { amount: sheet.getRange(24, 4).getDisplayValue(), raw: valPension, percent: calcPct(valPension) },
@@ -109,7 +119,7 @@ function getDashboardData() {
       bonds: { amount: fmt.format(realAssets.bonds.net), raw: realAssets.bonds.net, percent: calcPct(realAssets.bonds.net) }
     },
 
-    cryptoSection: { main: { amount: cryptoStr, raw: valCrypto, percent: calcPct(valCrypto) }, ...getSectionData(9) },
+    cryptoSection: { main: { amount: cryptoStr, raw: valCrypto, percent: calcPct(valCrypto) }, ...cryptoSectionData },
     stocksSection: { main: getRecalcRow(3, valStocks), ...getSectionData(14) },
     etfSection: { main: getRecalcRow(2, valEtfs), ...getSectionData(19) }
   };
