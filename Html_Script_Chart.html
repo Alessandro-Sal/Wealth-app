@@ -106,55 +106,66 @@
     * Renders the Asset Allocation Doughnut Chart.
     * 
     */
-   function renderAssetChart(summary) {
-     const canvas = document.getElementById('assetAllocationChart');
-     if (!canvas) return; 
-     
-     const ctx = canvas.getContext('2d');
-     if (assetChart) { assetChart.destroy(); }
-     
-     const s = summary || {};
-     const valStocks = s.stocks?.raw || 0; 
-     const valEtfs = s.etfs?.raw || 0; 
-     const valCrypto = s.crypto?.raw || 0; 
-     const valOthers = s.others?.raw || 0; 
-     const valPension = s.pension?.raw || 0;
-     const valCashEq = s.cashEq?.raw || 0; 
-     const valCash = s.cash?.raw || 0; 
-     const totalLiquid = valCashEq > 0 ? valCashEq : valCash;
-     
-     const labels = ['Stocks', 'Liquid', 'ETFs', 'Crypto', 'Others', 'Pension'];
-     const values = [valStocks, totalLiquid, valEtfs, valCrypto, valOthers, valPension];
-     
-     const totalCheck = values.reduce((a, b) => a + b, 0);
-     const finalValues = totalCheck > 0 ? values : [1]; 
-     const finalColors = totalCheck > 0 ? ['#28a745', '#007aff', '#555555', '#ffc107', '#ff2d55', '#fd7e14'] : ['#e5e5ea'];
-     
-     assetChart = new Chart(ctx, {
-         type: 'doughnut',
-         data: { labels: labels, datasets: [{ data: finalValues, backgroundColor: finalColors, borderWidth: 0, hoverOffset: 4, borderRadius: 5 }] },
-         options: {
-             responsive: true, maintainAspectRatio: false, cutout: '80%',
-             plugins: {
-                 legend: { display: totalCheck > 0, position: 'bottom', labels: { boxWidth: 10, font: { size: 11 }, padding: 15 } },
-                 tooltip: {
-                     enabled: totalCheck > 0,
-                     callbacks: {
-                         label: function(context) {
-                             let label = context.label || ''; if (label) label += ': ';
-                             let total = context.chart._metasets[context.datasetIndex].total; let val = context.raw;
-                             let percentage = total > 0 ? ((val / total) * 100).toFixed(2) + '%' : '0%';
-                             
-                             if (document.body.classList.contains('privacy-mode')) return `${label} **** (${percentage})`;
-                             if (context.raw !== null) label += new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(context.raw);
-                             return `${label} (${percentage})`;
-                         }
-                     }
-                 }
-             }
-         }
-     });
-   }
+   /**
+ * Renders the Asset Allocation Doughnut Chart.
+ * Aggiornato per includere Real Estate e Bonds.
+ */
+function renderAssetChart(summary) {
+  const canvas = document.getElementById('assetAllocationChart');
+  if (!canvas) return; 
+  
+  const ctx = canvas.getContext('2d');
+  if (assetChart) { assetChart.destroy(); }
+  
+  const s = summary || {};
+  const valStocks = s.stocks?.raw || 0; 
+  const valEtfs = s.etfs?.raw || 0; 
+  const valCrypto = s.crypto?.raw || 0; 
+  const valOthers = s.others?.raw || 0; 
+  const valPension = s.pension?.raw || 0;
+  const valCashEq = s.cashEq?.raw || 0; 
+  const valCash = s.cash?.raw || 0; 
+  const totalLiquid = valCashEq > 0 ? valCashEq : valCash;
+
+  // --- NUOVI VALORI: ASSET REALI ---
+  const valRealEstate = window.globalRealEstateNet || 0;
+  const valBonds = window.globalBondsNet || 0;
+  
+  // Aggiunte le etichette per Bonds e Real Estate
+  const labels = ['Stocks', 'Liquid', 'ETFs', 'Crypto', 'Bonds', 'Real Estate', 'Others', 'Pension'];
+  const values = [valStocks, totalLiquid, valEtfs, valCrypto, valBonds, valRealEstate, valOthers, valPension];
+  
+  const totalCheck = values.reduce((a, b) => a + b, 0);
+  const finalValues = totalCheck > 0 ? values : [1]; 
+  
+  // Aggiunti due nuovi colori alla palette: #32ade6 (Azzurro/Bonds) e #34c759 (Verde/Real Estate)
+  const finalColors = totalCheck > 0 ? ['#28a745', '#007aff', '#555555', '#ffc107', '#32ade6', '#34c759', '#ff2d55', '#fd7e14'] : ['#e5e5ea'];
+  
+  assetChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: { labels: labels, datasets: [{ data: finalValues, backgroundColor: finalColors, borderWidth: 0, hoverOffset: 4, borderRadius: 5 }] },
+      options: {
+          responsive: true, maintainAspectRatio: false, cutout: '80%',
+          plugins: {
+              legend: { display: totalCheck > 0, position: 'bottom', labels: { boxWidth: 10, font: { size: 11 }, padding: 15 } },
+              tooltip: {
+                  enabled: totalCheck > 0,
+                  callbacks: {
+                      label: function(context) {
+                          let label = context.label || ''; if (label) label += ': ';
+                          let total = context.chart._metasets[context.datasetIndex].total; let val = context.raw;
+                          let percentage = total > 0 ? ((val / total) * 100).toFixed(2) + '%' : '0%';
+                          
+                          if (document.body.classList.contains('privacy-mode')) return `${label} **** (${percentage})`;
+                          if (context.raw !== null) label += new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(context.raw);
+                          return `${label} (${percentage})`;
+                      }
+                  }
+              }
+          }
+      }
+  });
+}
    
    /**
     * Renders Stacked Bar Charts for Category Breakdown (Income/Expense).

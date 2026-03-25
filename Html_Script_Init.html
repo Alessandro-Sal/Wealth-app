@@ -315,48 +315,75 @@
    }
    
    /**
-    * Updates the Dashboard Summary DOM elements.
-    * 
-    */
-   function updateDashboardDOM(d) {
-     if(!d) return;
-     
-     document.getElementById('liq-eur').innerText = d.liquidNetWorth || "--";
-     document.getElementById('liq-usd').innerText = d.liquidNetWorthUSD || "--";
-     document.getElementById('tot-eur').innerText = d.totalNetWorth || "--";
-     document.getElementById('tot-usd').innerText = d.totalNetWorthUSD || "--";
-     
-     if (d.summary) {
-         if(d.summary.stocks) { document.getElementById('sum-s-a').innerText = d.summary.stocks.amount; setP('sum-s-p', d.summary.stocks.percent); }
-         if(d.summary.cash) { document.getElementById('sum-c-a').innerText = d.summary.cash.amount; setP('sum-c-p', d.summary.cash.percent); }
-         if(document.getElementById('sum-ceq-a')) {
-             if (d.summary.cashEq) { document.getElementById('sum-ceq-a').innerText = d.summary.cashEq.amount; setP('sum-ceq-p', d.summary.cashEq.percent); }
-             else { document.getElementById('sum-ceq-a').innerText = "€ 0,00"; setP('sum-ceq-p', "0%"); }
-         }
-         if(d.summary.etfs) { document.getElementById('sum-e-a').innerText = d.summary.etfs.amount; setP('sum-e-p', d.summary.etfs.percent); }
-         if(d.summary.crypto) { document.getElementById('sum-y-a').innerText = d.summary.crypto.amount; setP('sum-y-p', d.summary.crypto.percent); }
-         if(d.summary.others) { document.getElementById('sum-o-a').innerText = d.summary.others.amount; setP('sum-o-p', d.summary.others.percent); }
-         if(typeof renderAssetChart === 'function') renderAssetChart(d.summary);
-     }
-     
-     // Render specific asset sections (Crypto, Stocks, ETFs)
-     const renderSection = (prefix, data) => {
-         if(!data) return;
-         document.getElementById(`${prefix}-det-main`).innerText = data.main.amount;
-         document.getElementById(`${prefix}-det-un-a`).innerText = data.unrealized.amount; 
-         setP(`${prefix}-det-un-p`, data.unrealized.percent);
-         document.getElementById(`${prefix}-det-re-a`).innerText = data.realized.amount; 
-         setP(`${prefix}-det-re-p`, data.realized.percent);
-         document.getElementById(`${prefix}-det-bal-a`).innerText = data.balance.amount; 
-         setP(`${prefix}-det-bal-p`, data.balance.percent);
-         if(document.getElementById(`${prefix}-det-inv`) && data.invested) 
-             document.getElementById(`${prefix}-det-inv`).innerText = data.invested.amount;
-     };
-   
-     renderSection('y', d.cryptoSection);
-     renderSection('s', d.stocksSection);
-     renderSection('e', d.etfSection);
-   }
+ * Updates the Dashboard Summary DOM elements.
+ */
+function updateDashboardDOM(d) {
+  if(!d) return;
+  
+  document.getElementById('liq-eur').innerText = d.liquidNetWorth || "--";
+  document.getElementById('liq-usd').innerText = d.liquidNetWorthUSD || "--";
+  
+  // --- INIZIO MODIFICA: Ricalcolo del Patrimonio Netto Totale (Liquid + Real Assets) ---
+  // Estrapola il numero puro dalla stringa (es. "€ 15.000" diventa 15000)
+  let parsedBase = parseFloat(String(d.totalNetWorth).replace(/[^0-9,-]+/g,"").replace(',', '.')) || 0;
+  window.baseTotalNetWorth = parsedBase; // Salva in memoria
+  recalculateGrandTotal(); // Innesca la somma
+  // --- FINE MODIFICA ---
+
+  document.getElementById('tot-usd').innerText = d.totalNetWorthUSD || "--";
+  
+  if (d.summary) {
+      if(d.summary.stocks) { document.getElementById('sum-s-a').innerText = d.summary.stocks.amount; setP('sum-s-p', d.summary.stocks.percent); }
+      if(d.summary.cash) { document.getElementById('sum-c-a').innerText = d.summary.cash.amount; setP('sum-c-p', d.summary.cash.percent); }
+      if(document.getElementById('sum-ceq-a')) {
+          if (d.summary.cashEq) { document.getElementById('sum-ceq-a').innerText = d.summary.cashEq.amount; setP('sum-ceq-p', d.summary.cashEq.percent); }
+          else { document.getElementById('sum-ceq-a').innerText = "€ 0,00"; setP('sum-ceq-p', "0%"); }
+      }
+      if(d.summary.etfs) { document.getElementById('sum-e-a').innerText = d.summary.etfs.amount; setP('sum-e-p', d.summary.etfs.percent); }
+      if(d.summary.crypto) { document.getElementById('sum-y-a').innerText = d.summary.crypto.amount; setP('sum-y-p', d.summary.crypto.percent); }
+      if(d.summary.others) { document.getElementById('sum-o-a').innerText = d.summary.others.amount; setP('sum-o-p', d.summary.others.percent); }
+      if(typeof renderAssetChart === 'function') renderAssetChart(d.summary);
+  }
+  
+  const renderSection = (prefix, data) => {
+      if(!data) return;
+      document.getElementById(`${prefix}-det-main`).innerText = data.main.amount;
+      document.getElementById(`${prefix}-det-un-a`).innerText = data.unrealized.amount; 
+      setP(`${prefix}-det-un-p`, data.unrealized.percent);
+      document.getElementById(`${prefix}-det-re-a`).innerText = data.realized.amount; 
+      setP(`${prefix}-det-re-p`, data.realized.percent);
+      document.getElementById(`${prefix}-det-bal-a`).innerText = data.balance.amount; 
+      setP(`${prefix}-det-bal-p`, data.balance.percent);
+      if(document.getElementById(`${prefix}-det-inv`) && data.invested) 
+          document.getElementById(`${prefix}-det-inv`).innerText = data.invested.amount;
+  };
+
+  renderSection('y', d.cryptoSection);
+  renderSection('s', d.stocksSection);
+  renderSection('e', d.etfSection);
+}
+
+/**
+ * Ricalcola il Numerone in cima (Total Net Worth) sommando gli Asset Reali.
+ * Mantiene la formattazione e gli asterischi per la Privacy Mode.
+ */
+function recalculateGrandTotal() {
+  if (typeof window.baseTotalNetWorth === 'undefined') return;
+  
+  // Somma i soldi degli investimenti + il netto della casa/bond/passività
+  let realImpact = window.realAssetsNetImpact || 0;
+  let grandTotal = window.baseTotalNetWorth + realImpact;
+  
+  const fmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+  const el = document.getElementById('tot-eur');
+  
+  if (el) {
+      // Se c'è la privacy mode attiva, non sovrascrivere con il numero
+      if (!document.body.classList.contains('privacy-mode')) {
+          el.innerText = fmt.format(grandTotal);
+      }
+  }
+}
    
    // --- Fetchers (Helpers) ---
    

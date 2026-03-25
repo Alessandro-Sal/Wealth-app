@@ -749,28 +749,36 @@ function renderCPScatterChart() {
 }
 /**
  * Chiama il backend per recuperare la sintesi di Real Estate, Bonds e Liabilities 
- * e popola le righe native del p-recap.
+ * e popola le righe native del p-recap, la legenda e innesca i ricalcoli totali.
  */
 function loadRealAssetsDashboard() {
     google.script.run.withSuccessHandler(function(summary) {
         if (!summary) return;
         
-        // Formattatore Valuta elegante
         const fmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
         
-        // 1. Popola Real Estate
+        // 1. Popola i Widget a Griglia
         document.getElementById('dash-re-net').innerText = fmt.format(summary.realEstate.net);
         document.getElementById('dash-re-gross').innerText = fmt.format(summary.realEstate.gross);
         document.getElementById('dash-re-debt').innerText = "-" + fmt.format(summary.realEstate.debt);
         
-        // 2. Popola Bonds
         document.getElementById('dash-bond-net').innerText = fmt.format(summary.bonds.net);
-        
-        // 3. Popola Liabilities (Essendo passività mettiamo il format, il colore HTML è già rosso)
         document.getElementById('dash-liab-net').innerText = fmt.format(summary.liabilities.net);
+
+        // 2. Popola la Legenda sotto al Grafico a Torta
+        if(document.getElementById('sum-re-a')) document.getElementById('sum-re-a').innerText = fmt.format(summary.realEstate.net);
+        if(document.getElementById('sum-b-a')) document.getElementById('sum-b-a').innerText = fmt.format(summary.bonds.net);
         
-        // Salva per il Net Worth Totale
-        window.realAssetsNetImpact = summary.totalNetWorthImpact; 
+        // 3. Salva per Grafici e Calcolatore del Net Worth
+        window.globalRealEstateNet = summary.realEstate.net || 0;
+        window.globalBondsNet = summary.bonds.net || 0;
+        window.globalLiabilitiesNet = summary.liabilities.net || 0;
+        window.realAssetsNetImpact = summary.totalNetWorthImpact || 0; 
+        
+        // 4. Innesca l'aggiornamento visivo di Torta e Total Balance
+        if (typeof recalculateGrandTotal === "function") recalculateGrandTotal();
+        const cachedSummary = JSON.parse(localStorage.getItem('dashboard_cache'))?.summary || {};
+        if (typeof renderAssetChart === "function") renderAssetChart(cachedSummary);
         
     }).getRealAssetsSummary();
 }
