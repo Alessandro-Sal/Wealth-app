@@ -142,8 +142,8 @@ function getYearlyTotals(year) {
 /**
  * --- HISTORICAL DATA (Analytical Net Worth) ---
  * Retrieves historical snapshot data from the "NW analitico" sheet.
- * Maps specific rows (Liquid, Stocks, ETFs, Crypto, Pension) based on the requested year column.
- * * @param {string|number} year - The year column to retrieve.
+ * Maps specific rows including new Real Assets (Real Estate, Bonds, Debt) from rows 88 to 102.
+ * @param {string|number} year - The year column to retrieve.
  * @return {Object} Structured historical data for charts or reports.
  */
 function getHistoryNWData(year) {
@@ -159,7 +159,6 @@ function getHistoryNWData(year) {
   const parseVal = (val) => {
     if (!val) return 0;
     let s = String(val).replace(/[^0-9.,-]/g, '');
-    // Handle European vs US number formats
     if (s.includes(',') && s.includes('.')) {
        s = s.replace(/\./g, '').replace(',', '.'); 
     } else if (s.includes(',')) {
@@ -169,22 +168,18 @@ function getHistoryNWData(year) {
     return isNaN(num) ? 0 : num;
   };
 
-  // Find the column index for the requested year
   let colIndex = headers.indexOf(String(year));
   if (colIndex === -1) {
     colIndex = headers.findIndex(h => String(h).includes(String(year)));
   }
-  // Fallback: If year not found, use the last available column
   if (colIndex === -1) colIndex = headers.length - 1;
 
-  // Helper to get value from a specific row (1-based row number)
   const getRowVal = (rowNum) => {
     const rIndex = rowNum - 1; 
     if (rIndex < 0 || rIndex >= data.length) return 0;
     return parseVal(data[rIndex][colIndex]);
   };
 
-  // Helper to get percentage string
   const getRowPctStr = (rowNum) => {
     const rIndex = rowNum - 1;
     if (rIndex < 0 || rIndex >= data.length) return "0.00%";
@@ -195,30 +190,44 @@ function getHistoryNWData(year) {
   };
 
   // --- 2. READ DATA FROM "NW ANALITICO" ---
-  
-  // Totals
-  const valLiquidEur = getRowVal(2); // Liquid NW
+  const valLiquidEur = getRowVal(2); 
   const valLiquidUsd = getRowVal(4); 
   const valTotalUsd  = getRowVal(8); 
 
-  // Asset Classes
   const vStocks  = getRowVal(44);
   const vEtfs    = getRowVal(35);
   const vCrypto  = getRowVal(16);
   const vCash    = getRowVal(10);
   const vCashEq  = getRowVal(12);
   const vOthers  = getRowVal(14);
-  
-  // --- UPDATE: PENSION FROM ROW 76 ---
-  let vPension = getRowVal(76); 
+  let vPension   = getRowVal(76); 
+
+  // --- UPDATE: REAL ASSETS AND LIABILITIES (ROWS 88-102) ---
+  const vRealEstateGross = getRowVal(88);
+  const vRealEstateDebt  = getRowVal(89);
+  const vRealEstateNet   = getRowVal(90);
+
+  const vBondsGross      = getRowVal(91);
+  const vBondsDebt       = getRowVal(92);
+  const vBondsNet        = getRowVal(93);
+
+  const vCorpBondsGross  = getRowVal(94);
+  const vCorpBondsDebt   = getRowVal(95);
+  const vCorpBondsNet    = getRowVal(96);
+
+  const vGovBondsGross   = getRowVal(97);
+  const vGovBondsDebt    = getRowVal(98);
+  const vGovBondsNet     = getRowVal(99);
+
+  const vDebtGross       = getRowVal(100);
+  const vDebtVal         = getRowVal(101);
+  const vDebtNet         = getRowVal(102);
 
   // --- 3. RECALCULATE TOTALS AND ALLOCATION ---
-  
-  // Total Liquidity logic: Use CashEq if available, otherwise Cash
   const totalLiquidity = vCashEq > 0 ? vCashEq : vCash;
-
-  // Real Total = Sum of all assets (including Pension Row 76)
-  const calculatedTotal = vStocks + vEtfs + vCrypto + vOthers + vPension + totalLiquidity;
+  
+  // Real Total = Sum of all assets including Real Estate and Bonds nets
+  const calculatedTotal = vStocks + vEtfs + vCrypto + vOthers + vPension + totalLiquidity + vRealEstateNet + vBondsNet;
   
   const calcAlloc = (val) => {
     if (!calculatedTotal || calculatedTotal === 0) return "0.00%";
@@ -228,19 +237,21 @@ function getHistoryNWData(year) {
   return {
     year: year,
     liquid: { val: valLiquidEur, usd: valLiquidUsd },
-    total:  { val: calculatedTotal, usd: valTotalUsd }, // Recalculated total for consistency
+    total:  { val: calculatedTotal, usd: valTotalUsd }, 
     
     summary: {
-      stocks:  { val: vStocks,  pct: calcAlloc(vStocks) },
-      cash:    { val: vCash,    pct: calcAlloc(vCash) },
-      cashEq:  { val: vCashEq,  pct: calcAlloc(vCashEq) },
-      etfs:    { val: vEtfs,    pct: calcAlloc(vEtfs) },
-      crypto:  { val: vCrypto,  pct: calcAlloc(vCrypto) },
-      others:  { val: vOthers,  pct: calcAlloc(vOthers) },
-      pension: { val: vPension, pct: calcAlloc(vPension) } 
+      stocks:     { val: vStocks,  pct: calcAlloc(vStocks) },
+      cash:       { val: vCash,    pct: calcAlloc(vCash) },
+      cashEq:     { val: vCashEq,  pct: calcAlloc(vCashEq) },
+      etfs:       { val: vEtfs,    pct: calcAlloc(vEtfs) },
+      crypto:     { val: vCrypto,  pct: calcAlloc(vCrypto) },
+      others:     { val: vOthers,  pct: calcAlloc(vOthers) },
+      pension:    { val: vPension, pct: calcAlloc(vPension) },
+      realEstate: { val: vRealEstateNet, pct: calcAlloc(vRealEstateNet), gross: vRealEstateGross, debt: vRealEstateDebt },
+      bonds:      { val: vBondsNet, pct: calcAlloc(vBondsNet), gross: vBondsGross, debt: vBondsDebt, corpNet: vCorpBondsNet, govNet: vGovBondsNet },
+      liabilities:{ val: vDebtNet, gross: vDebtGross, debt: vDebtVal }
     },
     
-    // Specific Section Details (Unchanged logic)
     details: {
       crypto: {
         main: getRowVal(16), invested: getRowVal(17),
@@ -266,8 +277,8 @@ function getHistoryNWData(year) {
 
 /**
  * Retrieves historical trend data for Net Worth and Asset Classes over time.
- * Extracts data from "NW analitico" strictly for columns where the header is an exact year.
- * * @return {Object} Trend data containing labels (years) and datasets for each asset class, including Cash, Cash Eq, and USD equivalents.
+ * Includes safe getters to prevent crashes on missing or empty rows (like new Real Assets).
+ * @return {Object} Trend data containing labels and datasets.
  */
 function getHistoricalNetWorthTrend() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -276,9 +287,9 @@ function getHistoricalNetWorthTrend() {
   if (!sheet) return { error: "Sheet 'NW analitico' not found" };
 
   const data = sheet.getDataRange().getValues();
+  if (!data || data.length === 0) return { error: "No data found" };
   const headers = data[0]; 
 
-  // Helper to safely parse string values into numbers
   const parseVal = (val) => {
     if (!val) return 0;
     let s = String(val).replace(/[^0-9.,-]/g, '');
@@ -291,62 +302,44 @@ function getHistoricalNetWorthTrend() {
     return isNaN(num) ? 0 : num;
   };
 
-  let result = {
-    labels: [],
-    totalNW: [],
-    liquidNW: [],
-    totalNW_USD: [], 
-    liquidNW_USD: [], 
-    stocks: [],
-    etfs: [],
-    crypto: [],
-    pension: [],
-    cash: [],
-    cashEq: []
+  // --- CRITICAL FIX: Safe Getter ---
+  // Evita crash se la riga cercata (es. 102) non è ancora inclusa nel DataRange
+  const safeGet = (rIndex, cIndex) => {
+    if (rIndex >= data.length || !data[rIndex]) return 0;
+    return parseVal(data[rIndex][cIndex]);
   };
 
-  // Loop through columns starting from index 1 (skipping row labels in column A)
+  let result = {
+    labels: [], totalNW: [], liquidNW: [], totalNW_USD: [], liquidNW_USD: [], 
+    stocks: [], etfs: [], crypto: [], pension: [], cash: [], cashEq: [],
+    realEstate: [], bonds: [], liabilities: []
+  };
+
   for (let c = 1; c < headers.length; c++) {
     let rawLabel = headers[c];
     if (!rawLabel) continue; 
-    
     let labelStr = String(rawLabel).trim();
 
-    // ONLY process columns where the header is exactly a 4-digit year
-    if (!/^\d{4}$/.test(labelStr)) {
-      continue;
-    }
+    if (!/^\d{4}$/.test(labelStr)) continue;
     
     result.labels.push(labelStr);
 
-    // --- DIRECT READING OF TOTAL ROWS FROM SPREADSHEET ---
-    // Note: The array index is always (Row Number - 1)
-    let valLiquidEur = parseVal(data[1][c]); // Row 2 -> index 1
-    let valLiquidUsd = parseVal(data[3][c]); // Row 4 -> index 3
-    let valTotalEur  = parseVal(data[5][c]); // Row 6 -> index 5 (Assuming Total NW EUR is here)
-    let valTotalUsd  = parseVal(data[7][c]); // Row 8 -> index 7
+    result.liquidNW.push(safeGet(1, c));     // Row 2 -> index 1
+    result.liquidNW_USD.push(safeGet(3, c)); // Row 4 -> index 3
+    result.totalNW.push(safeGet(5, c));      // Row 6 -> index 5
+    result.totalNW_USD.push(safeGet(7, c));  // Row 8 -> index 7
 
-    // Retrieve specific asset values mapping the correct rows
-    let vStocks = parseVal(data[43][c]);     // Row 44 -> index 43
-    let vEtfs = parseVal(data[34][c]);       // Row 35 -> index 34
-    let vCrypto = parseVal(data[15][c]);     // Row 16 -> index 15
-    let vCash = parseVal(data[9][c]);        // Row 10 -> index 9
-    let vCashEq = parseVal(data[11][c]);     // Row 12 -> index 11
-    let vPension = parseVal(data[75][c]);    // Row 76 -> index 75
-
-    // Push the spreadsheet's fixed data directly to the chart array
-    result.totalNW.push(valTotalEur);
-    result.liquidNW.push(valLiquidEur);
-    result.totalNW_USD.push(valTotalUsd);
-    result.liquidNW_USD.push(valLiquidUsd);
+    result.stocks.push(safeGet(43, c));      // Row 44 -> index 43
+    result.etfs.push(safeGet(34, c));        // Row 35 -> index 34
+    result.crypto.push(safeGet(15, c));      // Row 16 -> index 15
+    result.cash.push(safeGet(9, c));         // Row 10 -> index 9
+    result.cashEq.push(safeGet(11, c));      // Row 12 -> index 11
+    result.pension.push(safeGet(75, c));     // Row 76 -> index 75
     
-    // Asset breakdown for tooltips/bars
-    result.stocks.push(vStocks);
-    result.etfs.push(vEtfs);
-    result.crypto.push(vCrypto);
-    result.pension.push(vPension);
-    result.cash.push(vCash);
-    result.cashEq.push(vCashEq);
+    // --- UPDATE: Real Assets Historical Mapping ---
+    result.realEstate.push(safeGet(89, c));  // Row 90 -> index 89 (Net Value)
+    result.bonds.push(safeGet(92, c));       // Row 93 -> index 92 (Net Value)
+    result.liabilities.push(safeGet(101, c));// Row 102 -> index 101 (Net Value)
   }
 
   return result;

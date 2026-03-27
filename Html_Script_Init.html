@@ -610,7 +610,6 @@ function updateDashboardDOM(d) {
      container.innerHTML = html;
    }
    
-   // --- Historical Data Rendering ---
    function renderHistoricalNWDOM(data) {
      if (!data) return;
      const fmtEur = (n) => "€ " + new Intl.NumberFormat('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
@@ -618,7 +617,7 @@ function updateDashboardDOM(d) {
      
      const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.innerText = fmtEur(val); };
      const setUsd = (id, val) => { const el = document.getElementById(id); if(el) el.innerText = fmtUsd(val); };
-       const setAlloc = (id, textPct) => { const el = document.getElementById(id); if(el) { el.innerText = textPct; el.style.color = 'var(--text-main)'; } };   
+     const setAlloc = (id, textPct) => { const el = document.getElementById(id); if(el) { el.innerText = textPct; el.style.color = 'var(--text-main)'; } };   
      const setTrend = (id, valStr) => {
          const el = document.getElementById(id); if(!el) return;
          el.innerText = valStr;
@@ -628,7 +627,7 @@ function updateDashboardDOM(d) {
      };
      
      setVal('tot-eur', data.liquid.val); setUsd('tot-usd', data.liquid.usd);
-     setVal('liq-eur', data.total.val); setUsd('liq-usd', data.total.usd);
+     setVal('liq-eur', data.total.val);  setUsd('liq-usd', data.total.usd);
      
      setVal('sum-s-a', data.summary.stocks.val); setAlloc('sum-s-p', data.summary.stocks.pct);
      setVal('sum-e-a', data.summary.etfs.val); setAlloc('sum-e-p', data.summary.etfs.pct);
@@ -646,6 +645,16 @@ function updateDashboardDOM(d) {
      if(document.getElementById('sum-p-a')) {
          setVal('sum-p-a', data.summary.pension.val); setAlloc('sum-p-p', data.summary.pension.pct);
      }
+
+     // --- UPDATE: Real Estate & Bonds dynamically updated from history ---
+     if(data.summary.realEstate) {
+         if(document.getElementById('sum-re-a')) setVal('sum-re-a', data.summary.realEstate.val);
+         if(document.getElementById('sum-re-p')) setAlloc('sum-re-p', data.summary.realEstate.pct);
+     }
+     if(data.summary.bonds) {
+         if(document.getElementById('sum-b-a')) setVal('sum-b-a', data.summary.bonds.val);
+         if(document.getElementById('sum-b-p')) setAlloc('sum-b-p', data.summary.bonds.pct);
+     }
      
      const fillCard = (prefix, d) => {
          setVal(`${prefix}-det-main`, d.main);
@@ -661,7 +670,7 @@ function updateDashboardDOM(d) {
          fillCard('e', data.details.etfs); 
      }
      
-     // Re-draw chart with new data
+     // Re-draw chart with ALL new data including Real Assets
      const mockSummary = { 
          stocks: { raw: data.summary.stocks.val }, 
          cash: { raw: data.summary.cash.val }, 
@@ -669,7 +678,9 @@ function updateDashboardDOM(d) {
          crypto: { raw: data.summary.crypto.val }, 
          others: { raw: data.summary.others.val }, 
          cashEq: { raw: data.summary.cashEq.val }, 
-         pension: { raw: data.summary.pension.val } 
+         pension: { raw: data.summary.pension.val },
+         realEstate: { raw: data.summary.realEstate ? data.summary.realEstate.val : 0 },
+         bonds: { raw: data.summary.bonds ? data.summary.bonds.val : 0 }
      };
      if(typeof renderAssetChart === 'function') renderAssetChart(mockSummary);
    }
