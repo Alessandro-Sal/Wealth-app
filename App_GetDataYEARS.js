@@ -142,205 +142,171 @@ function getYearlyTotals(year) {
 /**
  * --- HISTORICAL DATA (Analytical Net Worth) ---
  * Retrieves historical snapshot data from the "NW analitico" sheet.
- * Maps specific rows including new Real Assets (Real Estate, Bonds, Debt) from rows 88 to 102.
- * @param {string|number} year - The year column to retrieve.
- * @return {Object} Structured historical data for charts or reports.
+ * Includes full error handling to prevent silent server crashes.
  */
 function getHistoryNWData(year) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("NW Analitico");
-  
-  if (!sheet) return { error: "Sheet 'NW Analitico' not found" };
-
-  const data = sheet.getDataRange().getDisplayValues(); 
-  const headers = data[0]; 
-
-  // --- 1. SETUP HELPERS ---
-  const parseVal = (val) => {
-    if (!val) return 0;
-    let s = String(val).replace(/[^0-9.,-]/g, '');
-    if (s.includes(',') && s.includes('.')) {
-       s = s.replace(/\./g, '').replace(',', '.'); 
-    } else if (s.includes(',')) {
-       s = s.replace(',', '.');
-    }
-    let num = parseFloat(s);
-    return isNaN(num) ? 0 : num;
-  };
-
-  let colIndex = headers.indexOf(String(year));
-  if (colIndex === -1) {
-    colIndex = headers.findIndex(h => String(h).includes(String(year)));
-  }
-  if (colIndex === -1) colIndex = headers.length - 1;
-
-  const getRowVal = (rowNum) => {
-    const rIndex = rowNum - 1; 
-    if (rIndex < 0 || rIndex >= data.length) return 0;
-    return parseVal(data[rIndex][colIndex]);
-  };
-
-  const getRowPctStr = (rowNum) => {
-    const rIndex = rowNum - 1;
-    if (rIndex < 0 || rIndex >= data.length) return "0.00%";
-    let val = data[rIndex][colIndex];
-    if (!val) return "0.00%";
-    if (String(val).includes('%')) return val;
-    return (parseFloat(String(val).replace(',', '.')) * 100).toFixed(2) + "%";
-  };
-
-  // --- 2. READ DATA FROM "NW ANALITICO" ---
-  const valLiquidEur = getRowVal(2); 
-  const valLiquidUsd = getRowVal(4); 
-  const valTotalUsd  = getRowVal(8); 
-
-  const vStocks  = getRowVal(44);
-  const vEtfs    = getRowVal(35);
-  const vCrypto  = getRowVal(16);
-  const vCash    = getRowVal(10);
-  const vCashEq  = getRowVal(12);
-  const vOthers  = getRowVal(14);
-  let vPension   = getRowVal(76); 
-
-  // --- UPDATE: REAL ASSETS AND LIABILITIES (ROWS 88-102) ---
-  const vRealEstateGross = getRowVal(88);
-  const vRealEstateDebt  = getRowVal(89);
-  const vRealEstateNet   = getRowVal(90);
-
-  const vBondsGross      = getRowVal(91);
-  const vBondsDebt       = getRowVal(92);
-  const vBondsNet        = getRowVal(93);
-
-  const vCorpBondsGross  = getRowVal(94);
-  const vCorpBondsDebt   = getRowVal(95);
-  const vCorpBondsNet    = getRowVal(96);
-
-  const vGovBondsGross   = getRowVal(97);
-  const vGovBondsDebt    = getRowVal(98);
-  const vGovBondsNet     = getRowVal(99);
-
-  const vDebtGross       = getRowVal(100);
-  const vDebtVal         = getRowVal(101);
-  const vDebtNet         = getRowVal(102);
-
-  // --- 3. RECALCULATE TOTALS AND ALLOCATION ---
-  const totalLiquidity = vCashEq > 0 ? vCashEq : vCash;
-  
-  // Real Total = Sum of all assets including Real Estate and Bonds nets
-  const calculatedTotal = vStocks + vEtfs + vCrypto + vOthers + vPension + totalLiquidity + vRealEstateNet + vBondsNet;
-  
-  const calcAlloc = (val) => {
-    if (!calculatedTotal || calculatedTotal === 0) return "0.00%";
-    return ((val / calculatedTotal) * 100).toFixed(2) + "%";
-  };
-
-  return {
-    year: year,
-    liquid: { val: valLiquidEur, usd: valLiquidUsd },
-    total:  { val: calculatedTotal, usd: valTotalUsd }, 
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    // Supporta sia la versione con la "A" maiuscola che minuscola
+    const sheet = ss.getSheetByName("NW Analitico") || ss.getSheetByName("NW analitico");
     
-    summary: {
-      stocks:     { val: vStocks,  pct: calcAlloc(vStocks) },
-      cash:       { val: vCash,    pct: calcAlloc(vCash) },
-      cashEq:     { val: vCashEq,  pct: calcAlloc(vCashEq) },
-      etfs:       { val: vEtfs,    pct: calcAlloc(vEtfs) },
-      crypto:     { val: vCrypto,  pct: calcAlloc(vCrypto) },
-      others:     { val: vOthers,  pct: calcAlloc(vOthers) },
-      pension:    { val: vPension, pct: calcAlloc(vPension) },
-      realEstate: { val: vRealEstateNet, pct: calcAlloc(vRealEstateNet), gross: vRealEstateGross, debt: vRealEstateDebt },
-      bonds:      { val: vBondsNet, pct: calcAlloc(vBondsNet), gross: vBondsGross, debt: vBondsDebt, corpNet: vCorpBondsNet, govNet: vGovBondsNet },
-      liabilities:{ val: vDebtNet, gross: vDebtGross, debt: vDebtVal }
-    },
+    if (!sheet) return { error: "Sheet 'NW Analitico' not found" };
+
+    const data = sheet.getDataRange().getDisplayValues(); 
+    if (!data || data.length === 0) return { error: "Sheet is empty" };
     
-    details: {
-      crypto: {
-        main: getRowVal(16), invested: getRowVal(17),
-        balVal: getRowVal(18), balPct: getRowPctStr(21),
-        unrVal: getRowVal(19), unrPct: getRowPctStr(22),
-        realVal: getRowVal(20), realPct: getRowPctStr(23)
+    const headers = data[0] || []; 
+
+    const parseVal = (val) => {
+      if (val === undefined || val === null || val === '') return 0;
+      let s = String(val).replace(/[^0-9.,-]/g, '');
+      if (s.includes(',') && s.includes('.')) s = s.replace(/\./g, '').replace(',', '.'); 
+      else if (s.includes(',')) s = s.replace(',', '.');
+      let num = parseFloat(s);
+      return isNaN(num) ? 0 : num;
+    };
+
+    let colIndex = headers.indexOf(String(year));
+    if (colIndex === -1) colIndex = headers.findIndex(h => String(h).includes(String(year)));
+    if (colIndex === -1) colIndex = headers.length - 1;
+    if (colIndex < 0) colIndex = 0; // Failsafe assoluto
+
+    const getRowVal = (rowNum) => {
+      const rIndex = rowNum - 1; 
+      if (rIndex < 0 || rIndex >= data.length || !data[rIndex]) return 0;
+      return parseVal(data[rIndex][colIndex]);
+    };
+
+    const getRowPctStr = (rowNum) => {
+      const rIndex = rowNum - 1;
+      if (rIndex < 0 || rIndex >= data.length || !data[rIndex]) return "0.00%";
+      let val = data[rIndex][colIndex];
+      if (!val) return "0.00%";
+      if (String(val).includes('%')) return val;
+      return (parseFloat(String(val).replace(',', '.')) * 100).toFixed(2) + "%";
+    };
+
+    const valLiquidEur = getRowVal(2); 
+    const valLiquidUsd = getRowVal(4); 
+    const valTotalUsd  = getRowVal(8); 
+
+    const vStocks  = getRowVal(44);
+    const vEtfs    = getRowVal(35);
+    const vCrypto  = getRowVal(16);
+    const vCash    = getRowVal(10);
+    const vCashEq  = getRowVal(12);
+    const vOthers  = getRowVal(14);
+    const vPension = getRowVal(76); 
+
+    // Righe fisiche (88 a 102) - I missing value restituiscono 0 in automatico
+    const vRealEstateGross = getRowVal(88);
+    const vRealEstateDebt  = getRowVal(89);
+    const vRealEstateNet   = getRowVal(90);
+
+    const vBondsGross      = getRowVal(91);
+    const vBondsDebt       = getRowVal(92);
+    const vBondsNet        = getRowVal(93);
+
+    const vCorpBondsGross  = getRowVal(94);
+    const vCorpBondsDebt   = getRowVal(95);
+    const vCorpBondsNet    = getRowVal(96);
+
+    const vGovBondsGross   = getRowVal(97);
+    const vGovBondsDebt    = getRowVal(98);
+    const vGovBondsNet     = getRowVal(99);
+
+    const vDebtGross       = getRowVal(100);
+    const vDebtVal         = getRowVal(101);
+    const vDebtNet         = getRowVal(102);
+
+    const totalLiquidity = vCashEq > 0 ? vCashEq : vCash;
+    const calculatedTotal = vStocks + vEtfs + vCrypto + vOthers + vPension + totalLiquidity + vRealEstateNet + vBondsNet;
+    
+    const calcAlloc = (val) => {
+      if (!calculatedTotal || calculatedTotal === 0) return "0.00%";
+      return ((val / calculatedTotal) * 100).toFixed(2) + "%";
+    };
+
+    return {
+      year: year,
+      liquid: { val: valLiquidEur, usd: valLiquidUsd },
+      total:  { val: calculatedTotal, usd: valTotalUsd }, 
+      
+      summary: {
+        stocks:     { val: vStocks,  pct: calcAlloc(vStocks) },
+        cash:       { val: vCash,    pct: calcAlloc(vCash) },
+        cashEq:     { val: vCashEq,  pct: calcAlloc(vCashEq) },
+        etfs:       { val: vEtfs,    pct: calcAlloc(vEtfs) },
+        crypto:     { val: vCrypto,  pct: calcAlloc(vCrypto) },
+        others:     { val: vOthers,  pct: calcAlloc(vOthers) },
+        pension:    { val: vPension, pct: calcAlloc(vPension) },
+        realEstate: { val: vRealEstateNet, pct: calcAlloc(vRealEstateNet), gross: vRealEstateGross, debt: vRealEstateDebt },
+        bonds:      { val: vBondsNet, pct: calcAlloc(vBondsNet), gross: vBondsGross, debt: vBondsDebt, corpNet: vCorpBondsNet, govNet: vGovBondsNet },
+        liabilities:{ val: vDebtNet, gross: vDebtGross, debt: vDebtVal }
       },
-      stocks: {
-        main: getRowVal(44), invested: getRowVal(45),
-        balVal: getRowVal(46), balPct: getRowPctStr(49),
-        unrVal: getRowVal(47), unrPct: getRowPctStr(50),
-        realVal: getRowVal(48), realPct: getRowPctStr(51)
-      },
-      etfs: {
-        main: getRowVal(35), invested: getRowVal(36),
-        balVal: getRowVal(37), balPct: getRowPctStr(40),
-        unrVal: getRowVal(38), unrPct: getRowPctStr(41),
-        realVal: getRowVal(39), realPct: getRowPctStr(42)
+      
+      details: {
+        crypto: { main: getRowVal(16), invested: getRowVal(17), balVal: getRowVal(18), balPct: getRowPctStr(21), unrVal: getRowVal(19), unrPct: getRowPctStr(22), realVal: getRowVal(20), realPct: getRowPctStr(23) },
+        stocks: { main: getRowVal(44), invested: getRowVal(45), balVal: getRowVal(46), balPct: getRowPctStr(49), unrVal: getRowVal(47), unrPct: getRowPctStr(50), realVal: getRowVal(48), realPct: getRowPctStr(51) },
+        etfs:   { main: getRowVal(35), invested: getRowVal(36), balVal: getRowVal(37), balPct: getRowPctStr(40), unrVal: getRowVal(38), unrPct: getRowPctStr(41), realVal: getRowVal(39), realPct: getRowPctStr(42) }
       }
-    }
-  };
+    };
+  } catch (e) {
+    console.error("Critical Error in getHistoryNWData:", e);
+    return { error: e.toString() };
+  }
 }
 
 /**
- * Retrieves historical trend data for Net Worth and Asset Classes over time.
- * Includes safe getters to prevent crashes on missing or empty rows (like new Real Assets).
- * @return {Object} Trend data containing labels and datasets.
+ * Retrieves historical trend data. Safe from empty rows.
  */
 function getHistoricalNetWorthTrend() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("NW analitico");
-  
-  if (!sheet) return { error: "Sheet 'NW analitico' not found" };
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName("NW analitico") || ss.getSheetByName("NW Analitico");
+    if (!sheet) return { error: "Sheet not found" };
 
-  const data = sheet.getDataRange().getValues();
-  if (!data || data.length === 0) return { error: "No data found" };
-  const headers = data[0]; 
+    const data = sheet.getDataRange().getValues();
+    if (!data || data.length === 0) return { error: "No data found" };
+    const headers = data[0] || []; 
 
-  const parseVal = (val) => {
-    if (!val) return 0;
-    let s = String(val).replace(/[^0-9.,-]/g, '');
-    if (s.includes(',') && s.includes('.')) {
-       s = s.replace(/\./g, '').replace(',', '.'); 
-    } else if (s.includes(',')) {
-       s = s.replace(',', '.');
+    const parseVal = (val) => {
+      if (val === undefined || val === null || val === '') return 0;
+      let s = String(val).replace(/[^0-9.,-]/g, '');
+      if (s.includes(',') && s.includes('.')) s = s.replace(/\./g, '').replace(',', '.'); 
+      else if (s.includes(',')) s = s.replace(',', '.');
+      let num = parseFloat(s);
+      return isNaN(num) ? 0 : num;
+    };
+
+    const safeGet = (rIndex, cIndex) => {
+      if (rIndex >= data.length || !data[rIndex]) return 0;
+      return parseVal(data[rIndex][cIndex]);
+    };
+
+    let result = { labels: [], totalNW: [], liquidNW: [], totalNW_USD: [], liquidNW_USD: [], stocks: [], etfs: [], crypto: [], pension: [], cash: [], cashEq: [], realEstate: [], bonds: [], liabilities: [] };
+
+    for (let c = 1; c < headers.length; c++) {
+      let labelStr = String(headers[c] || "").trim();
+      if (!/^\d{4}$/.test(labelStr)) continue;
+      
+      result.labels.push(labelStr);
+      result.liquidNW.push(safeGet(1, c));     
+      result.liquidNW_USD.push(safeGet(3, c)); 
+      result.totalNW.push(safeGet(5, c));      
+      result.totalNW_USD.push(safeGet(7, c));  
+      result.stocks.push(safeGet(43, c));      
+      result.etfs.push(safeGet(34, c));        
+      result.crypto.push(safeGet(15, c));      
+      result.cash.push(safeGet(9, c));         
+      result.cashEq.push(safeGet(11, c));      
+      result.pension.push(safeGet(75, c));     
+      result.realEstate.push(safeGet(89, c));  
+      result.bonds.push(safeGet(92, c));       
+      result.liabilities.push(safeGet(101, c));
     }
-    let num = parseFloat(s);
-    return isNaN(num) ? 0 : num;
-  };
-
-  // --- CRITICAL FIX: Safe Getter ---
-  // Evita crash se la riga cercata (es. 102) non è ancora inclusa nel DataRange
-  const safeGet = (rIndex, cIndex) => {
-    if (rIndex >= data.length || !data[rIndex]) return 0;
-    return parseVal(data[rIndex][cIndex]);
-  };
-
-  let result = {
-    labels: [], totalNW: [], liquidNW: [], totalNW_USD: [], liquidNW_USD: [], 
-    stocks: [], etfs: [], crypto: [], pension: [], cash: [], cashEq: [],
-    realEstate: [], bonds: [], liabilities: []
-  };
-
-  for (let c = 1; c < headers.length; c++) {
-    let rawLabel = headers[c];
-    if (!rawLabel) continue; 
-    let labelStr = String(rawLabel).trim();
-
-    if (!/^\d{4}$/.test(labelStr)) continue;
-    
-    result.labels.push(labelStr);
-
-    result.liquidNW.push(safeGet(1, c));     // Row 2 -> index 1
-    result.liquidNW_USD.push(safeGet(3, c)); // Row 4 -> index 3
-    result.totalNW.push(safeGet(5, c));      // Row 6 -> index 5
-    result.totalNW_USD.push(safeGet(7, c));  // Row 8 -> index 7
-
-    result.stocks.push(safeGet(43, c));      // Row 44 -> index 43
-    result.etfs.push(safeGet(34, c));        // Row 35 -> index 34
-    result.crypto.push(safeGet(15, c));      // Row 16 -> index 15
-    result.cash.push(safeGet(9, c));         // Row 10 -> index 9
-    result.cashEq.push(safeGet(11, c));      // Row 12 -> index 11
-    result.pension.push(safeGet(75, c));     // Row 76 -> index 75
-    
-    // --- UPDATE: Real Assets Historical Mapping ---
-    result.realEstate.push(safeGet(89, c));  // Row 90 -> index 89 (Net Value)
-    result.bonds.push(safeGet(92, c));       // Row 93 -> index 92 (Net Value)
-    result.liabilities.push(safeGet(101, c));// Row 102 -> index 101 (Net Value)
+    return result;
+  } catch(e) {
+    return { error: e.toString() };
   }
-
-  return result;
 }

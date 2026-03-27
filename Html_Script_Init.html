@@ -610,8 +610,12 @@ function updateDashboardDOM(d) {
      container.innerHTML = html;
    }
    
-   function renderHistoricalNWDOM(data) {
-     if (!data) return;
+  function renderHistoricalNWDOM(data) {
+     if (!data || data.error) {
+         console.warn("Historical Data skipped or Error:", data ? data.error : "No data");
+         return;
+     }
+
      const fmtEur = (n) => "€ " + new Intl.NumberFormat('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
      const fmtUsd = (n) => "$ " + new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
      
@@ -626,8 +630,9 @@ function updateDashboardDOM(d) {
          else { el.style.color = 'var(--stocks-bg)'; el.classList.add('pos-change'); }
      };
      
-     setVal('tot-eur', data.liquid.val); setUsd('tot-usd', data.liquid.usd);
-     setVal('liq-eur', data.total.val);  setUsd('liq-usd', data.total.usd);
+     // FIX: Invertiti per correggere il bug, ora Total è su Total e Liquid su Liquid
+     setVal('liq-eur', data.liquid.val); setUsd('liq-usd', data.liquid.usd);
+     setVal('tot-eur', data.total.val);  setUsd('tot-usd', data.total.usd);
      
      setVal('sum-s-a', data.summary.stocks.val); setAlloc('sum-s-p', data.summary.stocks.pct);
      setVal('sum-e-a', data.summary.etfs.val); setAlloc('sum-e-p', data.summary.etfs.pct);
@@ -646,14 +651,34 @@ function updateDashboardDOM(d) {
          setVal('sum-p-a', data.summary.pension.val); setAlloc('sum-p-p', data.summary.pension.pct);
      }
 
-     // --- UPDATE: Real Estate & Bonds dynamically updated from history ---
+     // --- UPDATE: Aggiornamento dinamico Card "Sottostanti" (Real Estate, Bonds, Liabilities) ---
      if(data.summary.realEstate) {
          if(document.getElementById('sum-re-a')) setVal('sum-re-a', data.summary.realEstate.val);
          if(document.getElementById('sum-re-p')) setAlloc('sum-re-p', data.summary.realEstate.pct);
+         
+         // Detail Cards Update
+         if(document.getElementById('re-det-main')) setVal('re-det-main', data.summary.realEstate.val);
+         if(document.getElementById('re-det-gross')) setVal('re-det-gross', data.summary.realEstate.gross);
+         if(document.getElementById('re-det-debt')) setVal('re-det-debt', data.summary.realEstate.debt);
      }
+     
      if(data.summary.bonds) {
          if(document.getElementById('sum-b-a')) setVal('sum-b-a', data.summary.bonds.val);
          if(document.getElementById('sum-b-p')) setAlloc('sum-b-p', data.summary.bonds.pct);
+         
+         // Detail Cards Update
+         if(document.getElementById('b-det-main')) setVal('b-det-main', data.summary.bonds.val);
+         if(document.getElementById('b-det-gross')) setVal('b-det-gross', data.summary.bonds.gross);
+         if(document.getElementById('b-det-debt')) setVal('b-det-debt', data.summary.bonds.debt);
+         if(document.getElementById('b-det-corp')) setVal('b-det-corp', data.summary.bonds.corpNet);
+         if(document.getElementById('b-det-gov')) setVal('b-det-gov', data.summary.bonds.govNet);
+     }
+
+     if(data.summary.liabilities) {
+         if(document.getElementById('sum-l-a')) setVal('sum-l-a', data.summary.liabilities.val);
+         if(document.getElementById('l-det-main')) setVal('l-det-main', data.summary.liabilities.val);
+         if(document.getElementById('l-det-gross')) setVal('l-det-gross', data.summary.liabilities.gross);
+         if(document.getElementById('l-det-debt')) setVal('l-det-debt', data.summary.liabilities.debt);
      }
      
      const fillCard = (prefix, d) => {
@@ -670,14 +695,12 @@ function updateDashboardDOM(d) {
          fillCard('e', data.details.etfs); 
      }
      
-     // Re-draw chart with ALL new data including Real Assets
      const mockSummary = { 
          stocks: { raw: data.summary.stocks.val }, 
-         cash: { raw: data.summary.cash.val }, 
+         liquid: { raw: data.summary.cash.val + data.summary.cashEq.val }, 
          etfs: { raw: data.summary.etfs.val }, 
          crypto: { raw: data.summary.crypto.val }, 
          others: { raw: data.summary.others.val }, 
-         cashEq: { raw: data.summary.cashEq.val }, 
          pension: { raw: data.summary.pension.val },
          realEstate: { raw: data.summary.realEstate ? data.summary.realEstate.val : 0 },
          bonds: { raw: data.summary.bonds ? data.summary.bonds.val : 0 }
