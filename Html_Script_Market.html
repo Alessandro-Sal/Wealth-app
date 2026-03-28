@@ -782,16 +782,17 @@
          updateAnalyticsChart();
      }).getAnalyticsData();
    }
-
-   // Nuova funzione per gestire il Segmented Control degli Asset
+   
+  // Nuova funzione per gestire il Segmented Control degli Asset
 function setAnalyticsAsset(val, btnElement) {
     document.getElementById('assetSelect').value = val;
     document.querySelectorAll('.analytics-asset-btn').forEach(btn => btn.classList.remove('active'));
     btnElement.classList.add('active');
     updateAnalyticsChart();
 }
-   
-   function updateAnalyticsChart() {
+
+// Sostituisci l'attuale updateAnalyticsChart() con questa versione potenziata:
+function updateAnalyticsChart() {
     if (!analyticsDataCache) return;
     const ctxEl = document.getElementById('analyticsChart'); 
     if (!ctxEl) return;
@@ -809,159 +810,121 @@ function setAnalyticsAsset(val, btnElement) {
         dataset = analyticsDataCache[assetType] || []; 
     }
     
-    // Enrich dataset
     dataset = dataset.map(item => { 
         let invested = item.value - item.gainEur; 
         let tradeRealized = item.realizedExcl || 0; 
         let divs = item.dividends || 0; 
         let cashRealized = tradeRealized + divs; 
         let totalGain = item.gainEur + cashRealized; 
-        return { ...item, invested, tradeRealized, cashRealized, totalGain }; 
+        return { ...item, invested: invested, tradeRealized: tradeRealized, cashRealized: cashRealized, totalGain: totalGain }; 
     });
 
-    // Filtering base
-    if (['realized_excl', 'realized_incl', 'total_gain', 'div_single', 'winloss', 'top_worst', 'profit_structure'].includes(chartType)) { 
+    // Filtri
+    if (['realized_excl', 'realized_incl', 'total_gain', 'div_single', 'winloss'].includes(chartType)) { 
         dataset = dataset.filter(item => item.value > 0.01 || Math.abs(item.totalGain) > 1 || Math.abs(item.tradeRealized) > 1); 
     } else { 
         dataset = dataset.filter(item => item.value > 0.01); 
     }
     
     let totalValue = dataset.reduce((acc, curr) => acc + curr.value, 0);
-    
-    // Chart Variables setup
     let labels = []; 
     let values = []; 
     let colors = []; 
     let formatType = 'currency'; 
     let secondaryValues = [];
     
-    // Dynamic chart configurations
-    let configType = 'bar'; // default
-    let isHorizontal = false;
-    let isStacked = false;
-    let multiDatasets = null; // Used for stacked or complex charts
-
-    // Apple-like Palette
+    // Palette Apple-like
     const palette = ['#007aff', '#34c759', '#ff9500', '#ff2d55', '#5856d6', '#af52de', '#5ac8fa', '#ffcc00', '#8e8e93'];
     const getColors = (len) => Array.from({length: len}, (_, i) => palette[i % palette.length]);
     
+    const aggregateData = (key) => { 
+        let map = {}; 
+        dataset.forEach(item => { 
+            if (item.value < 0.01) return; 
+            let k = item[key] || 'Other'; 
+            if(k === '') k = 'Other'; 
+            map[k] = (map[k] || 0) + item.value; 
+        }); 
+        let sorted = Object.entries(map).sort((a,b) => b[1] - a[1]); 
+        labels = sorted.map(s => s[0]); 
+        values = sorted.map(s => s[1]); 
+        colors = getColors(labels.length); 
+        formatType = 'currency'; 
+    };
+    
+    // Configurazione specifica per Chart Type
     let displayTotal = 0;
     let displayLabel = document.getElementById('label-chartSelect').innerText;
 
-    // --- CHART LOGIC SWITCH ---
     switch (chartType) {
         case 'breakdown': 
-            dataset.sort((a, b) => b.value - a.value); 
-            labels = dataset.map(d => d.ticker); values = dataset.map(d => d.value); 
-            colors = getColors(dataset.length); formatType = 'currency'; configType = 'doughnut';
+            dataset.sort((a, b) => b.value - a.value); labels = dataset.map(d => d.ticker); values = dataset.map(d => d.value); colors = getColors(dataset.length); formatType = 'currency'; 
             displayTotal = totalValue;
             break;
-            
         case 'invested': 
-            dataset.sort((a, b) => b.invested - a.invested); 
-            labels = dataset.map(d => d.ticker); values = dataset.map(d => d.invested.toFixed(2)); 
-            colors = '#5856d6'; formatType = 'currency'; 
+            dataset.sort((a, b) => b.invested - a.invested); labels = dataset.map(d => d.ticker); values = dataset.map(d => d.invested.toFixed(2)); colors = '#5856d6'; formatType = 'currency'; 
             displayTotal = dataset.reduce((a, b) => a + b.invested, 0);
             break;
-
-        // --- POLAR AREA ALLOCATION ---
-        case 'sector': case 'industry': case 'country':
-            let map = {}; 
-            dataset.forEach(item => { 
-                let k = item[chartType] || 'Other'; if(k === '') k = 'Other'; 
-                map[k] = (map[k] || 0) + item.value; 
-            }); 
-            let sorted = Object.entries(map).sort((a,b) => b[1] - a[1]); 
-            labels = sorted.map(s => s[0]); values = sorted.map(s => s[1]); 
-            colors = getColors(labels.length); formatType = 'currency'; configType = 'polarArea';
-            displayTotal = totalValue;
-            break;
-
         case 'performance': 
-            dataset.sort((a, b) => b.gainPct - a.gainPct); 
-            labels = dataset.map(d => d.ticker); values = dataset.map(d => (d.gainPct * 100).toFixed(2)); 
-            secondaryValues = dataset.map(d => d.gainEur); 
-            colors = values.map(v => v >= 0 ? '#34c759' : '#ff3b30'); formatType = 'percent_combo'; 
-            displayTotal = dataset.reduce((a, b) => a + b.gainEur, 0);
+            dataset.sort((a, b) => b.gainPct - a.gainPct); labels = dataset.map(d => d.ticker); values = dataset.map(d => (d.gainPct * 100).toFixed(2)); secondaryValues = dataset.map(d => d.gainEur); colors = values.map(v => v >= 0 ? '#34c759' : '#ff3b30'); formatType = 'percent_combo'; 
+            displayTotal = dataset.reduce((a, b) => a + b.gainEur, 0); // Total Gain EUR
             displayLabel = "Total Unrealized";
             break;
-
-        // --- NEW: TOP / WORST MOVERS (HORIZONTAL BAR) ---
-        case 'top_worst':
-            let sortedByGain = [...dataset].sort((a, b) => b.gainEur - a.gainEur);
-            let top5 = sortedByGain.slice(0, 5);
-            let worst5 = sortedByGain.slice(-5).reverse(); // Get bottom 5, reverse for aesthetics
-            
-            // Combine, avoiding duplicates if portfolio has < 10 assets
-            let combinedExtremes = Array.from(new Set([...top5, ...worst5])).sort((a, b) => b.gainEur - a.gainEur);
-            
-            labels = combinedExtremes.map(d => d.ticker);
-            values = combinedExtremes.map(d => d.gainEur);
-            colors = values.map(v => v >= 0 ? '#34c759' : '#ff3b30');
-            formatType = 'currency'; 
-            configType = 'bar'; isHorizontal = true;
-            displayTotal = values.reduce((a, b) => a + b, 0);
-            displayLabel = "Net Impact (Top/Worst)";
-            break;
-
-        // --- NEW: PROFIT STRUCTURE (STACKED BAR) ---
-        case 'profit_structure':
-            dataset.sort((a, b) => b.totalGain - a.totalGain);
-            labels = dataset.map(d => d.ticker);
-            let unrealizedData = dataset.map(d => d.gainEur);
-            let realizedData = dataset.map(d => d.cashRealized);
-            
-            multiDatasets = [
-                { label: 'Unrealized Gain', data: unrealizedData, backgroundColor: '#007aff', borderRadius: 4 },
-                { label: 'Realized / Divs', data: realizedData, backgroundColor: '#34c759', borderRadius: 4 }
-            ];
-            formatType = 'currency_stacked'; configType = 'bar'; isStacked = true;
+        case 'total_gain': 
+            dataset.sort((a, b) => b.totalGain - a.totalGain); labels = dataset.map(d => d.ticker); values = dataset.map(d => d.totalGain); colors = values.map(v => v >= 0 ? '#34c759' : '#ff3b30'); formatType = 'currency'; 
             displayTotal = dataset.reduce((a, b) => a + b.totalGain, 0);
-            displayLabel = "Total Generated Wealth";
             break;
-
-        // --- NEW: RISK & WEIGHT (BUBBLE CHART) ---
-        case 'efficiency_bubble': 
+        case 'realized_excl': 
+            dataset.sort((a, b) => b.tradeRealized - a.tradeRealized); labels = dataset.map(d => d.ticker); values = dataset.map(d => d.tradeRealized); colors = values.map(v => v >= 0 ? '#34c759' : '#ff3b30'); formatType = 'currency'; 
+            displayTotal = dataset.reduce((a, b) => a + b.tradeRealized, 0);
+            break;
+        case 'realized_incl': 
+            dataset.sort((a, b) => b.cashRealized - a.cashRealized); labels = dataset.map(d => d.ticker); values = dataset.map(d => d.cashRealized); colors = values.map(v => v >= 0 ? '#34c759' : '#ff3b30'); formatType = 'currency'; 
+            displayTotal = dataset.reduce((a, b) => a + b.cashRealized, 0);
+            break;
+        case 'div_single': 
+            let divSet = dataset.filter(d => d.dividends > 0).sort((a,b) => b.dividends - a.dividends); labels = divSet.map(d => d.ticker); values = divSet.map(d => d.dividends); colors = '#ffcc00'; formatType = 'currency'; 
+            displayTotal = divSet.reduce((a, b) => a + b.dividends, 0);
+            break;
+        case 'winloss': 
+            let win = dataset.filter(d => d.totalGain >= 0).length; let loss = dataset.filter(d => d.totalGain < 0).length; labels = ['In Profit', 'In Loss']; values = [win, loss]; colors = ['#34c759', '#ff3b30']; formatType = 'number'; 
+            displayTotal = dataset.length;
+            displayLabel = "Total Assets";
+            break;
+        case 'efficiency': 
+            // Costruzione Scatter... (mantieni la tua logica esistente qui)
             let liveData = [];
             if (currentPortfolioData) {
                 if (assetType === 'combined') liveData = [...(currentPortfolioData.stocks || []), ...(currentPortfolioData.etfs || [])];
                 else liveData = currentPortfolioData[assetType] || [];
             }
-            // x: Days Held, y: ROI%, r: Size proportional to portfolio weight
+            labels = liveData.map(d => d.t); 
             values = liveData.map(d => {
                 let xVal = parseInt(d.daysHeld) || 0;
                 let rawY = d._isClosed ? d.realizedPct : d.unrealizedPct;
-                let yVal = parseForSort(rawY); yVal = yVal === -Infinity ? 0 : yVal;
-                let capValue = parseForSort(d.valueEur) || 0; capValue = capValue === -Infinity ? 0 : capValue;
-                
-                // Calculate bubble radius (min 4, max 25 based on weight)
-                let weight = totalValue > 0 ? capValue / totalValue : 0;
-                let rVal = Math.max(4, Math.min(30, weight * 100)); 
-                
-                return { x: xVal, y: yVal, r: rVal, ticker: d.t, value: capValue };
+                let yVal = parseForSort(rawY); 
+                yVal = yVal === -Infinity ? 0 : yVal;
+                let rawGain = d._isClosed ? d.balEur : d.unrealizedEur;
+                let gainVal = parseForSort(rawGain);
+                return { x: xVal, y: yVal, ticker: d.t, gainEur: gainVal === -Infinity ? 0 : gainVal };
             }).filter(d => d.x > 0); 
-            
-            colors = values.map(v => v.y >= 0 ? 'rgba(52, 199, 89, 0.6)' : 'rgba(255, 59, 48, 0.6)'); 
-            formatType = 'bubble'; configType = 'bubble';
+            colors = values.map(v => v.y >= 0 ? 'rgba(52, 199, 89, 0.7)' : 'rgba(255, 59, 48, 0.7)'); 
+            formatType = 'scatter'; 
             displayTotal = values.length;
             displayLabel = "Tracked Assets";
             break;
-
         default: 
-            // Fallback total gain, divs, etc.
-            dataset.sort((a, b) => b.value - a.value); 
-            labels = dataset.map(d => d.ticker); values = dataset.map(d => d.value); 
-            colors = '#007aff'; formatType = 'currency'; 
+            aggregateData(chartType); 
             displayTotal = totalValue;
             break;
     }
 
-    // --- DYNAMIC KPI UPDATE ---
+    // --- AGGIORNAMENTO KPI DINAMICA ---
     const isPrivacy = document.body.classList.contains('privacy-mode');
     document.getElementById('analytics-dynamic-label').innerText = displayLabel;
     const totalEl = document.getElementById('analytics-dynamic-total');
     
-    if (['number', 'bubble', 'scatter'].includes(formatType)) {
+    if (formatType === 'number' || formatType === 'scatter') {
         totalEl.innerText = displayTotal;
         totalEl.style.color = "var(--text-main)";
     } else {
@@ -970,7 +933,7 @@ function setAnalyticsAsset(val, btnElement) {
             totalEl.style.color = "var(--text-main)";
         } else {
             totalEl.innerText = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(displayTotal);
-            if (['performance', 'top_worst', 'profit_structure', 'total_gain'].includes(chartType)) {
+            if (['performance', 'total_gain', 'realized_excl', 'realized_incl'].includes(chartType)) {
                 totalEl.style.color = displayTotal >= 0 ? "var(--stocks-bg)" : "var(--danger)";
             } else {
                 totalEl.style.color = "var(--text-main)";
@@ -980,96 +943,105 @@ function setAnalyticsAsset(val, btnElement) {
     
     if (analyticsChartInstance) { analyticsChartInstance.destroy(); }
     
-    // --- CHART.JS GLOBAL CONFIG ---
+    const isPie = ['breakdown', 'winloss', 'sector', 'industry', 'country', 'currency'].includes(chartType);
+    const isScatter = chartType === 'efficiency';
+    
+    // Impostazioni Globali Chart.js per dark mode
     const isDark = document.body.classList.contains('dark-mode');
     const textColor = isDark ? '#fff' : '#8e8e93';
-    const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
-
-    const isPieOrPolar = ['doughnut', 'polarArea'].includes(configType);
-    
-    // Build datasets array
-    let finalDatasets = multiDatasets ? multiDatasets : [{ 
-        data: values, 
-        backgroundColor: colors, 
-        borderWidth: isPieOrPolar ? 2 : 1,
-        borderColor: isDark ? '#1c1c1e' : '#fff',
-        borderRadius: (isPieOrPolar || configType === 'bubble') ? 0 : 6
-    }];
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)';
 
     analyticsChartInstance = new Chart(ctx, {
-        type: configType,
-        data: { labels: labels, datasets: finalDatasets },
+        type: isScatter ? 'scatter' : (isPie ? 'doughnut' : 'bar'),
+        data: { 
+            labels: labels, 
+            datasets: [{ 
+                data: values, 
+                backgroundColor: colors, 
+                borderWidth: isPie ? 2 : 0, // Bordo solo per le torte
+                borderColor: isDark ? '#1c1c1e' : '#fff',
+                borderRadius: isPie || isScatter ? 0 : 6, // Angoli arrotondati premium per le barre
+                pointRadius: isScatter ? 6 : undefined,
+                pointHoverRadius: isScatter ? 9 : undefined
+            }] 
+        },
         options: {
-            indexAxis: isHorizontal ? 'y' : 'x', // For Horizontal bars
             responsive: true, 
             maintainAspectRatio: false,
-            cutout: configType === 'doughnut' ? '75%' : undefined,
+            cutout: isPie ? '75%' : undefined, // Torta più sottile ed elegante
             plugins: {
                 legend: { 
-                    display: isPieOrPolar || isStacked, 
-                    position: isPieOrPolar ? 'right' : 'top', 
-                    labels: { color: textColor, font: { size: 11, family: 'Inter' }, usePointStyle: true } 
+                    display: isPie, 
+                    position: 'right', 
+                    labels: { color: textColor, font: { size: 11, family: 'Inter' }, boxWidth: 10, padding: 12 } 
                 },
                 tooltip: {
                     backgroundColor: isDark ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                     titleColor: isDark ? '#fff' : '#000',
                     bodyColor: isDark ? '#ddd' : '#333',
                     borderColor: isDark ? '#333' : '#eee',
-                    borderWidth: 1, padding: 12,
+                    borderWidth: 1,
+                    padding: 10,
                     callbacks: {
                         label: function(context) {
-                            let label = context.dataset.label || context.label || ''; 
-                            let val = context.raw;
+                            let label = context.label || ''; 
+                            let val = Number(context.parsed.y !== undefined && !isPie ? context.parsed.y : context.parsed); 
+                            const idx = context.dataIndex;
                             
-                            if (formatType === 'bubble') {
-                                let formattedEur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val.value);
-                                return isPrivacy ? `${val.ticker} | ROI: ${val.y.toFixed(2)}% | Val: ****` : `${val.ticker} | ROI: ${val.y.toFixed(2)}% | Val: ${formattedEur}`;
+                            if (formatType === 'scatter') {
+                                let raw = context.raw; 
+                                let formattedEur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(raw.gainEur);
+                                return isPrivacy ? `${raw.ticker} | ROI: ${raw.y.toFixed(2)}% | P&L: ****` : `${raw.ticker} | ROI: ${raw.y.toFixed(2)}% | P&L: ${formattedEur}`;
                             }
-
-                            val = Number(context.parsed.y !== undefined && !isHorizontal ? context.parsed.y : (isHorizontal ? context.parsed.x : context.parsed));
 
                             if (formatType === 'percent_combo') { 
-                                let eurVal = secondaryValues[context.dataIndex]; 
+                                let eurVal = secondaryValues[idx]; 
                                 let formattedEur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(eurVal); 
-                                return isPrivacy ? `${label}: ${val}% (***)` : `${label}: ${val}% (${formattedEur})`; 
+                                return isPrivacy ? `${label}: ${val}% (Gain: ***)` : `${label}: ${val}% (Gain: ${formattedEur})`; 
                             }
-                            if (formatType.includes('currency')) { 
-                                if (isPrivacy) return `${label}: ***`; 
-                                return `${label}: ${new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val)}`; 
+                            if (formatType === 'currency') { 
+                                let suffix = ""; 
+                                if ((isPie || chartType === 'invested' || chartType === 'breakdown') && totalValue > 0) { 
+                                    let pct = ((val / totalValue) * 100).toFixed(1); 
+                                    suffix = ` (${pct}%)`; 
+                                } 
+                                if (isPrivacy) return `${label}: ***${suffix}`; 
+                                let formattedEur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val); 
+                                return `${label}: ${formattedEur}${suffix}`; 
                             }
+                            if (formatType === 'percent') return `${label}: ${val}%`; 
                             return `${label}: ${val}`;
                         }
                     }
                 }
             },
-            scales: isPieOrPolar ? {} : { 
+            scales: { 
                 x: { 
-                    stacked: isStacked,
-                    type: (configType === 'bubble' || isHorizontal) ? 'linear' : 'category',
-                    title: { display: configType === 'bubble', text: 'Days Held', color: textColor },
-                    ticks: { color: textColor, font: {size: 10} }, 
-                    grid: { color: isHorizontal ? gridColor : 'transparent' } 
+                    display: !isPie, 
+                    type: isScatter ? 'linear' : 'category',
+                    title: { display: isScatter, text: isScatter ? 'Days Held' : '', color: textColor, font: { weight: 'bold' } },
+                    ticks: { color: textColor, font: {size: 10}, maxRotation: 45, minRotation: 0 }, 
+                    grid: { display: false } 
                 }, 
                 y: { 
-                    stacked: isStacked,
-                    type: isHorizontal ? 'category' : 'linear',
-                    title: { display: configType === 'bubble', text: 'ROI %', color: textColor },
+                    display: !isPie, 
+                    title: { display: isScatter, text: isScatter ? 'ROI %' : '', color: textColor, font: { weight: 'bold' } },
+                    border: { display: false },
                     ticks: { 
-                        color: textColor, font: {size: 10},
+                        color: textColor, 
+                        font: {size: 10},
                         callback: function(value) { 
-                            if (document.body.classList.contains('privacy-mode') && !isHorizontal) return '****'; 
-                            if (configType === 'bubble') return value + '%';
-                            return typeof value === 'number' ? new Intl.NumberFormat('it-IT', { notation: "compact" }).format(value) : value; 
+                            if (document.body.classList.contains('privacy-mode')) return '****'; 
+                            if (formatType === 'percent' || formatType === 'percent_combo' || formatType === 'scatter') return value + '%'; 
+                            return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(value); 
                         } 
                     }, 
-                    grid: { color: isHorizontal ? 'transparent' : gridColor, drawBorder: false } 
+                    grid: { color: gridColor, drawBorder: false } 
                 } 
             }
         }
     });
 }
-   
-   
    /**
     * Market Data Polling Management.
     * Handles the cyclical update of Watchlist, Live Portfolio, and Macro Benchmarks.
