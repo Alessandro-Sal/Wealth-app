@@ -782,6 +782,14 @@
          updateAnalyticsChart();
      }).getAnalyticsData();
    }
+
+   // Nuova funzione per gestire il Segmented Control degli Asset
+function setAnalyticsAsset(val, btnElement) {
+    document.getElementById('assetSelect').value = val;
+    document.querySelectorAll('.analytics-asset-btn').forEach(btn => btn.classList.remove('active'));
+    btnElement.classList.add('active');
+    updateAnalyticsChart();
+}
    
    function updateAnalyticsChart() {
     if (!analyticsDataCache) return;
