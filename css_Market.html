@@ -787,7 +787,7 @@ body.dark-mode .term-subtotal {
 	margin-top: 6px;
 }
 
-/* --- PORTFOLIO HEATMAP (Risoluzione Ingrandita) --- */
+/* --- PORTFOLIO HEATMAP --- */
 .heatmap-container {
     position: relative;
     width: 100%;
@@ -798,9 +798,11 @@ body.dark-mode .term-subtotal {
     border: 1px solid var(--row-border, rgba(0, 0, 0, 0.1));
     display: none;
     
-    /* ADD THESE TWO LINES */
-    padding: 10px 10px 20px 10px; /* Extra padding at the bottom */
-    box-sizing: border-box;       /* Ensures padding is calculated inside the width/height */
+    /* FIX DEFINITIVO PER IL BOTTOM CLIPPING */
+    padding-bottom: 25px; /* Aggiunge un bordo fisico interno sotto il grafico */
+    margin-bottom: 60px;  /* Evita sovrapposizioni con la taskbar mobile in basso */
+    box-sizing: border-box; 
+    overflow: hidden; 
 }
 
 .heatmap-block {

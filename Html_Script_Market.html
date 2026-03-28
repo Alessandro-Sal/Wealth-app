@@ -2372,17 +2372,49 @@
    document.addEventListener('click', hideContextMenu);
    
 // ============================================================================
-// --- PORTFOLIO HEATMAP LOGIC (SECTOR GROUPED TREEMAP) ---
+// --- PORTFOLIO HEATMAP LOGIC (INTERACTIVE WITH GROUPING) ---
 // ============================================================================
 
 let heatmapChartInstance = null;
+let currentHeatmapGrouping = 'sector'; // Default grouping
+
+// Funzione globale chiamata dal menu a tendina
+window.changeHeatmapGrouping = function(val) {
+    currentHeatmapGrouping = val;
+    // Ricalcola immediatamente usando i dati in memoria senza chiamare il server
+    if (typeof currentPortfolioData !== 'undefined' && currentPortfolioData) {
+        let dStocks = [...(currentPortfolioData.stocks || [])];
+        let dEtfs = [...(currentPortfolioData.etfs || [])];
+        renderPortfolioHeatmap({ stocks: dStocks, etfs: dEtfs });
+    }
+};
 
 function renderPortfolioHeatmap(data) {
     const containerId = 'portfolio-heatmap-container';
     const container = document.getElementById(containerId);
     if(!container) return;
+
+    // 1. Inizializza l'UI (Menu a tendina + Area Grafico) se non esiste
+    // Questo evita di sovrascrivere il menu ad ogni aggiornamento live (60s)
+    if (!document.getElementById('heatmap-controls')) {
+        container.innerHTML = `
+            <div id="heatmap-controls" style="padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--row-border);">
+                <div style="font-size: 12px; font-weight: 800; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px;">Portfolio Heatmap</div>
+                <select id="hm-group-select" onchange="changeHeatmapGrouping(this.value)" class="term-select" style="padding: 6px 10px; cursor: pointer;">
+                    <option value="sector" ${currentHeatmapGrouping === 'sector' ? 'selected' : ''}>🗂️ By Sector</option>
+                    <option value="ctry" ${currentHeatmapGrouping === 'ctry' ? 'selected' : ''}>🌍 By Country</option>
+                    <option value="ind" ${currentHeatmapGrouping === 'ind' ? 'selected' : ''}>🏭 By Industry</option>
+                    <option value="type" ${currentHeatmapGrouping === 'type' ? 'selected' : ''}>📦 By Asset Class</option>
+                    <option value="none" ${currentHeatmapGrouping === 'none' ? 'selected' : ''}>✖️ No Grouping</option>
+                </select>
+            </div>
+            <div id="heatmap-chart-canvas" style="width: 100%; height: calc(100% - 50px); box-sizing: border-box;"></div>
+        `;
+    }
     
-    // 1. Extract and format items
+    const chartCanvas = document.getElementById('heatmap-chart-canvas');
+
+    // 2. Estrai e formatta gli item
     let allItems = [];
     ['stocks', 'etfs'].forEach(type => {
         if(data[type]) {
@@ -2396,29 +2428,36 @@ function renderPortfolioHeatmap(data) {
     });
 
     if(allItems.length === 0) {
-        container.innerHTML = '<div style="padding:40px; text-align:center; color:var(--gray);">No active investments for Heatmap</div>';
+        chartCanvas.innerHTML = '<div style="padding:40px; text-align:center; color:var(--gray);">No active investments for Heatmap</div>';
         return;
     }
 
-    // 2. Color Grading Logic
     const getColor = (pctStr) => {
         let val = parseFloat(String(pctStr).replace('%', '').replace(',', '.'));
         if(isNaN(val)) return '#8e8e93';
-        if(val >= 2.5) return '#10893e'; // Deep Green
-        if(val > 0) return '#34c759';    // Standard Green
-        if(val <= -2.5) return '#c93429';// Deep Red
-        if(val < 0) return '#ff3b30';    // Standard Red
-        return '#8e8e93';                // Flat
+        if(val >= 2.5) return '#10893e'; 
+        if(val > 0) return '#34c759';    
+        if(val <= -2.5) return '#c93429';
+        if(val < 0) return '#ff3b30';    
+        return '#8e8e93';                
     };
 
-    // 3. Group data by Sector / Industry
-    // IMPORTANT: Replace 'item.sector' with the actual property name you use in your Google Sheets data (e.g., item.cat, item.assetClass, etc.)
+    // 3. Logica di Raggruppamento Dinamico
     let groupedData = {};
     
     allItems.forEach(item => {
-        // Fallback to 'ETF' or 'Uncategorized' if sector data is missing
-        let groupName = item.sector || (item._type === 'etfs' ? 'ETFs' : 'Uncategorized');
+        let groupName = 'Portfolio';
         
+        if (currentHeatmapGrouping === 'sector') {
+            groupName = item.sector && item.sector !== '-' ? item.sector : (item._type === 'etfs' ? 'ETFs' : 'Other');
+        } else if (currentHeatmapGrouping === 'ctry') {
+            groupName = item.ctry && item.ctry !== '-' ? item.ctry : 'Unknown';
+        } else if (currentHeatmapGrouping === 'ind') {
+            groupName = item.ind && item.ind !== '-' ? item.ind : 'Other';
+        } else if (currentHeatmapGrouping === 'type') {
+            groupName = item._type === 'etfs' ? 'ETFs' : 'Stocks';
+        }
+
         if (!groupedData[groupName]) {
             groupedData[groupName] = [];
         }
@@ -2431,30 +2470,28 @@ function renderPortfolioHeatmap(data) {
         });
     });
 
-    // 4. Format into ApexCharts Multi-Series structure
-    let seriesData = Object.keys(groupedData).map(sector => {
-        // Sort items inside the sector by value descending
-        let sortedData = groupedData[sector].sort((a, b) => b.y - a.y);
+    // 4. Formatta per ECharts
+    let seriesData = Object.keys(groupedData).map(group => {
+        let sortedData = groupedData[group].sort((a, b) => b.y - a.y);
         return {
-            name: sector,
+            name: group,
             data: sortedData
         };
     });
 
-    // Sort series by the total value of the sector
+    // Ordina i gruppi dal più grande al più piccolo
     seriesData.sort((a, b) => {
         let totalA = a.data.reduce((sum, i) => sum + i.y, 0);
         let totalB = b.data.reduce((sum, i) => sum + i.y, 0);
         return totalB - totalA;
     });
 
-    // 5. Destroy old instance
     if (heatmapChartInstance) {
         heatmapChartInstance.destroy();
     }
-    container.innerHTML = '';
+    chartCanvas.innerHTML = '';
 
-    // 6. ApexCharts Configuration for Grouped Treemap
+    // 5. Configurazione ApexCharts Anti-Clipping
     var options = {
         series: seriesData,
         legend: { show: false },
@@ -2463,7 +2500,8 @@ function renderPortfolioHeatmap(data) {
             width: '100%',
             type: 'treemap',
             toolbar: { show: false },
-            animations: { enabled: true, easing: 'easeinout', speed: 500 },
+            parentHeightOffset: 0,
+            animations: { enabled: true, easing: 'easeinout', speed: 400 },
             events: {
                 dataPointSelection: function(event, chartContext, config) {
                     let dataPoint = config.w.config.series[config.seriesIndex].data[config.dataPointIndex];
@@ -2474,8 +2512,8 @@ function renderPortfolioHeatmap(data) {
         },
         dataLabels: {
             enabled: true,
-            padding: 5,
-            offsetY: -3,
+            padding: 2,
+            offsetY: -6, // [FIX CRITICO]: Solleva violentemente i testi verso l'alto per evitare che il bordo inferiore del box li tagli
             style: {
                 fontSize: '13px',
                 fontFamily: 'var(--font-mono, monospace)',
@@ -2497,29 +2535,20 @@ function renderPortfolioHeatmap(data) {
             }
         },
         grid: {
-        padding: {
-            bottom: 25, // Aggiunge spazio "vuoto" in fondo per non tagliare il testo
-            top: 10,
-            left: 5,
-            right: 5
-        }
+            // [FIX CRITICO]: Assicura che ci sia uno spazio morto in basso nel motore SVG interno
+            padding: { top: 0, right: 0, bottom: 25, left: 0 }
         },
-        // Display Sector names on top of grouped blocks
-        title: {
-            text: '', // Main title empty
-        },
+        title: { text: '' },
         tooltip: {
             custom: function({series, seriesIndex, dataPointIndex, w}) {
                 let item = w.config.series[seriesIndex].data[dataPointIndex].originalData;
-                let sectorName = w.config.series[seriesIndex].name;
+                let groupName = w.config.series[seriesIndex].name;
                 
                 let isPrivacy = document.body.classList.contains('privacy-mode');
                 let valDisplay = isPrivacy ? '****' : '€ ' + item.numericVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 
-                let dChDisplay;
-                if (isPrivacy) {
-                    dChDisplay = '****';
-                } else {
+                let dChDisplay = '****';
+                if (!isPrivacy) {
                     let dChFloat = parseForSort(item.dCh);
                     if (dChFloat === -Infinity || isNaN(dChFloat)) dChFloat = 0;
                     dChDisplay = (dChFloat >= 0 ? '+€ ' : '-€ ') + Math.abs(dChFloat).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -2532,7 +2561,7 @@ function renderPortfolioHeatmap(data) {
                 return `
                     <div style="padding: 12px; background: var(--card-bg, #fff); border: 1px solid var(--row-border); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-family: var(--font-main, sans-serif);">
                         <div style="font-weight: 800; font-size: 15px; margin-bottom: 2px;">${item.t} <span style="font-size:11px; color:var(--gray); font-weight:normal;">${item.name || ''}</span></div>
-                        <div style="font-size: 11px; color: var(--gray); text-transform: uppercase; margin-bottom: 8px;">Sector: ${sectorName}</div>
+                        <div style="font-size: 11px; color: var(--gray); text-transform: uppercase; margin-bottom: 8px;">${currentHeatmapGrouping === 'none' ? 'Asset' : 'Group'}: ${groupName}</div>
                         <div style="font-size: 13px; margin-bottom: 4px; color: var(--text-main);">Value: <b>${valDisplay}</b></div>
                         <div style="font-size: 13px; color: var(--text-main);">Day Change: <b style="color: ${getColor(item.pct)}">${dChDisplay} (${formattedPct})</b></div>
                     </div>
@@ -2541,12 +2570,12 @@ function renderPortfolioHeatmap(data) {
         },
         stroke: {
             show: true,
-            width: 3, // Thicker stroke to better separate sectors
+            width: 2,
             colors: [document.body.classList.contains('dark-mode') ? '#1c1c1e' : '#f5f5f7']
         }
     };
 
-    heatmapChartInstance = new ApexCharts(container, options);
+    heatmapChartInstance = new ApexCharts(chartCanvas, options);
     heatmapChartInstance.render();
 }
    // Helper: Parses volume strings (like 1.5M, 800K) into clean numbers for ratio calculation
