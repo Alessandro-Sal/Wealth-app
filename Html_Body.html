@@ -1039,67 +1039,56 @@
                </div>
             </div>
             <div class="dash-widget" style="height: fit-content;">
-               <div class="widget-title" style="margin:0;">
-                  <div class="badge-icon bg-dark">📊</div>
-                  Analytics & Allocation
-               </div>
-               <div style="background: var(--section-bg); border-radius: 16px; margin-top: 15px ;margin-bottom: 25px; border: 1px solid rgba(0,0,0,0.04);">
-                  <div class="custom-dropdown" style="border-bottom: 1px solid rgba(0,0,0,0.05);">
-                     <div class="dropdown-trigger" onclick="toggleCustomDropdown('menu-asset')">
-                        <div style="display:flex; align-items:center; gap: 10px;">
-                           <div style="background:var(--white); width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 5px rgba(0,0,0,0.05); font-size:14px;">💼</div>
-                           <span style="font-size:13px; font-weight:700; color:var(--gray);">Asset</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                           <span id="label-assetSelect" style="font-size: 15px; font-weight: 800; color: var(--primary);">Stocks + ETFs</span>
-                           <span style="font-size: 10px; color: var(--primary);">▼</span>
-                        </div>
-                     </div>
-                     <input type="hidden" id="assetSelect" value="combined">
-                     <div class="dropdown-menu" id="menu-asset">
-                        <div class="dropdown-item active" onclick="selectCustomOption('assetSelect', 'combined', 'Stocks + ETFs', 'menu-asset', this)">Stocks + ETFs</div>
-                        <div class="dropdown-item" onclick="selectCustomOption('assetSelect', 'stocks', 'Stocks Only', 'menu-asset', this)">Stocks Only</div>
-                        <div class="dropdown-item" onclick="selectCustomOption('assetSelect', 'etfs', 'ETFs Only', 'menu-asset', this)">ETFs Only</div>
-                        <div class="dropdown-item" onclick="selectCustomOption('assetSelect', 'crypto', 'Crypto', 'menu-asset', this)">Crypto</div>
-                     </div>
-                  </div>
-                  <div class="custom-dropdown">
-                     <div class="dropdown-trigger" onclick="toggleCustomDropdown('menu-metric')">
-                        <div style="display:flex; align-items:center; gap: 10px;">
-                           <div style="background:var(--white); width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 5px rgba(0,0,0,0.05); font-size:14px;">📊</div>
-                           <span style="font-size:13px; font-weight:700; color:var(--gray);">Metric</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                           <span id="label-chartSelect" style="font-size: 15px; font-weight: 800; color: var(--primary);">Current Value</span>
-                           <span style="font-size: 10px; color: var(--primary);">▼</span>
-                        </div>
-                     </div>
-                     <input type="hidden" id="chartSelect" value="breakdown">
-                     <div class="dropdown-menu" id="menu-metric">
-                        <div class="dropdown-group-label">📊 Portfolio Structure</div>
-                        <div class="dropdown-item active" onclick="selectCustomOption('chartSelect', 'breakdown', 'Current Value', 'menu-metric', this)">Current Value</div>
-                        <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'invested', 'Invested Capital', 'menu-metric', this)">Invested Capital</div>
-                        <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'winloss', 'Win/Loss Count', 'menu-metric', this)">Win/Loss Count</div>
-                        <div class="dropdown-group-label">🌍 Allocation</div>
-                        <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'sector', 'Sector', 'menu-metric', this)">Sector</div>
-                        <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'industry', 'Industry', 'menu-metric', this)">Industry</div>
-                        <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'country', 'Country', 'menu-metric', this)">Country</div>
-                        <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'currency', 'Currency', 'menu-metric', this)">Currency</div>
-                        <div class="dropdown-group-label">💰 Profitability</div>
-                        <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'performance', 'Performance', 'menu-metric', this)">Performance</div>
-                        <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'efficiency', 'Efficiency (Days vs ROI)', 'menu-metric', this)"> Efficiency (Days vs ROI)</div>
-                        <div class="dropdown-group-label">✅ Realized</div>
-                        <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'realized_excl', 'Realized (Trading)', 'menu-metric', this)">Realized (Trading)</div>
-                        <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'realized_incl', 'Realized + Divs', 'menu-metric', this)">Realized + Divs</div>
-                        <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'total_gain', 'Total Gain', 'menu-metric', this)">Total Gain</div>
-                        <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'div_single', 'Dividends', 'menu-metric', this)">Dividends</div>
-                     </div>
-                  </div>
-               </div>
-               <div id="chartContainer" style="position: relative; height:300px; width:100%; display:flex; align-items:center; justify-content:center;">
-                  <canvas id="analyticsChart"></canvas>
-               </div>
-            </div>
+   <div class="widget-title" style="margin:0; justify-content: space-between; display: flex; width: 100%;">
+      <span style="display: flex; align-items: center; gap: 8px;">
+         <div class="badge-icon bg-dark">📊</div>
+         Analytics & Allocation
+      </span>
+      <div class="custom-dropdown">
+         <div class="dropdown-trigger" onclick="toggleCustomDropdown('menu-metric')" style="padding: 4px 10px; background: rgba(0,122,255,0.1); border-radius: 8px;">
+            <span id="label-chartSelect" style="font-size: 12px; font-weight: 800; color: var(--primary);">Current Value</span>
+            <span style="font-size: 10px; color: var(--primary); margin-left: 4px;">▼</span>
+         </div>
+         <input type="hidden" id="chartSelect" value="breakdown">
+         <div class="dropdown-menu" id="menu-metric" style="right: 0; min-width: 200px;">
+            <div class="dropdown-group-label">📊 Portfolio Structure</div>
+            <div class="dropdown-item active" onclick="selectCustomOption('chartSelect', 'breakdown', 'Current Value', 'menu-metric', this)">Current Value</div>
+            <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'invested', 'Invested Capital', 'menu-metric', this)">Invested Capital</div>
+            <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'winloss', 'Win/Loss Count', 'menu-metric', this)">Win/Loss Count</div>
+            <div class="dropdown-group-label">🌍 Allocation</div>
+            <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'sector', 'Sector', 'menu-metric', this)">Sector</div>
+            <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'industry', 'Industry', 'menu-metric', this)">Industry</div>
+            <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'country', 'Country', 'menu-metric', this)">Country</div>
+            <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'currency', 'Currency', 'menu-metric', this)">Currency</div>
+            <div class="dropdown-group-label">💰 Profitability</div>
+            <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'performance', 'Performance', 'menu-metric', this)">Performance</div>
+            <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'efficiency', 'Efficiency (Days vs ROI)', 'menu-metric', this)">Efficiency</div>
+            <div class="dropdown-group-label">✅ Realized & Flow</div>
+            <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'realized_excl', 'Realized (Trading)', 'menu-metric', this)">Realized (Trading)</div>
+            <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'realized_incl', 'Realized + Divs', 'menu-metric', this)">Realized + Divs</div>
+            <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'total_gain', 'Total Gain', 'menu-metric', this)">Total Gain</div>
+            <div class="dropdown-item" onclick="selectCustomOption('chartSelect', 'div_single', 'Dividends', 'menu-metric', this)">Dividends</div>
+         </div>
+      </div>
+   </div>
+
+   <div style="background: var(--section-bg); border-radius: 12px; padding: 4px; display: flex; margin-top: 15px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);">
+      <button class="term-view-btn analytics-asset-btn active" style="flex:1; text-align:center;" onclick="setAnalyticsAsset('combined', this)">All</button>
+      <button class="term-view-btn analytics-asset-btn" style="flex:1; text-align:center;" onclick="setAnalyticsAsset('stocks', this)">Stocks</button>
+      <button class="term-view-btn analytics-asset-btn" style="flex:1; text-align:center;" onclick="setAnalyticsAsset('etfs', this)">ETFs</button>
+      <button class="term-view-btn analytics-asset-btn" style="flex:1; text-align:center;" onclick="setAnalyticsAsset('crypto', this)">Crypto</button>
+      <input type="hidden" id="assetSelect" value="combined">
+   </div>
+
+   <div style="text-align: center; margin-top: 20px; margin-bottom: 10px;">
+       <div id="analytics-dynamic-label" style="font-size: 11px; font-weight: 800; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px;">Total Value</div>
+       <div id="analytics-dynamic-total" class="sensitive tabular-nums" style="font-size: 28px; font-weight: 900; color: var(--text-main); letter-spacing: -1px;">€ --</div>
+   </div>
+
+   <div id="chartContainer" style="position: relative; height:280px; width:100%; display:flex; align-items:center; justify-content:center;">
+      <canvas id="analyticsChart"></canvas>
+   </div>
+</div>
          </div>
          <div id="mtab-insights" class="m-tab-content">
             <div class="dash-widget">

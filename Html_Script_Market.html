@@ -783,7 +783,16 @@
      }).getAnalyticsData();
    }
    
-   function updateAnalyticsChart() {
+   // Nuova funzione per gestire il Segmented Control degli Asset
+function setAnalyticsAsset(val, btnElement) {
+    document.getElementById('assetSelect').value = val;
+    document.querySelectorAll('.analytics-asset-btn').forEach(btn => btn.classList.remove('active'));
+    btnElement.classList.add('active');
+    updateAnalyticsChart();
+}
+
+// Sostituisci l'attuale updateAnalyticsChart() con questa versione potenziata:
+function updateAnalyticsChart() {
     if (!analyticsDataCache) return;
     const ctxEl = document.getElementById('analyticsChart'); 
     if (!ctxEl) return;
@@ -809,40 +818,8 @@
         let totalGain = item.gainEur + cashRealized; 
         return { ...item, invested: invested, tradeRealized: tradeRealized, cashRealized: cashRealized, totalGain: totalGain }; 
     });
-    // --- INIEZIONE GRAVEYARD NEI GRAFICI BARRE/TORTE ---
-    if (includeClosedInMarket && window.cpData && window.cpData.length > 0) {
-        let mappedCPForChart = window.cpData.map(cp => {
-            let cat = 'stocks';
-            let rawType = String(cp.type).trim().toUpperCase();
-            if (rawType === 'ETF' || rawType === 'ETFS') cat = 'etfs';
-            else if (rawType === 'CRYPTO' || rawType === 'CRYPTOS') cat = 'crypto';
 
-            // Parso i valori in sicurezza
-            let rPnL = parseForSort(cp.realPnL); if(rPnL === -Infinity) rPnL = 0;
-            let divs = parseForSort(cp.divs); if(divs === -Infinity) divs = 0;
-            let tot = parseForSort(cp.totalPnL); if(tot === -Infinity) tot = 0;
-            let roi = parseForSort(cp.roi); if(roi === -Infinity) roi = 0;
-
-            return {
-                ticker: cp.ticker + ' (C)',
-                value: 0, // Ignorati nei grafici di allocazione
-                invested: 0,
-                gainEur: 0,
-                tradeRealized: rPnL,          // FIX: Nome corretto per il grafico
-                dividends: divs,
-                cashRealized: rPnL + divs,    // FIX: Nome corretto per il grafico
-                totalGain: tot,               // FIX: Nome corretto per il grafico
-                gainPct: roi / 100,
-                daysHeld: parseInt(cp.daysHeld) || 0,
-                _cat: cat
-            };
-        });
-        
-        if (assetType !== 'combined') mappedCPForChart = mappedCPForChart.filter(c => c._cat === assetType);
-        else mappedCPForChart = mappedCPForChart.filter(c => c._cat !== 'crypto');
-        
-        dataset = [...dataset, ...mappedCPForChart];
-    }
+    // Filtri
     if (['realized_excl', 'realized_incl', 'total_gain', 'div_single', 'winloss'].includes(chartType)) { 
         dataset = dataset.filter(item => item.value > 0.01 || Math.abs(item.totalGain) > 1 || Math.abs(item.tradeRealized) > 1); 
     } else { 
@@ -856,6 +833,7 @@
     let formatType = 'currency'; 
     let secondaryValues = [];
     
+    // Palette Apple-like
     const palette = ['#007aff', '#34c759', '#ff9500', '#ff2d55', '#5856d6', '#af52de', '#5ac8fa', '#ffcc00', '#8e8e93'];
     const getColors = (len) => Array.from({length: len}, (_, i) => palette[i % palette.length]);
     
@@ -874,60 +852,105 @@
         formatType = 'currency'; 
     };
     
+    // Configurazione specifica per Chart Type
+    let displayTotal = 0;
+    let displayLabel = document.getElementById('label-chartSelect').innerText;
+
     switch (chartType) {
-        case 'breakdown': dataset.sort((a, b) => b.value - a.value); labels = dataset.map(d => d.ticker); values = dataset.map(d => d.value); colors = getColors(dataset.length); formatType = 'currency'; break;
-        case 'invested': dataset.sort((a, b) => b.invested - a.invested); labels = dataset.map(d => d.ticker); values = dataset.map(d => d.invested.toFixed(2)); colors = '#5856d6'; formatType = 'currency'; break;
-        case 'performance': dataset.sort((a, b) => b.gainPct - a.gainPct); labels = dataset.map(d => d.ticker); values = dataset.map(d => (d.gainPct * 100).toFixed(2)); secondaryValues = dataset.map(d => d.gainEur); colors = values.map(v => v >= 0 ? '#34c759' : '#ff3b30'); formatType = 'percent_combo'; break;
-        case 'total_gain': dataset.sort((a, b) => b.totalGain - a.totalGain); labels = dataset.map(d => d.ticker); values = dataset.map(d => d.totalGain); colors = values.map(v => v >= 0 ? '#34c759' : '#ff3b30'); formatType = 'currency'; break;
-        case 'realized_excl': dataset.sort((a, b) => b.tradeRealized - a.tradeRealized); labels = dataset.map(d => d.ticker); values = dataset.map(d => d.tradeRealized); colors = values.map(v => v >= 0 ? '#34c759' : '#ff3b30'); formatType = 'currency'; break;
-        case 'realized_incl': dataset.sort((a, b) => b.cashRealized - a.cashRealized); labels = dataset.map(d => d.ticker); values = dataset.map(d => d.cashRealized); colors = values.map(v => v >= 0 ? '#34c759' : '#ff3b30'); formatType = 'currency'; break;
-        case 'div_single': let divSet = dataset.filter(d => d.dividends > 0).sort((a,b) => b.dividends - a.dividends); labels = divSet.map(d => d.ticker); values = divSet.map(d => d.dividends); colors = '#ffcc00'; formatType = 'currency'; break;
-        case 'winloss': let win = dataset.filter(d => d.totalGain >= 0).length; let loss = dataset.filter(d => d.totalGain < 0).length; labels = ['In Profit', 'In Loss']; values = [win, loss]; colors = ['#34c759', '#ff3b30']; formatType = 'number'; break;
-        
+        case 'breakdown': 
+            dataset.sort((a, b) => b.value - a.value); labels = dataset.map(d => d.ticker); values = dataset.map(d => d.value); colors = getColors(dataset.length); formatType = 'currency'; 
+            displayTotal = totalValue;
+            break;
+        case 'invested': 
+            dataset.sort((a, b) => b.invested - a.invested); labels = dataset.map(d => d.ticker); values = dataset.map(d => d.invested.toFixed(2)); colors = '#5856d6'; formatType = 'currency'; 
+            displayTotal = dataset.reduce((a, b) => a + b.invested, 0);
+            break;
+        case 'performance': 
+            dataset.sort((a, b) => b.gainPct - a.gainPct); labels = dataset.map(d => d.ticker); values = dataset.map(d => (d.gainPct * 100).toFixed(2)); secondaryValues = dataset.map(d => d.gainEur); colors = values.map(v => v >= 0 ? '#34c759' : '#ff3b30'); formatType = 'percent_combo'; 
+            displayTotal = dataset.reduce((a, b) => a + b.gainEur, 0); // Total Gain EUR
+            displayLabel = "Total Unrealized";
+            break;
+        case 'total_gain': 
+            dataset.sort((a, b) => b.totalGain - a.totalGain); labels = dataset.map(d => d.ticker); values = dataset.map(d => d.totalGain); colors = values.map(v => v >= 0 ? '#34c759' : '#ff3b30'); formatType = 'currency'; 
+            displayTotal = dataset.reduce((a, b) => a + b.totalGain, 0);
+            break;
+        case 'realized_excl': 
+            dataset.sort((a, b) => b.tradeRealized - a.tradeRealized); labels = dataset.map(d => d.ticker); values = dataset.map(d => d.tradeRealized); colors = values.map(v => v >= 0 ? '#34c759' : '#ff3b30'); formatType = 'currency'; 
+            displayTotal = dataset.reduce((a, b) => a + b.tradeRealized, 0);
+            break;
+        case 'realized_incl': 
+            dataset.sort((a, b) => b.cashRealized - a.cashRealized); labels = dataset.map(d => d.ticker); values = dataset.map(d => d.cashRealized); colors = values.map(v => v >= 0 ? '#34c759' : '#ff3b30'); formatType = 'currency'; 
+            displayTotal = dataset.reduce((a, b) => a + b.cashRealized, 0);
+            break;
+        case 'div_single': 
+            let divSet = dataset.filter(d => d.dividends > 0).sort((a,b) => b.dividends - a.dividends); labels = divSet.map(d => d.ticker); values = divSet.map(d => d.dividends); colors = '#ffcc00'; formatType = 'currency'; 
+            displayTotal = divSet.reduce((a, b) => a + b.dividends, 0);
+            break;
+        case 'winloss': 
+            let win = dataset.filter(d => d.totalGain >= 0).length; let loss = dataset.filter(d => d.totalGain < 0).length; labels = ['In Profit', 'In Loss']; values = [win, loss]; colors = ['#34c759', '#ff3b30']; formatType = 'number'; 
+            displayTotal = dataset.length;
+            displayLabel = "Total Assets";
+            break;
         case 'efficiency': 
+            // Costruzione Scatter... (mantieni la tua logica esistente qui)
             let liveData = [];
             if (currentPortfolioData) {
                 if (assetType === 'combined') liveData = [...(currentPortfolioData.stocks || []), ...(currentPortfolioData.etfs || [])];
                 else liveData = currentPortfolioData[assetType] || [];
             }
-
-            // --- INIEZIONE GRAVEYARD NELLO SCATTER PLOT ---
-            if (includeClosedInMarket && window.cpData && window.cpData.length > 0) {
-                let mappedCPForLive = window.cpData.map(mapClosedToLive);
-                if (assetType !== 'combined') mappedCPForLive = mappedCPForLive.filter(c => c._cat === assetType);
-                else mappedCPForLive = mappedCPForLive.filter(c => c._cat !== 'crypto');
-                liveData = [...liveData, ...mappedCPForLive];
-            }
-
             labels = liveData.map(d => d.t); 
-            
             values = liveData.map(d => {
                 let xVal = parseInt(d.daysHeld) || 0;
-                // Legge la %. Se è chiusa usa il Realized, se è aperta usa l'Unrealized
                 let rawY = d._isClosed ? d.realizedPct : d.unrealizedPct;
                 let yVal = parseForSort(rawY); 
                 yVal = yVal === -Infinity ? 0 : yVal;
-                
-                // Legge i Profitti per il Tooltip
                 let rawGain = d._isClosed ? d.balEur : d.unrealizedEur;
                 let gainVal = parseForSort(rawGain);
-                gainVal = gainVal === -Infinity ? 0 : gainVal;
-
-                return { x: xVal, y: yVal, ticker: d.t, gainEur: gainVal };
+                return { x: xVal, y: yVal, ticker: d.t, gainEur: gainVal === -Infinity ? 0 : gainVal };
             }).filter(d => d.x > 0); 
-            
             colors = values.map(v => v.y >= 0 ? 'rgba(52, 199, 89, 0.7)' : 'rgba(255, 59, 48, 0.7)'); 
             formatType = 'scatter'; 
+            displayTotal = values.length;
+            displayLabel = "Tracked Assets";
             break;
+        default: 
+            aggregateData(chartType); 
+            displayTotal = totalValue;
+            break;
+    }
 
-        default: aggregateData(chartType); break;
+    // --- AGGIORNAMENTO KPI DINAMICA ---
+    const isPrivacy = document.body.classList.contains('privacy-mode');
+    document.getElementById('analytics-dynamic-label').innerText = displayLabel;
+    const totalEl = document.getElementById('analytics-dynamic-total');
+    
+    if (formatType === 'number' || formatType === 'scatter') {
+        totalEl.innerText = displayTotal;
+        totalEl.style.color = "var(--text-main)";
+    } else {
+        if (isPrivacy) {
+            totalEl.innerText = "€ ****";
+            totalEl.style.color = "var(--text-main)";
+        } else {
+            totalEl.innerText = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(displayTotal);
+            if (['performance', 'total_gain', 'realized_excl', 'realized_incl'].includes(chartType)) {
+                totalEl.style.color = displayTotal >= 0 ? "var(--stocks-bg)" : "var(--danger)";
+            } else {
+                totalEl.style.color = "var(--text-main)";
+            }
+        }
     }
     
     if (analyticsChartInstance) { analyticsChartInstance.destroy(); }
     
-    const isPie = ['breakdown', 'winloss', 'sector', 'industry', 'country'].includes(chartType);
+    const isPie = ['breakdown', 'winloss', 'sector', 'industry', 'country', 'currency'].includes(chartType);
     const isScatter = chartType === 'efficiency';
     
+    // Impostazioni Globali Chart.js per dark mode
+    const isDark = document.body.classList.contains('dark-mode');
+    const textColor = isDark ? '#fff' : '#8e8e93';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)';
+
     analyticsChartInstance = new Chart(ctx, {
         type: isScatter ? 'scatter' : (isPie ? 'doughnut' : 'bar'),
         data: { 
@@ -935,32 +958,42 @@
             datasets: [{ 
                 data: values, 
                 backgroundColor: colors, 
-                borderWidth: isScatter ? 0 : 1, 
-                borderColor: isScatter ? colors.map(c => c.replace('0.7', '1')) : (document.body.classList.contains('dark-mode') ? '#1c1c1e' : '#fff'),
+                borderWidth: isPie ? 2 : 0, // Bordo solo per le torte
+                borderColor: isDark ? '#1c1c1e' : '#fff',
+                borderRadius: isPie || isScatter ? 0 : 6, // Angoli arrotondati premium per le barre
                 pointRadius: isScatter ? 6 : undefined,
                 pointHoverRadius: isScatter ? 9 : undefined
             }] 
         },
         options: {
-            responsive: true, maintainAspectRatio: false,
+            responsive: true, 
+            maintainAspectRatio: false,
+            cutout: isPie ? '75%' : undefined, // Torta più sottile ed elegante
             plugins: {
-                legend: { display: isPie, position: 'right', labels: { color: document.body.classList.contains('dark-mode') ? '#fff' : '#000', font: { size: 10 }, boxWidth: 10 } },
+                legend: { 
+                    display: isPie, 
+                    position: 'right', 
+                    labels: { color: textColor, font: { size: 11, family: 'Inter' }, boxWidth: 10, padding: 12 } 
+                },
                 tooltip: {
+                    backgroundColor: isDark ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    titleColor: isDark ? '#fff' : '#000',
+                    bodyColor: isDark ? '#ddd' : '#333',
+                    borderColor: isDark ? '#333' : '#eee',
+                    borderWidth: 1,
+                    padding: 10,
                     callbacks: {
                         label: function(context) {
-                            let isPrivacy = document.body.classList.contains('privacy-mode');
-                            
-                            // Gestione tooltip per lo Scatter Plot
-                            if (formatType === 'scatter') {
-                                let raw = context.raw; 
-                                let formattedEur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(raw.gainEur);
-                                return isPrivacy ? `${raw.ticker} | Days: ${raw.x} | ROI: ${raw.y.toFixed(2)}% | P&L: ****` : `${raw.ticker} | Days: ${raw.x} | ROI: ${raw.y.toFixed(2)}% | P&L: ${formattedEur}`;
-                            }
-
                             let label = context.label || ''; 
                             let val = Number(context.parsed.y !== undefined && !isPie ? context.parsed.y : context.parsed); 
                             const idx = context.dataIndex;
                             
+                            if (formatType === 'scatter') {
+                                let raw = context.raw; 
+                                let formattedEur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(raw.gainEur);
+                                return isPrivacy ? `${raw.ticker} | ROI: ${raw.y.toFixed(2)}% | P&L: ****` : `${raw.ticker} | ROI: ${raw.y.toFixed(2)}% | P&L: ${formattedEur}`;
+                            }
+
                             if (formatType === 'percent_combo') { 
                                 let eurVal = secondaryValues[idx]; 
                                 let formattedEur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(eurVal); 
@@ -986,22 +1019,24 @@
                 x: { 
                     display: !isPie, 
                     type: isScatter ? 'linear' : 'category',
-                    title: { display: isScatter, text: isScatter ? 'Days Held' : '', color: 'var(--gray)', font: { weight: 'bold' } },
-                    ticks: { color: 'var(--gray)', font: {size: 9}, autoSkip: false, maxRotation: 90, minRotation: 0 }, 
+                    title: { display: isScatter, text: isScatter ? 'Days Held' : '', color: textColor, font: { weight: 'bold' } },
+                    ticks: { color: textColor, font: {size: 10}, maxRotation: 45, minRotation: 0 }, 
                     grid: { display: false } 
                 }, 
                 y: { 
                     display: !isPie, 
-                    title: { display: isScatter, text: isScatter ? 'ROI %' : '', color: 'var(--gray)', font: { weight: 'bold' } },
+                    title: { display: isScatter, text: isScatter ? 'ROI %' : '', color: textColor, font: { weight: 'bold' } },
+                    border: { display: false },
                     ticks: { 
-                        color: 'var(--gray)', 
+                        color: textColor, 
+                        font: {size: 10},
                         callback: function(value) { 
                             if (document.body.classList.contains('privacy-mode')) return '****'; 
                             if (formatType === 'percent' || formatType === 'percent_combo' || formatType === 'scatter') return value + '%'; 
                             return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(value); 
                         } 
                     }, 
-                    grid: { color: 'rgba(128,128,128,0.1)', borderDash: isScatter ? [5, 5] : [] } 
+                    grid: { color: gridColor, drawBorder: false } 
                 } 
             }
         }
