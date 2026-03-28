@@ -382,191 +382,112 @@ function renderAssetChart(summary) {
    }
    
    /**
-    * ============================================================================
-    * UPGRADED: TRADINGVIEW LIGHTWEIGHT CHARTS FOR NET WORTH
-    * Replaces Chart.js with high-performance financial charts.
-    * ============================================================================
+    * Renders the Net Worth and Asset Class Historical Trend Chart.
+    * Uses Chart.js with responsive datasets and privacy mode support (hides Y-axis and Tooltips).
     */
    let nwTrendChartInstance = null;
-   let tvNetWorthChart = null; // Internal TradingView instance
    
    function renderNetWorthTrendChart() {
-     // 1. Sostituzione dinamica del Canvas con un Div (Lightweight Charts richiede un DIV)
-     let canvas = document.getElementById('nwTrendChart');
-     let container = document.getElementById('nwTrendChart-container');
+     const canvas = document.getElementById('nwTrendChart');
+     if (!canvas) return; 
      
-     if (canvas && canvas.tagName.toLowerCase() === 'canvas') {
-         container = document.createElement('div');
-         container.id = 'nwTrendChart-container';
-         container.style.width = '100%';
-         container.style.height = '100%';
-         container.style.position = 'relative';
-         canvas.parentNode.replaceChild(container, canvas);
-     }
+     const ctx = canvas.getContext('2d');
      
-     if (!container) return;
-   
      google.script.run.withSuccessHandler(data => {
        const loader = document.getElementById('nw-loading-indicator');
        if (loader) loader.style.display = 'none';
-       if (!data || data.error) return;
-       
-       // Pulisce l'istanza precedente se esiste
-       if (nwTrendChartInstance && typeof nwTrendChartInstance.destroy === 'function') {
-           nwTrendChartInstance.destroy();
+       if (!data || data.error) {
+           console.error("Error loading NW Trend data:", data?.error);
+           return;
        }
-       container.innerHTML = '';
+       
+       if (nwTrendChartInstance) {
+         nwTrendChartInstance.destroy();
+       }
    
        const isDark = document.body.classList.contains('dark-mode');
+       const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
    
-       // 2. Configurazione Base TradingView
-       tvNetWorthChart = LightweightCharts.createChart(container, {
-         layout: {
-           background: { type: 'solid', color: 'transparent' },
-           textColor: isDark ? '#b0b0b0' : '#8e8e93',
-           fontFamily: 'Inter, var(--font-main, sans-serif)'
+       nwTrendChartInstance = new Chart(ctx, {
+         type: 'line',
+         data: {
+           labels: data.labels,
+           datasets: [
+             { label: 'Total Net Worth', data: data.totalNW, borderColor: '#007aff', backgroundColor: 'rgba(0, 122, 255, 0.1)', borderWidth: 3, fill: true, tension: 0.4, order: 1 },
+             { label: 'Liquid Net Worth', data: data.liquidNW, borderColor: '#34c759', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, borderDash: [5, 5], order: 2 },
+             
+             // USD Counterparts (Hidden by default)
+             { label: 'Total Net Worth (USD)', data: data.totalNW_USD, borderColor: '#5ac8fa', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, borderDash: [2, 2], hidden: true, order: 3 },
+             { label: 'Liquid Net Worth (USD)', data: data.liquidNW_USD, borderColor: '#30b0c7', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, borderDash: [2, 2], hidden: true, order: 4 },
+             
+             // Asset Classes
+             { label: 'Cash', data: data.cash, borderColor: '#32ade6', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 5 },
+             { label: 'Cash Eq', data: data.cashEq, borderColor: '#00c7be', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 6 },
+             { label: 'Stocks', data: data.stocks, borderColor: '#5856d6', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 7 },
+             { label: 'ETFs', data: data.etfs, borderColor: '#8e8e93', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 8 },
+             { label: 'Crypto', data: data.crypto, borderColor: '#ffcc00', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 9 },
+             { label: 'Pension', data: data.pension, borderColor: '#fd7e14', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 10 }
+           ]
          },
-         grid: {
-           vertLines: { visible: false },
-           horzLines: { color: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)' },
-         },
-         rightPriceScale: {
-           borderVisible: false,
-           scaleMargins: { top: 0.1, bottom: 0.1 }
-         },
-         timeScale: {
-           borderVisible: false,
-           fixLeftEdge: true,
-           fixRightEdge: true,
-           timeVisible: false,
-         },
-         crosshair: {
-           mode: LightweightCharts.CrosshairMode.Magnet,
-         }
-       });
-   
-       // 3. Creazione Serie Grafiche
-       const totalSeries = tvNetWorthChart.addAreaSeries({
-         lineColor: '#007aff',
-         topColor: isDark ? 'rgba(0, 122, 255, 0.3)' : 'rgba(0, 122, 255, 0.2)',
-         bottomColor: 'rgba(0, 122, 255, 0.0)',
-         lineWidth: 3,
-         priceFormat: {
-             type: 'custom',
-             formatter: price => document.body.classList.contains('privacy-mode') ? '****' : new Intl.NumberFormat('it-IT', { notation: "compact" }).format(price)
-         }
-       });
-   
-       const liquidSeries = tvNetWorthChart.addLineSeries({
-         color: '#34c759',
-         lineWidth: 2,
-         lineStyle: LightweightCharts.LineStyle.Dashed,
-         priceFormat: { type: 'custom', formatter: () => '' } // Nascosto sull'asse Y per pulizia
-       });
-   
-       // 4. Parser Date Robusto (TradingView accetta solo formati temporali precisi)
-       const parseDateToTV = (label, index) => {
-           if (/^\d{4}-\d{2}-\d{2}$/.test(label)) return label;
-           let d = new Date(label);
-           if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
-           // Fallback: crea date sequenziali se il formato del backend non è standard
-           let fb = new Date();
-           fb.setMonth(fb.getMonth() - (data.labels.length - 1 - index));
-           return fb.toISOString().split('T')[0];
-       };
-   
-       // 5. Mappatura Dati
-       let tvTotalData = [];
-       let tvLiquidData = [];
-   
-       for (let i = 0; i < data.labels.length; i++) {
-           let timeStr = parseDateToTV(data.labels[i], i);
-           tvTotalData.push({ time: timeStr, value: data.totalNW[i] || 0 });
-           tvLiquidData.push({ time: timeStr, value: data.liquidNW[i] || 0 });
-       }
-   
-       // Ordina cronologicamente (Requisito di Lightweight Charts)
-       tvTotalData.sort((a, b) => new Date(a.time) - new Date(b.time));
-       tvLiquidData.sort((a, b) => new Date(a.time) - new Date(b.time));
-   
-       totalSeries.setData(tvTotalData);
-       liquidSeries.setData(tvLiquidData);
-       tvNetWorthChart.timeScale().fitContent();
-   
-       // 6. Tooltip Custom HTML (Per supportare il Privacy Mode ed etichette multiple)
-       const toolTip = document.createElement('div');
-       toolTip.style = `width: 160px; position: absolute; display: none; padding: 12px; box-sizing: border-box; font-size: 13px; z-index: 1000; top: 12px; left: 12px; pointer-events: none; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); background: ${isDark ? 'rgba(28,28,30,0.95)' : 'rgba(255,255,255,0.95)'}; color: ${isDark ? '#fff' : '#000'}; border: 1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}; font-family: var(--font-main, sans-serif);`;
-       container.appendChild(toolTip);
-   
-       tvNetWorthChart.subscribeCrosshairMove(param => {
-           if (param.point === undefined || !param.time || param.point.x < 0 || param.point.x > container.clientWidth || param.point.y < 0 || param.point.y > container.clientHeight) {
-               toolTip.style.display = 'none';
-           } else {
-               const isPrivacy = document.body.classList.contains('privacy-mode');
-               const totalVal = param.seriesData.get(totalSeries)?.value;
-               const liquidVal = param.seriesData.get(liquidSeries)?.value;
-               
-               if(totalVal !== undefined) {
-                   const fmtTotal = isPrivacy ? '****' : new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(totalVal);
-                   const fmtLiquid = isPrivacy ? '****' : new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(liquidVal || 0);
-                   
-                   // Formatta la data per il tooltip
-                   let dateObj = new Date(param.time);
-                   let displayDate = !isNaN(dateObj) ? dateObj.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : param.time;
-   
-                   toolTip.style.display = 'block';
-                   
-                   // Sposta il tooltip a destra o sinistra per non coprire il mouse
-                   let left = param.point.x + 15;
-                   if (left > container.clientWidth - 170) left = param.point.x - 175;
-                   toolTip.style.left = left + 'px';
-                   
-                   toolTip.innerHTML = `
-                       <div style="font-weight: 800; margin-bottom: 8px; color: var(--gray); font-size: 11px; text-transform: uppercase; letter-spacing:0.5px;">${displayDate}</div>
-                       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-                           <div style="display:flex; align-items:center; gap:5px;">
-                               <div style="width:8px; height:8px; border-radius:50%; background:#007aff;"></div>
-                               <span style="color: var(--gray); font-weight: 600; font-size:12px;">Total</span>
-                           </div>
-                           <span class="sensitive" style="font-weight: 800; font-variant-numeric: tabular-nums;">${fmtTotal}</span>
-                       </div>
-                       <div style="display:flex; justify-content:space-between; align-items:center;">
-                           <div style="display:flex; align-items:center; gap:5px;">
-                               <div style="width:8px; height:2px; background:#34c759;"></div>
-                               <span style="color: var(--gray); font-weight: 600; font-size:12px;">Liquid</span>
-                           </div>
-                           <span class="sensitive" style="font-weight: 800; font-variant-numeric: tabular-nums;">${fmtLiquid}</span>
-                       </div>
-                   `;
-               }
-           }
-       });
-   
-       // Resizing reattivo
-       const resizeObserver = new ResizeObserver(entries => {
-           if (container.clientWidth > 0 && container.clientHeight > 0) {
-               tvNetWorthChart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
-           }
-       });
-       resizeObserver.observe(container);
-   
-       // 7. Wrapper "Falso" per mantenere la compatibilità con la funzione updateAllCharts() della Privacy Mode
-       nwTrendChartInstance = {
-           chart: tvNetWorthChart,
-           update: function() {
-               if (totalSeries) {
-                   const isPriv = document.body.classList.contains('privacy-mode');
-                   totalSeries.applyOptions({
-                       priceFormat: { type: 'custom', formatter: price => isPriv ? '****' : new Intl.NumberFormat('it-IT', { notation: "compact" }).format(price) }
-                   });
-               }
+         options: {
+           responsive: true,
+           maintainAspectRatio: false,
+           interaction: {
+             mode: 'index',
+             intersect: false,
            },
-           destroy: function() {
-               resizeObserver.disconnect();
-               if(this.chart) this.chart.remove();
+           plugins: {
+             legend: { 
+               position: 'bottom', 
+               labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 }, padding: 15 } 
+             },
+             tooltip: {
+               backgroundColor: isDark ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+               titleColor: isDark ? '#fff' : '#000',
+               bodyColor: isDark ? '#ddd' : '#333',
+               borderColor: isDark ? '#333' : '#eee',
+               borderWidth: 1,
+               callbacks: {
+                 label: function(context) {
+                   let label = context.dataset.label || '';
+                   if (label) label += ': ';
+                   
+                   // HIDE DATA IN TOOLTIP ON PRIVACY MODE
+                   if (document.body.classList.contains('privacy-mode')) return label + '****';
+                   
+                   // Dynamic Currency Formatting (EUR vs USD)
+                   let isUSD = label.includes('USD');
+                   let val = new Intl.NumberFormat(isUSD ? 'en-US' : 'it-IT', { 
+                     style: 'currency', 
+                     currency: isUSD ? 'USD' : 'EUR', 
+                     maximumFractionDigits: 0 
+                   }).format(context.parsed.y);
+                   
+                   return label + val;
+                 }
+               }
+             }
+           },
+           scales: {
+             x: { 
+               grid: { display: false },
+               ticks: { font: { size: 10 } }
+             },
+             y: { 
+               grid: { color: gridColor, borderDash: [5, 5] }, 
+               border: { display: false },
+               ticks: {
+                 font: { size: 10 },
+                 // HIDE DATA ON Y AXIS WHEN PRIVACY MODE IS ACTIVE
+                 callback: function(value) {
+                   if (document.body.classList.contains('privacy-mode')) return '****';
+                   return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(value);
+                 }
+               }
+             }
            }
-       };
-   
+         }
+       });
      }).getHistoricalNetWorthTrend();
    }
 </script>
