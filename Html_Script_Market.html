@@ -2475,6 +2475,7 @@ function renderPortfolioHeatmap(data) {
         dataLabels: {
             enabled: true,
             padding: 5,
+            offsetY: -3,
             style: {
                 fontSize: '13px',
                 fontFamily: 'var(--font-mono, monospace)',
@@ -2494,6 +2495,14 @@ function renderPortfolioHeatmap(data) {
                 enableShades: false,
                 colorScale: { inverse: false }
             }
+        },
+        grid: {
+        padding: {
+            bottom: 25, // Aggiunge spazio "vuoto" in fondo per non tagliare il testo
+            top: 10,
+            left: 5,
+            right: 5
+        }
         },
         // Display Sector names on top of grouped blocks
         title: {
