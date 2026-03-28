@@ -1052,7 +1052,7 @@ function updateAnalyticsChart() {
      // 1. Safety Clear: Ensure no duplicate intervals are running
      stopMarketPolling();
      
-     console.log("🟢 Market Polling Started (60s interval)");
+     console.log("🟢 Market Polling Started (5 minutes interval)");
      
      // 2. IMMEDIATE UPDATE (Runs as soon as tab opens)
      // This ensures data is aligned instantly without waiting for the first interval tick.
@@ -2989,5 +2989,195 @@ function renderPMChartWidget(ticker) {
         widgetDiv.appendChild(script); 
         chartContainer.appendChild(widgetDiv);
     }, 300);
+}
+
+// ============================================================================
+// --- MARKET BENCHMARK HEATMAP & VIEW TOGGLE ---
+// ============================================================================
+
+let macroHeatmapChartInstance = null;
+let currentMacroCountryFilter = 'All';
+let cachedMacroIndexData = [];
+let benchmarkViewMode = 'list'; 
+
+/**
+ * Switches the view inside the Benchmark card (List vs Heatmap)
+ */
+function switchBenchmarkMode(mode) {
+    benchmarkViewMode = mode;
+    const btnList = document.getElementById('btn-bench-list');
+    const btnHeat = document.getElementById('btn-bench-heat');
+    
+    // Assumes your standard benchmark list is wrapped in this ID
+    const listContainer = document.getElementById('benchmark-list-container'); 
+    const heatContainer = document.getElementById('macro-heatmap-container');
+
+    if (mode === 'heatmap') {
+        if (btnList) { btnList.style.background = 'transparent'; btnList.style.color = 'var(--gray)'; btnList.style.fontWeight = '700'; }
+        if (btnHeat) { btnHeat.style.background = 'var(--white)'; btnHeat.style.color = 'var(--text-main)'; btnHeat.style.fontWeight = '800'; }
+        
+        if (listContainer) listContainer.style.display = 'none';
+        if (heatContainer) heatContainer.style.display = 'block';
+        
+        // Render or re-render heatmap
+        if (cachedMacroIndexData && cachedMacroIndexData.length > 0) {
+            renderIndexHeatmap(cachedMacroIndexData);
+        }
+    } else {
+        if (btnHeat) { btnHeat.style.background = 'transparent'; btnHeat.style.color = 'var(--gray)'; btnHeat.style.fontWeight = '700'; }
+        if (btnList) { btnList.style.background = 'var(--white)'; btnList.style.color = 'var(--text-main)'; btnList.style.fontWeight = '800'; }
+        
+        if (heatContainer) heatContainer.style.display = 'none';
+        if (listContainer) listContainer.style.display = 'block';
+    }
+}
+
+/**
+ * Handles the country filter change from the dropdown
+ */
+window.changeMacroCountryFilter = function(val) {
+    currentMacroCountryFilter = val;
+    if (cachedMacroIndexData && cachedMacroIndexData.length > 0) {
+        renderIndexHeatmap(cachedMacroIndexData, true); // true forces UI refresh
+    }
+};
+
+/**
+ * Renders the ApexCharts Treemap for Macro Benchmarks
+ */
+function renderIndexHeatmap(indexData, forceRefresh = false) {
+    if (indexData) cachedMacroIndexData = indexData;
+    else indexData = cachedMacroIndexData;
+
+    const containerId = 'macro-heatmap-container';
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    // 1. Extract unique countries from Column B (mapped as country, ctry, or region)
+    let countries = new Set();
+    indexData.forEach(item => {
+        let c = item.country || item.ctry || item.region || 'Global';
+        if (c !== '-' && c !== '') countries.add(c);
+    });
+    let countryOptions = Array.from(countries).sort();
+
+    // 2. Initialize UI (Dropdown Filter & Chart Area)
+    if (!document.getElementById('macro-heatmap-controls') || forceRefresh) {
+        let optionsHtml = `<option value="All" ${currentMacroCountryFilter === 'All' ? 'selected' : ''}>🌍 All Countries</option>`;
+        countryOptions.forEach(c => {
+            optionsHtml += `<option value="${c}" ${currentMacroCountryFilter === c ? 'selected' : ''}>${c}</option>`;
+        });
+
+        container.innerHTML = `
+            <div id="macro-heatmap-controls" style="padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--row-border);">
+                <div style="font-size: 12px; font-weight: 800; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px;">Macro Heatmap</div>
+                <select id="macro-country-select" onchange="changeMacroCountryFilter(this.value)" class="term-select" style="padding: 6px 10px; cursor: pointer; border-radius: 8px; border: 1px solid var(--row-border); background: var(--card-bg); color: var(--text-main);">
+                    ${optionsHtml}
+                </select>
+            </div>
+            <div id="macro-heatmap-chart-canvas" style="width: 100%; height: 350px; box-sizing: border-box;"></div>
+        `;
+    }
+    
+    const chartCanvas = document.getElementById('macro-heatmap-chart-canvas');
+
+    // 3. Filter Data Based on Selected Country
+    let filteredData = indexData.filter(item => {
+        if (currentMacroCountryFilter === 'All') return true;
+        let c = item.country || item.ctry || item.region || 'Global';
+        return c === currentMacroCountryFilter;
+    });
+
+    if (filteredData.length === 0) {
+        chartCanvas.innerHTML = '<div style="padding:40px; text-align:center; color:var(--gray);">No market data for this country</div>';
+        return;
+    }
+
+    // 4. Color logic
+    const getColor = (pctStr) => {
+        let val = parseFloat(String(pctStr).replace('%', '').replace(',', '.'));
+        if(isNaN(val)) return '#8e8e93';
+        if(val >= 1.5) return '#10893e'; 
+        if(val > 0) return '#34c759';    
+        if(val <= -1.5) return '#c93429';
+        if(val < 0) return '#ff3b30';    
+        return '#8e8e93';                
+    };
+
+    // 5. Group Data for Treemap
+    let groupedData = {};
+    filteredData.forEach(item => {
+        let groupName = item.country || item.ctry || item.region || 'Global'; 
+        if (!groupedData[groupName]) groupedData[groupName] = [];
+        
+        // Base weight on volume if available, otherwise flat size
+        let sizeVal = parseFloat(item.weight) || 10; 
+
+        groupedData[groupName].push({
+            x: item.ticker || item.t || item.name,
+            y: sizeVal,
+            fillColor: getColor(item.pct || item.dCh),
+            originalData: item
+        });
+    });
+
+    let seriesData = Object.keys(groupedData).map(group => {
+        return { name: group, data: groupedData[group] };
+    });
+
+    if (macroHeatmapChartInstance) {
+        macroHeatmapChartInstance.destroy();
+    }
+    chartCanvas.innerHTML = '';
+
+    // 6. ApexCharts Configuration
+    var options = {
+        series: seriesData,
+        legend: { show: false },
+        chart: {
+            height: '100%', width: '100%', type: 'treemap',
+            toolbar: { show: false }, parentHeightOffset: 0,
+            animations: { enabled: true, easing: 'easeinout', speed: 400 }
+        },
+        dataLabels: {
+            enabled: true, padding: 2, offsetY: -6, 
+            style: { fontSize: '13px', fontFamily: 'var(--font-mono, monospace)', fontWeight: 'bold', colors: ['#ffffff'] },
+            formatter: function(text, op) {
+                let item = op.w.config.series[op.seriesIndex].data[op.dataPointIndex].originalData;
+                let rawPct = String(item.pct || item.dCh || "0%").replace('%', '').trim();
+                let pctFloat = parseFloat(rawPct.replace(',', '.'));
+                let formattedPct = isNaN(pctFloat) ? "0.00%" : (pctFloat > 0 ? '+' : '') + pctFloat.toFixed(2) + '%';
+                return [text, formattedPct];
+            }
+        },
+        plotOptions: { treemap: { enableShades: false, colorScale: { inverse: false } } },
+        grid: { padding: { top: 0, right: 0, bottom: 25, left: 0 } },
+        title: { text: '' },
+        tooltip: {
+            custom: function({series, seriesIndex, dataPointIndex, w}) {
+                let item = w.config.series[seriesIndex].data[dataPointIndex].originalData;
+                let nameDisplay = item.name || item.t || 'Index';
+                let priceDisplay = item.price || item.val || '-';
+                let countryDisplay = item.country || item.ctry || item.region || '-';
+                
+                let rawPct = String(item.pct || item.dCh || "0%").replace('%', '').trim();
+                let pctFloat = parseFloat(rawPct.replace(',', '.'));
+                let formattedPct = isNaN(pctFloat) ? "0.00%" : (pctFloat > 0 ? '+' : '') + pctFloat.toFixed(2) + '%';
+                
+                return `
+                    <div style="padding: 12px; background: var(--card-bg, #fff); border: 1px solid var(--row-border); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-family: var(--font-main, sans-serif);">
+                        <div style="font-weight: 800; font-size: 15px; margin-bottom: 2px;">${nameDisplay}</div>
+                        <div style="font-size: 11px; color: var(--gray); text-transform: uppercase; margin-bottom: 8px;">Macro Benchmark • ${countryDisplay}</div>
+                        <div style="font-size: 13px; margin-bottom: 4px; color: var(--text-main);">Level: <b>${priceDisplay}</b></div>
+                        <div style="font-size: 13px; color: var(--text-main);">Day Change: <b style="color: ${getColor(item.pct || item.dCh)}">${formattedPct}</b></div>
+                    </div>
+                `;
+            }
+        },
+        stroke: { show: true, width: 2, colors: [document.body.classList.contains('dark-mode') ? '#1c1c1e' : '#f5f5f7'] }
+    };
+
+    macroHeatmapChartInstance = new ApexCharts(chartCanvas, options);
+    macroHeatmapChartInstance.render();
 }
 </script>

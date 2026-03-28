@@ -1091,41 +1091,67 @@
 </div>
          </div>
          <div id="mtab-insights" class="m-tab-content">
-            <div class="dash-widget">
-               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                  <div class="widget-title" style="margin:0;">
-                     <div class="badge-icon bg-dark">🏆</div>
-                     Benchmark
-                  </div>
-                  <div style="display:flex; align-items:center; gap: 8px;">
-                     <div style="display:flex; flex-wrap:wrap; background:var(--section-bg); border-radius:8px; padding:3px; max-width: 300px;">
-                        <button class="bench-mode-btn" id="btn-bench-mode-daily" onclick="setBenchmarkMode('daily')" style="background:var(--white); color:var(--text-main); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:800; cursor:pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition:all 0.2s;">24H</button>
-                        <button class="bench-mode-btn" id="btn-bench-mode-1m" onclick="setBenchmarkMode('1m')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">1M</button>
-                        <button class="bench-mode-btn" id="btn-bench-mode-ytd" onclick="setBenchmarkMode('ytd')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">YTD</button>
-                        <button class="bench-mode-btn" id="btn-bench-mode-1y" onclick="setBenchmarkMode('1y')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">1Y</button>
-                        <button class="bench-mode-btn" id="btn-bench-mode-3y" onclick="setBenchmarkMode('3y')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">3Y</button>
-                        <button class="bench-mode-btn" id="btn-bench-mode-5y" onclick="setBenchmarkMode('5y')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">5Y</button>
-                        <button class="bench-mode-btn" id="btn-bench-mode-10y" onclick="setBenchmarkMode('10y')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">10Y</button>
-                        <button class="bench-mode-btn" id="btn-bench-mode-20y" onclick="setBenchmarkMode('20y')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">20Y</button>
-                     </div>
-                     <span id="btn-refresh-market" onclick="forceReloadMarket()" style="font-size:16px; cursor:pointer; color:var(--primary); background:var(--section-bg); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);" title="Run AI Analysis">🔄</span>
-                  </div>
-               </div>
-               <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:10px; margin-bottom:10px; -webkit-overflow-scrolling:touch;">
-                  <div class="term-chip active" id="btn-bench-Main" onclick="filterBenchmarks('Main')">⭐ Main</div>
-                  <div class="term-chip" id="btn-bench-us" onclick="filterBenchmarks('us')">🇺🇸 US</div>
-                  <div class="term-chip" id="btn-bench-eu" onclick="filterBenchmarks('eu')">🇪🇺 Europe</div>
-                  <div class="term-chip" id="btn-bench-ap" onclick="filterBenchmarks('ap')">🌏 Asia</div>
-                  <div class="term-chip" id="btn-bench-em" onclick="filterBenchmarks('em')">🌍 Emerging & Americas</div>
-                  <div class="term-chip" id="btn-bench-fi" onclick="filterBenchmarks('fi')">🏦 Fixed Income</div>
-                  <div class="term-chip" id="btn-bench-cmd" onclick="filterBenchmarks('cmd')">🛢️ Commodities</div>
-                  <div class="term-chip" id="btn-bench-thm" onclick="filterBenchmarks('thm')">📈 Thematic</div>
-                  <div class="term-chip" id="btn-bench-mac" onclick="filterBenchmarks('mac')">📊 Macro & Forex</div>
-                  <div class="term-chip" id="btn-bench-oth" onclick="filterBenchmarks('oth')">📌 Other</div>
-               </div>
-               <div id="benchmark-container" style="display: flex; flex-direction: column; width: 100%; margin-bottom: 20px; min-height:100px;">
-                  <div style="font-size:13px; font-weight:600; color:var(--gray); text-align:center; padding:10px;">Loading indices...</div>
-               </div>
+    <div class="dash-widget">
+        
+        <!-- HEADER ROW: Title + View Toggle + Time Toggle + Refresh -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+            
+            <!-- TITLE & VIEW TOGGLE -->
+            <div style="display:flex; align-items:center; gap: 15px;">
+                <div class="widget-title" style="margin:0;">
+                    <div class="badge-icon bg-dark">🏆</div>
+                    Benchmark
+                </div>
+                
+                <!-- NEW: View Toggle (List vs Heatmap) -->
+                <div class="segmented-control" style="display:flex; background: rgba(0,0,0,0.05); padding: 3px; border-radius: 8px;">
+                    <button id="btn-bench-list" onclick="switchBenchmarkMode('list')" class="active" style="border: none; background: var(--white); border-radius: 6px; padding: 4px 12px; font-size: 12px; font-weight: 800; cursor: pointer; color: var(--text-main); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">List</button>
+                    <button id="btn-bench-heat" onclick="switchBenchmarkMode('heatmap')" style="border: none; background: transparent; border-radius: 6px; padding: 4px 12px; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--gray);">Heatmap</button>
+                </div>
+            </div>
+
+            <!-- TIME CONTROLS & REFRESH -->
+            <div style="display:flex; align-items:center; gap: 8px;">
+                <div style="display:flex; flex-wrap:wrap; background:var(--section-bg); border-radius:8px; padding:3px; max-width: 300px;">
+                    <button class="bench-mode-btn" id="btn-bench-mode-daily" onclick="setBenchmarkMode('daily')" style="background:var(--white); color:var(--text-main); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:800; cursor:pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition:all 0.2s;">24H</button>
+                    <button class="bench-mode-btn" id="btn-bench-mode-1m" onclick="setBenchmarkMode('1m')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">1M</button>
+                    <button class="bench-mode-btn" id="btn-bench-mode-ytd" onclick="setBenchmarkMode('ytd')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">YTD</button>
+                    <button class="bench-mode-btn" id="btn-bench-mode-1y" onclick="setBenchmarkMode('1y')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">1Y</button>
+                    <button class="bench-mode-btn" id="btn-bench-mode-3y" onclick="setBenchmarkMode('3y')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">3Y</button>
+                    <button class="bench-mode-btn" id="btn-bench-mode-5y" onclick="setBenchmarkMode('5y')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">5Y</button>
+                    <button class="bench-mode-btn" id="btn-bench-mode-10y" onclick="setBenchmarkMode('10y')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">10Y</button>
+                    <button class="bench-mode-btn" id="btn-bench-mode-20y" onclick="setBenchmarkMode('20y')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">20Y</button>
+                </div>
+                <span id="btn-refresh-market" onclick="forceReloadMarket()" style="font-size:16px; cursor:pointer; color:var(--primary); background:var(--section-bg); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);" title="Run AI Analysis">🔄</span>
+            </div>
+        </div>
+        
+        <!-- CATEGORY FILTERS (Chips) -->
+        <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:10px; margin-bottom:10px; -webkit-overflow-scrolling:touch;">
+            <div class="term-chip active" id="btn-bench-Main" onclick="filterBenchmarks('Main')">⭐ Main</div>
+            <div class="term-chip" id="btn-bench-us" onclick="filterBenchmarks('us')">🇺🇸 US</div>
+            <div class="term-chip" id="btn-bench-eu" onclick="filterBenchmarks('eu')">🇪🇺 Europe</div>
+            <div class="term-chip" id="btn-bench-ap" onclick="filterBenchmarks('ap')">🌏 Asia</div>
+            <div class="term-chip" id="btn-bench-em" onclick="filterBenchmarks('em')">🌍 Emerging & Americas</div>
+            <div class="term-chip" id="btn-bench-fi" onclick="filterBenchmarks('fi')">🏦 Fixed Income</div>
+            <div class="term-chip" id="btn-bench-cmd" onclick="filterBenchmarks('cmd')">🛢️ Commodities</div>
+            <div class="term-chip" id="btn-bench-thm" onclick="filterBenchmarks('thm')">📈 Thematic</div>
+            <div class="term-chip" id="btn-bench-mac" onclick="filterBenchmarks('mac')">📊 Macro & Forex</div>
+            <div class="term-chip" id="btn-bench-oth" onclick="filterBenchmarks('oth')">📌 Other</div>
+        </div>
+
+        <!-- CONTENT CONTAINERS -->
+        
+        <!-- 1. The original list container (Wrapped so JS toggle works without breaking your current ID) -->
+        <div id="benchmark-list-container">
+            <div id="benchmark-container" style="display: flex; flex-direction: column; width: 100%; margin-bottom: 20px; min-height:100px;">
+                <div style="font-size:13px; font-weight:600; color:var(--gray); text-align:center; padding:10px;">Loading indices...</div>
+            </div>
+        </div>
+
+        <!-- 2. The new heatmap container (Hidden by default) -->
+        <div id="macro-heatmap-container" style="display: none; background: var(--card-bg, #fff); border-radius: 12px; border: 1px solid var(--row-border); overflow: hidden; margin-bottom: 20px;">
+        </div>
                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-top: 5px;">
                   <div style="background:rgba(0,122,255,0.05); border-left:4px solid #007aff; padding:15px; border-radius:12px; display:flex; flex-direction:column;">
                      <div style="font-size:10px; font-weight:800; color:#007aff; margin-bottom:8px; letter-spacing:0.5px;">🌍 MACRO SCENARIO</div>
