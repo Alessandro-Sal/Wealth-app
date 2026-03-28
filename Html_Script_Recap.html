@@ -748,15 +748,16 @@ function renderCPScatterChart() {
     });
 }
 /**
- * Chiama il backend per recuperare la sintesi di Real Estate, Bonds e Liabilities.
- * Utilizza la LocalStorage Cache per un rendering UI istantaneo senza attese.
+ * Calls the backend to retrieve the summary of Real Estate, Bonds, and Liabilities.
+ * Uses LocalStorage Cache for instant UI rendering without waiting.
+ * Renders detailed lists grouped by Asset Type.
  */
 function loadRealAssetsDashboard() {
-    // Helper interno per stampare a schermo i dati
+    // Internal helper to print data to the screen
     const renderData = (summary) => {
         const fmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
         
-        // 1. Popola i Widget a Griglia
+        // 1. Populate the Grid Widgets (Totals)
         if(document.getElementById('dash-re-net')) document.getElementById('dash-re-net').innerText = fmt.format(summary.realEstate.net);
         if(document.getElementById('dash-re-gross')) document.getElementById('dash-re-gross').innerText = fmt.format(summary.realEstate.gross);
         if(document.getElementById('dash-re-debt')) document.getElementById('dash-re-debt').innerText = "-" + fmt.format(summary.realEstate.debt);
@@ -764,33 +765,86 @@ function loadRealAssetsDashboard() {
         if(document.getElementById('dash-bond-net')) document.getElementById('dash-bond-net').innerText = fmt.format(summary.bonds.net);
         if(document.getElementById('dash-liab-net')) document.getElementById('dash-liab-net').innerText = fmt.format(summary.liabilities.net);
 
-        // 2. Popola la Legenda sotto al Grafico a Torta
+        // 2. Helper to render grouped item lists inside the cards
+        const renderDetails = (containerId, items, isDebt = false) => {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            if (!items || items.length === 0) {
+                container.innerHTML = '<div style="color: var(--gray); font-size: 11px; text-align: center; margin-top: 10px;">No detailed data found</div>';
+                return;
+            }
+
+            // Group items by their exact type (e.g., "Corporate Bond")
+            const groupedItems = {};
+            items.forEach(item => {
+                let t = item.type || "Other";
+                // Clean up prefixes if you want shorter labels (optional)
+                t = t.replace("Real Estate - ", "").replace("Liability - ", ""); 
+                if (!groupedItems[t]) groupedItems[t] = [];
+                groupedItems[t].push(item);
+            });
+
+            let html = '<div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px; border-top: 1px dashed var(--row-border); padding-top: 12px;">';
+            
+            Object.keys(groupedItems).forEach(groupType => {
+                // Render Group Header
+                html += `
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="font-size: 10px; font-weight: 800; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px;">
+                        ${groupType}
+                    </div>`;
+                
+                // Render Items inside the group
+                groupedItems[groupType].forEach(item => {
+                    let valColor = isDebt ? 'var(--danger)' : 'var(--text-main)';
+                    let valText = isDebt ? "-" + fmt.format(Math.abs(item.net)) : fmt.format(item.net);
+                    
+                    html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding-left: 6px; border-left: 2px solid var(--primary);">
+                        <span style="color: var(--gray); font-weight: 600; text-transform: capitalize;">${item.name}</span>
+                        <span class="sensitive" style="font-weight: 800; color: ${valColor};">${valText}</span>
+                    </div>`;
+                });
+                html += `</div>`; // Close group container
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        };
+
+        // Render the grouped detailed lists
+        renderDetails('dash-re-details', summary.realEstate.items);
+        renderDetails('dash-bond-details', summary.bonds.items);
+        renderDetails('dash-liab-details', summary.liabilities.items, true);
+
+        // 3. Populate Legend under the Pie Chart
         if(document.getElementById('sum-re-a')) document.getElementById('sum-re-a').innerText = fmt.format(summary.realEstate.net);
         if(document.getElementById('sum-b-a')) document.getElementById('sum-b-a').innerText = fmt.format(summary.bonds.net);
         
-        // 3. Salva per Grafici e Calcolatore del Net Worth
+        // 4. Save globally for Charts and Net Worth Calculator
         window.globalRealEstateNet = summary.realEstate.net || 0;
         window.globalBondsNet = summary.bonds.net || 0;
         window.globalLiabilitiesNet = summary.liabilities.net || 0;
         window.realAssetsNetImpact = summary.totalNetWorthImpact || 0; 
         
-        // 4. Innesca l'aggiornamento visivo di Torta e Total Balance
+        // 5. Trigger visual update of the Pie Chart and Total Balance
         if (typeof recalculateGrandTotal === "function") recalculateGrandTotal();
         const cachedSummary = JSON.parse(localStorage.getItem('dashboard_cache'))?.summary || {};
         if (typeof renderAssetChart === "function") renderAssetChart(cachedSummary);
     };
 
-    // --- FASE 1: FAST RENDER DA CACHE ---
+    // --- PHASE 1: FAST RENDER FROM CACHE ---
     const cachedRealAssets = localStorage.getItem('realAssets_cache');
     if (cachedRealAssets) {
         try { renderData(JSON.parse(cachedRealAssets)); } catch(e) {}
     }
 
-    // --- FASE 2: FETCH IN BACKGROUND ---
+    // --- PHASE 2: FETCH IN BACKGROUND ---
     google.script.run.withSuccessHandler(function(summary) {
         if (!summary) return;
-        localStorage.setItem('realAssets_cache', JSON.stringify(summary)); // Salva in cache
-        renderData(summary); // Aggiorna i dati invisibilmente
+        localStorage.setItem('realAssets_cache', JSON.stringify(summary)); // Save to cache
+        renderData(summary); // Update UI invisibly
     }).getRealAssetsSummary();
 }
 </script>

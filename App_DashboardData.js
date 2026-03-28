@@ -126,8 +126,8 @@ function getDashboardData() {
 }
 
 /**
- * Recupera la sintesi degli Asset Reali e delle Passività dall'ultimo mese registrato nel Log.
- * Da richiamare per popolare le card della Dashboard.
+ * Retrieves the summary of Real Assets and Liabilities from the latest recorded month in the Log.
+ * Extracts individual asset details and their exact Type for grouping.
  */
 function getRealAssetsSummary() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -137,7 +137,7 @@ function getRealAssetsSummary() {
   const data = logSheet.getDataRange().getValues();
   if (data.length <= 1) return null;
 
-  // 1. Trova l'ultimo mese registrato
+  // 1. Find the latest recorded month
   let latestDate = new Date(0);
   for (let i = 1; i < data.length; i++) {
      let d = new Date(data[i][0]);
@@ -145,40 +145,48 @@ function getRealAssetsSummary() {
   }
   let latestMonthStr = Utilities.formatDate(latestDate, Session.getScriptTimeZone(), "yyyy-MM");
 
-  // 2. Prepara l'oggetto di sintesi
+  // 2. Prepare the summary object with item arrays
   let summary = {
-     realEstate: { gross: 0, debt: 0, net: 0 },
-     bonds: { gross: 0, debt: 0, net: 0 },
-     liabilities: { gross: 0, debt: 0, net: 0 }, // Debiti puri (senza asset collegato)
+     realEstate: { gross: 0, debt: 0, net: 0, items: [] },
+     bonds: { gross: 0, debt: 0, net: 0, items: [] },
+     liabilities: { gross: 0, debt: 0, net: 0, items: [] }, 
      totalNetWorthImpact: 0
   };
 
-  // 3. Somma i dati dell'ultimo mese
+  // 3. Sum data for the latest month and collect individual items with their Type
   for (let i = 1; i < data.length; i++) {
      let rowDate = new Date(data[i][0]);
      if (isNaN(rowDate.getTime())) continue;
      
      if (Utilities.formatDate(rowDate, Session.getScriptTimeZone(), "yyyy-MM") === latestMonthStr) {
-        let type = data[i][1];
+        let type = String(data[i][1]).trim(); // Column B: Exact type (e.g., "Corporate Bond")
+        let name = data[i][2] || "Unknown";   // Column C: Asset Name
         let gross = parseFloat(data[i][3]) || 0;
         let debt = parseFloat(data[i][4]) || 0;
         let net = parseFloat(data[i][5]) || 0;
 
-        if (type === "Real Estate") {
+        // Use includes() to catch composite types like "Real Estate - Residential"
+        if (type.includes("Real Estate")) {
            summary.realEstate.gross += gross;
            summary.realEstate.debt += debt;
            summary.realEstate.net += net;
+           summary.realEstate.items.push({ name: name, type: type, net: net, debt: debt });
+           
         } else if (type.includes("Bond")) {
            summary.bonds.gross += gross;
            summary.bonds.debt += debt;
            summary.bonds.net += net;
-        } else if (type === "Liability") {
+           summary.bonds.items.push({ name: name, type: type, net: net });
+           
+        // Catch Liability, Loan, or Mortgage keywords
+        } else if (type.includes("Liability") || type.includes("Loan") || type.includes("Mortgage")) {
            summary.liabilities.gross += gross;
            summary.liabilities.debt += debt;
            summary.liabilities.net += net;
+           summary.liabilities.items.push({ name: name, type: type, net: net });
         }
         
-        // Calcola l'impatto totale sul patrimonio netto
+        // Calculate total impact on net worth
         summary.totalNetWorthImpact += net;
      }
   }
