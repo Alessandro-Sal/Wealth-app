@@ -1126,8 +1126,14 @@
             </div>
         </div>
         
-        <!-- CATEGORY FILTERS (Chips) -->
-        <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:10px; margin-bottom:10px; -webkit-overflow-scrolling:touch;">
+       <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:10px; margin-bottom:10px; -webkit-overflow-scrolling:touch; align-items:center;">
+            
+            <select id="macro-country-select" onchange="filterByCountry(this.value)" style="padding: 6px 12px; border-radius: 8px; border: 1px solid var(--row-border); background: var(--card-bg); color: var(--text-main); font-weight: 800; font-size: 12px; outline: none; cursor: pointer; flex-shrink: 0;">
+                <option value="All">🌍 All Countries</option>
+            </select>
+            
+            <div style="width: 1px; height: 20px; background: var(--row-border); margin: 0 4px; flex-shrink: 0;"></div>
+            
             <div class="term-chip active" id="btn-bench-Main" onclick="filterBenchmarks('Main')">⭐ Main</div>
             <div class="term-chip" id="btn-bench-us" onclick="filterBenchmarks('us')">🇺🇸 US</div>
             <div class="term-chip" id="btn-bench-eu" onclick="filterBenchmarks('eu')">🇪🇺 Europe</div>
@@ -1139,7 +1145,6 @@
             <div class="term-chip" id="btn-bench-mac" onclick="filterBenchmarks('mac')">📊 Macro & Forex</div>
             <div class="term-chip" id="btn-bench-oth" onclick="filterBenchmarks('oth')">📌 Other</div>
         </div>
-
         <!-- CONTENT CONTAINERS -->
         
         <!-- 1. The original list container (Wrapped so JS toggle works without breaking your current ID) -->
