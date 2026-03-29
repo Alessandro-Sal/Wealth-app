@@ -2999,6 +2999,20 @@ let macroHeatmapChartInstance = null;
 let currentMacroCountryFilter = 'All';
 let cachedMacroIndexData = [];
 let benchmarkViewMode = 'list'; 
+// 1. GESTORE CUSTOM DROPDOWN
+function updateMacroCountry(val, label, el) {
+    document.getElementById('macro-country-select').value = val;
+    document.getElementById('label-macro-country').innerText = label;
+    
+    const menu = document.getElementById('menu-macro-country');
+    if (menu) {
+        menu.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('active'));
+        menu.classList.remove('show');
+    }
+    if (el) el.classList.add('active');
+    
+    filterByGeography(val);
+}
 
 function switchBenchmarkMode(mode) {
     benchmarkViewMode = mode;
@@ -3145,14 +3159,7 @@ function renderIndexHeatmap(indexData, timeMode = 'daily') {
     macroHeatmapChartInstance = new ApexCharts(chartCanvas, options);
     macroHeatmapChartInstance.render();
 }
-function filterByCountry(country) {
-    window.currentCountryFilter = country;
-    if (country === 'All') {
-        filterBenchmarks('All'); // Se deselezioni, torna alla vista Main di default
-    } else {
-        filterBenchmarks(''); // Invia una stringa vuota per disattivare tutti i Chip testuali
-    }
-}
+
 
 // --- Market Insights AI & Calendar ---
    
@@ -3205,40 +3212,70 @@ function filterByCountry(country) {
        filterBenchmarks(window.currentBenchFilter);
    }
    
+
+// Nuova logica UX: Selezionare una nazione o "All" resetta i chip
+function filterByGeography(val) {
+    window.currentCountryFilter = val;
+    if (val === 'All') {
+        filterBenchmarks('All'); // Passa 'All' al motore principale
+    } else {
+        filterBenchmarks('GEO'); // Parola chiave per nazioni specifiche
+    }
+}
+
+// ... [LA FUNZIONE renderMarketInsights RIMANE UGUALE] ...
+
+// 4. RENDERING LISTA E CONFLITTI UX
 function filterBenchmarks(category) {
-    window.currentBenchFilter = category || 'Main';
+    const sel = document.getElementById('macro-country-select');
+    const lbl = document.getElementById('label-macro-country');
+    const menu = document.getElementById('menu-macro-country');
     
-    // Aggiorna grafica bottoni
-    const buttons = document.querySelectorAll('.term-chip[id^="btn-bench-"]');
-    buttons.forEach(btn => btn.classList.remove('active'));
-    
-    if (category !== '') {
-        const activeBtn = document.getElementById('btn-bench-' + category);
-        if(activeBtn) activeBtn.classList.add('active');
-        
+    // --- GESTIONE INTERFACCIA E CONFLITTI UX ---
+    if (category !== 'GEO' && category !== 'All') {
+        // Cliccato un chip testuale -> Reset della tendina custom a "All"
+        window.currentBenchFilter = category;
         window.currentCountryFilter = 'All';
-        const sel = document.getElementById('macro-country-select');
         if (sel) sel.value = 'All';
+        if (lbl) lbl.innerText = '🌍 Global / All';
+        if (menu) menu.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('active'));
+        
+        document.querySelectorAll('.term-chip[id^="btn-bench-"]').forEach(b => b.classList.remove('active'));
+        let activeBtn = document.getElementById('btn-bench-' + category);
+        if (activeBtn) activeBtn.classList.add('active');
+        
+    } else if (category === 'All') {
+        // Selezionato "All" dal menu a tendina
+        window.currentBenchFilter = 'All';
+        window.currentCountryFilter = 'All';
+        if (sel) sel.value = 'All';
+        if (lbl) lbl.innerText = '🌍 Global / All';
+        document.querySelectorAll('.term-chip[id^="btn-bench-"]').forEach(b => b.classList.remove('active'));
+        
+    } else {
+        // Selezionata nazione specifica
+        window.currentBenchFilter = '';
+        if (sel) sel.value = window.currentCountryFilter;
+        document.querySelectorAll('.term-chip[id^="btn-bench-"]').forEach(b => b.classList.remove('active'));
     }
 
     const container = document.getElementById('benchmark-container');
     if (!container || !window.marketIndicesData) return;
 
-    // --- FILTRAGGIO (Legge i Tag calcolati in renderMarketInsights) ---
+    // --- FILTRAGGIO INTELLIGENTE ---
     let filtered = [];
-    if (window.currentCountryFilter !== 'All') {
-        filtered = window.marketIndicesData.filter(item => item._displayArea === window.currentCountryFilter);
+    if (category === 'GEO') {
+        if (window.currentCountryFilter === 'US') filtered = window.marketIndicesData.filter(i => i.tagUS);
+        else if (window.currentCountryFilter === 'EU') filtered = window.marketIndicesData.filter(i => i.tagEU);
+        else if (window.currentCountryFilter === 'AP') filtered = window.marketIndicesData.filter(i => i.tagAP);
+        else if (window.currentCountryFilter === 'EM') filtered = window.marketIndicesData.filter(i => i.tagEM);
+        else {
+            filtered = window.marketIndicesData.filter(i => i._displayArea === window.currentCountryFilter);
+        }
     } else {
         filtered = window.marketIndicesData.filter(item => {
-            
-            // 👇 AGGIUNGI QUESTA RIGA QUI 👇
             if (category === 'All') return true; 
-            
             if (category === 'Main') return item.tagMain;
-            if (category === 'us') return item.tagUS;
-            if (category === 'eu') return item.tagEU;
-            if (category === 'ap') return item.tagAP;
-            if (category === 'em') return item.tagEM;
             if (category === 'fi') return item.tagFI;
             if (category === 'cmd') return item.tagCMD;
             if (category === 'thm') return item.tagTHM;
@@ -3248,7 +3285,7 @@ function filterBenchmarks(category) {
         });
     }
 
-    // --- ORDINAMENTO TEMPORALE ---
+    // --- ORDINAMENTO E RENDER ---
     const getModeVal = (item) => {
         switch(window.currentBenchMode) {
             case '1m': return item.m1; case 'ytd': return item.ytd;
@@ -3298,7 +3335,6 @@ function filterBenchmarks(category) {
             ? `left: 50%; width: ${widthPct}%; background: ${barColor}; border-top-right-radius: 4px; border-bottom-right-radius: 4px;` 
             : `left: auto; right: 50%; width: ${widthPct}%; background: ${barColor}; border-top-left-radius: 4px; border-bottom-left-radius: 4px;`;
 
-        // Estrae la nazione dall'area per l'icona del mercato
         let simulatedEx = 'US'; 
         let areaUp = String(item.area || '').toUpperCase();
         let nameUp = String(item.name || '').toUpperCase();
@@ -3343,15 +3379,13 @@ function filterBenchmarks(category) {
     
     container.innerHTML = html;
 
-    // Heatmap Aggiornata Dinamicamente
     if (typeof benchmarkViewMode !== 'undefined' && benchmarkViewMode === 'heatmap') {
         renderIndexHeatmap(filtered, window.currentBenchMode);
     }
 }
-   
+// 2. MOTORE PRINCIPALE E AUTO-TAGGING
 function renderMarketInsights(data) {
     if (!data) return;
-    
     if (data.me !== undefined) {
         window.portfolioMeData = { pct: data.me, ytd: data.meYtd, m1: data.me1m, y1: data.me1y, y3: data.me3y, y5: data.me5y, y10: data.me10y, y20: data.me20y };
     }
@@ -3359,23 +3393,17 @@ function renderMarketInsights(data) {
     if (data.indices && data.indices.length > 0) {
         let areas = new Set();
         
-        // --- 1. MOTORE DI ESTRAZIONE E TAGGING BLINDATO ---
         data.indices.forEach(item => {
-            // Cerca la nazione in tutte le possibili traduzioni JSON di Google Sheets
             let rawArea = item.area || item.paese || item.paeseArea || item.country || item['Paese / Area'] || item.paese_area || '';
             let areaClean = String(rawArea).trim();
-            
             let displayArea = '';
+            
             if (areaClean && areaClean !== '-' && areaClean.toUpperCase() !== 'PAESE / AREA') {
-                // Formatta i nomi in modo elegante per la tendina
                 displayArea = areaClean.charAt(0).toUpperCase() + areaClean.slice(1).toLowerCase();
                 if (areaClean.toUpperCase() === 'USA') displayArea = 'USA';
                 if (areaClean.toUpperCase() === 'UK') displayArea = 'UK';
-                
                 areas.add(displayArea);
             }
-            
-            // Salviamo la nazione formattata dentro l'oggetto per usarla dopo nel filtro
             item._displayArea = displayArea;
 
             let t = String(item.ticker || '').toUpperCase();
@@ -3398,19 +3426,20 @@ function renderMarketInsights(data) {
         window.marketIndicesData = data.indices;
         cachedMacroIndexData = data.indices;
         
-        // --- 2. POPOLAMENTO TENDINA ---
-        const countrySelect = document.getElementById('macro-country-select');
-        if (countrySelect) {
-            let optionsHtml = `<option value="All">🌍 All Countries</option>`;
+        // 3. POPOLAMENTO DINAMICO CUSTOM DROPDOWN
+        const dynamicGroup = document.getElementById('dynamic-countries-group');
+        if (dynamicGroup) {
+            let optionsHtml = '';
             Array.from(areas).sort().forEach(area => {
-                let isSelected = window.currentCountryFilter === area ? 'selected' : '';
-                optionsHtml += `<option value="${area}" ${isSelected}>${area}</option>`;
+                let activeClass = window.currentCountryFilter === area ? 'active' : '';
+                // Invece di usare option usa i div col trigger click
+                optionsHtml += `<div class="dropdown-item ${activeClass}" onclick="updateMacroCountry('${area}', '${area}', this)">${area}</div>`;
             });
-            countrySelect.innerHTML = optionsHtml;
+            dynamicGroup.innerHTML = optionsHtml;
         }
         
         if (window.currentCountryFilter && window.currentCountryFilter !== 'All') {
-            filterBenchmarks('');
+            filterBenchmarks('GEO');
         } else {
             filterBenchmarks(window.currentBenchFilter || 'Main');
         }
@@ -3419,6 +3448,8 @@ function renderMarketInsights(data) {
         const container = document.getElementById('benchmark-container');
         if (container) container.innerHTML = `<div style="text-align:center; padding:15px; color:var(--gray); font-size:12px;">Ensure Config_MarketIndex is populated.</div>`;
     }
+
+
 
      
      // --- 2. AI TEXT ANALYSIS ---

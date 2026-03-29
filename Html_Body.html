@@ -1126,24 +1126,47 @@
             </div>
         </div>
         
-       <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:10px; margin-bottom:10px; -webkit-overflow-scrolling:touch; align-items:center;">
+     <div style="margin-bottom: 15px;">
             
-            <select id="macro-country-select" onchange="filterByCountry(this.value)" style="appearance: none; -webkit-appearance: none; background-color: var(--white); background-image: url('data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'12\\' height=\\'12\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'%238e8e93\\' stroke-width=\\'2\\' stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\'><polyline points=\\'6 9 12 15 18 9\\'></polyline></svg>'); background-repeat: no-repeat; background-position: right 8px center; padding: 4px 28px 4px 12px; border-radius: 6px; border: 1px solid var(--row-border); color: var(--text-main); font-weight: 800; font-size: 11px; outline: none; cursor: pointer; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                <option value="All">🌍 All Countries</option>
-            </select>
+            <div style="display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 12px; border-bottom: 1px solid var(--row-border); padding-bottom: 10px;">
+                
+                <div style="font-size: 11px; font-weight: 800; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px;">
+                    🌎 View by Geography:
+                </div>
+                
+                <div class="custom-dropdown">
+                    <div class="dropdown-trigger" onclick="toggleCustomDropdown('menu-macro-country')" style="padding: 6px 12px; background: rgba(0,122,255,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; min-width: 150px; cursor: pointer;">
+                        <span id="label-macro-country" style="font-size: 12px; font-weight: 800; color: var(--primary);">🌍 Global / All</span>
+                        <span style="font-size: 10px; color: var(--primary); margin-left: 8px;">▼</span>
+                    </div>
+                    <input type="hidden" id="macro-country-select" value="All">
+                    
+                    <div class="dropdown-menu" id="menu-macro-country" style="right: 0; min-width: 180px; max-height: 300px; overflow-y: auto; z-index: 100;">
+                        <div class="dropdown-item active" onclick="updateMacroCountry('All', '🌍 Global / All', this)">🌍 Global / All</div>
+                        
+                        <div class="dropdown-group-label">Macro Regions</div>
+                        <div class="dropdown-item" onclick="updateMacroCountry('US', '🇺🇸 United States', this)">🇺🇸 United States</div>
+                        <div class="dropdown-item" onclick="updateMacroCountry('EU', '🇪🇺 Europe', this)">🇪🇺 Europe</div>
+                        <div class="dropdown-item" onclick="updateMacroCountry('AP', '🌏 Asia Pacific', this)">🌏 Asia Pacific</div>
+                        <div class="dropdown-item" onclick="updateMacroCountry('EM', '🌍 Emerging Markets', this)">🌍 Emerging Markets</div>
+                        
+                        <div class="dropdown-group-label">Specific Countries</div>
+                        <div id="dynamic-countries-group">
+                            </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:5px; -webkit-overflow-scrolling:touch; align-items:center;">
+                <div class="term-chip active" id="btn-bench-Main" onclick="filterBenchmarks('Main')">⭐ Main</div>
+                <div class="term-chip" id="btn-bench-fi" onclick="filterBenchmarks('fi')">🏦 Fixed Income</div>
+                <div class="term-chip" id="btn-bench-cmd" onclick="filterBenchmarks('cmd')">🛢️ Commodities</div>
+                <div class="term-chip" id="btn-bench-thm" onclick="filterBenchmarks('thm')">📈 Thematic</div>
+                <div class="term-chip" id="btn-bench-mac" onclick="filterBenchmarks('mac')">📊 Macro & Crypto</div>
+                <div class="term-chip" id="btn-bench-oth" onclick="filterBenchmarks('oth')">📌 Other</div>
+            </div>
             
-            <div style="width: 1px; height: 16px; background: var(--row-border); margin: 0 2px; flex-shrink: 0;"></div>
-            
-            <div class="term-chip active" id="btn-bench-Main" onclick="filterBenchmarks('Main')">⭐ Main</div>
-            <div class="term-chip" id="btn-bench-us" onclick="filterBenchmarks('us')">🇺🇸 US</div>
-            <div class="term-chip" id="btn-bench-eu" onclick="filterBenchmarks('eu')">🇪🇺 Europe</div>
-            <div class="term-chip" id="btn-bench-ap" onclick="filterBenchmarks('ap')">🌏 Asia</div>
-            <div class="term-chip" id="btn-bench-em" onclick="filterBenchmarks('em')">🌍 Emerging & Americas</div>
-            <div class="term-chip" id="btn-bench-fi" onclick="filterBenchmarks('fi')">🏦 Fixed Income</div>
-            <div class="term-chip" id="btn-bench-cmd" onclick="filterBenchmarks('cmd')">🛢️ Commodities</div>
-            <div class="term-chip" id="btn-bench-thm" onclick="filterBenchmarks('thm')">📈 Thematic</div>
-            <div class="term-chip" id="btn-bench-mac" onclick="filterBenchmarks('mac')">📊 Macro & Forex</div>
-            <div class="term-chip" id="btn-bench-oth" onclick="filterBenchmarks('oth')">📌 Other</div>
         </div>
         <!-- CONTENT CONTAINERS -->
         
