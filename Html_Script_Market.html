@@ -3148,9 +3148,466 @@ function renderIndexHeatmap(indexData, timeMode = 'daily') {
 function filterByCountry(country) {
     window.currentCountryFilter = country;
     if (country === 'All') {
-        filterBenchmarks('Main'); // Se deselezioni, torna alla vista Main di default
+        filterBenchmarks('All'); // Se deselezioni, torna alla vista Main di default
     } else {
         filterBenchmarks(''); // Invia una stringa vuota per disattivare tutti i Chip testuali
     }
 }
+
+// --- Market Insights AI & Calendar ---
+   
+   /**
+    * Loads Market Insights.
+    * UPDATED: Accetta 'isFullAnalysis' per decidere se chiamare l'AI.
+    * @param {boolean} isFullAnalysis - Se true, esegue l'analisi AI. Se false (default), scarica solo i benchmark.
+    */
+   // --- Market Insights AI & Calendar ---
+   
+   function loadMarketInsights(isFullAnalysis = false) {
+     const briefingEl = document.getElementById('insight-briefing'); 
+     if (isFullAnalysis) {
+         if (briefingEl) briefingEl.innerText = "AI Market Analysis in progress...";
+         const macroEl = document.getElementById('macro-text');
+         if(macroEl) macroEl.innerHTML = '<span style="color:#007aff; font-style:italic;">Analysing market data... 🧠</span>';
+         const portEl = document.getElementById('portfolio-text');
+         if(portEl) portEl.innerHTML = '<span style="color:#007aff; font-style:italic;">Comparing assets... 📊</span>';
+     } else {
+         if (briefingEl) briefingEl.innerText = "Updating Market Data...";
+     }
+     
+     google.script.run.withSuccessHandler(renderMarketInsights).withFailureHandler(err => { 
+         console.error("Market Insights Error:", err); 
+         if (briefingEl) briefingEl.innerText = "Unable to load analysis."; 
+     }).getMarketInsightsData(!isFullAnalysis);
+   }
+   
+   // Global state for Benchmark UI
+   window.currentBenchFilter = 'Main';
+   window.currentCountryFilter = 'All';
+   window.currentBenchMode = 'daily'; 
+   window.marketIndicesData = [];
+   window.portfolioMeData = {}; 
+   
+   function setBenchmarkMode(mode) {
+       window.currentBenchMode = mode;
+       
+       // Resetta lo stile di tutti i bottoni temporali
+       document.querySelectorAll('.bench-mode-btn').forEach(btn => {
+           btn.style.cssText = 'background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;';
+       });
+       
+       // Evidenzia il bottone attivo
+       const activeBtn = document.getElementById('btn-bench-mode-' + mode);
+       if(activeBtn) {
+           activeBtn.style.cssText = 'background:var(--white); color:var(--text-main); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:800; cursor:pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition:all 0.2s;';
+       }
+       
+       filterBenchmarks(window.currentBenchFilter);
+   }
+   
+function filterBenchmarks(category) {
+    window.currentBenchFilter = category || 'Main';
+    
+    // Aggiorna grafica bottoni
+    const buttons = document.querySelectorAll('.term-chip[id^="btn-bench-"]');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    
+    if (category !== '') {
+        const activeBtn = document.getElementById('btn-bench-' + category);
+        if(activeBtn) activeBtn.classList.add('active');
+        
+        window.currentCountryFilter = 'All';
+        const sel = document.getElementById('macro-country-select');
+        if (sel) sel.value = 'All';
+    }
+
+    const container = document.getElementById('benchmark-container');
+    if (!container || !window.marketIndicesData) return;
+
+    // --- FILTRAGGIO (Legge i Tag calcolati in renderMarketInsights) ---
+    let filtered = [];
+    if (window.currentCountryFilter !== 'All') {
+        filtered = window.marketIndicesData.filter(item => item._displayArea === window.currentCountryFilter);
+    } else {
+        filtered = window.marketIndicesData.filter(item => {
+            
+            // 👇 AGGIUNGI QUESTA RIGA QUI 👇
+            if (category === 'All') return true; 
+            
+            if (category === 'Main') return item.tagMain;
+            if (category === 'us') return item.tagUS;
+            if (category === 'eu') return item.tagEU;
+            if (category === 'ap') return item.tagAP;
+            if (category === 'em') return item.tagEM;
+            if (category === 'fi') return item.tagFI;
+            if (category === 'cmd') return item.tagCMD;
+            if (category === 'thm') return item.tagTHM;
+            if (category === 'mac') return item.tagMAC;
+            if (category === 'oth') return !item.tagMain && !item.tagUS && !item.tagEU && !item.tagAP && !item.tagEM && !item.tagFI && !item.tagCMD && !item.tagTHM && !item.tagMAC;
+            return true;
+        });
+    }
+
+    // --- ORDINAMENTO TEMPORALE ---
+    const getModeVal = (item) => {
+        switch(window.currentBenchMode) {
+            case '1m': return item.m1; case 'ytd': return item.ytd;
+            case '1y': return item.y1; case '3y': return item.y3;
+            case '5y': return item.y5; case '10y': return item.y10; 
+            case '20y': return item.y20; default: return item.pct; 
+        }
+    };
+
+    filtered.sort((a, b) => getModeVal(b) - getModeVal(a));
+
+    if (window.portfolioMeData && window.portfolioMeData.pct !== undefined) {
+        filtered.unshift({
+            name: 'My Portfolio', ticker: 'ME',
+            pct: window.portfolioMeData.pct, m1: window.portfolioMeData.m1, ytd: window.portfolioMeData.ytd,
+            y1: window.portfolioMeData.y1, y3: window.portfolioMeData.y3, y5: window.portfolioMeData.y5,
+            y10: window.portfolioMeData.y10, y20: window.portfolioMeData.y20,
+            color: '#007aff', isMe: true, area: 'Portfolio'
+        });
+    }
+
+    let html = `<style>.bench-name-col { width: 115px; } @media (min-width: 768px) { .bench-name-col { width: 220px; } }</style>`;
+
+    if (filtered.length <= 1) { 
+        html += `<div style="text-align:center; padding:15px; color:var(--gray); font-size:12px;">No indices for this category</div>`;
+    } 
+    
+    let capLimit = 2;
+    switch(window.currentBenchMode) {
+        case '1m': capLimit = 15; break; case 'ytd': capLimit = 35; break;
+        case '1y': capLimit = 40; break; case '3y': capLimit = 80; break;
+        case '5y': capLimit = 150; break; case '10y': capLimit = 300; break; case '20y': capLimit = 600; break; 
+    }
+    
+    filtered.forEach(item => {
+        let val = parseFloat(getModeVal(item));
+        if (isNaN(val)) val = 0;
+        
+        let displayVal = (val > 0 ? "+" : "") + val.toFixed(2) + "%";
+        let barColor = val >= 0 ? 'var(--stocks-bg)' : 'var(--danger)';
+        let labelColor = item.color ? item.color : 'var(--text-main)'; 
+        let labelText = item.isMe ? 'ME' : item.name;
+
+        let safeVal = Math.max(-capLimit, Math.min(capLimit, val)); 
+        let widthPct = (Math.abs(safeVal) / capLimit) * 50; 
+        let barStyle = val >= 0 
+            ? `left: 50%; width: ${widthPct}%; background: ${barColor}; border-top-right-radius: 4px; border-bottom-right-radius: 4px;` 
+            : `left: auto; right: 50%; width: ${widthPct}%; background: ${barColor}; border-top-left-radius: 4px; border-bottom-left-radius: 4px;`;
+
+        // Estrae la nazione dall'area per l'icona del mercato
+        let simulatedEx = 'US'; 
+        let areaUp = String(item.area || '').toUpperCase();
+        let nameUp = String(item.name || '').toUpperCase();
+        
+        if (areaUp === 'ITALIA') simulatedEx = 'IT';
+        else if (areaUp === 'UK') simulatedEx = 'UK';
+        else if (areaUp === 'SVIZZERA') simulatedEx = 'CH';
+        else if (areaUp === 'GIAPPONE') simulatedEx = 'JP';
+        else if (areaUp === 'HONG KONG') simulatedEx = 'HK';
+        else if (areaUp === 'CINA') simulatedEx = 'CN';
+        else if (areaUp === 'AUSTRALIA') simulatedEx = 'AU';
+        else if (areaUp === 'CANADA') simulatedEx = 'CA';
+        else if (item.tagCMD && (nameUp.includes('BITCOIN') || nameUp.includes('CRYPTO') || String(item.ticker).includes('BTC'))) simulatedEx = 'CRYPTO';
+
+        let mktState = typeof getMarketState === 'function' ? getMarketState(simulatedEx) : 'OPEN';
+        let statusIcon = ''; let opacityStyle = '';
+
+        if (!item.isMe) {
+            if (mktState === 'OPEN') statusIcon = '<span title="Market Open" style="font-size:9px;">🟢</span>';
+            else if (mktState === 'CLOSING_SOON') statusIcon = '<span title="Closing Soon" style="font-size:9px;">🟠</span>';
+            else if (mktState === 'PRE_MARKET') statusIcon = '<span title="Pre-Market" style="font-size:9px;">🔵</span>';
+            else { statusIcon = '<span title="Market Closed" style="font-size:10px; filter: grayscale(1);">💤</span>'; opacityStyle = 'opacity: 0.6;'; }
+        }
+
+        let areaHtml = item.isMe ? '' : `<div style="font-size:9px; font-weight:700; color:var(--gray); text-transform:uppercase; letter-spacing:0.5px; margin-top:2px;">${item.area || ''}</div>`;
+
+        html += `
+        <div style="display:flex; align-items:center; background:var(--section-bg); padding:10px 12px; border-radius:10px; margin-bottom:8px; border: 1px solid var(--row-border); box-shadow: 0 1px 2px rgba(0,0,0,0.02); ${opacityStyle}">
+            <div class="bench-name-col" style="display:flex; flex-direction:column; justify-content:center; padding-right:6px;">
+                <div style="display:flex; align-items:center; width:100%;">
+                    <div style="font-size:12px; font-weight:800; color:${labelColor}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;" title="${item.name}">${labelText}</div>
+                    <div style="margin-left:4px; flex-shrink:0;">${statusIcon}</div>
+                </div>
+                ${areaHtml}
+            </div>
+            <div style="flex:1; height:8px; background:rgba(142,142,147,0.15); border-radius:4px; overflow:hidden; position:relative; margin: 0 12px;">
+                <div style="height:100%; position:absolute; transition:all 0.5s cubic-bezier(0.4, 0, 0.2, 1); ${barStyle}"></div>
+            </div>
+            <div style="width:60px; text-align:right; font-size:12px; font-weight:800; color:${barColor};">${displayVal}</div>
+        </div>`;
+    });
+    
+    container.innerHTML = html;
+
+    // Heatmap Aggiornata Dinamicamente
+    if (typeof benchmarkViewMode !== 'undefined' && benchmarkViewMode === 'heatmap') {
+        renderIndexHeatmap(filtered, window.currentBenchMode);
+    }
+}
+   
+function renderMarketInsights(data) {
+    if (!data) return;
+    
+    if (data.me !== undefined) {
+        window.portfolioMeData = { pct: data.me, ytd: data.meYtd, m1: data.me1m, y1: data.me1y, y3: data.me3y, y5: data.me5y, y10: data.me10y, y20: data.me20y };
+    }
+
+    if (data.indices && data.indices.length > 0) {
+        let areas = new Set();
+        
+        // --- 1. MOTORE DI ESTRAZIONE E TAGGING BLINDATO ---
+        data.indices.forEach(item => {
+            // Cerca la nazione in tutte le possibili traduzioni JSON di Google Sheets
+            let rawArea = item.area || item.paese || item.paeseArea || item.country || item['Paese / Area'] || item.paese_area || '';
+            let areaClean = String(rawArea).trim();
+            
+            let displayArea = '';
+            if (areaClean && areaClean !== '-' && areaClean.toUpperCase() !== 'PAESE / AREA') {
+                // Formatta i nomi in modo elegante per la tendina
+                displayArea = areaClean.charAt(0).toUpperCase() + areaClean.slice(1).toLowerCase();
+                if (areaClean.toUpperCase() === 'USA') displayArea = 'USA';
+                if (areaClean.toUpperCase() === 'UK') displayArea = 'UK';
+                
+                areas.add(displayArea);
+            }
+            
+            // Salviamo la nazione formattata dentro l'oggetto per usarla dopo nel filtro
+            item._displayArea = displayArea;
+
+            let t = String(item.ticker || '').toUpperCase();
+            let n = String(item.name || '').toUpperCase();
+            let aUp = areaClean.toUpperCase();
+
+            item.tagUS = aUp === 'USA' && (n.includes('S&P') || n.includes('NASDAQ') || n.includes('DOW') || n.includes('RUSSELL') || t.includes('INX') || t.includes('NDX'));
+            item.tagEU = ['EUROPA', 'GERMANIA', 'ITALIA', 'UK', 'FRANCIA', 'SPAGNA', 'SVIZZERA'].includes(aUp);
+            item.tagAP = ['GIAPPONE', 'HONG KONG', 'CINA', 'INDIA', 'AUSTRALIA', 'TAIWAN', 'COREA DEL SUD', 'VIETNAM'].includes(aUp);
+            item.tagEM = ['BRASILE', 'MESSICO'].includes(aUp) || n.includes('EMERGING') || t === 'EEM';
+            
+            item.tagFI = n.includes('BOND') || n.includes('YIELD') || n.includes('CASH') || n.includes('TREASURY') || ['TNX','TLT','BND','IGOV','JNK','TIP','LQD','BIL','EMB'].includes(t);
+            item.tagCMD = n.includes('ORO') || n.includes('ARGENTO') || n.includes('RAME') || n.includes('PETROLIO') || n.includes('COMMODIT') || n.includes('URANIUM') || n.includes('GAS') || n.includes('AGRICULT') || n.includes('GOLD') || n.includes('LITHIUM') || n.includes('BITCOIN') || n.includes('CRYPTO') || ['GLD','SLV','CPER','USO','UNG','DBA','DBC','URA','LIT','GDX','IBIT','BTC','ETH-USD'].includes(t);
+            item.tagMAC = n.includes('DOLLAR') || n.includes('VOLATIL') || n.includes('REAL ESTATE') || ['VIX','UUP','VNQ','VNQI'].includes(t);
+            item.tagTHM = n.includes('HEALTH') || n.includes('ENERGY') || n.includes('CYBER') || n.includes('DEFENSE') || n.includes('SEMICONDUCT') || n.includes('ROBOT') || n.includes('BIOTECH') || n.includes('CLOUD') || n.includes('FINANCIAL') || n.includes('RETAIL') || n.includes('DIVIDEND') || n.includes('GROWTH') || ['SMH', 'CIBR', 'ITA', 'BOTZ', 'SKYY', 'ICLN', 'XBI', 'XLF', 'XLV', 'KRE', 'XRT', 'XLE', 'VUG', 'NOBL'].includes(t);
+
+            item.tagMain = ['INX','NDX','SX5E','FTSEMIB','DAX','GLD','IBIT','TNX'].includes(t) || n.includes('S&P 500') || n.includes('NASDAQ 100') || n.includes('EURO STOXX') || n.includes('ORO') || n.includes('BITCOIN');
+        });
+
+        window.marketIndicesData = data.indices;
+        cachedMacroIndexData = data.indices;
+        
+        // --- 2. POPOLAMENTO TENDINA ---
+        const countrySelect = document.getElementById('macro-country-select');
+        if (countrySelect) {
+            let optionsHtml = `<option value="All">🌍 All Countries</option>`;
+            Array.from(areas).sort().forEach(area => {
+                let isSelected = window.currentCountryFilter === area ? 'selected' : '';
+                optionsHtml += `<option value="${area}" ${isSelected}>${area}</option>`;
+            });
+            countrySelect.innerHTML = optionsHtml;
+        }
+        
+        if (window.currentCountryFilter && window.currentCountryFilter !== 'All') {
+            filterBenchmarks('');
+        } else {
+            filterBenchmarks(window.currentBenchFilter || 'Main');
+        }
+
+    } else {
+        const container = document.getElementById('benchmark-container');
+        if (container) container.innerHTML = `<div style="text-align:center; padding:15px; color:var(--gray); font-size:12px;">Ensure Config_MarketIndex is populated.</div>`;
+    }
+
+     
+     // --- 2. AI TEXT ANALYSIS ---
+     if (data.analysis && data.analysis.macro) {
+         const macroEl = document.getElementById('macro-text'); 
+         if(macroEl) { 
+             macroEl.style.textAlign = "justify"; 
+             macroEl.style.fontSize = "12px"; 
+             macroEl.innerHTML = data.analysis.macro; 
+         }
+         const portEl = document.getElementById('portfolio-text'); 
+         if(portEl && data.analysis.portfolio) { 
+             portEl.style.textAlign = "justify"; 
+             portEl.style.fontSize = "12px"; 
+             portEl.innerHTML = data.analysis.portfolio; 
+         }
+     }
+     
+     // --- 3. SENTIMENT BADGE ---
+     if (data.sentiment && data.sentiment.label !== "Loading") { 
+         const badge = document.getElementById('sentiment-badge'); 
+         if(badge) { 
+             const score = data.sentiment.score; 
+             badge.innerText = `${data.sentiment.label} (${score}/10)`; 
+             if (score <= 3) { badge.style.background = '#ffebeb'; badge.style.color = '#ff3b30'; } 
+             else if (score >= 7) { badge.style.background = '#e6fffa'; badge.style.color = '#34c759'; } 
+             else { badge.style.background = '#f2f2f7'; badge.style.color = '#8e8e93'; } 
+         } 
+     }
+   
+     // --- 4. CALENDAR EVENTS ---
+     // Aggiorniamo il calendario solo se ci sono eventi, altrimenti (modalità solo dati) lasciamo stare o resetta se necessario.
+     
+     const newMarketEvents = data.market_events && data.market_events.length > 0;
+     const newPortfolioEvents = data.portfolio_events && data.portfolio_events.length > 0;
+   
+     // Entriamo nel blocco di aggiornamento SOLO se c'è almeno un evento nuovo da mostrare
+     if (newMarketEvents || newPortfolioEvents) {
+         allMarketEvents = []; // ORA è sicuro resettare: abbiamo nuovi dati da scrivere
+         
+         if (newMarketEvents) { 
+             data.market_events.forEach(ev => { allMarketEvents.push({ ...ev, type: 'market' }); }); 
+         }
+         if (newPortfolioEvents) { 
+             data.portfolio_events.forEach(ev => { allMarketEvents.push({ ...ev, type: 'portfolio' }); }); 
+         }
+         
+         // Ridisegna il calendario con i nuovi puntini
+         renderCalendarWidget();
+     }
+   }
+   
+   function renderCalendarWidget() {
+     const grid = document.getElementById('calendar-grid'); 
+     const header = document.getElementById('cal-month-year'); 
+     if (!grid || !header) return;
+     
+     grid.innerHTML = ''; 
+     const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S']; // English Initials (Mon-Sun)
+     days.forEach(d => { grid.innerHTML += `<div class="calendar-day-name">${d}</div>`; });
+     
+     const year = currentCalDate.getFullYear(); 
+     const month = currentCalDate.getMonth();
+     const monthName = currentCalDate.toLocaleString('en-US', { month: 'long', year: 'numeric' }); 
+     header.innerText = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+     
+     const firstDayOfMonth = new Date(year, month, 1).getDay(); 
+     const startDayIndex = (firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1); 
+     const daysInMonth = new Date(year, month + 1, 0).getDate();
+     
+     for (let i = 0; i < startDayIndex; i++) { grid.innerHTML += `<div></div>`; }
+     
+     for (let day = 1; day <= daysInMonth; day++) {
+         const checkDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+         const daysEvents = allMarketEvents.filter(e => e.date === checkDate);
+         
+         let dotsHtml = ''; 
+         if (daysEvents.length > 0) { 
+             dotsHtml = '<div class="event-dot-container">'; 
+             daysEvents.forEach(ev => { 
+                 const dotClass = ev.type === 'portfolio' ? 'dot-blue' : 'dot-purple'; 
+                 dotsHtml += `<div class="event-dot ${dotClass}"></div>`; 
+             }); 
+             dotsHtml += '</div>'; 
+         }
+         
+         const todayStr = new Date().toISOString().split('T')[0]; 
+         const isToday = (checkDate === todayStr) ? 'today' : '';
+         const dayDiv = document.createElement('div'); 
+         dayDiv.className = `calendar-day ${isToday}`; 
+         dayDiv.innerHTML = `<span>${day}</span>${dotsHtml}`; 
+         dayDiv.onclick = () => selectDate(day, month, year, dayDiv);
+         grid.appendChild(dayDiv);
+     }
+   }
+   
+   function selectDate(day, month, year, element) {
+     document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('selected')); 
+     element.classList.add('selected');
+     
+     const checkDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+     const events = allMarketEvents.filter(e => e.date === checkDate);
+     const detailsBox = document.getElementById('calendar-details');
+     
+     if (events.length === 0) { 
+         detailsBox.innerHTML = `<div style="text-align:center; color:#999; font-size:11px; padding:10px;">No events on ${day}/${month+1}.</div>`; 
+         return; 
+     }
+     
+     let html = `<div style="font-size:10px; font-weight:bold; color:#555; margin-bottom:10px; text-transform:uppercase;">Events for ${day} ${currentCalDate.toLocaleString('en-US', { month: 'long' })}:</div>`;
+     events.forEach(ev => { 
+         const color = ev.type === 'portfolio' ? '#007aff' : '#af52de'; 
+         const label = ev.type === 'portfolio' ? 'PORTFOLIO' : 'MARKET'; 
+         const bg = ev.type === 'portfolio' ? '#f0f7ff' : '#fcf0ff'; 
+         html += `<div style="background:${bg}; border-left:3px solid ${color}; padding:8px; border-radius:6px; margin-bottom:6px;"><div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-weight:bold; color:#333; font-size:12px;">${ev.ticker}</span><span style="font-size:9px; font-weight:bold; color:${color}; border:1px solid ${color}; padding:1px 4px; border-radius:4px;">${label}</span></div><div style="font-size:11px; color:#555; margin-top:3px; line-height:1.2;">${ev.event}</div></div>`; 
+     });
+     detailsBox.innerHTML = html;
+   }
+   
+   function changeMonth(delta) { 
+     currentCalDate.setMonth(currentCalDate.getMonth() + delta); 
+     renderCalendarWidget(); 
+   }
+   
+   // Funzione per il refresh del mercato (Pulsante "Refresh Market")
+   function forceReloadMarket() {
+     const btn = document.getElementById('btn-refresh-market'); 
+     if(btn) { btn.innerText = "⏳"; btn.style.pointerEvents = "none"; }
+     
+     const briefingEl = document.getElementById('macro-text'); 
+     const portEl = document.getElementById('portfolio-text');
+     
+     // Feedback visivo immediato
+     if(briefingEl) briefingEl.innerHTML = '<span style="color:#888; font-style:italic;">Analysing market scenarios... 🧠</span>'; 
+     if(portEl) portEl.innerHTML = '...';
+     
+     // FIX: Passiamo 'false' (onlyMacro = false) per dire al server "Voglio l'analisi AI completa ORA"
+     google.script.run.withSuccessHandler(data => { 
+         renderMarketInsights(data); 
+         if(btn) { btn.innerText = "🔄"; btn.style.pointerEvents = "auto"; } 
+         if(typeof Swal !== 'undefined') { 
+             const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000}); 
+             Toast.fire({icon: 'success', title: 'AI Market Insight Updated'}); 
+         } 
+     }).withFailureHandler(err => { 
+         console.error(err); 
+         if(btn) { btn.innerText = "⚠️"; btn.style.pointerEvents = "auto"; } 
+     }).getMarketInsightsData(false); // <--- IMPORTANTE: false = FULL REFRESH
+   }
+   
+   // Funzione per il refresh del rischio (Pulsante "Refresh Risk")
+   function forceReloadRisk() {
+     const btn = document.getElementById('btn-refresh-risk'); 
+     if(btn) { btn.innerText = "⏳"; btn.style.pointerEvents = "none"; }
+     
+     document.getElementById('risk-comment').innerText = "Running Stress Test (Live)..."; 
+     document.getElementById('risk-score').style.opacity = "0.3";
+     
+     // FIX: Passiamo 'true' (forceRefresh = true) per ignorare la cache e ricalcolare
+     google.script.run.withSuccessHandler(analysis => {
+         // ... (Resto della funzione invariato) ...
+         const card = document.getElementById('risk-card'); 
+         const data = analysis || { riskLevel: "N/A", riskScore: 0, summary: "Data unavailable" };
+         
+         document.getElementById('risk-level').innerText = "Risk: " + data.riskLevel; 
+         document.getElementById('risk-score').innerText = data.riskScore + "/100"; 
+         document.getElementById('risk-score').style.opacity = "1"; 
+         document.getElementById('risk-comment').innerText = data.summary;
+         
+         let score = parseInt(data.riskScore); 
+         let col = '#34c759'; 
+         if(score > 30) col = '#ffcc00'; 
+         if(score > 50) col = '#ff9500'; 
+         if(score > 70) col = '#ff3b30';
+         
+         if(card) card.style.borderLeftColor = col; 
+         document.getElementById('risk-score').style.color = col;
+         
+         const tipEl = document.getElementById('risk-tip');
+         if(tipEl) {
+             tipEl.innerHTML = `<span style="font-weight:bold; cursor:pointer;" onclick="openRiskSheet()">👉 Tap for Stress Test & Full Report</span>`;
+         }
+   
+         window.currentRiskData = data; 
+         if(btn) { btn.innerText = "🔄"; btn.style.pointerEvents = "auto"; }
+     }).withFailureHandler(err => { 
+         console.error(err); 
+         document.getElementById('risk-comment').innerText = "Update Error."; 
+         if(btn) { btn.innerText = "⚠️"; btn.style.pointerEvents = "auto"; } 
+     }).getPortfolioRiskAnalysis(true); 
+   }
 </script>

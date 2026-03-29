@@ -1128,11 +1128,11 @@
         
        <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:10px; margin-bottom:10px; -webkit-overflow-scrolling:touch; align-items:center;">
             
-            <select id="macro-country-select" onchange="filterByCountry(this.value)" style="padding: 6px 12px; border-radius: 8px; border: 1px solid var(--row-border); background: var(--card-bg); color: var(--text-main); font-weight: 800; font-size: 12px; outline: none; cursor: pointer; flex-shrink: 0;">
+            <select id="macro-country-select" onchange="filterByCountry(this.value)" style="appearance: none; -webkit-appearance: none; background-color: var(--white); background-image: url('data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'12\\' height=\\'12\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'%238e8e93\\' stroke-width=\\'2\\' stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\'><polyline points=\\'6 9 12 15 18 9\\'></polyline></svg>'); background-repeat: no-repeat; background-position: right 8px center; padding: 4px 28px 4px 12px; border-radius: 6px; border: 1px solid var(--row-border); color: var(--text-main); font-weight: 800; font-size: 11px; outline: none; cursor: pointer; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                 <option value="All">🌍 All Countries</option>
             </select>
             
-            <div style="width: 1px; height: 20px; background: var(--row-border); margin: 0 4px; flex-shrink: 0;"></div>
+            <div style="width: 1px; height: 16px; background: var(--row-border); margin: 0 2px; flex-shrink: 0;"></div>
             
             <div class="term-chip active" id="btn-bench-Main" onclick="filterBenchmarks('Main')">⭐ Main</div>
             <div class="term-chip" id="btn-bench-us" onclick="filterBenchmarks('us')">🇺🇸 US</div>
