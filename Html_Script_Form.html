@@ -8,66 +8,46 @@
    
    // --- Form Logic ---
    
- function handleTypeChange() {
-    const typeInput = document.getElementById("tType");
-    const catInput = document.getElementById("tCat");
+ /**
+ * Updates the Category dropdown based on the selected Type
+ * and toggles sign buttons automatically for Expenses.
+ */
+function handleTypeChange() {
+    const typeSelect = document.getElementById("tType");
+    const catSelect = document.getElementById("tCat");
     
-    if (!typeInput || !catInput) return;
+    if (!typeSelect || !catSelect) return;
     
-    const selectedType = typeInput.value;
+    const selectedType = typeSelect.value;
+    catSelect.innerHTML = ""; // Clear existing options
     
-    // ==========================================
-    // 1. UPDATE CATEGORY DROPDOWN DYNAMICALLY
-    // ==========================================
-    const catDropdown = catInput.closest('.custom-dropdown');
-    
-    if (catDropdown) {
-        const catMenu = catDropdown.querySelector('.dropdown-menu');
-        const catLabel = catDropdown.querySelector('.label-text');
-        
-        if (catMenu && catLabel) {
-            // Clear existing options and reset UI
-            catMenu.innerHTML = ""; 
-            catInput.value = "";
-            catLabel.innerText = "Select Category...";
-            catLabel.style.color = "var(--gray)";
-            
-            // Retrieve categories from the global configuration fetched from Sheets
-            const dynCategories = GLOBAL_APP_CONFIG.categories[selectedType];
-            
-            if (dynCategories && dynCategories.length > 0) {
-                dynCategories.forEach(cat => {
-                    const div = document.createElement("div");
-                    div.className = "dropdown-item";
-                    div.innerText = cat;
-                    
-                    // Bind the click event to our custom selection function
-                    div.onclick = function() {
-                        selectPremiumOption('tCat', cat, cat, this);
-                    };
-                    
-                    catMenu.appendChild(div);
-                });
-            } else {
-                // Fallback or specific logic (e.g., Pension)
-                if (selectedType === "Pension") {
-                    const div = document.createElement("div");
-                    div.className = "dropdown-item";
-                    div.innerText = "Pension Fund";
-                    
-                    div.onclick = function() {
-                        selectPremiumOption('tCat', 'Pension Fund', 'Pension Fund', this);
-                    };
-                    
-                    catMenu.appendChild(div);
-                }
-            }
+    // Add default empty option
+    const defaultOption = document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.text = "Select Category...";
+    catSelect.appendChild(defaultOption);
+
+    // Retrieve categories from the global configuration fetched from Sheets
+    const dynCategories = GLOBAL_APP_CONFIG.categories[selectedType];
+
+    if (dynCategories && dynCategories.length > 0) {
+        dynCategories.forEach(cat => {
+            const opt = document.createElement("option");
+            opt.value = cat;
+            opt.text = cat;
+            catSelect.appendChild(opt);
+        });
+    } else {
+        // Fallback or specific logic (e.g., Storno, Pension)
+        if (selectedType === "Pension") {
+            const opt = document.createElement("option");
+            opt.value = "Pension Fund";
+            opt.text = "Pension Fund";
+            catSelect.appendChild(opt);
         }
     }
-
-    // ==========================================
-    // 2. TOGGLE SPECIFIC UI DISPLAYS
-    // ==========================================
+    
+    // Manage specific UI displays (like the Pension inputs)
     const pensionInputs = document.getElementById("pension-inputs");
     const standardInputs = document.getElementById("standard-inputs");
     const debtInputs = document.getElementById("debt-inputs");
@@ -86,16 +66,14 @@
         if(debtInputs) debtInputs.style.display = "none";
     }
 
-    // ==========================================
-    // 3. AUTOMATICALLY SET SIGN TOGGLES
-    // ==========================================
+    // Automatically set sign toggles based on selected type
     document.querySelectorAll('.sign-toggle').forEach(icon => {
         let input = icon.parentElement.querySelector('.bank-in');
         if (selectedType === 'Expense') {
             // Set to minus for Expense
             icon.classList.remove('sign-plus');
             icon.classList.add('sign-minus');
-            icon.innerHTML = '&#8722;'; // Minus symbol
+            icon.innerHTML = '&#8722;';
             if (input) input.style.color = 'var(--danger)';
         } else {
             // Revert to plus for Income, Transfer, Investment, etc.
@@ -1838,61 +1816,4 @@ function openSubs() {
        document.getElementById('ast-update-ui').style.display = action === 'Update' ? 'block' : 'none';
        document.getElementById('ast-sell-ui').style.display = action === 'Sell' ? 'block' : 'none';
    }
-
-   /**
- * Toggles the visibility of a custom premium dropdown
- */
-function togglePremiumDropdown(element) {
-    const parentDropdown = element.closest('.custom-dropdown');
-    
-    // Close all other open dropdowns first
-    document.querySelectorAll('.custom-dropdown.active').forEach(dropdown => {
-        if (dropdown !== parentDropdown) {
-            dropdown.classList.remove('active');
-        }
-    });
-    
-    // Toggle current
-    parentDropdown.classList.toggle('active');
-}
-
-/**
- * Handles the selection of an item in the premium dropdown
- */
-function selectPremiumOption(inputId, value, labelText, itemElement) {
-    const parentDropdown = itemElement.closest('.custom-dropdown');
-    
-    // 1. Update the hidden input value
-    const hiddenInput = document.getElementById(inputId);
-    if (hiddenInput) {
-        hiddenInput.value = value;
-        // Dispatch change event to trigger existing listeners (like handleTypeChange)
-        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-    
-    // 2. Update the visible UI label
-    const labelEl = parentDropdown.querySelector('.label-text');
-    if (labelEl) {
-        labelEl.innerText = labelText;
-        labelEl.style.color = "var(--text-main)";
-    }
-    
-    // 3. Manage 'selected' visual class
-    parentDropdown.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('selected'));
-    itemElement.classList.add('selected');
-    
-    // 4. Close the menu
-    parentDropdown.classList.remove('active');
-}
-
-/**
- * Global listener to close dropdowns when clicking outside
- */
-document.addEventListener('click', function(event) {
-    if (!event.target.closest('.custom-dropdown')) {
-        document.querySelectorAll('.custom-dropdown.active').forEach(dropdown => {
-            dropdown.classList.remove('active');
-        });
-    }
-});
 </script>
