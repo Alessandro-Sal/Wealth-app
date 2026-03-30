@@ -8,11 +8,7 @@
    
    // --- Form Logic ---
    
- /**
- * Updates the Category dropdown based on the selected Type
- * and toggles sign buttons automatically for Expenses.
- */
-function handleTypeChange() {
+ function handleTypeChange() {
     const typeInput = document.getElementById("tType");
     const catInput = document.getElementById("tCat");
     
@@ -20,52 +16,58 @@ function handleTypeChange() {
     
     const selectedType = typeInput.value;
     
-    // Find the custom dropdown wrapper and its specific elements for Category
+    // ==========================================
+    // 1. UPDATE CATEGORY DROPDOWN DYNAMICALLY
+    // ==========================================
     const catDropdown = catInput.closest('.custom-dropdown');
-    const catMenu = catDropdown.querySelector('.dropdown-menu');
-    const catLabel = catDropdown.querySelector('.label-text');
     
-    if (!catMenu || !catLabel) return;
-
-    // Clear existing options and reset default view
-    catMenu.innerHTML = ""; 
-    catInput.value = "";
-    catLabel.innerText = "Select Category...";
-    catLabel.style.color = "var(--gray)"; // Reset color to placeholder style
-
-    // Retrieve categories from the global configuration fetched from Sheets
-    const dynCategories = GLOBAL_APP_CONFIG.categories[selectedType];
-
-    if (dynCategories && dynCategories.length > 0) {
-        dynCategories.forEach(cat => {
-            const div = document.createElement("div");
-            div.className = "dropdown-item";
-            div.innerText = cat;
+    if (catDropdown) {
+        const catMenu = catDropdown.querySelector('.dropdown-menu');
+        const catLabel = catDropdown.querySelector('.label-text');
+        
+        if (catMenu && catLabel) {
+            // Clear existing options and reset UI
+            catMenu.innerHTML = ""; 
+            catInput.value = "";
+            catLabel.innerText = "Select Category...";
+            catLabel.style.color = "var(--gray)";
             
-            // Bind the click event to our custom selection function
-            div.onclick = function() {
-                selectPremiumOption('tCat', cat, cat, this);
-            };
+            // Retrieve categories from the global configuration fetched from Sheets
+            const dynCategories = GLOBAL_APP_CONFIG.categories[selectedType];
             
-            catMenu.appendChild(div);
-        });
-    } else {
-        // Fallback or specific logic (e.g., Storno, Pension)
-        if (selectedType === "Pension") {
-            const div = document.createElement("div");
-            div.className = "dropdown-item";
-            div.innerText = "Pension Fund";
-            
-            div.onclick = function() {
-                selectPremiumOption('tCat', 'Pension Fund', 'Pension Fund', this);
-            };
-            
-            catMenu.appendChild(div);
+            if (dynCategories && dynCategories.length > 0) {
+                dynCategories.forEach(cat => {
+                    const div = document.createElement("div");
+                    div.className = "dropdown-item";
+                    div.innerText = cat;
+                    
+                    // Bind the click event to our custom selection function
+                    div.onclick = function() {
+                        selectPremiumOption('tCat', cat, cat, this);
+                    };
+                    
+                    catMenu.appendChild(div);
+                });
+            } else {
+                // Fallback or specific logic (e.g., Pension)
+                if (selectedType === "Pension") {
+                    const div = document.createElement("div");
+                    div.className = "dropdown-item";
+                    div.innerText = "Pension Fund";
+                    
+                    div.onclick = function() {
+                        selectPremiumOption('tCat', 'Pension Fund', 'Pension Fund', this);
+                    };
+                    
+                    catMenu.appendChild(div);
+                }
+            }
         }
     }
 
-    
-    // Manage specific UI displays (like the Pension inputs)
+    // ==========================================
+    // 2. TOGGLE SPECIFIC UI DISPLAYS
+    // ==========================================
     const pensionInputs = document.getElementById("pension-inputs");
     const standardInputs = document.getElementById("standard-inputs");
     const debtInputs = document.getElementById("debt-inputs");
@@ -84,14 +86,16 @@ function handleTypeChange() {
         if(debtInputs) debtInputs.style.display = "none";
     }
 
-    // Automatically set sign toggles based on selected type
+    // ==========================================
+    // 3. AUTOMATICALLY SET SIGN TOGGLES
+    // ==========================================
     document.querySelectorAll('.sign-toggle').forEach(icon => {
         let input = icon.parentElement.querySelector('.bank-in');
         if (selectedType === 'Expense') {
             // Set to minus for Expense
             icon.classList.remove('sign-plus');
             icon.classList.add('sign-minus');
-            icon.innerHTML = '&#8722;';
+            icon.innerHTML = '&#8722;'; // Minus symbol
             if (input) input.style.color = 'var(--danger)';
         } else {
             // Revert to plus for Income, Transfer, Investment, etc.

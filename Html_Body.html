@@ -540,7 +540,15 @@
          </div>
          <div id="standard-inputs">
             <label>Category</label>
-            <select id="tCat" onchange="updateNoteSuggestions()"></select>
+<div class="custom-dropdown">
+    <div class="dropdown-trigger" onclick="togglePremiumDropdown(this)">
+        <span class="label-text" style="color: var(--gray);">Select Category...</span>
+        <span class="dropdown-icon">▼</span>
+    </div>
+    <input type="hidden" id="tCat" onchange="updateNoteSuggestions()">
+    <div class="dropdown-menu">
+        </div>
+</div>
             <label>Note</label>
             <input type="text" id="tDet" placeholder="Note" list="noteList" autocapitalize="sentences" autocomplete="off">
             <datalist id="noteList"></datalist>
