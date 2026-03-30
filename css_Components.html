@@ -409,7 +409,7 @@ label {
 	color: var(--text-main);
 }
 
-select,
+/* 1. Stile standard mantenuto per gli input di testo e numerici */
 input {
 	width: 100%;
 	padding: 12px;
@@ -424,6 +424,55 @@ input {
 	appearance: none;
 	min-height: 45px;
 	font-family: inherit;
+}
+
+/* 2. Nuovo Stile Premium "Analytics" per TUTTI i menù a discesa */
+select {
+	width: 100%;
+	padding: 12px 15px;
+	margin-top: 8px;
+	/* Look & Feel "Analytics" */
+	background-color: rgba(0, 122, 255, 0.08) !important;
+	border: 1px solid rgba(0, 122, 255, 0.15) !important;
+	color: var(--primary) !important;
+	font-weight: 700 !important;
+	border-radius: 10px !important;
+	font-size: 14px !important;
+	box-sizing: border-box;
+	-webkit-appearance: none;
+	appearance: none;
+	min-height: 45px;
+	font-family: inherit;
+	cursor: pointer;
+	/* Freccia personalizzata azzurra */
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23007aff'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") !important;
+	background-repeat: no-repeat !important;
+	background-position: right 15px center !important;
+	background-size: 20px !important;
+	padding-right: 40px !important;
+	transition: all 0.2s ease-in-out;
+}
+
+/* Effetto al tocco / click */
+select:focus, select:hover {
+	background-color: rgba(0, 122, 255, 0.12) !important;
+	border-color: var(--primary) !important;
+	box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15) !important;
+	outline: none;
+}
+
+/* Adattamento Dark Mode per i nuovi menù a tendina premium */
+body.dark-mode select {
+	background-color: rgba(10, 132, 255, 0.15) !important;
+	border: 1px solid rgba(10, 132, 255, 0.2) !important;
+	color: #0a84ff !important;
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230a84ff'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") !important;
+}
+
+body.dark-mode select:focus, 
+body.dark-mode select:hover {
+	background-color: rgba(10, 132, 255, 0.22) !important;
+	box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2) !important;
 }
 
 .row {
@@ -946,4 +995,116 @@ body.dark-mode .ai-report-content strong {
 	pointer-events: auto !important;
 }
 
+/* --- PREMIUM CUSTOM DROPDOWN (Auto-Upgraded Selects) --- */
+.upgraded-select {
+    position: relative;
+    width: 100%;
+    margin-top: 8px;
+    font-family: inherit;
+}
+
+/* The clickable button */
+.upgraded-select .premium-trigger {
+    padding: 12px 15px;
+    background-color: rgba(0, 122, 255, 0.08);
+    border: 1px solid rgba(0, 122, 255, 0.15);
+    color: var(--primary);
+    font-weight: 700;
+    border-radius: 10px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.upgraded-select .premium-trigger:hover, 
+.upgraded-select .premium-trigger.active {
+    background-color: rgba(0, 122, 255, 0.12);
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+}
+
+.upgraded-select .dropdown-icon {
+    font-size: 10px;
+    transition: transform 0.3s ease;
+}
+
+.upgraded-select .premium-trigger.active .dropdown-icon {
+    transform: rotate(180deg);
+}
+
+/* The popup list */
+.upgraded-select .premium-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    width: 100%;
+    background: var(--white);
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+    border: 1px solid var(--row-border);
+    z-index: 9999;
+    max-height: 280px;
+    overflow-y: auto;
+    
+    /* Animation settings */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px) scale(0.98);
+    transform-origin: top center;
+    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.upgraded-select .premium-menu.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+/* Individual options */
+.upgraded-select .dropdown-item {
+    padding: 14px 15px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: background 0.2s;
+    border-bottom: 1px solid rgba(0,0,0,0.03);
+}
+
+.upgraded-select .dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.upgraded-select .dropdown-item:hover {
+    background: rgba(0, 122, 255, 0.05);
+}
+
+.upgraded-select .dropdown-item.selected {
+    color: var(--primary);
+    background: rgba(0, 122, 255, 0.1);
+    font-weight: 800;
+}
+
+/* Dark Mode Overrides */
+body.dark-mode .upgraded-select .premium-trigger {
+    background-color: rgba(10, 132, 255, 0.15);
+    border-color: rgba(10, 132, 255, 0.2);
+}
+body.dark-mode .upgraded-select .premium-menu {
+    background: #1c1c1e;
+    border-color: #38383a;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+body.dark-mode .upgraded-select .dropdown-item {
+    color: #fff;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+body.dark-mode .upgraded-select .dropdown-item:hover {
+    background: rgba(255,255,255,0.05);
+}
+body.dark-mode .upgraded-select .dropdown-item.selected {
+    background: rgba(10, 132, 255, 0.2);
+}
 </style>
