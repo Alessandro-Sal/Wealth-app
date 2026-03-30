@@ -449,16 +449,24 @@
             </div>
          </div>
          <label>Type</label>
-         <select id="tType" onchange="handleTypeChange()">
-            <option value="">Choose Type...</option>
-            <option value="Income">🟢 Income</option>
-            <option value="Expense">🔴 Expense</option>
-            <option value="Transfer">🔵 Transfer</option>
-            <option value="Storno">⚪ Refund</option>
-            <option value="Investment">🟠 Investment</option>
-            <option value="Pension">🐢 Pension</option>
-            <option value="Debt">🏦 Debt / Loan</option>
-         </select>
+<div class="custom-dropdown">
+    <div class="dropdown-trigger" onclick="togglePremiumDropdown(this)">
+        <span class="label-text" style="color: var(--gray);">Choose Type...</span>
+        <span class="dropdown-icon">▼</span>
+    </div>
+    
+    <input type="hidden" id="tType" onchange="handleTypeChange()">
+    
+    <div class="dropdown-menu">
+        <div class="dropdown-item" onclick="selectPremiumOption('tType', 'Income', '🟢 Income', this)">🟢 Income</div>
+        <div class="dropdown-item" onclick="selectPremiumOption('tType', 'Expense', '🔴 Expense', this)">🔴 Expense</div>
+        <div class="dropdown-item" onclick="selectPremiumOption('tType', 'Transfer', '🔵 Transfer', this)">🔵 Transfer</div>
+        <div class="dropdown-item" onclick="selectPremiumOption('tType', 'Storno', '⚪ Refund', this)">⚪ Refund</div>
+        <div class="dropdown-item" onclick="selectPremiumOption('tType', 'Investment', '🟠 Investment', this)">🟠 Investment</div>
+        <div class="dropdown-item" onclick="selectPremiumOption('tType', 'Pension', '🐢 Pension', this)">🐢 Pension</div>
+        <div class="dropdown-item" onclick="selectPremiumOption('tType', 'Debt', '🏦 Debt / Loan', this)">🏦 Debt / Loan</div>
+    </div>
+</div>
          <div id="pension-inputs" style="display:none; background:#f0f0f5; padding:15px; border-radius:12px; margin-top:15px; border:1px solid #d1d1d6;">
             <div style="font-size:12px; color:#555; margin-bottom:10px; font-weight:bold;">PENSION FUND DETAILS</div>
             <div style="display:flex; gap:10px;">
