@@ -898,6 +898,7 @@
          <button class="m-sub-btn active" onclick="switchMarketTab('assets', this)">💼 My Assets</button>
          <button class="m-sub-btn" onclick="switchMarketTab('insights', this)">🌍 Insights</button>
          <button class="m-sub-btn" onclick="switchMarketTab('tools', this)">⚔️ Tools</button>
+         <button class="m-sub-btn" onclick="switchMarketTab('pro', this)">🔬 Pro Research</button>
       </div>
       
       <div class="dash-widget no-pad" style="height: 46px; border:none; margin-top: 15px !important; margin-bottom: 15px !important;">
@@ -1403,6 +1404,68 @@
                </div>
             </div>
          </div>
+         <div id="mtab-pro" class="m-tab-content">
+            
+            <div class="dash-widget full-width" style="height: 600px; padding: 0; overflow: hidden; margin-bottom: 20px;">
+               <div style="background:var(--text-main); color:var(--bg); padding: 12px 20px; font-weight:800; font-size:14px; display:flex; justify-content:space-between; align-items:center;">
+                  <span>📈 Advanced Interactive Chart</span>
+                  <span style="font-size:11px; font-weight:500; opacity:0.7;">Indicators, Drawing Tools & Multiple Timeframes</span>
+               </div>
+               <div class="tradingview-widget-container" style="height: calc(100% - 44px); width: 100%;">
+                  <div id="tradingview_advanced_chart" style="height:100%; width:100%;"></div>
+                  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                  <script type="text/javascript">
+                  // Initialize the advanced chart when the tab is clicked or loaded
+                  new TradingView.widget({
+                    "autosize": true,
+                    "symbol": "SPY",
+                    "interval": "D",
+                    "timezone": "Etc/UTC",
+                    "theme": document.body.classList.contains('dark-mode') ? "dark" : "light",
+                    "style": "1", // 1 = Candles
+                    "locale": "en",
+                    "enable_publishing": false,
+                    "backgroundColor": "rgba(255, 255, 255, 1)",
+                    "gridColor": "rgba(0, 0, 0, 0.06)",
+                    "hide_top_toolbar": false,
+                    "hide_legend": false,
+                    "save_image": false,
+                    "container_id": "tradingview_advanced_chart",
+                    "allow_symbol_change": true,
+                    "calendar": true,
+                    "studies": [
+                      "Volume@tv-basicstudies",
+                      "MACD@tv-basicstudies",
+                      "RSI@tv-basicstudies"
+                    ]
+                  });
+                  </script>
+               </div>
+            </div>
+
+            <div class="dash-widget full-width" style="height: 600px; padding: 0; overflow: hidden; margin-bottom: 30px;">
+               <div style="background:var(--invest-bg); color:white; padding: 12px 20px; font-weight:800; font-size:14px; display:flex; justify-content:space-between; align-items:center;">
+                  <span>🔍 Global Stock & ETF Screener</span>
+                  <span style="font-size:11px; font-weight:500; opacity:0.8;">Filter by P/E, Div Yield, Beta, etc.</span>
+               </div>
+               <div class="tradingview-widget-container" style="height: calc(100% - 44px); width: 100%;">
+                  <div class="tradingview-widget-container__widget" style="height:100%; width:100%;"></div>
+                  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
+                  {
+                    "width": "100%",
+                    "height": "100%",
+                    "defaultColumn": "overview",
+                    "defaultScreen": "general",
+                    "market": "america",
+                    "showToolbar": true,
+                    "colorTheme": "light",
+                    "locale": "en"
+                  }
+                  </script>
+               </div>
+            </div>
+
+         </div>
       </div>
    </div>
    </div>
@@ -1419,7 +1482,7 @@
          <div class="market-sub-nav">
             <button class="m-sub-btn active" onclick="switchRecapTab('overview', this)">🎯 Overview</button>
             <button class="m-sub-btn" onclick="switchRecapTab('analytics', this)">📊 Analytics</button>
-            <button class="m-sub-btn" onclick="switchRecapTab('cashflow', this)">💸 Cashflow & Perf.</button>
+            <button class="m-sub-btn" onclick="switchRecapTab('cashflow', this)">💸 Cashflow</button>
             <button class="m-sub-btn" onclick="switchRecapTab('planning', this)">🏖️ Others</button>
          </div>
          <div id="rtab-overview" class="m-tab-content active">
