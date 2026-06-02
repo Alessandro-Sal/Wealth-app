@@ -1,4 +1,3 @@
-[README (12).md](https://github.com/user-attachments/files/28522127/README.12.md)
 # 📈 Wealth-App — Personal Finance & Portfolio Tracker
 
 > An advanced, mobile-first **Single Page Application (SPA)** built entirely on **Google Apps Script**, designed to give you complete, real-time control over your Net Worth, Expenses, and Investments — all in one platform.
