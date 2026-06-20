@@ -182,11 +182,36 @@ function getMarketNews(category = 'market') {
       }
     });
 
-    newsList.sort((a, b) => new Date(b.date) - new Date(a.date));
+newsList.sort((a, b) => new Date(b.date) - new Date(a.date));
     newsList = newsList.slice(0, 100);
     
-    return { articles: newsList, tickers: allTickers };
+    const backupKey = 'NEWS_BACKUP_' + category;
     
+    if (newsList.length > 5) {
+      try {
+        const backupData = JSON.stringify({ articles: newsList.slice(0, 20), tickers: allTickers });
+        
+        CacheService.getScriptCache().put(backupKey, backupData, 21600); 
+        
+        PropertiesService.getScriptProperties().setProperty(backupKey, backupData);
+      } catch (e) {
+        console.warn("Spazio superato per backup, ignoro.");
+      }
+      return { articles: newsList, tickers: allTickers };
+      
+    } else {
+      let cachedNews = CacheService.getScriptCache().get(backupKey);
+      
+      if (!cachedNews) {
+        cachedNews = PropertiesService.getScriptProperties().getProperty(backupKey);
+      }
+      
+      if (cachedNews) {
+        return JSON.parse(cachedNews); // Restituiamo il salvataggio della sera prima
+      }
+      
+      return { articles: [], tickers: allTickers };
+    }    
   } catch (error) {
     console.error("News fetch error:", error);
     return { articles: [], tickers: [] };

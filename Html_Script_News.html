@@ -7,6 +7,21 @@
    const CHUNK_SIZE = 30;        
    
    /**
+    * Security: Esegue l'escape dei caratteri HTML speciali per prevenire XSS.
+    * Da usare SEMPRE quando si inserisce in innerHTML testo proveniente da fonti
+    * esterne non controllate (es. titoli/summary dei feed news).
+    */
+   function escapeHtml(str) {
+     if (str === null || str === undefined) return "";
+     return String(str)
+       .replace(/&/g, '&amp;')
+       .replace(/</g, '&lt;')
+       .replace(/>/g, '&gt;')
+       .replace(/"/g, '&quot;')
+       .replace(/'/g, '&#39;');
+   }
+
+   /**
     * Utility: Converte il Markdown generato dall'AI in HTML pulito
     */
    function cleanAIMarkdown(text) {
@@ -230,7 +245,7 @@
                          
                          <div class="news-card-actions">
                             <div class="ai-btn" onclick="summarizeArticle(${absoluteIndex}, event, this)" title="AI Insight">✨</div>
-                            <div class="share-btn" onclick="shareArticle('${item.link}', '${item.title.replace(/'/g, "\\'")}', event)" title="Share">📤</div>
+                            <div class="share-btn" onclick="shareArticle('${item.link}', '${escapeHtml(item.title).replace(/'/g, "\\'")}', event)" title="Share">📤</div>
                             <div class="${bookmarkClass}" onclick="toggleBookmark(${absoluteIndex}, event)" title="Save">🔖</div>
                          </div>
                      </div>
@@ -238,8 +253,8 @@
                      <span class="news-read-time" style="white-space: nowrap;">⏱️ ${readTime} min</span>
                  </div>
                  
-                 <h3 class="news-title">${item.title}</h3>
-                 ${item.summary ? `<p class="news-summary">${item.summary}</p>` : ''}
+                 <h3 class="news-title">${escapeHtml(item.title)}</h3>
+                 ${item.summary ? `<p class="news-summary">${escapeHtml(item.summary)}</p>` : ''}
                  ${tickersHtml}
              </div>
              ${imageHtml}
@@ -456,7 +471,7 @@
            }
    
            // 4. Handle Summary
-           document.getElementById('nr-summary').innerHTML = article.summary || "No summary available for this article.";
+           document.getElementById('nr-summary').innerText = article.summary || "No summary available for this article.";
    
            // 5. Handle Tickers (NOW CLICKABLE!)
            const tickersContainer = document.getElementById('nr-tickers');
@@ -1009,7 +1024,7 @@
                     ${sentiment.icon} ${sentiment.tag} ${tickersHtml} • ${item.source}
                  </div>
                  <div style="font-size:14px; font-weight:800; color:var(--text-main); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
-                    ${item.title}
+                    ${escapeHtml(item.title)}
                  </div>
               </div>
               
