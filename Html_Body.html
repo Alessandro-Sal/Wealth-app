@@ -818,37 +818,64 @@
             <button type="button" class="btn-save btn-invest" onclick="sendInvestment()">SAVE INVEST</button>
          </div>
          <div id="inv-stat" style="text-align:center; margin-top:15px; font-weight:bold; color: var(--invest-bg); font-size: 14px;"></div>
-         <div style="margin-top:20px; border-top:1px dashed #ddd; padding-top:15px;">
+         <div style="margin-top:20px; border-top:1px dashed var(--row-border); padding-top:15px;">
             <label style="margin-top:0; font-size:11px; color:var(--invest-bg);">⚡ DCA Simulator (Pre-Buy)</label>
             <div style="display:flex; gap:5px;">
-               <input type="number" inputmode="decimal" id="dcaCurQty" placeholder="Old Qty" style="font-size:13px;">
-               <input type="number" inputmode="decimal" id="dcaCurAvg" placeholder="Old Avg Price" style="font-size:13px;">
+               <div style="flex:1;">
+                  <label for="dcaCurQty" style="display:block; font-size:9px; font-weight:600; color:var(--gray); margin-bottom:2px; text-transform:uppercase;">Old Qty</label>
+                  <input type="number" inputmode="decimal" id="dcaCurQty" placeholder="Old Qty" style="font-size:13px;">
+               </div>
+               <div style="flex:1;">
+                  <label for="dcaCurAvg" style="display:block; font-size:9px; font-weight:600; color:var(--gray); margin-bottom:2px; text-transform:uppercase;">Old Avg Price</label>
+                  <input type="number" inputmode="decimal" id="dcaCurAvg" placeholder="Old Avg Price" style="font-size:13px;">
+               </div>
             </div>
             <div style="display:flex; gap:5px;">
-               <input type="number" inputmode="decimal" id="dcaNewQty" placeholder="New Qty" style="font-size:13px;">
-               <input type="number" inputmode="decimal" id="dcaNewPrice" placeholder="New Price" style="font-size:13px;">
+               <div style="flex:1;">
+                  <label for="dcaNewQty" style="display:block; font-size:9px; font-weight:600; color:var(--gray); margin-bottom:2px; text-transform:uppercase;">New Qty</label>
+                  <input type="number" inputmode="decimal" id="dcaNewQty" placeholder="New Qty" style="font-size:13px;">
+               </div>
+               <div style="flex:1;">
+                  <label for="dcaNewPrice" style="display:block; font-size:9px; font-weight:600; color:var(--gray); margin-bottom:2px; text-transform:uppercase;">New Price</label>
+                  <input type="number" inputmode="decimal" id="dcaNewPrice" placeholder="New Price" style="font-size:13px;">
+               </div>
             </div>
-            <button type="button" onclick="calcDCA()" style="width:100%; padding:8px; margin-top:5px; background:#f2f2f7; color:#000; border-radius:8px; border:1px solid #ddd; cursor:pointer;">Calculate New Avg Price</button>
+            <button type="button" onclick="calcDCA()" style="width:100%; padding:8px; margin-top:5px; background:var(--section-bg); color:var(--text-main); border-radius:8px; border:1px solid var(--row-border); cursor:pointer;">Calculate New Avg Price</button>
             <div id="dcaResult" style="text-align:center; font-weight:bold; margin-top:5px; font-size:14px;"></div>
          </div>
-         <div style="margin-top:15px; border-top:1px dashed #ddd; padding-top:15px;">
+         <div style="margin-top:15px; border-top:1px dashed var(--row-border); padding-top:15px;">
             <label style="margin-top:0; font-size:11px; color:var(--danger);">🚑 Break-Even Calc (Recovery)</label>
             <div style="display:flex; gap:5px;">
-               <input type="number" inputmode="decimal" id="beBuyPrice" placeholder="Buy Price (e.g. 100)" style="font-size:13px;">
-               <input type="number" inputmode="decimal" id="beCurPrice" placeholder="Current Price (e.g. 80)" style="font-size:13px;">
+               <div style="flex:1;">
+                  <label for="beBuyPrice" style="display:block; font-size:9px; font-weight:600; color:var(--gray); margin-bottom:2px; text-transform:uppercase;">Buy Price</label>
+                  <input type="number" inputmode="decimal" id="beBuyPrice" placeholder="e.g. 100" style="font-size:13px;">
+               </div>
+               <div style="flex:1;">
+                  <label for="beCurPrice" style="display:block; font-size:9px; font-weight:600; color:var(--gray); margin-bottom:2px; text-transform:uppercase;">Current Price</label>
+                  <input type="number" inputmode="decimal" id="beCurPrice" placeholder="e.g. 80" style="font-size:13px;">
+               </div>
             </div>
-            <button type="button" onclick="calcBreakEven()" style="width:100%; padding:8px; margin-top:5px; background:#fff0f0; color:var(--danger); border-radius:8px; border:1px solid #ffcccc; font-weight:bold; cursor:pointer;">Calculate Recovery</button>
+            <button type="button" onclick="calcBreakEven()" style="width:100%; padding:8px; margin-top:5px; background:rgba(255, 59, 48, 0.08); color:var(--danger); border-radius:8px; border:1px solid rgba(255, 59, 48, 0.2); font-weight:bold; cursor:pointer;">Calculate Recovery</button>
             <div id="beResult" style="text-align:center; margin-top:5px; font-size:13px; min-height:18px;"></div>
          </div>
-         <div style="margin-top:15px; border-top:1px dashed #ddd; padding-top:15px;">
+         <div style="margin-top:15px; border-top:1px dashed var(--row-border); padding-top:15px;">
             <label style="margin-top:0; font-size:11px; color:var(--primary);">🎯 Strategy Planner (Take Profit / Stop Loss)</label>
             <div style="display:flex; gap:5px;">
-               <input type="number" inputmode="decimal" id="stratEntry" placeholder="Entry Price (e.g. 50)" style="font-size:13px;">
-               <input type="number" inputmode="decimal" id="stratTp" placeholder="Target % (e.g. 20)" style="font-size:13px;">
-               <input type="number" inputmode="decimal" id="stratSl" placeholder="Stop % (e.g. 5)" style="font-size:13px;">
+               <div style="flex:1;">
+                  <label for="stratEntry" style="display:block; font-size:9px; font-weight:600; color:var(--gray); margin-bottom:2px; text-transform:uppercase;">Entry Price</label>
+                  <input type="number" inputmode="decimal" id="stratEntry" placeholder="e.g. 50" style="font-size:13px;">
+               </div>
+               <div style="flex:1;">
+                  <label for="stratTp" style="display:block; font-size:9px; font-weight:600; color:var(--gray); margin-bottom:2px; text-transform:uppercase;">Target %</label>
+                  <input type="number" inputmode="decimal" id="stratTp" placeholder="e.g. 20" style="font-size:13px;">
+               </div>
+               <div style="flex:1;">
+                  <label for="stratSl" style="display:block; font-size:9px; font-weight:600; color:var(--gray); margin-bottom:2px; text-transform:uppercase;">Stop %</label>
+                  <input type="number" inputmode="decimal" id="stratSl" placeholder="e.g. 5" style="font-size:13px;">
+               </div>
             </div>
-            <button type="button" onclick="calcStrategy()" style="width:100%; padding:8px; margin-top:5px; background:#eef4ff; color:var(--primary); border-radius:8px; border:1px solid #cce0ff; font-weight:bold; cursor:pointer;">Calculate Strategy</button>
-            <div id="stratResult" style="margin-top:8px; font-size:13px; display:none; background:var(--white); padding:10px; border-radius:8px; border:1px solid #eee;">
+            <button type="button" onclick="calcStrategy()" style="width:100%; padding:8px; margin-top:5px; background:rgba(0, 122, 255, 0.08); color:var(--primary); border-radius:8px; border:1px solid rgba(0, 122, 255, 0.2); font-weight:bold; cursor:pointer;">Calculate Strategy</button>
+            <div id="stratResult" style="margin-top:8px; font-size:13px; display:none; background:var(--white); padding:10px; border-radius:8px; border:1px solid var(--row-border);">
                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
                   <span>Sell for Profit:</span>
                   <span id="resTp" style="font-weight:800; color:var(--stocks-bg);">--</span>

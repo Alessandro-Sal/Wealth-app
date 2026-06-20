@@ -83,7 +83,7 @@
      }
      
      // --- SOFT RELOAD & SKELETON LOGIC FOR STANDARD CATEGORIES ---
-     if (container.innerHTML.trim() !== "" && !container.innerHTML.includes("skeleton-card")) {
+     if (container.innerHTML.trim() !== "" && !container.innerHTML.includes("news-skeleton-card")) {
          container.style.opacity = '0.5'; 
          container.style.transition = 'opacity 0.3s ease';
          container.style.pointerEvents = 'none'; 
@@ -91,7 +91,7 @@
          let skeletonHtml = '';
          for(let i=0; i<4; i++) {
              skeletonHtml += `
-             <div class="skeleton-card">
+             <div class="news-skeleton-card">
                  <div class="skeleton-element skel-badge"></div>
                  <div class="skeleton-element skel-title"></div>
                  <div class="skeleton-element skel-title-short"></div>
