@@ -1816,4 +1816,67 @@ function openSubs() {
        document.getElementById('ast-update-ui').style.display = action === 'Update' ? 'block' : 'none';
        document.getElementById('ast-sell-ui').style.display = action === 'Sell' ? 'block' : 'none';
    }
+
+   // ==========================================
+   // INLINE MATH EVALUATION FOR AMOUNT INPUTS
+   // ==========================================
+   
+   /**
+    * Evaluates a mathematical expression from a string.
+    * Safely restricts execution to basic math operators and numbers.
+    */
+   function evaluateInlineMath(inputString) {
+       if (!inputString) return null;
+       
+       // Remove all characters except numbers, dots, and basic math operators
+       const sanitizedString = inputString.replace(/[^0-9+\-*/().]/g, '');
+       
+       if (!sanitizedString) return null;
+       
+       try {
+           // Safely evaluate the sanitized math string
+           const result = new Function(`return (${sanitizedString})`)();
+           return (typeof result === 'number' && !isNaN(result)) ? result : null;
+       } catch (error) {
+           console.warn("Invalid inline math expression:", error);
+           return null;
+       }
+   }
+
+   /**
+    * Attach a global listener for amount inputs to evaluate math on 'blur' (when user clicks away).
+    * Uses event delegation (capture phase) to support dynamically added elements.
+    */
+   document.addEventListener('blur', function(event) {
+       const target = event.target;
+       
+       // Check if the blurred element is an amount input field based on its class or ID
+       const isAmountField = target.classList.contains('bank-in') || 
+                             target.classList.contains('split-friend-amount') ||
+                             target.id === 'penAmount' ||
+                             target.id === 'debtAmount';
+                             
+       if (isAmountField) {
+           const rawValue = target.value.trim();
+           
+           // Check if the string actually contains math operations.
+           // Matches +, *, /, or multiple minuses (e.g., "-300-200"), or a minus not at the start.
+           const containsMath = /[\+\*\/]/.test(rawValue) || 
+                                (rawValue.match(/-/g) || []).length > 1 || 
+                                (rawValue.includes('-') && rawValue.indexOf('-') !== 0);
+           
+           if (rawValue && containsMath) {
+               const calculatedValue = evaluateInlineMath(rawValue);
+               
+               if (calculatedValue !== null) {
+                   // Update the input field with the calculated result, max 2 decimals
+                   target.value = Number(calculatedValue.toFixed(2));
+                   
+                   // Trigger an 'input' event so that other dynamic scripts (like updateSplitMath)
+                   // detect the change and recalculate totals automatically.
+                   target.dispatchEvent(new Event('input', { bubbles: true }));
+               }
+           }
+       }
+   }, true); // 'true' enables the capturing phase
 </script>
