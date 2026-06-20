@@ -643,17 +643,8 @@
        shareArticle(article.link, article.title.replace(/'/g, "\\'"), event);
    }
    
-   /**
-    * Cleanly closes the modal and stops any ongoing audio
-    */
-   function closeNewsModal() {
-       document.getElementById('news-reader-modal').style.display = 'none';
-       currentModalArticleIndex = -1;
-       // Optional: Stop speech synthesis if it was playing
-       if ('speechSynthesis' in window) {
-           window.speechSynthesis.cancel();
-       }
-   }
+   // NOTA: closeNewsModal è definita più avanti in questo file
+   // (versione completa che gestisce anche il reset del bottone TTS).
    
    // --- TTS AND NAVIGATION LOGIC ---
    
@@ -948,18 +939,8 @@
        });
    }
    
-   /**
-    * Basic JS sentiment analyzer for visual feedback
-    */
-   function getQuickSentiment(title) {
-       const titleLower = title.toLowerCase();
-       const upWords = /surge|rally|jump|soar|buy|up|gain|record|bull|soars|jumps|beats/i;
-       const downWords = /plunge|drop|fall|sell|down|bear|crash|loss|misses|slips/i;
-       
-       if (upWords.test(titleLower)) return { icon: '🟢', color: 'rgba(52, 199, 89, 0.1)', border: '#34c759' };
-       if (downWords.test(titleLower)) return { icon: '🔴', color: 'rgba(255, 59, 48, 0.1)', border: '#ff3b30' };
-       return { icon: '⚪', color: 'transparent', border: 'transparent' };
-   }
+   // NOTA: getQuickSentiment è definita più avanti in questo file
+   // (versione completa che include anche il tag di impatto earnings/M&A/macro).
    
    /**
     * Renders the filtered list of alerts with premium UI.

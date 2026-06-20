@@ -3575,8 +3575,11 @@ function renderMarketInsights(data) {
    }
    
    // Funzione per il refresh del mercato (Pulsante "Refresh Market")
-   function forceReloadMarket() {
-     const btn = document.getElementById('btn-refresh-market'); 
+   // clickedBtn: il bottone effettivamente cliccato (passato con onclick="forceReloadMarket(this)").
+   // Ci sono due bottoni nella UI con questo scopo (tab Insights e tab Tools);
+   // passando 'this' aggiorniamo SEMPRE quello che l'utente ha davvero cliccato.
+   function forceReloadMarket(clickedBtn) {
+     const btn = clickedBtn || document.getElementById('btn-refresh-market-insights');
      if(btn) { btn.innerText = "⏳"; btn.style.pointerEvents = "none"; }
      
      const briefingEl = document.getElementById('macro-text'); 

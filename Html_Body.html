@@ -1123,7 +1123,7 @@
                     <button class="bench-mode-btn" id="btn-bench-mode-10y" onclick="setBenchmarkMode('10y')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">10Y</button>
                     <button class="bench-mode-btn" id="btn-bench-mode-20y" onclick="setBenchmarkMode('20y')" style="background:transparent; color:var(--gray); border:none; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; transition:all 0.2s;">20Y</button>
                 </div>
-                <span id="btn-refresh-market" onclick="forceReloadMarket()" style="font-size:16px; cursor:pointer; color:var(--primary); background:var(--section-bg); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);" title="Run AI Analysis">🔄</span>
+                <span id="btn-refresh-market-insights" onclick="forceReloadMarket(this)" style="font-size:16px; cursor:pointer; color:var(--primary); background:var(--section-bg); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);" title="Run AI Analysis">🔄</span>
             </div>
         </div>
         
@@ -1277,7 +1277,7 @@
                      <div class="badge-icon bg-red">🗓️</div>
                      Outlook
                   </div>
-                  <span id="btn-refresh-market" onclick="forceReloadMarket()" style="font-size:16px; cursor:pointer; color:var(--primary); background:var(--section-bg); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);" title="Run AI Analysis">🔄</span>
+                  <span id="btn-refresh-market-tools" onclick="forceReloadMarket(this)" style="font-size:16px; cursor:pointer; color:var(--primary); background:var(--section-bg); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);" title="Run AI Analysis">🔄</span>
                </div>
                <div>
                   <div class="calendar-header" style="display:flex; justify-content:space-between; align-items:center;">
@@ -1856,10 +1856,6 @@
             </div>
         </div>
         
-        <div id="cp-kpi-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; padding: 0 20px 20px 20px;">
-            <div style="text-align: center; color: var(--gray); font-size: 12px; padding: 20px; grid-column: 1/-1;">Loading statistics...</div>
-        </div>
-
         <div id="cp-kpi-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; padding: 0 20px 20px 20px;">
             <div style="text-align: center; color: var(--gray); font-size: 12px; padding: 20px; grid-column: 1/-1;">Loading statistics...</div>
         </div>
