@@ -1,10 +1,18 @@
 /**
  * Fetches application configurations (Categories and Fixed Expenses) from Google Sheets.
+ * FIX (1.5/1.1): ora passa da getFromCache (TTL 1h). getAppConfig veniva invocata fino a
+ * 4 volte per singola operazione, rileggendo 2 fogli ogni volta. La cache e' invalidata
+ * da invalidateConfigCache() nei mutatori di config (add/delete categoria e spesa fissa).
  * @returns {Object} { categories: {...}, fixedExpenses: [...] }
  */
 function getAppConfig() {
+  return getFromCache('APP_CONFIG_V1', _fetchAppConfig, 3600);
+}
+
+/** Implementazione reale (eseguita solo su cache-miss) di getAppConfig. */
+function _fetchAppConfig() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  
+
   // --- 1. FETCH CATEGORIES ---
   const catSheet = ss.getSheetByName("Config_Category");
   let categoriesData = {
@@ -96,6 +104,7 @@ function deleteFixedExpenseFromSheet(expenseId) {
     if (String(data[i][0]) === String(expenseId)) {
       const name = data[i][2]; // Il nome/nota si trova in colonna C (indice 2)
       sheet.deleteRow(i + 1);  // i+1 perché Apps Script è basato su indici 1 per le righe
+      invalidateConfigCache(); // FIX (1.2): config cambiata -> svuota la cache APP_CONFIG_V1
       return `Spesa "${name}" eliminata!`;
     }
   }
@@ -132,6 +141,7 @@ function deleteCategoryFromSheet(type, categoryName) {
   }
   
   if (deletedCount > 0) {
+      invalidateConfigCache(); // FIX (1.2): config cambiata
       return `Categoria "${categoryName}" eliminata con successo!`;
   }
   throw new Error("Categoria non trovata nel database.");
@@ -153,6 +163,7 @@ function addCategoryToSheet(type, categoryName) {
   if (type === "Expense") {
       sheet.appendRow(["Refund", categoryName]);
   }
-  
+
+  invalidateConfigCache(); // FIX (1.2): config cambiata
   return "Categoria aggiunta!";
 }

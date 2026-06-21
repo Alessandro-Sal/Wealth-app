@@ -15,7 +15,17 @@
  * @return {string} Status message.
  */
 function addInvestTransaction(data) {
+  // FIX (1.10): LockService come per addTransaction (evita righe sovrascritte da chiamate concorrenti).
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    return "Error: Sistema occupato, riprova tra qualche secondo.";
+  }
+
+  try {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let warnings = []; // FIX (3.1): raccoglie i fallimenti parziali da segnalare all'utente
 
   // --- NEW: REAL ASSETS & BONDS (Write to DB_RealAssets & DB_Debts) ---
   if (data.type === "RealEstate" || data.type === "Bond") {
@@ -60,7 +70,11 @@ function addInvestTransaction(data) {
               bankCol: data.bankCol, 
               isSplit: false
             });
-        } catch(e) {}
+        } catch(e) {
+            // FIX (3.1): non ingoiare l'errore in silenzio
+            Logger.log("Errore creazione spesa fissa mutuo: " + e.message);
+            warnings.push("rata mensile del mutuo non creata");
+        }
       }
     }
 
@@ -91,7 +105,7 @@ function addInvestTransaction(data) {
                   details: 'Acquisto / Anticipo: ' + data.name,
                   amounts: amountsObj
               });
-          } catch(e) { Logger.log("Errore cassa: " + e.message); }
+          } catch(e) { Logger.log("Errore cassa: " + e.message); warnings.push("addebito dell'anticipo sul conto non riuscito"); }
       }
 
     } else if (data.type === "Bond") {
@@ -116,12 +130,17 @@ function addInvestTransaction(data) {
                   details: 'Acquisto Bond: ' + data.name,
                   amounts: amountsObj
               });
-          } catch(e) { Logger.log("Errore cassa bond: " + e.message); }
+          } catch(e) { Logger.log("Errore cassa bond: " + e.message); warnings.push("addebito del bond sul conto non riuscito"); }
       }
     }
     
     dbAssets.appendRow(rowData);
-    return data.type === "RealEstate" ? "Real Estate & Mortgage Added!" : "Bond Added!";
+    // FIX (3.1): se qualche scrittura collaterale e' fallita, lo si segnala invece di
+    // mostrare un "Added!" rassicurante ma fuorviante.
+    const baseMsg = data.type === "RealEstate" ? "Real Estate & Mortgage Added!" : "Bond Added!";
+    return warnings.length
+      ? (baseMsg + " ⚠️ Attenzione: " + warnings.join("; ") + " — verifica il saldo del conto.")
+      : baseMsg;
   }
 
   const transactionId = "ID_" + new Date().getTime() + "_" + Math.floor(Math.random() * 1000);
@@ -206,6 +225,9 @@ function addInvestTransaction(data) {
     }
   }
   return "Investment Saved (" + data.type + ")";
+  } finally {
+    lock.releaseLock(); // FIX (1.10): rilascia sempre il lock, su ogni percorso di uscita
+  }
 }
 
 /**

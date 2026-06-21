@@ -614,19 +614,33 @@ function calculateZainettoReport(allData) {
     }
 
     // C. CLEAN EXPIRED LOSSES
+    // FIX (1.14): si cattura l'importo in scadenza PRIMA di rimuoverlo dal basket.
+    // Nel codice originale lo step C cancellava minusBucket[year-4] prima che lo step D
+    // lo cercasse (4-(year-yOrigin)===0), quindi l'alert "URGENT" non scattava MAI.
+    let aboutToExpire = minusBucket.has(expiryYearLimit) ? minusBucket.get(expiryYearLimit) : 0;
     if (minusBucket.has(expiryYearLimit)) {
-      expiredAmount = minusBucket.get(expiryYearLimit);
-      minusBucket.delete(expiryYearLimit); 
+      minusBucket.delete(expiryYearLimit);
     }
 
     // D. STRATEGIC ANALYSIS
     let totalResiduo = 0;
     let notes = [];
     let nextExpiryAmount = 0;
-    
+
+    // Per l'ANNO FISCALE CORRENTE le perdite in scadenza sono ancora recuperabili
+    // (alert URGENT, "vendi azioni in gain"): non ancora perse -> expiredAmount = 0.
+    // Per gli anni PASSATI sono effettivamente perse (alert EXPIRED).
+    // Nota: i NUMERI fiscali (imponibile, tasse) non cambiano; cambia solo la nota consultiva.
+    const isCurrentTaxYear = (year === new Date().getFullYear());
+    if (isCurrentTaxYear) {
+      nextExpiryAmount = aboutToExpire;
+      expiredAmount = 0;
+    } else {
+      expiredAmount = aboutToExpire;
+    }
+
     for (let [yOrigin, amount] of minusBucket.entries()) {
       totalResiduo += amount;
-      if (4 - (year - yOrigin) === 0) nextExpiryAmount += amount;
     }
 
     if (nextExpiryAmount > 0) notes.push(`🔴 URGENT: ${nextExpiryAmount.toFixed(0)}€ expire end of year! Sell Stocks in gain.`);

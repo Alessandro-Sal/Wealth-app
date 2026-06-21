@@ -10,8 +10,19 @@
  * @return {string} Success message.
  */
 function addTransaction(data) {
+  // FIX (1.10): LockService per evitare race condition. Senza lock, un doppio tap su mobile
+  // o due chiamate concorrenti possono leggere la STESSA "prima riga vuota" e sovrascriversi
+  // a vicenda, perdendo una transazione senza alcun errore.
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    return "Error: Sistema occupato, riprova tra qualche secondo.";
+  }
+
+  try {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  
+
   // Dynamically determine the target sheet based on the current year
   const dateVal = new Date();
   const currentYear = dateVal.getFullYear();
@@ -139,8 +150,11 @@ function addTransaction(data) {
   }
 
   //if (generatedTxId) SpreadsheetApp.flush();
-  
+
   return "Saved Successfully";
+  } finally {
+    lock.releaseLock(); // FIX (1.10): rilascia sempre il lock, anche sui return di errore
+  }
 }
 /**
  * Recupera la lista dei crediti attivi dal foglio
@@ -184,18 +198,21 @@ function settleActiveCredit(id, amount, category, note, bankCol) {
   let found = false;
   let rowData = [];
   
-  // 1. Find, copy, and delete the row from Active_Credits
+  // FIX (3.2): WRITE-BEFORE-DELETE. Si individua la riga SENZA eliminarla; si scrive prima
+  // lo storico e il rimborso, e SOLO se entrambe le scritture vanno a buon fine si elimina
+  // la riga da Active_Credits. Cosi' un errore di scrittura non fa sparire il credito.
+  let rowToDelete = -1;
   for (let i = data.length - 1; i >= 1; i--) {
     if (String(data[i][0]) === String(id)) {
-      rowData = data[i]; // Save original data
-      creditSheet.deleteRow(i + 1); 
+      rowData = data[i];   // Save original data
+      rowToDelete = i + 1; // Riga reale sul foglio (NON ancora eliminata)
       found = true;
       break;
     }
   }
   if (!found) throw new Error("Credito non trovato o già saldato.");
 
-  // 2. Save to History (Settled_Credits)
+  // 2. Save to History (Settled_Credits) -- PRIMA della delete
   const settleDate = new Date();
   settledSheet.appendRow([
     rowData[0], // Original ID
@@ -210,15 +227,20 @@ function settleActiveCredit(id, amount, category, note, bankCol) {
 
   // 3. Create amounts object for the Refund
   let amountsObj = {};
-  amountsObj[bankCol] = amount; 
+  amountsObj[bankCol] = amount;
 
-  // 4. Record the Refund transaction
-  return addTransaction({
+  // 4. Record the Refund transaction -- anch'essa PRIMA della delete
+  const refundResult = addTransaction({
     type: 'Refund',
     category: category,
     details: "Settled from: " + note,
     amounts: amountsObj
   });
+
+  // 5. Solo ora che storico + rimborso sono stati scritti, rimuovi da Active_Credits
+  creditSheet.deleteRow(rowToDelete);
+
+  return refundResult;
 }
 
 /**

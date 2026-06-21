@@ -87,45 +87,28 @@ function fetchUniversalAI(prompt, provider = 'GEMINI', useWebSearch = false) {
     const apiKey = typeof GEMINI_API_KEY !== 'undefined' ? GEMINI_API_KEY : null;
     if (!apiKey) { console.warn("Missing GEMINI_API_KEY"); return null; }
 
-    // --- EXHAUSTIVE CASCADE ORDERED BY INTELLIGENCE ---
+    // FIX (1.7): cascata ridotta ai SOLI modelli reali ed esistenti.
+    // Prima erano ~22 modelli (molti inesistenti: gemini-3.x-preview, nano-banana-pro,
+    // deep-research-pro...), provati in serie con fetch bloccante -> nel caso peggiore
+    // 60-150s e rischio di superare il limite di 6 minuti di esecuzione su analyzeAsset.
     const geminiModels = [
-      // 1. THE HEAVYWEIGHTS (Pro Models for Deep Reasoning)
-      "gemini-3.1-pro-preview",
-      "gemini-3-pro-preview",
-      "gemini-2.5-pro",
-      "gemini-pro-latest",
-      
-      // 2. THE SMART SPRINTERS (Flash Models)
-      "gemini-2.5-flash",
-      "gemini-3-flash-preview",
-      "gemini-2.0-flash",
-      "gemini-flash-latest",
-      
-      // 3. THE LIGHTWEIGHTS (Lite Models for fast fallback)
-      "gemini-2.5-flash-lite",
-      "gemini-2.0-flash-lite",
-      "gemini-flash-lite-latest",
-      
-      // 4. EXPERIMENTAL & ALIASES
-      "gemini-3.1-pro-preview-customtools",
-      "gemini-2.5-flash-lite-preview-09-2025",
-      "nano-banana-pro-preview",
-      "deep-research-pro-preview-12-2025",
-      "gemini-2.0-flash-001",
-      "gemini-2.0-flash-lite-001",
-      
-      // 5. OPEN WEIGHTS (Ultimate Fallbacks)
-      "gemma-3-27b-it",
-      "gemma-3-12b-it",
-      "gemma-3-4b-it",
-      "gemma-3-1b-it",
-      "gemma-3n-e4b-it",
-      "gemma-3n-e2b-it"
+      "gemini-2.5-flash",       // veloce e capace (default)
+      "gemini-2.0-flash",       // fallback stabile
+      "gemini-flash-latest",    // alias sempre valido
+      "gemini-2.5-flash-lite"   // ultimo fallback economico
     ];
 
+    // Deadline di sicurezza: non superare ~90s complessivi nella cascata Gemini.
+    const geminiDeadline = Date.now() + 90000;
+
     for (let i = 0; i < geminiModels.length; i++) {
+      if (Date.now() > geminiDeadline) {
+        console.warn("Gemini cascade: deadline 90s raggiunta, interrompo per evitare il timeout.");
+        break;
+      }
       url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModels[i]}:generateContent?key=${apiKey}`;
-      payload = { contents: [{ parts: [{ text: prompt }] }] };
+      // FIX (1.8 parziale): limita l'output anche per Gemini (prima solo OpenRouter).
+      payload = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 1500 } };
       if (useWebSearch) payload.tools = [{ googleSearch: {} }];
 
       console.log(`Attempting Gemini: ${geminiModels[i]}...`);

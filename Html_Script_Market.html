@@ -1072,6 +1072,9 @@ function updateAnalyticsChart() {
    
      // 3. SET INTERVAL (Cyclic updates)
      marketPollInterval = setInterval(() => {
+         // FIX (1.24): se l'INTERA scheda del browser è in background, salta il ciclo
+         // (niente fetch sprecate / quota UrlFetch consumata). Riprende da solo al ritorno.
+         if (document.hidden) { console.log("⏸️ Scheda in background: ciclo Market saltato"); return; }
          // Safety Check: Verify user is still on the Market tab
          const marketPage = document.getElementById('p-market');
          const isVisible = marketPage && 

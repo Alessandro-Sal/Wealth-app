@@ -6,7 +6,7 @@
  * @param {string} targetEmail - The email address to send the calendars to.
  * @return {Object} Status of the operation and generated events.
  */
-function sendMarketEventsCalendarToOutlook(targetEmail = "alessandro.saladino01@gmail.com") {
+function sendMarketEventsCalendarToOutlook(targetEmail = getNotifyEmail()) { // FIX (2.17): email centralizzata
   const PROPERTY_KEY = "MARKET_EVENTS_SYNC_V1";
   const props = PropertiesService.getScriptProperties();
   

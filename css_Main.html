@@ -11,7 +11,9 @@
 	/* Light Mode Defaults */
 	--bg: #f2f2f7;
 	--white: #ffffff;
-	--gray: #8e8e93;
+	/* FIX (3.6): #8e8e93 su bianco ha contrasto ~3.5:1 (sotto la soglia WCAG AA 4.5:1).
+	   #6d6d72 sale a ~5.2:1 restando un grigio neutro in stile iOS. */
+	--gray: #6d6d72;
 	--danger: #ff3b30;
 	--warning: #ff9500;
 	--success: #34c759;

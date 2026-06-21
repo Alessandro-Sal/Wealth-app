@@ -26,7 +26,7 @@ function checkBudgetStatus() {
     const aiWarning = generateBudgetAI(monthlyData, burnRate);
     
     MailApp.sendEmail({
-      to: "alessandro.saladino01@gmail.com", // ⚠️ Your Email
+      to: getNotifyEmail(), // FIX (2.17): email centralizzata (vedi App_NotifyConfig.js)
       subject: `⚠️ ALERT BUDGET: Burn Rate al ${burnRate.toFixed(1)}%`,
       htmlBody: `<div style="font-family: Arial, sans-serif; padding: 20px; background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; color: #856404;">
         <h2 style="margin-top: 0;">👮‍♂️ Budget Guardian Alert</h2>

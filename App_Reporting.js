@@ -53,7 +53,7 @@ function sendMonthlyWealthReport() {
 
   // 7. SEND EMAIL
   MailApp.sendEmail({
-    to: "alessandro.saladino01@gmail.com", // ⚠️ Insert your email here
+    to: getNotifyEmail(), // FIX (2.17): email centralizzata (vedi App_NotifyConfig.js)
     subject: `${REPORT_CONFIG.emailSubject} - ${monthlyData.currentMonthName}`,
     htmlBody: emailHtml
   });

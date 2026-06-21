@@ -137,7 +137,7 @@ function runMarketSniper() {
     }
     
     MailApp.sendEmail({
-      to: "alessandro.saladino01@gmail.com",
+      to: getNotifyEmail(), // FIX (2.17): email centralizzata
       subject: `🔥 MARKET MOVER: ${alerts.length} Asset in Motion`,
       htmlBody: `
       <div style="font-family: Arial, sans-serif; padding: 20px; border: 2px solid #e74c3c; border-radius: 8px; max-width: 600px;">

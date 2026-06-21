@@ -15,9 +15,14 @@ function getLastTransactions() {
   const lastRow = sheet.getLastRow();
   
   if (lastRow < startRow) return [];
-  
-  // Read Data (Cols A to J)
-  const dataRange = sheet.getRange(startRow, 1, lastRow - startRow + 1, 10).getValues();
+
+  // FIX (1.6): legge solo le ultime ~12 righe invece dell'intero foglio (anche centinaia
+  // di righe) per restituirne 5. I dati sono contigui da riga 20 (append sequenziale),
+  // quindi le ultime righe fisiche corrispondono alle transazioni piu' recenti.
+  const totalRows = lastRow - startRow + 1;
+  const readCount = Math.min(totalRows, 12);
+  const readStart = lastRow - readCount + 1;
+  const dataRange = sheet.getRange(readStart, 1, readCount, 10).getValues();
   let transactions = [];
   
   for (let i = 0; i < dataRange.length; i++) {
@@ -30,9 +35,9 @@ function getLastTransactions() {
         if (!isNaN(val)) totalAmount += val; 
       }
       
-      transactions.push({ 
-        row: startRow + i, 
-        date: Utilities.formatDate(new Date(dataRange[i][0]), ss.getSpreadsheetTimeZone(), "dd/MM"), 
+      transactions.push({
+        row: readStart + i,
+        date: Utilities.formatDate(new Date(dataRange[i][0]), ss.getSpreadsheetTimeZone(), "dd/MM"),
         type: dataRange[i][1], 
         category: dataRange[i][2], 
         details: dataRange[i][3], 

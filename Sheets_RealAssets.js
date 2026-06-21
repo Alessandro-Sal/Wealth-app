@@ -29,7 +29,12 @@ function ASSET_IMMOBILE_EQUITY(marketValue, loanAmount, annualRate, years, start
   if (isNaN(startDate.getTime()) || startDate > today) return marketValue;
 
   // 2. French Amortization Calculation
-  let r = annualRate  / 12; // Monthly rate
+  // FIX (1.13): normalizzazione robusta del tasso. La JSDoc dichiara "2.5 per 2.5%",
+  // ma il codice originale usava annualRate/12 senza /100 -> rata mensile errata (es. 20.8%).
+  // Questa forma e' corretta SIA se il dato e' in percentuale (2.5) SIA se gia' decimale (0.025),
+  // perche' un mutuo non ha mai un tasso annuo >= 1 in forma decimale.
+  let normRate = annualRate > 1 ? annualRate / 100 : annualRate;
+  let r = normRate / 12; // Monthly rate
   let n = years * 12;              // Total number of payments
   
   // Calculate Monthly Payment (Standard Formula)

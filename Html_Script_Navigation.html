@@ -58,11 +58,10 @@
     * Closes all active modal sheets.
     */
    function closeAllSheets() {
-     const sheets = ['calc-sheet', 'search-sheet', 'invest-search-sheet', 'subs-sheet', 'gemini-sheet', 'risk-sheet','settings-sheet'];
-     sheets.forEach(id => {
-         const el = document.getElementById(id);
-         if (el) el.classList.remove('active');
-     });
+     // FIX (2.2): chiude QUALSIASI bottom-sheet aperto (tutti usano la classe .sheet-modal),
+     // non piu' una lista hardcoded di 7 id. Prima 3 modali (portfolio-news-sheet,
+     // portfolio-alerts-sheet, ticker-notes-sheet) non venivano chiusi -> UI bloccata.
+     document.querySelectorAll('.sheet-modal.active').forEach(el => el.classList.remove('active'));
      const backdrop = document.getElementById('common-backdrop');
      if (backdrop) backdrop.classList.remove('active');
    }

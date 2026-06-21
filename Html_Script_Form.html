@@ -288,13 +288,19 @@ function sendTransaction() {
          btn.innerText = originalText; 
          btn.classList.remove('btn-loading'); 
          Swal.fire({ icon: 'success', title: 'Saved!', text: details || 'Transaction recorded', showConfirmButton: false, timer: 1500 }); 
-         fetchHistory(); 
-         fetchBalances(); 
-         fetchBudgets();
+         // FIX (2.12): i 3 refresh principali della dashboard (storico, saldi, budget) in UN
+         // solo round-trip via getPostTransactionRefresh (FASE 2). Prima erano 3 chiamate
+         // google.script.run separate. subs/credits restano separati perché aggiornano
+         // pannelli non visibili subito dopo il salvataggio.
+         google.script.run.withSuccessHandler(d => {
+             fetchHistory(d.history);
+             fetchBalances(d.balances);
+             fetchBudgets(d.budgets);
+         }).getPostTransactionRefresh();
          fetchSubsStatus();
          fetchActiveCredits();
-         setTimeout(resetForm, 500); 
-     }).withFailureHandler(err => { 
+         setTimeout(resetForm, 500);
+     }).withFailureHandler(err => {
          btn.innerText = originalText; 
          btn.classList.remove('btn-loading'); 
          Swal.fire({ icon: 'error', title: 'Error', text: err.message }); 

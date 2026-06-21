@@ -211,6 +211,7 @@ function addFixedExpenseToSheet(data) {
     data.isSplit || false, // TRUE se l'interruttore è stato attivato
     data.splitDetails || "" // Es. "5:270|7:180"
   ]);
-  
+
+  invalidateConfigCache(); // FIX (1.2): la config delle spese fisse e' cambiata
   return `Spesa ${data.note} aggiunta!`;
 }

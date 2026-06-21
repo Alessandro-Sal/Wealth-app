@@ -17,7 +17,7 @@ function sendMondayBriefing() {
 
   // 4. Send Email
   MailApp.sendEmail({
-    to: "alessandro.saladino01@gmail.com", // ⚠️ Your Email
+    to: getNotifyEmail(), // FIX (2.17): email centralizzata
     subject: "☕ Monday Market Briefing - Weekly Strategy",
     htmlBody: createBriefingTemplate(aiContent)
   });

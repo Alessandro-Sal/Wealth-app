@@ -13,9 +13,12 @@ function getLastInvestments() {
     
     const lastRow = sheet.getLastRow();
     if (lastRow < 3) return []; // No data available
-    
-    // Read from Row 3, first 8 columns
-    const dataRange = sheet.getRange(3, 1, lastRow - 2, 8).getValues();
+
+    // FIX (1.6): legge solo le ultime ~12 righe invece di tutto lo storico per restituirne 5.
+    const totalRows = lastRow - 2; // i dati partono da riga 3
+    const readCount = Math.min(totalRows, 12);
+    const readStart = lastRow - readCount + 1;
+    const dataRange = sheet.getRange(readStart, 1, readCount, 8).getValues();
     let transactions = [];
 
     for (let i = 0; i < dataRange.length; i++) {
@@ -37,8 +40,8 @@ function getLastInvestments() {
         }
 
         transactions.push({
-          row: 3 + i, 
-          sheet: sheetName, 
+          row: readStart + i,
+          sheet: sheetName,
           date: Utilities.formatDate(dateObj, ss.getSpreadsheetTimeZone(), "dd/MM"),
           ticker: dataRange[i][1], 
           action: dataRange[i][2], 

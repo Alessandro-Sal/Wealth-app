@@ -6,7 +6,7 @@
  * @param {string} targetEmail - The email address to send the calendars to.
  * @return {Object} Status of the operation and generated events.
  */
-function sendDividendCalendarToOutlook(targetEmail = "alessandro.saladino01@gmail.com") {
+function sendDividendCalendarToOutlook(targetEmail = getNotifyEmail()) { // FIX (2.17): email centralizzata
   const PROPERTY_KEY = "DIVIDEND_CALENDAR_SYNC_V1";
   const props = PropertiesService.getScriptProperties();
   
@@ -210,7 +210,7 @@ function setupWeeklyDividendSyncTrigger() {
  * just to test the email delivery and .ics formatting.
  */
 function test_sendDividendCalendarToOutlook() {
-  const targetEmail = "alessandro.saladino01@gmail.com";
+  const targetEmail = getNotifyEmail(); // FIX (2.17): email centralizzata
   
   // 1. Fetch portfolio and parse assets
   const port = getLivePortfolio();

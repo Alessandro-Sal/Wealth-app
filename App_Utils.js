@@ -97,19 +97,31 @@ function getConversionRate(amount, fromCurrency, toCurrency) {
   if (fromCurrency === toCurrency) return amount;
 
   try {
-    // URL per l'API pubblica (ad es. un servizio gratuito o Google Finance se accessibile via UrlFetchApp)
-    // Usiamo qui un approccio alternativo veloce tramite un API aperta per i tassi di cambio
-    const url = `https://api.exchangerate-api.com/v4/latest/${fromCurrency}`;
-    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-    
-    if (response.getResponseCode() !== 200) {
-      return "Err: Impossibile recuperare il tasso";
+    // FIX (1.12): cache dei tassi di cambio (15 min) per evitare una chiamata
+    // UrlFetchApp ad OGNI conversione (consumo quota giornaliera + 300-800ms di latenza).
+    // Il tasso EUR/USD non cambia in modo significativo entro 15 minuti.
+    const cache = CacheService.getScriptCache();
+    const cacheKey = 'FX_RATES_' + fromCurrency;
+    let rates = null;
+
+    const cachedRates = cache.get(cacheKey);
+    if (cachedRates) {
+      rates = JSON.parse(cachedRates);
+    } else {
+      const url = `https://api.exchangerate-api.com/v4/latest/${fromCurrency}`;
+      const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+      if (response.getResponseCode() !== 200) {
+        return "Err: Impossibile recuperare il tasso";
+      }
+      const data = JSON.parse(response.getContentText());
+      if (data && data.rates) {
+        rates = data.rates;
+        cache.put(cacheKey, JSON.stringify(rates), 900); // 900s = 15 minuti
+      }
     }
-    
-    const data = JSON.parse(response.getContentText());
-    if (data && data.rates && data.rates[toCurrency]) {
-      const rate = data.rates[toCurrency];
-      const convertedAmount = amount * rate;
+
+    if (rates && rates[toCurrency]) {
+      const convertedAmount = amount * rates[toCurrency];
       return convertedAmount.toFixed(2);
     } else {
       return "Err: Tasso non trovato";

@@ -23,9 +23,15 @@
      const question = input.value.trim();
      
      if(!question) return;
-   
+
+     // FIX (2.3): escape dell'input utente prima di iniettarlo via innerHTML (previene XSS,
+     // es. un messaggio tipo <img src=x onerror=...>). La risposta dell'AI passa gia' da marked.parse.
+     const safeQuestion = question
+       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
      // Append User Message
-     chat.innerHTML += `<div style="align-self:flex-end; background:#007aff; color:white; padding:10px 15px; border-radius: 15px 15px 0 15px; max-width:80%; font-size:14px; margin-bottom:10px;">${question}</div>`;
+     chat.innerHTML += `<div style="align-self:flex-end; background:#007aff; color:white; padding:10px 15px; border-radius: 15px 15px 0 15px; max-width:80%; font-size:14px; margin-bottom:10px;">${safeQuestion}</div>`;
      input.value = ""; 
      chat.scrollTop = chat.scrollHeight;
    

@@ -22,6 +22,20 @@ function getFromCache(key, fetchFunction, expirationSec = 600) {
     }
     return data;
   } catch (e) {
-    return null; 
+    return null;
+  }
+}
+
+/**
+ * FIX (1.1/1.2): Invalida le chiavi di cache dei dati "stabili" (config).
+ * Va chiamata da OGNI funzione che modifica Config_Category o Config_FixedExpenses,
+ * altrimenti dopo un salvataggio l'utente vedrebbe dati vecchi finché non scade il TTL.
+ * Aggiungere qui eventuali nuove chiavi cache man mano che si attiva getFromCache().
+ */
+function invalidateConfigCache() {
+  try {
+    CacheService.getScriptCache().removeAll(['APP_CONFIG_V1']);
+  } catch (e) {
+    // Best-effort: un fallimento di invalidazione non deve bloccare la scrittura.
   }
 }

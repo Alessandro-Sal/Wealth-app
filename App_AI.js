@@ -400,7 +400,7 @@ C. EVENTS & CATALYSTS: Provide EVERY significant event (Macro and Portfolio-spec
  * Automates the nightly email dispatch of the Market Insights report.
  */
 function sendNightlyMarketReport() {
-  const recipient = "alessandro.saladino01@gmail.com";
+  const recipient = getNotifyEmail(); // FIX (2.17): email centralizzata
   const today = new Date();
   const day = today.getDay(); 
 

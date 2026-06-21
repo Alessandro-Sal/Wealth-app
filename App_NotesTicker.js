@@ -67,23 +67,11 @@ function saveNoteToCloud(ticker, noteText) {
     if (!found && noteText !== "") {
         sheet.appendRow([ticker, noteText, new Date()]);
     }
-    
+
     return true;
 }
 
-function getNotesFromCloud() {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName("App_Notes");
-    if (!sheet) return {};
-    
-    const data = sheet.getDataRange().getValues();
-    let notesDict = {};
-    
-    for (let i = 1; i < data.length; i++) {
-        const ticker = data[i][0];
-        const note = data[i][1];
-        if (ticker) notesDict[ticker] = note;
-    }
-    
-    return notesDict;
-}
+// FIX (1.15): rimossa la SECONDA definizione duplicata e identica di
+// getNotesFromCloud() che si trovava qui sotto. Due funzioni omonime nello
+// stesso progetto GAS rendono il deploy non deterministico. Resta solo la
+// definizione in alto (righe ~23-38).

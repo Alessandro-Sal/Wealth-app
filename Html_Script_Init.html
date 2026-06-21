@@ -64,8 +64,14 @@
          } catch (e) { console.error("Corrupt Heavy Cache", e); }
      }
    
-     // Hide Splash Screen
-     if (splash) setTimeout(() => splash.classList.add('hidden'), 100);
+     // FIX (3.3): nascondi lo splash SOLO quando c'è qualcosa di reale da mostrare,
+     // non dopo 100ms fissi (che su rete lenta lasciavano vedere skeleton vuoti).
+     const hideSplash = () => { if (splash) splash.classList.add('hidden'); };
+     if (cachedFast) {
+         hideSplash();                  // utente di ritorno: dati da cache già a schermo -> via subito
+     } else if (splash) {
+         setTimeout(hideSplash, 4000);  // fallback di sicurezza: mai bloccati sullo splash (rete lenta/errore)
+     }
    
      const currentYear = new Date().getFullYear().toString();
    
@@ -74,7 +80,8 @@
          const fastData = await run('loadFastStart', currentYear);
          localStorage.setItem('cache_fast', JSON.stringify(fastData));
          renderAllData(fastData);
-   
+         hideSplash(); // FIX (3.3): per chi NON ha cache, lo splash sparisce ora, coi dati reali
+
          // --- STAGE 3: HEAVY DATA FETCH (Lazy Load) ---
          run('loadHeavyContent', currentYear).then(heavyData => {
              console.log("📡 Portfolio Data Received.");
@@ -508,34 +515,40 @@ function updateDashboardDOM(d) {
      }
    }
    
-   function fetchBudgets() {
+   function fetchBudgets(pre) {
+     // FIX (2.12): se riceve dati pre-caricati (da getPostTransactionRefresh) renderizza subito,
+     // senza un nuovo round-trip. Senza argomento il comportamento è identico a prima.
+     if (pre !== undefined) { renderBudgets(pre); return; }
      showSkeleton('budget-container', 5, '30px');
-     google.script.run.withSuccessHandler(data => {
-         const cont = document.getElementById('budget-container');
-         if (data.length === 0) { cont.innerHTML = '<div style="text-align:center;color:var(--gray);">No expenses yet</div>'; return; }
-         let html = '';
-         data.forEach(b => {
-             let colorClass = 'bg-green';
-             if (b.pct > 85) colorClass = 'bg-orange';
-             if (b.pct > 100) colorClass = 'bg-red';
-             let width = Math.min(b.pct, 100);
-             html += `<div class="budget-item"><div class="bg-head"><span>${b.category}</span><span class="bg-nums sensitive">${b.spent.toFixed(0)} / ${b.limit} €</span></div><div class="budget-track"><div class="budget-bar ${colorClass}" style="width:${width}%"></div></div></div>`;
-         });
-         cont.innerHTML = html;
-     }).getBudgetStatus();
+     google.script.run.withSuccessHandler(renderBudgets).getBudgetStatus();
+   }
+   function renderBudgets(data) {
+     const cont = document.getElementById('budget-container');
+     if (data.length === 0) { cont.innerHTML = '<div style="text-align:center;color:var(--gray);">No expenses yet</div>'; return; }
+     let html = '';
+     data.forEach(b => {
+         let colorClass = 'bg-green';
+         if (b.pct > 85) colorClass = 'bg-orange';
+         if (b.pct > 100) colorClass = 'bg-red';
+         let width = Math.min(b.pct, 100);
+         html += `<div class="budget-item"><div class="bg-head"><span>${b.category}</span><span class="bg-nums sensitive">${b.spent.toFixed(0)} / ${b.limit} €</span></div><div class="budget-track"><div class="budget-bar ${colorClass}" style="width:${width}%"></div></div></div>`;
+     });
+     cont.innerHTML = html;
    }
    
-   function fetchBalances() {
-     google.script.run.withSuccessHandler(data => {
-         if (data) {
-             document.getElementById('bal-col5').innerText = data.col5;
-             document.getElementById('bal-col6').innerText = data.col6;
-             document.getElementById('bal-col7').innerText = data.col7;
-             document.getElementById('bal-col8').innerText = data.col8;
-             document.getElementById('bal-col9').innerText = data.col9;
-             document.getElementById('bal-col10').innerText = data.col10;
-         }
-     }).getBankBalances();
+   function fetchBalances(pre) {
+     if (pre !== undefined) { renderBalances(pre); return; } // FIX (2.12): usa dati pre-caricati
+     google.script.run.withSuccessHandler(renderBalances).getBankBalances();
+   }
+   function renderBalances(data) {
+     if (data) {
+         document.getElementById('bal-col5').innerText = data.col5;
+         document.getElementById('bal-col6').innerText = data.col6;
+         document.getElementById('bal-col7').innerText = data.col7;
+         document.getElementById('bal-col8').innerText = data.col8;
+         document.getElementById('bal-col9').innerText = data.col9;
+         document.getElementById('bal-col10').innerText = data.col10;
+     }
    }
    
    function renderYearSelector(yearsList, selectedYear) {
@@ -589,7 +602,8 @@ function updateDashboardDOM(d) {
      }
    }
    
-   function fetchHistory() {
+   function fetchHistory(pre) {
+     if (pre !== undefined) { renderHistory(pre); return; } // FIX (2.12): usa dati pre-caricati
      showSkeleton('history-container', 3, '50px');
      google.script.run.withSuccessHandler(renderHistory).getLastTransactions();
    }
