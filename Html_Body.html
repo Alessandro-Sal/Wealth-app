@@ -333,32 +333,32 @@
    </div>
    <div id="risk-sheet" class="sheet-modal" style="height: 85vh; background: #fbfbfd; display: flex; flex-direction: column;">
       <div class="sheet-header" style="flex-shrink: 0;">
-         <span style="font-size:12px; font-weight:bold; color:#ff3b30; letter-spacing:1px;">⚠️ RISK REPORT</span>
+         <span style="font-size:12px; font-weight:bold; color:var(--danger); letter-spacing:1px;">⚠️ RISK REPORT</span>
          <button class="sheet-close" onclick="closeAllSheets()">Close</button>
       </div>
       <div style="flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 15px 40px 15px;">
          <div style="text-align:center; margin-bottom:20px; margin-top:10px;">
-            <div id="risk-dial" style="font-size:40px; font-weight:900; color:#333;">--/100</div>
-            <div id="risk-dial-label" style="font-size:12px; font-weight:bold; text-transform:uppercase; color:#888;">Risk Score</div>
+            <div id="risk-dial" style="font-size:40px; font-weight:900; color:var(--text-main);">--/100</div>
+            <div id="risk-dial-label" style="font-size:12px; font-weight:bold; text-transform:uppercase; color:var(--gray);">Risk Score</div>
          </div>
-         <div class="card" style="background:white; border-left:4px solid #ff9500; margin-bottom:15px; padding:15px;">
-            <div style="font-size:11px; font-weight:700; color:#888; margin-bottom:10px; text-transform:uppercase;">🌪️ Stress Test (Simulation)</div>
+         <div class="card" style="background:var(--white); border-left:4px solid var(--warning); margin-bottom:15px; padding:15px;">
+            <div style="font-size:11px; font-weight:700; color:var(--gray); margin-bottom:10px; text-transform:uppercase;">🌪️ Stress Test (Simulation)</div>
             <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
                <span>📉 Market Crash (-20%)</span>
-               <span id="st-market" style="font-weight:bold; color:#ff3b30;">--%</span>
+               <span id="st-market" style="font-weight:bold; color:var(--danger);">--%</span>
             </div>
             <div style="display:flex; justify-content:space-between;">
                <span>❄️ Crypto Winter (-50%)</span>
-               <span id="st-crypto" style="font-weight:bold; color:#5856d6;">--%</span>
+               <span id="st-crypto" style="font-weight:bold; color:var(--invest-bg);">--%</span>
             </div>
          </div>
-         <div class="card" style="background:white; margin-bottom:15px; padding:15px;">
-            <div style="font-size:11px; font-weight:700; color:#888; margin-bottom:5px; text-transform:uppercase;">🔍 Concentration Analysis</div>
-            <div id="risk-conc" style="font-size:14px; line-height:1.5; color:#333;">Loading...</div>
+         <div class="card" style="background:var(--white); margin-bottom:15px; padding:15px;">
+            <div style="font-size:11px; font-weight:700; color:var(--gray); margin-bottom:5px; text-transform:uppercase;">🔍 Concentration Analysis</div>
+            <div id="risk-conc" style="font-size:14px; line-height:1.5; color:var(--text-main);">Loading...</div>
          </div>
-         <div class="card" style="background:white; border-left:4px solid #34c759; padding:15px;">
-            <div style="font-size:11px; font-weight:700; color:#888; margin-bottom:5px; text-transform:uppercase;">💡 AI Suggestions</div>
-            <ul id="risk-sugg" style="padding-left:20px; margin:0; font-size:14px; line-height:1.6; color:#333;">
+         <div class="card" style="background:var(--white); border-left:4px solid var(--success); padding:15px;">
+            <div style="font-size:11px; font-weight:700; color:var(--gray); margin-bottom:5px; text-transform:uppercase;">💡 AI Suggestions</div>
+            <ul id="risk-sugg" style="padding-left:20px; margin:0; font-size:14px; line-height:1.6; color:var(--text-main);">
                <li>Analyzing...</li>
             </ul>
          </div>
@@ -541,42 +541,42 @@
                <div class="row">
                   <div class="bank-info"><span>Intesa SP</span><span id="bal-col5" class="bank-balance sensitive">--</span></div>
                   <div class="input-wrapper">
-                     <input type="text" inputmode="decimal" class="bank-in" data-col="5" placeholder="0.00" oninput="syncIconColor(this)">
+                     <input type="number" inputmode="decimal" step="0.01" class="bank-in" data-col="5" placeholder="0.00" oninput="syncIconColor(this)">
                      <div class="sign-toggle sign-plus" onclick="toggleSignIcon(this)">+</div>
                   </div>
                </div>
                <div class="row">
                   <div class="bank-info"><span>N26</span><span id="bal-col6" class="bank-balance sensitive">--</span></div>
                   <div class="input-wrapper">
-                     <input type="text" inputmode="decimal" class="bank-in" data-col="6" placeholder="0.00" oninput="syncIconColor(this)">
+                     <input type="number" inputmode="decimal" step="0.01" class="bank-in" data-col="6" placeholder="0.00" oninput="syncIconColor(this)">
                      <div class="sign-toggle sign-plus" onclick="toggleSignIcon(this)">+</div>
                   </div>
                </div>
                <div class="row">
                   <div class="bank-info"><span>Wallet</span><span id="bal-col7" class="bank-balance sensitive">--</span></div>
                   <div class="input-wrapper">
-                     <input type="text" inputmode="decimal" class="bank-in" data-col="7" placeholder="0.00" oninput="syncIconColor(this)">
+                     <input type="number" inputmode="decimal" step="0.01" class="bank-in" data-col="7" placeholder="0.00" oninput="syncIconColor(this)">
                      <div class="sign-toggle sign-plus" onclick="toggleSignIcon(this)">+</div>
                   </div>
                </div>
                <div class="row">
                   <div class="bank-info"><span>Buddy</span><span id="bal-col8" class="bank-balance sensitive">--</span></div>
                   <div class="input-wrapper">
-                     <input type="text" inputmode="decimal" class="bank-in" data-col="8" placeholder="0.00" oninput="syncIconColor(this)">
+                     <input type="number" inputmode="decimal" step="0.01" class="bank-in" data-col="8" placeholder="0.00" oninput="syncIconColor(this)">
                      <div class="sign-toggle sign-plus" onclick="toggleSignIcon(this)">+</div>
                   </div>
                </div>
                <div class="row">
                   <div class="bank-info"><span>Revolut</span><span id="bal-col9" class="bank-balance sensitive">--</span></div>
                   <div class="input-wrapper">
-                     <input type="text" inputmode="decimal" class="bank-in" data-col="9" placeholder="0.00" oninput="syncIconColor(this)">
+                     <input type="number" inputmode="decimal" step="0.01" class="bank-in" data-col="9" placeholder="0.00" oninput="syncIconColor(this)">
                      <div class="sign-toggle sign-plus" onclick="toggleSignIcon(this)">+</div>
                   </div>
                </div>
                <div class="row">
                   <div class="bank-info"><span>Food</span><span id="bal-col10" class="bank-balance sensitive">--</span></div>
                   <div class="input-wrapper">
-                     <input type="text" inputmode="decimal" class="bank-in" data-col="10" placeholder="0.00" oninput="syncIconColor(this)">
+                     <input type="number" inputmode="decimal" step="0.01" class="bank-in" data-col="10" placeholder="0.00" oninput="syncIconColor(this)">
                      <div class="sign-toggle sign-plus" onclick="toggleSignIcon(this)">+</div>
                   </div>
                </div>
@@ -1206,7 +1206,7 @@
         </div>
 
         <!-- 2. The new heatmap container (Hidden by default) -->
-        <div id="macro-heatmap-container" style="display: none; background: var(--card-bg, #fff); border-radius: 12px; border: 1px solid var(--row-border); overflow: hidden; margin-bottom: 20px;">
+        <div id="macro-heatmap-container" style="display: none; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--row-border); overflow: hidden; margin-bottom: 20px;">
         </div>
                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-top: 5px;">
                   <div style="background:rgba(0,122,255,0.05); border-left:4px solid #007aff; padding:15px; border-radius:12px; display:flex; flex-direction:column;">
@@ -2132,22 +2132,22 @@
    </div>
    </div>
    <div id="wl-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; align-items:flex-end; justify-content:center; backdrop-filter: blur(2px);">
-      <div style="background-color:var(--card-bg, #ffffff); width:100%; max-width:600px; border-radius:24px 24px 0 0; padding:25px; box-shadow:0 -10px 40px rgba(0,0,0,0.3); animation: slideUp 0.3s ease-out; max-height:85vh; overflow-y:auto; position:relative;">
+      <div style="background-color:var(--card-bg); width:100%; max-width:600px; border-radius:24px 24px 0 0; padding:25px; box-shadow:0 -10px 40px rgba(0,0,0,0.3); animation: slideUp 0.3s ease-out; max-height:85vh; overflow-y:auto; position:relative;">
          <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:25px;">
             <div>
-               <div id="wl-mod-ticker" style="background:#007aff; color:white; padding:4px 10px; border-radius:6px; font-size:13px; font-weight:800; display:inline-block; margin-bottom:8px; letter-spacing:0.5px;"></div>
-               <div id="wl-mod-name" style="font-size:24px; font-weight:900; line-height:1.1; color:var(--text-main, #000);"></div>
+               <div id="wl-mod-ticker" style="background:var(--primary); color:white; padding:4px 10px; border-radius:6px; font-size:13px; font-weight:800; display:inline-block; margin-bottom:8px; letter-spacing:0.5px;"></div>
+               <div id="wl-mod-name" style="font-size:24px; font-weight:900; line-height:1.1; color:var(--text-main);"></div>
             </div>
-            <div onclick="closeWlModal()" style="background:#f2f2f7; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:bold; color:#333; font-size:18px;">✕</div>
+            <div onclick="closeWlModal()" style="background:var(--section-bg); width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:bold; color:var(--text-main); font-size:18px;">✕</div>
          </div>
-         <div style="background:var(--bg-color, #f5f5f7); padding:20px; border-radius:16px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; border:1px solid rgba(0,0,0,0.05);">
+         <div style="background:var(--bg-color); padding:20px; border-radius:16px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; border:1px solid rgba(0,0,0,0.05);">
             <div>
-               <div style="font-size:11px; color:#888; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Current Price</div>
-               <div id="wl-mod-price-main" style="font-size:28px; font-weight:800; color:var(--text-main, #000); letter-spacing:-0.5px;"></div>
+               <div style="font-size:11px; color:var(--gray); text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Current Price</div>
+               <div id="wl-mod-price-main" style="font-size:28px; font-weight:800; color:var(--text-main); letter-spacing:-0.5px;"></div>
             </div>
             <div style="text-align:right;">
-               <div id="wl-mod-lbl-conv" style="font-size:11px; color:#888; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Converted</div>
-               <div id="wl-mod-price-conv" style="font-size:18px; font-weight:600; color:#555;"></div>
+               <div id="wl-mod-lbl-conv" style="font-size:11px; color:var(--gray); text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Converted</div>
+               <div id="wl-mod-price-conv" style="font-size:18px; font-weight:600; color:var(--gray);"></div>
             </div>
          </div>
          <div id="portfolio-advanced-stats" style="margin-bottom: 20px; display:none;"></div>
@@ -2165,21 +2165,21 @@
             <div class="wl-stat-box"><span>Volume</span><b id="wl-mod-vol" style="font-size:11px;"></b></div>
          </div>
          <div style="background:var(--white); padding:15px; border-radius:12px; margin-bottom:10px; border:1px solid rgba(0,0,0,0.05);">
-            <div style="font-size:11px; font-weight:700; color:#888; text-transform:uppercase; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:5px;">Company Profile</div>
+            <div style="font-size:11px; font-weight:700; color:var(--gray); text-transform:uppercase; margin-bottom:8px; border-bottom:1px solid var(--row-border); padding-bottom:5px;">Company Profile</div>
             <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-               <span style="font-size:12px; color:#555;">Sector:</span>
+               <span style="font-size:12px; color:var(--gray);">Sector:</span>
                <span id="wl-mod-sector" style="font-weight:700; font-size:12px;"></span>
             </div>
             <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-               <span style="font-size:12px; color:#555;">Industry:</span>
+               <span style="font-size:12px; color:var(--gray);">Industry:</span>
                <span id="wl-mod-ind" style="font-weight:700; font-size:12px; text-align:right; max-width:60%;"></span>
             </div>
             <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-               <span style="font-size:12px; color:#555;">Country:</span>
+               <span style="font-size:12px; color:var(--gray);">Country:</span>
                <span id="wl-mod-ctry" style="font-weight:700; font-size:12px;"></span>
             </div>
             <div style="display:flex; justify-content:space-between;">
-               <span style="font-size:12px; color:#555;">Currency:</span>
+               <span style="font-size:12px; color:var(--gray);">Currency:</span>
                <span id="wl-mod-curr" style="font-weight:700; font-size:12px;"></span>
             </div>
          </div>
@@ -2371,7 +2371,7 @@
    </div>
 
    <div id="pm-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; align-items:flex-end; justify-content:center; backdrop-filter: blur(2px);">
-      <div style="background-color:var(--card-bg, #ffffff); width:100%; max-width:600px; border-radius:24px 24px 0 0; padding:25px; box-shadow:0 -10px 40px rgba(0,0,0,0.3); animation: slideUp 0.3s ease-out; max-height:85vh; overflow-y:auto; position:relative;">
+      <div style="background-color:var(--card-bg); width:100%; max-width:600px; border-radius:24px 24px 0 0; padding:25px; box-shadow:0 -10px 40px rgba(0,0,0,0.3); animation: slideUp 0.3s ease-out; max-height:85vh; overflow-y:auto; position:relative;">
          
          <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:25px;">
             <div>
@@ -2381,7 +2381,7 @@
             <div onclick="closePostMortemModal()" style="background:#f2f2f7; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:bold; color:#333; font-size:18px;">✕</div>
          </div>
          
-         <div style="background:var(--bg-color, #f5f5f7); padding:20px; border-radius:16px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; border:1px solid rgba(0,0,0,0.05);">
+         <div style="background:var(--bg-color); padding:20px; border-radius:16px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; border:1px solid rgba(0,0,0,0.05);">
             <div>
                <div style="font-size:11px; color:#888; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Realized P&L</div>
                <div id="pm-mod-pnl" class="sensitive" style="font-size:28px; font-weight:800; color:var(--text-main, #000); letter-spacing:-0.5px;"></div>
@@ -2446,7 +2446,7 @@
 
          <div style="background:var(--white); padding:15px; border-radius:12px; margin-bottom:10px; border:1px solid rgba(0,0,0,0.05);">
             <div style="font-size:11px; font-weight:700; color:#888; text-transform:uppercase; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:5px;">📝 Journal & Reflections</div>
-            <textarea id="pm-mod-notes" style="width:100%; box-sizing:border-box; height:100px; background:var(--bg-color, #f5f5f7); border:1px solid rgba(0,0,0,0.05); border-radius:8px; padding:10px; color:var(--text-main); font-family:inherit; resize:vertical; font-size:13px; outline:none;" placeholder="Why did you exit? What did you learn?"></textarea>
+            <textarea id="pm-mod-notes" style="width:100%; box-sizing:border-box; height:100px; background:var(--bg-color); border:1px solid rgba(0,0,0,0.05); border-radius:8px; padding:10px; color:var(--text-main); font-family:inherit; resize:vertical; font-size:13px; outline:none;" placeholder="Why did you exit? What did you learn?"></textarea>
             <button onclick="savePostMortemNote(this)" style="width:100%; margin-top:10px; background:var(--primary); color:white; border:none; padding:12px; border-radius:8px; font-weight:800; cursor:pointer;">Save Journal</button>
          </div>
 

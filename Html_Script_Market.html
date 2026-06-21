@@ -23,7 +23,11 @@
      list.style.cssText = `display: flex !important; overflow-x: auto !important; gap: 10px !important; padding: 10px !important; width: 100% !important; box-sizing: border-box !important; list-style: none !important; -webkit-overflow-scrolling: touch;`;
      
      if (!isUpdate) {
-         list.innerHTML = '<div style="grid-column: 1/-1; padding:20px; text-align:center; color:#888; font-size:12px;">Loading watchlist...</div>';
+         let skeletonHtml = '';
+         for (let i = 0; i < 4; i++) {
+             skeletonHtml += '<div class="skeleton skeleton-card"></div>';
+         }
+         list.innerHTML = skeletonHtml;
      }
      
      google.script.run.withSuccessHandler(function(data) { 
@@ -54,9 +58,15 @@
            if(btnCards) { btnCards.style.background = 'transparent'; btnCards.style.color = 'var(--gray)'; btnCards.style.boxShadow = 'none'; btnCards.style.fontWeight = '700'; }
        }
        
-       if(myWatchlistData) renderWatchlist();
+       if(myWatchlistData && myWatchlistData.length > 0) {
+           renderWatchlist();
+       } else {
+           // Nessun dato in cache: avviamo il fetch (mostrerà lo stato di caricamento)
+           // invece di restare silenziosamente vuoti.
+           fetchWatchlist(false);
+       }
    }
-   
+
    function sortWatchlistTerminal(colKey) {
        // Toggle sort direction if same column, otherwise default to descending (except strings)
        if (wlSortCol === colKey) { 
@@ -489,8 +499,8 @@
              // IN-LINE CSS STYLES
              const rowStyle = "display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.05);";
              const labelStyle = "font-size: 13px; color: var(--gray, #888); font-weight: 500;";
-             const valStyle = "font-size: 14px; font-weight: 700; font-family: var(--font-mono, monospace); letter-spacing: -0.5px;";
-             const groupStyle = "background: var(--card-bg, #fff); border-radius: 16px; padding: 5px 15px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.03);";
+             const valStyle = "font-size: 14px; font-weight: 700; font-family: var(--font-mono); letter-spacing: -0.5px;";
+             const groupStyle = "background: var(--card-bg); border-radius: 16px; padding: 5px 15px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.03);";
    
              // CARD 1: TECHNICAL STATS 
              let block1 = `
@@ -680,7 +690,7 @@
              histBtn.id = 'wl-btn-history';
              histBtn.style.cssText = "grid-column: 1 / -1; margin-top:5px;";
              histBtn.innerHTML = `
-               <button onclick="searchTickerHistory('${item.t}')" style="width:100%; background:var(--card-bg, #fff); color:var(--text-main); border:1px solid rgba(0,0,0,0.1); padding:12px; border-radius:12px; font-weight:600; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
+               <button onclick="searchTickerHistory('${item.t}')" style="width:100%; background:var(--card-bg); color:var(--text-main); border:1px solid rgba(0,0,0,0.1); padding:12px; border-radius:12px; font-weight:600; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
                   <span>📜</span> View Transaction History
                </button>
              `;
@@ -1439,7 +1449,7 @@ function updateAnalyticsChart() {
                : `<div style="width:60px; height:60px; border-radius:8px; background:rgba(0,122,255,0.1); color:#007aff; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">📰</div>`;
    
            html += `
-           <div style="display:flex; gap:12px; background:var(--bg-color, #f5f5f7); padding:10px; border-radius:12px; cursor:pointer; border:1px solid rgba(0,0,0,0.05);" ${clickAction}>
+           <div style="display:flex; gap:12px; background:var(--bg-color); padding:10px; border-radius:12px; cursor:pointer; border:1px solid rgba(0,0,0,0.05);" ${clickAction}>
                ${imgHtml}
                <div style="flex:1; display:flex; flex-direction:column; justify-content:space-between;">
                    <div style="font-size:13px; font-weight:800; color:var(--text-main); line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${news.title}</div>
@@ -1535,7 +1545,9 @@ function updateAnalyticsChart() {
        if(typeof currentPortfolioData !== 'undefined' && currentPortfolioData && currentPortfolioData.stocks) {
            renderLivePortfolio(currentPortfolioData);
        } else {
-           fetchLivePortfolio(true);
+           // Nessun dato in cache: mostriamo lo skeleton (isUpdate=false) invece di
+           // lasciare lo schermo vuoto in silenzio durante il caricamento.
+           fetchLivePortfolio(false);
        }
    }
    
@@ -2549,7 +2561,7 @@ function renderPortfolioHeatmap(data) {
             offsetY: -6, // [FIX CRITICO]: Solleva violentemente i testi verso l'alto per evitare che il bordo inferiore del box li tagli
             style: {
                 fontSize: '13px',
-                fontFamily: 'var(--font-mono, monospace)',
+                fontFamily: 'var(--font-mono)',
                 fontWeight: 'bold',
                 colors: ['#ffffff']
             },
@@ -2592,7 +2604,7 @@ function renderPortfolioHeatmap(data) {
                 let formattedPct = isNaN(pctFloat) ? "0.00%" : (pctFloat > 0 ? '+' : '') + pctFloat.toFixed(2) + '%';
                 
                 return `
-                    <div style="padding: 12px; background: var(--card-bg, #fff); border: 1px solid var(--row-border); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-family: var(--font-main, sans-serif);">
+                    <div style="padding: 12px; background: var(--card-bg); border: 1px solid var(--row-border); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-family: var(--font-main, sans-serif);">
                         <div style="font-weight: 800; font-size: 15px; margin-bottom: 2px;">${item.t} <span style="font-size:11px; color:var(--gray); font-weight:normal;">${item.name || ''}</span></div>
                         <div style="font-size: 11px; color: var(--gray); text-transform: uppercase; margin-bottom: 8px;">${currentHeatmapGrouping === 'none' ? 'Asset' : 'Group'}: ${groupName}</div>
                         <div style="font-size: 13px; margin-bottom: 4px; color: var(--text-main);">Value: <b>${valDisplay}</b></div>
@@ -3126,7 +3138,7 @@ function renderIndexHeatmap(indexData, timeMode = 'daily') {
         },
         dataLabels: {
             enabled: true, padding: 2, offsetY: -6, 
-            style: { fontSize: '13px', fontFamily: 'var(--font-mono, monospace)', fontWeight: 'bold', colors: ['#ffffff'] },
+            style: { fontSize: '13px', fontFamily: 'var(--font-mono)', fontWeight: 'bold', colors: ['#ffffff'] },
             formatter: function(text, op) {
                 let d = op.w.config.series[op.seriesIndex].data[op.dataPointIndex];
                 let v = d.displayVal;
@@ -3145,7 +3157,7 @@ function renderIndexHeatmap(indexData, timeMode = 'daily') {
                 let nameDisplay = item.name || item.ticker;
                 
                 return `
-                    <div style="padding: 12px; background: var(--card-bg, #fff); border: 1px solid var(--row-border); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-family: var(--font-main, sans-serif);">
+                    <div style="padding: 12px; background: var(--card-bg); border: 1px solid var(--row-border); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-family: var(--font-main, sans-serif);">
                         <div style="font-weight: 800; font-size: 15px; margin-bottom: 2px;">${nameDisplay}</div>
                         <div style="font-size: 11px; color: var(--gray); text-transform: uppercase; margin-bottom: 8px;">Cat: ${item.category || 'N/A'}</div>
                         <div style="font-size: 13px; color: var(--text-main);">Perf (${timeMode.toUpperCase()}): <b style="color: ${d.fillColor}">${formattedPct}</b></div>
