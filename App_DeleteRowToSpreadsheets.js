@@ -106,20 +106,24 @@ function findAndDeleteById(ss, targetSheetName, id, colIndex) {
 function removeCreditAndOriginalTx(creditId, linkedTxId) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const creditSheet = ss.getSheetByName("Active_Credits");
-  const currentYear = new Date().getFullYear();
-  const expSheetName = "Expenses Tracker " + currentYear;
-  const expSheet = ss.getSheetByName(expSheetName);
-
+  
   if (!creditSheet) throw new Error("Foglio Active_Credits mancante.");
 
   const cData = creditSheet.getDataRange().getValues();
   let rowsToDelete = [];
+  let expYear = new Date().getFullYear(); // Valore di default
 
-  // 1. Raccoglie le righe da eliminare (ottimizzato per bulk virtuale)
+  // 1. Raccoglie le righe da eliminare e cerca l'anno originale
   if (linkedTxId) {
     for (let i = cData.length - 1; i >= 1; i--) {
       if (String(cData[i][6]).trim() === String(linkedTxId).trim()) {
         rowsToDelete.push(i + 1);
+        
+        // Estrai l'anno dalla data del credito (colonna B / indice 1)
+        let d = new Date(cData[i][1]);
+        if (!isNaN(d.getTime())) {
+          expYear = d.getFullYear();
+        }
       }
     }
   } else {
@@ -134,20 +138,27 @@ function removeCreditAndOriginalTx(creditId, linkedTxId) {
   // Elimina le righe dei crediti (dal basso verso l'alto per sicurezza)
   rowsToDelete.forEach(r => creditSheet.deleteRow(r));
 
-  // 2. Trova ed elimina la spesa madre nel foglio Expenses in modo dinamico
-  if (linkedTxId && expSheet) {
-    // Intestazione alla riga 2
-    const headers = expSheet.getRange(2, 1, 1, expSheet.getLastColumn()).getValues()[0];
-    const syncColIndex = headers.indexOf("Controllo Automatismi") + 1;
+  // 2. Trova ed elimina la spesa madre nel foglio Expenses in modo dinamico usando l'anno corretto
+  if (linkedTxId) {
+    const expSheetName = "Expenses Tracker " + expYear;
+    const expSheet = ss.getSheetByName(expSheetName);
+    
+    if (expSheet) {
+      // Intestazione alla riga 2
+      const headers = expSheet.getRange(2, 1, 1, expSheet.getLastColumn()).getValues()[0];
+      const syncColIndex = headers.indexOf("Controllo Automatismi") + 1;
 
-    if (syncColIndex > 0) {
-      const eData = expSheet.getRange(20, syncColIndex, expSheet.getLastRow() - 19, 1).getValues(); 
-      for (let i = eData.length - 1; i >= 0; i--) {
-        if (String(eData[i][0]).trim() === String(linkedTxId).trim()) {
-          deleteRow(expSheetName, i + 20); 
-          break; 
+      if (syncColIndex > 0) {
+        const eData = expSheet.getRange(20, syncColIndex, expSheet.getLastRow() - 19, 1).getValues(); 
+        for (let i = eData.length - 1; i >= 0; i--) {
+          if (String(eData[i][0]).trim() === String(linkedTxId).trim()) {
+            deleteRow(expSheetName, i + 20); 
+            break; 
+          }
         }
       }
+    } else {
+      console.log("Foglio Expenses non trovato per l'anno: " + expYear);
     }
   }
   
