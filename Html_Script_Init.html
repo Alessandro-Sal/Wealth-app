@@ -246,6 +246,14 @@ function updateRunwayDOM(runwayData) {
         // Optional: Add visual emphasis for high survival rate
         if (parseFloat(s) > 12) document.getElementById('runway-survival').style.color = 'var(--success)';
     }
+
+    // 4. Update Current Month Flow Fixed Expenses (Was previously failing due to async load)
+    const elFlowOutFix = document.getElementById('flow-out-fix');
+    if (elFlowOutFix) {
+        const fixedAmount = runwayData.fixed || 0;
+        const fmtFixOut = new Intl.NumberFormat('it-IT').format(fixedAmount);
+        elFlowOutFix.innerText = `(Fix: € ${fmtFixOut})`;
+    }
 }
 
 function updateYearlyTotalsDOM(yearlyTotals) {
@@ -312,16 +320,6 @@ function updateSavingsDOM(savingsData, runwayData) {
     document.getElementById('flow-rate').innerText = "Rate: " + savingsData.rate + "%";
     const elSave = document.getElementById('flow-save');
     if(elSave) elSave.style.color = parseFloat(savingsData.savings) >= 0 ? 'var(--stocks-bg)' : 'var(--danger)';
-    
-    const elFlowOutFix = document.getElementById('flow-out-fix');
-    if (elFlowOutFix) {
-        let fixedAmount = (runwayData && runwayData.fixed) ? runwayData.fixed : 0;
-        if (!fixedAmount && typeof getMonthlyFixedCost === 'function') {
-            fixedAmount = getMonthlyFixedCost();
-        }
-        const fmtFixOut = new Intl.NumberFormat('it-IT').format(fixedAmount);
-        elFlowOutFix.innerText = `(Fix: € ${fmtFixOut})`;
-    }
 }
    
 /**

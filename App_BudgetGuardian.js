@@ -9,16 +9,16 @@ function checkBudgetStatus() {
   // 1. Get detailed analysis for the CURRENT MONTH
   const monthlyData = getCurrentMonthAnalysis();
 
-  // Safety check: if no income yet (start of month), avoid division by zero
-  if (monthlyData.income === 0) return; 
+  // 2. Calculate Total Budget for Reference
+  // L'utente ha richiesto esplicitamente di usare 1800 come budget di riferimento
+  const totalBudget = 1800;
 
-  const burnRate = (monthlyData.expense / monthlyData.income) * 100;
-  const netSavings = monthlyData.income - monthlyData.expense;
+  // Burn rate is Expense against Total Budget
+  const burnRate = (monthlyData.expense / totalBudget) * 100;
 
-  // TRIGGER CONDITIONS:
-  // A. Burn Rate > 70% (Spending too fast)
-  // B. Net Savings < 0 (In debt for the month)
-  if (burnRate > 70 || netSavings < 0) {
+  // TRIGGER CONDITION:
+  // A. Burn Rate > 70% (Spending too fast against the budget)
+  if (burnRate > 70) {
     
     console.log(`Budget Alert Triggered. Burn Rate: ${burnRate.toFixed(1)}%`);
     
@@ -113,9 +113,6 @@ function getCurrentMonthAnalysis() {
  * Generates the warning message using AI with Fallback.
  */
 function generateBudgetAI(data, rate) {
-  const API_KEY = GEMINI_API_KEY; // Ensure this global variable is accessible
-  const MODELS = ["gemini-2.0-flash", "gemini-flash-latest", "gemini-2.0-flash-lite"];
-
   // 1. Calculate End-of-Month Projection
   const today = new Date();
   const dayOfMonth = today.getDate();
@@ -123,7 +120,6 @@ function generateBudgetAI(data, rate) {
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
   
   // Linear projection: (Current Expense / Days Passed) * Total Days
-  // We use 'data.expense' because 'data' is the argument passed to this function
   const projectedExpense = (data.expense / dayOfMonth) * daysInMonth;
 
   const prompt = `
@@ -147,27 +143,10 @@ function generateBudgetAI(data, rate) {
     Keep it short (max 3-4 sentences).
   `;
 
-  const payload = { contents: [{ parts: [{ text: prompt }] }] };
-  const options = { 
-    method: "post", 
-    contentType: "application/json", 
-    payload: JSON.stringify(payload), 
-    muteHttpExceptions: true 
-  };
-
-  // --- Model Retry Loop ---
-  for (let i = 0; i < MODELS.length; i++) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[i]}:generateContent?key=${API_KEY}`;
-      const res = UrlFetchApp.fetch(url, options);
-      
-      if (res.getResponseCode() === 200) {
-        return JSON.parse(res.getContentText()).candidates[0].content.parts[0].text;
-      }
-    } catch(e) { 
-      console.warn(`Budget AI Model ${MODELS[i]} failed.`); 
-    }
+  let response = fetchUniversalAI(prompt, 'OPENROUTER');
+  if (!response) {
+      response = fetchUniversalAI(prompt, 'GEMINI', true);
   }
   
-  return "<p>AI unavailable. Stop spending money!</p>";
+  return response || "<p>AI unavailable. Stop spending money!</p>";
 }
