@@ -106,6 +106,7 @@ function getDashboardData() {
 
   return {
     liquidNetWorth: fmt.format(mathLiquidNW),
+    rawLiquidNetWorth: mathLiquidNW,
     liquidNetWorthUSD: cellDisp(26, 2),
     totalNetWorth: fmt.format(mathGrandTotal),
     totalNetWorthUSD: cellDisp(24, 2),

@@ -6,7 +6,7 @@
  * @returns {Object} { categories: {...}, fixedExpenses: [...] }
  */
 function getAppConfig() {
-  return getFromCache('APP_CONFIG_V1', _fetchAppConfig, 3600);
+  return getFromCache('APP_CONFIG_V2', _fetchAppConfig, 3600);
 }
 
 /** Implementazione reale (eseguita solo su cache-miss) di getAppConfig. */
@@ -22,6 +22,8 @@ function _fetchAppConfig() {
     Investment: [],
     Refund: [] // <-- AGGIUNTO PER SUPPORTO RIMBORSI
   };
+  let budgetsData = {};
+
 
   if (catSheet) {
     const catRows = catSheet.getDataRange().getValues();
@@ -29,9 +31,15 @@ function _fetchAppConfig() {
     for (let i = 1; i < catRows.length; i++) {
       let type = catRows[i][0];
       let category = catRows[i][1];
+      let limit = parseFloat(catRows[i][2]);
+      
       if (type && category) {
         if (!categoriesData[type]) categoriesData[type] = [];
         categoriesData[type].push(category);
+        
+        if (type === 'Expense' && !isNaN(limit) && limit > 0) {
+            budgetsData[category] = limit;
+        }
       }
     }
   }
@@ -86,7 +94,8 @@ function _fetchAppConfig() {
 
   return {
     categories: categoriesData,
-    fixedExpenses: fixedExpensesData
+    fixedExpenses: fixedExpensesData,
+    budgets: budgetsData
   };
 }
 
@@ -104,7 +113,7 @@ function deleteFixedExpenseFromSheet(expenseId) {
     if (String(data[i][0]) === String(expenseId)) {
       const name = data[i][2]; // Il nome/nota si trova in colonna C (indice 2)
       sheet.deleteRow(i + 1);  // i+1 perché Apps Script è basato su indici 1 per le righe
-      invalidateConfigCache(); // FIX (1.2): config cambiata -> svuota la cache APP_CONFIG_V1
+      invalidateConfigCache(); // FIX (1.2): config cambiata -> svuota la cache APP_CONFIG_V2
       return `Spesa "${name}" eliminata!`;
     }
   }

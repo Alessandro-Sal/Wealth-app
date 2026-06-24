@@ -34,7 +34,7 @@ function getFromCache(key, fetchFunction, expirationSec = 600) {
  */
 function invalidateConfigCache() {
   try {
-    CacheService.getScriptCache().removeAll(['APP_CONFIG_V1']);
+    CacheService.getScriptCache().removeAll(['APP_CONFIG_V2']);
   } catch (e) {
     // Best-effort: un fallimento di invalidazione non deve bloccare la scrittura.
   }

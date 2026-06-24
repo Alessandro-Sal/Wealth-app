@@ -5,11 +5,8 @@
  * * @return {Array<Object>} Array of budget objects {category, spent, limit, pct}, sorted by highest usage %.
  */
 function getBudgetStatus() {
-  // Define hardcoded monthly budget limits (Categories kept in Italian to match Sheet data)
-  const BUDGET_LIMITS = {
-    'Housing': 500, 'Groceries': 150, 'Dining Out': 100, 'Transportation': 200,
-    'Gifts': 50, 'Going Out': 150, 'Personal Habits': 100, 'Travel': 300, 'Extra Utilities': 50
-  };
+  const appConfig = getAppConfig();
+  const BUDGET_LIMITS = appConfig.budgets || {};
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   // Access the specific tracker sheet dynamically

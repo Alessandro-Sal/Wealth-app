@@ -8,14 +8,9 @@
 function getRunwayData(year) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
-  // 1. Retrieve Liquid Net Worth
-  // Assumes cell A26 in "Net Worth OGGI" contains the total liquid EUR amount
-  const nwSheet = ss.getSheetByName("Net Worth OGGI");
-  let liquidCash = 0;
-  if (nwSheet) {
-    let val = nwSheet.getRange(26, 1).getValue(); // Row 26, Col 1 (EUR)
-    liquidCash = (typeof val === 'number') ? val : 0;
-  }
+  // 1. Retrieve Liquid Net Worth robustly via Dashboard module (includes Crypto Cache & N/A protection)
+  const dashboardData = getDashboardData();
+  let liquidCash = dashboardData.rawLiquidNetWorth || 0;
 
   // 2. Calculate Average Monthly Expenses for the selected year
   const expSheetName = "Expenses Tracker " + year;
