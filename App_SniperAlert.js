@@ -126,6 +126,23 @@ function runMarketSniper() {
     scriptProperties.setProperties(updates);
   }
 
+  // --- 2.5 Garbage Collection for orphaned Crypto properties ---
+  try {
+    const allKeys = Object.keys(lastPrices);
+    const validKeys = allAssets
+      .filter(a => a.t)
+      .map(a => "HISTORY_24H_" + String(a.t).replace(/\s/g, ''));
+    
+    allKeys.forEach(key => {
+      if (key.startsWith("HISTORY_24H_") && !validKeys.includes(key)) {
+         scriptProperties.deleteProperty(key);
+         console.log(`Sniper GC: Deleted orphaned key ${key}`);
+      }
+    });
+  } catch(e) {
+    console.error("Sniper GC Error: " + e.message);
+  }
+
   // --- 3. Send Alert if Triggered ---
   if (alerts.length > 0) {
     const aiComment = generateSniperAI(alerts);

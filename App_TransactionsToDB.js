@@ -392,7 +392,7 @@ function addStandaloneDebt(data) {
 
   try {
       addFixedExpenseToSheet({
-        cat: "Fees Taxes", // <--- FIX CATEGORIA
+        cat: data.name.toLowerCase().includes("mutuo") ? "Housing" : "Debiti/Prestiti",
         note: "Rata " + data.name,
         amt: Number(monthlyPayment.toFixed(2)),
         startDate: Utilities.formatDate(start, Session.getScriptTimeZone(), "yyyy-MM-dd"),
@@ -531,7 +531,7 @@ function renegotiateDebtBackend(oldDebtId, newRatePct, newYears, newDateStr, ban
      endNewDate.setMonth(endNewDate.getMonth() + newMonths);
      
      addFixedExpenseToSheet({
-        cat: oldDebt.name.includes("Mutuo") ? "Mutuo Immobile" : "Debiti/Prestiti",
+        cat: oldDebt.name.toLowerCase().includes("mutuo") ? "Housing" : "Debiti/Prestiti",
         note: "Rata " + oldDebt.name + " (Rin.)",
         amt: Number(newPmt.toFixed(2)),
         startDate: Utilities.formatDate(newDate, Session.getScriptTimeZone(), "yyyy-MM-dd"),
@@ -604,7 +604,7 @@ function repayDebtBackend(payload) {
   let amountsObj = {}; amountsObj[bank] = -Math.abs(amountPaid); 
   addTransaction({ 
       type: 'Expense', 
-      category: "Fees Taxes", // <--- FIX CATEGORIA (Invece di Debiti/Prestiti)
+      category: debt.name.toLowerCase().includes("mutuo") ? "Housing" : "Debiti/Prestiti",
       details: `Estinzione ${type} - ${debt.name}`, 
       amounts: amountsObj 
   });
@@ -648,7 +648,7 @@ function repayDebtBackend(payload) {
         let end = new Date();
         end.setMonth(end.getMonth() + remMonths);
         addFixedExpenseToSheet({
-          cat: debt.name.includes("Mutuo") ? "Housing" : "Fees Taxes", // <--- FIX CATEGORIE (Dipende se è mutuo o debito normale)
+          cat: debt.name.toLowerCase().includes("mutuo") ? "Housing" : "Debiti/Prestiti",
           note: "Rata " + debt.name + " (Ridotto)",
           amt: Number(newPmt.toFixed(2)),
           startDate: Utilities.formatDate(start, Session.getScriptTimeZone(), "yyyy-MM-dd"),
