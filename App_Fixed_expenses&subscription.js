@@ -48,15 +48,27 @@ function getSubsStatus() {
     const lastRow = sheet.getLastRow();
     if (lastRow >= 20) {
       const data = sheet.getRange(20, 1, lastRow - 19, 4).getValues();
-      data.forEach(row => {
-        let dateVal = row[0];
-        let typeVal = row[1];
-        let noteVal = row[3];
+      // Scansione inversa: partiamo dal fondo. Ci fermiamo se troviamo un mese precedente
+      for (let i = data.length - 1; i >= 0; i--) {
+        let dateVal = data[i][0];
+        let typeVal = data[i][1];
+        let noteVal = data[i][3];
         
-        if (dateVal instanceof Date && dateVal.getMonth() === currentMonth && dateVal.getFullYear() === currentYear) {
-          if (typeVal === "Expense") paidNotes.push(String(noteVal).trim().toLowerCase());
+        if (dateVal instanceof Date) {
+          // Se troviamo una data precedente al mese in corso, fermiamo la scansione (assumendo ordine cronologico)
+          if (dateVal.getFullYear() < currentYear || (dateVal.getFullYear() === currentYear && dateVal.getMonth() < currentMonth)) {
+            break;
+          }
+          
+          if (dateVal.getMonth() === currentMonth && dateVal.getFullYear() === currentYear) {
+            if (typeVal === "Expense") {
+              // Normalizziamo rimuovendo spazi multipli e mettendolo in lower case
+              let cleanNote = String(noteVal).replace(/\s+/g, ' ').trim().toLowerCase();
+              paidNotes.push(cleanNote);
+            }
+          }
         }
-      });
+      }
     }
   }
 
@@ -64,7 +76,8 @@ function getSubsStatus() {
 
   subs.forEach(sub => {
     let totalAmt = (sub.isSplit && sub.splits) ? sub.splits.reduce((acc, s) => acc + s.amt, 0) : sub.amt;
-    const isPaid = paidNotes.includes(String(sub.note).trim().toLowerCase());
+    let cleanSubNote = String(sub.note).replace(/\s+/g, ' ').trim().toLowerCase();
+    const isPaid = paidNotes.includes(cleanSubNote);
 
     let status = {
       note: sub.note,
@@ -214,4 +227,45 @@ function addFixedExpenseToSheet(data) {
 
   invalidateConfigCache(); // FIX (1.2): la config delle spese fisse e' cambiata
   return `Spesa ${data.note} aggiunta!`;
+}
+
+/**
+ * Modifica una Spesa Fissa esistente
+ */
+function editFixedExpenseToSheet(id, data) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("Config_FixedExpenses");
+  if (!sheet) throw new Error("Foglio Config_FixedExpenses mancante");
+  
+  const allData = sheet.getDataRange().getValues();
+  let rowToEdit = -1;
+  
+  // Cerchiamo la riga che corrisponde all'ID passato
+  for (let i = 1; i < allData.length; i++) {
+    if (String(allData[i][0]) === String(id)) {
+      rowToEdit = i + 1; // +1 perché l'indice array parte da 0, riga da 1
+      break;
+    }
+  }
+  
+  if (rowToEdit === -1) throw new Error("Spesa fissa non trovata per la modifica.");
+  
+  const newRowData = [
+    id, 
+    data.cat, 
+    data.note, 
+    data.amt, 
+    data.bankCol || "", 
+    data.payDay || "", 
+    data.startDate || "", 
+    data.endDate || "", 
+    data.isSplit || false,
+    data.splitDetails || ""
+  ];
+  
+  // Sovrascriviamo la riga
+  sheet.getRange(rowToEdit, 1, 1, newRowData.length).setValues([newRowData]);
+
+  invalidateConfigCache(); // Aggiorna la cache
+  return `Spesa ${data.note} modificata con successo!`;
 }

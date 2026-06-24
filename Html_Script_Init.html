@@ -37,9 +37,6 @@
      // Utils Init
      setTodayDate();
      setupInputValidation();
-     fetchBalances();
-     fetchSubsStatus();
-     fetchActiveCredits();
    
      const splash = document.getElementById('splash-screen');
      const cachedFast = localStorage.getItem('cache_fast');
@@ -63,14 +60,13 @@
              console.log("⚡ Cache Heavy Rendered."); 
          } catch (e) { console.error("Corrupt Heavy Cache", e); }
      }
-   
-     // FIX (3.3): nascondi lo splash SOLO quando c'è qualcosa di reale da mostrare,
-     // non dopo 100ms fissi (che su rete lenta lasciavano vedere skeleton vuoti).
+     
+     // UX FIX: Nascondi subito lo splash per mostrare gli skeleton animati (migliora percezione)
      const hideSplash = () => { if (splash) splash.classList.add('hidden'); };
      if (cachedFast) {
-         hideSplash();                  // utente di ritorno: dati da cache già a schermo -> via subito
-     } else if (splash) {
-         setTimeout(hideSplash, 4000);  // fallback di sicurezza: mai bloccati sullo splash (rete lenta/errore)
+         hideSplash(); // utente di ritorno: dati da cache già a schermo -> via subito
+     } else {
+         setTimeout(hideSplash, 150);
      }
    
      const currentYear = new Date().getFullYear().toString();
@@ -80,7 +76,12 @@
          const fastData = await run('loadFastStart', currentYear);
          localStorage.setItem('cache_fast', JSON.stringify(fastData));
          renderAllData(fastData);
-         hideSplash(); // FIX (3.3): per chi NON ha cache, lo splash sparisce ora, coi dati reali
+         
+         // PERFORMANCE FIX: Avvia chiamate secondarie solo DOPO il caricamento principale
+         // per non saturare la pool di connessioni simultanee di Google Apps Script
+         fetchBalances();
+         fetchSubsStatus();
+         fetchActiveCredits();
 
          // --- STAGE 3: HEAVY DATA FETCH (Lazy Load) ---
          run('loadHeavyContent', currentYear).then(heavyData => {
@@ -99,22 +100,19 @@
              // --- MODIFICATION: PARTIAL LOAD ON INIT ---
              // Loads only Benchmarks (Macro data) immediately. 
              // AI Analysis is skipped until user clicks "Refresh".
-             // --- MODIFICATION: AI DISABLED ON STARTUP ---
-             // AI functions now only start on user request (button click)
-             // if (typeof forceReloadMarket === 'function') forceReloadMarket(); 
-             // else loadMarketInsights();
-             
-             // if (typeof forceReloadRisk === 'function') forceReloadRisk();
              loadMarketInsights(false); 
              
+         }).catch(err => {
+             console.warn("Heavy Load Error:", err);
          });
+
          // Start Live Market Updates & Background Fetches
-      if (typeof loadNews === 'function') loadNews('market'); // Avvia il download delle news all'apertura dell'app
-          
-      // Start Live Market Updates
-      fetchWatchlist();
-      fetchAnalyticsData();
-      fetchTaxOptimizationData();
+         if (typeof loadNews === 'function') loadNews('market'); // Avvia il download delle news all'apertura dell'app
+             
+         // Start Live Market Updates
+         fetchWatchlist();
+         fetchAnalyticsData();
+         fetchTaxOptimizationData();
          setTimeout(() => {
              if (typeof renderNetWorthTrendChart === 'function') {
                  renderNetWorthTrendChart();
@@ -123,12 +121,13 @@
          setTimeout(() => startMarketPolling(), 5000);
          setTimeout(() => startDashboardPolling(), 6000);
          
-   
      } catch (err) {
          console.error("Critical Init Error:", err);
          if (!cachedFast) {
              document.getElementById('budget-container').innerHTML = '<div style="text-align:center;color:red;padding:20px;">Connection Error.<br>Try again later.</div>';
          }
+     } finally {
+         hideSplash(); // Ensure splash is always hidden after initial fast data network request
      }
    }
    
@@ -155,171 +154,175 @@
      if (data.portfolio) renderLivePortfolio(data.portfolio);
      if (data.transactions) renderHistory(data.transactions);
      
-     // FIRE Section
-     if (data.fire) {
-         if(document.getElementById('fire-pct')) document.getElementById('fire-pct').innerText = data.fire.pct + "%";
-         if(document.getElementById('fire-nw')) document.getElementById('fire-nw').innerText = "€ " + new Intl.NumberFormat('it-IT', {maximumFractionDigits:0}).format(data.fire.currentNW);
-         if(document.getElementById('fire-target')) document.getElementById('fire-target').innerText = "€ " + new Intl.NumberFormat('it-IT', {maximumFractionDigits:0}).format(data.fire.fireTarget);
-         setTimeout(() => { if(document.getElementById('fire-bar')) document.getElementById('fire-bar').style.width = data.fire.bar + "%"; }, 100);
-     }
-     
-   // Projection Card
-     if (data.projection) {
-         const elVal = document.getElementById('proj-val');
-         const elCurr = document.getElementById('proj-curr');
-         const elMsg = document.getElementById('proj-msg');
-         const pVal = new Intl.NumberFormat('it-IT').format(data.projection.projected);
-         const cVal = new Intl.NumberFormat('it-IT').format(data.projection.current);
-         
-         if(elVal) elVal.innerText = "€ " + pVal;
-         if(elCurr) elCurr.innerText = "€ " + cVal;
-         if(elMsg) elMsg.innerText = data.projection.message;
-         
-         // Dynamic Card Color based on projection (Elegant style)
-         const card = elVal ? elVal.closest('.card') : null;
-         if (card) {
-             // Clean layout with left border emphasis, respecting themes
-             card.style.background = ""; // Revert to CSS default
-             card.style.color = "var(--text-main)";
-             card.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)";
-             card.style.border = "none";
-             
-             if(elVal) {
-                 elVal.style.textShadow = "none";
-                 elVal.style.fontWeight = "900";
-             }
-             if(elCurr) elCurr.style.color = "var(--gray)";
-             if(elMsg) elMsg.style.color = "var(--gray)";
-   
-             if (parseFloat(data.projection.projected) < 0) { 
-                 // Danger red accent
-                 card.style.borderLeft = "5px solid var(--danger, #ff3b30)"; 
-                 if(elVal) elVal.style.color = "var(--danger, #ff3b30)";
-             } else { 
-                 // Success green accent
-                 card.style.borderLeft = "5px solid var(--stocks-bg, #34c759)"; 
-                 if(elVal) elVal.style.color = "var(--stocks-bg, #34c759)";
-             } 
-         }
-     }
-    // Runway Section
-     if (data.runway) {
-         // 1. Render Standard Runway (Lifestyle based)
-         const elVal = document.getElementById('runway-val');
-         if (elVal) {
-             elVal.innerText = data.runway.months;
-             const m = parseFloat(data.runway.months);
-             
-             // Color coding based on safety thresholds
-             if (m < 6) elVal.style.color = 'var(--danger)';
-             else if (m < 12) elVal.style.color = 'var(--warning)';
-             else elVal.style.color = 'var(--success)';
-         }
-         
-        // 2. Render Average Burn vs Fixed Costs
-         if (document.getElementById('runway-avg')) {
-             const fmtAvg = new Intl.NumberFormat('it-IT').format(data.runway.avg);
-             
-             // Get server data directly
-             const fixedAmount = data.runway.fixed || 0;
-             const fmtFix = new Intl.NumberFormat('it-IT').format(fixedAmount);
-             
-             // Shows: "€ 1.500 (Fix: € 800)"
-             document.getElementById('runway-avg').innerHTML = 
-                 `€ ${fmtAvg} <span style="font-size:0.8em; opacity:0.7; font-weight:600;">(Fix: € ${fmtFix})</span>`;
-         }
-         // 3. Render Survival Mode (Emergency Runway)
-         // Checks if the element exists in HTML before updating
-         if (document.getElementById('runway-survival')) {
-             const s = data.runway.survival || 0;
-             document.getElementById('runway-survival').innerText = s + " mo";
-             
-             // Optional: Add visual emphasis for high survival rate
-             if (parseFloat(s) > 12) document.getElementById('runway-survival').style.color = 'var(--success)';
-         }
-     }
-     // Yearly Totals
-     if (data.yearlyTotals) {
-         const label = document.getElementById('yr-label');
-         const curYear = document.getElementById('trendYear') ? document.getElementById('trendYear').value : new Date().getFullYear();
-         if(label) label.innerText = curYear;
-         
-         const d = data.yearlyTotals;
-         if(document.getElementById('yr-inc')) document.getElementById('yr-inc').innerText = d.income;
-         if(document.getElementById('yr-exp')) document.getElementById('yr-exp').innerText = d.expense;
-         
-         const elSav = document.getElementById('yr-sav');
-         if(elSav) {
-             elSav.innerText = d.saving;
-             if (d.rawSaving >= 0) { elSav.style.color = 'var(--stocks-bg)'; if(d.rawSaving > 0) elSav.innerText = "+" + d.saving; }
-             else { elSav.style.color = 'var(--danger)'; }
-         }
-         
-         // Helper to render top categories list
-         const renderCatList = (containerId, list, color) => {
-             const cont = document.getElementById(containerId);
-             if(!cont) return;
-             if(!list || list.length === 0) { cont.innerHTML = '<div style="font-size:10px; color:#ddd; font-style:italic;">No data</div>'; return; }
-             const topList = list.slice(0, 5); 
-             let html = '';
-             topList.forEach(item => {
-                 let valFmt = new Intl.NumberFormat('it-IT', { notation: "compact", compactDisplay: "short", maximumFractionDigits: 1 }).format(item.val);
-                 html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; font-size:10px;">
-                     <span style="color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70px;">${item.cat}</span>
-                     <span class="sensitive" style="font-weight:700; color:${color};">€ ${valFmt}</span>
-                 </div>`;
-             });
-             cont.innerHTML = html;
-         };
-         renderCatList('yr-cat-inc', d.incCats, '#34c759');
-         renderCatList('yr-cat-exp', d.expCats, '#ff3b30');
-     }
-     
-     // Budget Bars
-     if (data.budget) {
-         const cont = document.getElementById('budget-container');
-         if (data.budget.length === 0) {
-             cont.innerHTML = '<div style="text-align:center;color:var(--gray);">No expenses yet</div>';
-         } else {
-             let html = '';
-             data.budget.forEach(b => {
-                 let colorClass = 'bg-green';
-                 if (b.pct > 85) colorClass = 'bg-orange';
-                 if (b.pct > 100) colorClass = 'bg-red';
-                 let width = Math.min(b.pct, 100);
-                 html += `<div class="budget-item">
-                     <div class="bg-head"><span>${b.category}</span><span class="bg-nums sensitive">${b.spent.toFixed(0)} / ${b.limit} €</span></div>
-                     <div class="budget-track"><div class="budget-bar ${colorClass}" style="width:${width}%"></div></div>
-                 </div>`;
-             });
-             cont.innerHTML = html;
-         }
-     }
-     
+     // Extracted modular UI update functions
+     if (data.fire) updateFireDOM(data.fire);
+     if (data.projection) updateProjectionDOM(data.projection);
+     if (data.runway) updateRunwayDOM(data.runway);
+     if (data.yearlyTotals) updateYearlyTotalsDOM(data.yearlyTotals);
+     if (data.budget) updateBudgetDOM(data.budget);
      if (data.pension) renderPensionChart(data.pension);
-     
-     // Monthly Savings Flow
-     if (data.savings) {
-         document.getElementById('flow-in').innerText = "€ " + data.savings.income;
-         document.getElementById('flow-out').innerText = "€ " + data.savings.expenses;
-         document.getElementById('flow-save').innerText = "€ " + data.savings.savings;
-         document.getElementById('flow-rate').innerText = "Rate: " + data.savings.rate + "%";
-         const elSave = document.getElementById('flow-save');
-         if(elSave) elSave.style.color = parseFloat(data.savings.savings) >= 0 ? 'var(--stocks-bg)' : 'var(--danger)';
-         
-         // --- NEW: Fix Update ---
-         const elFlowOutFix = document.getElementById('flow-out-fix');
-         if (elFlowOutFix) {
-             // Usa il dato fisso dal server se disponibile, altrimenti chiama la funzione
-             let fixedAmount = (data.runway && data.runway.fixed) ? data.runway.fixed : 0;
-             if (!fixedAmount && typeof getMonthlyFixedCost === 'function') {
-                 fixedAmount = getMonthlyFixedCost();
-             }
-             const fmtFixOut = new Intl.NumberFormat('it-IT').format(fixedAmount);
-             elFlowOutFix.innerText = `(Fix: € ${fmtFixOut})`;
-         }
-     }
+     if (data.savings) updateSavingsDOM(data.savings, data.runway);
    }
+
+// --- MODULAR UI UPDATE FUNCTIONS ---
+
+function updateFireDOM(fireData) {
+    if(document.getElementById('fire-pct')) document.getElementById('fire-pct').innerText = fireData.pct + "%";
+    if(document.getElementById('fire-nw')) document.getElementById('fire-nw').innerText = "€ " + new Intl.NumberFormat('it-IT', {maximumFractionDigits:0}).format(fireData.currentNW);
+    if(document.getElementById('fire-target')) document.getElementById('fire-target').innerText = "€ " + new Intl.NumberFormat('it-IT', {maximumFractionDigits:0}).format(fireData.fireTarget);
+    setTimeout(() => { if(document.getElementById('fire-bar')) document.getElementById('fire-bar').style.width = fireData.bar + "%"; }, 100);
+}
+
+function updateProjectionDOM(projData) {
+    const elVal = document.getElementById('proj-val');
+    const elCurr = document.getElementById('proj-curr');
+    const elMsg = document.getElementById('proj-msg');
+    const pVal = new Intl.NumberFormat('it-IT').format(projData.projected);
+    const cVal = new Intl.NumberFormat('it-IT').format(projData.current);
+    
+    if(elVal) elVal.innerText = "€ " + pVal;
+    if(elCurr) elCurr.innerText = "€ " + cVal;
+    if(elMsg) elMsg.innerText = projData.message;
+    
+    // Dynamic Card Color based on projection (Elegant style)
+    const card = elVal ? elVal.closest('.card') : null;
+    if (card) {
+        // Clean layout with left border emphasis, respecting themes
+        card.style.background = ""; // Revert to CSS default
+        card.style.color = "var(--text-main)";
+        card.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)";
+        card.style.border = "none";
+        
+        if(elVal) {
+            elVal.style.textShadow = "none";
+            elVal.style.fontWeight = "900";
+        }
+        if(elCurr) elCurr.style.color = "var(--gray)";
+        if(elMsg) elMsg.style.color = "var(--gray)";
+
+        if (parseFloat(projData.projected) < 0) { 
+            // Danger red accent
+            card.style.borderLeft = "5px solid var(--danger, #ff3b30)"; 
+            if(elVal) elVal.style.color = "var(--danger, #ff3b30)";
+        } else { 
+            // Success green accent
+            card.style.borderLeft = "5px solid var(--stocks-bg, #34c759)"; 
+            if(elVal) elVal.style.color = "var(--stocks-bg, #34c759)";
+        } 
+    }
+}
+
+function updateRunwayDOM(runwayData) {
+    // 1. Render Standard Runway (Lifestyle based)
+    const elVal = document.getElementById('runway-val');
+    if (elVal) {
+        elVal.innerText = runwayData.months;
+        const m = parseFloat(runwayData.months);
+        
+        // Color coding based on safety thresholds
+        if (m < 6) elVal.style.color = 'var(--danger)';
+        else if (m < 12) elVal.style.color = 'var(--warning)';
+        else elVal.style.color = 'var(--success)';
+    }
+    
+   // 2. Render Average Burn vs Fixed Costs
+    if (document.getElementById('runway-avg')) {
+        const fmtAvg = new Intl.NumberFormat('it-IT').format(runwayData.avg);
+        
+        // Get server data directly
+        const fixedAmount = runwayData.fixed || 0;
+        const fmtFix = new Intl.NumberFormat('it-IT').format(fixedAmount);
+        
+        // Shows: "€ 1.500 (Fix: € 800)"
+        document.getElementById('runway-avg').innerHTML = 
+            `€ ${fmtAvg} <span style="font-size:0.8em; opacity:0.7; font-weight:600;">(Fix: € ${fmtFix})</span>`;
+    }
+    // 3. Render Survival Mode (Emergency Runway)
+    // Checks if the element exists in HTML before updating
+    if (document.getElementById('runway-survival')) {
+        const s = runwayData.survival || 0;
+        document.getElementById('runway-survival').innerText = s + " mo";
+        
+        // Optional: Add visual emphasis for high survival rate
+        if (parseFloat(s) > 12) document.getElementById('runway-survival').style.color = 'var(--success)';
+    }
+}
+
+function updateYearlyTotalsDOM(yearlyTotals) {
+    const label = document.getElementById('yr-label');
+    const curYear = document.getElementById('trendYear') ? document.getElementById('trendYear').value : new Date().getFullYear();
+    if(label) label.innerText = curYear;
+    
+    const d = yearlyTotals;
+    if(document.getElementById('yr-inc')) document.getElementById('yr-inc').innerText = d.income;
+    if(document.getElementById('yr-exp')) document.getElementById('yr-exp').innerText = d.expense;
+    
+    const elSav = document.getElementById('yr-sav');
+    if(elSav) {
+        elSav.innerText = d.saving;
+        if (d.rawSaving >= 0) { elSav.style.color = 'var(--stocks-bg)'; if(d.rawSaving > 0) elSav.innerText = "+" + d.saving; }
+        else { elSav.style.color = 'var(--danger)'; }
+    }
+    
+    // Helper to render top categories list
+    const renderCatList = (containerId, list, color) => {
+        const cont = document.getElementById(containerId);
+        if(!cont) return;
+        if(!list || list.length === 0) { cont.innerHTML = '<div style="font-size:10px; color:#ddd; font-style:italic;">No data</div>'; return; }
+        const topList = list.slice(0, 5); 
+        let html = '';
+        topList.forEach(item => {
+            let valFmt = new Intl.NumberFormat('it-IT', { notation: "compact", compactDisplay: "short", maximumFractionDigits: 1 }).format(item.val);
+            html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; font-size:10px;">
+                <span style="color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70px;">${item.cat}</span>
+                <span class="sensitive" style="font-weight:700; color:${color};">€ ${valFmt}</span>
+            </div>`;
+        });
+        cont.innerHTML = html;
+    };
+    renderCatList('yr-cat-inc', d.incCats, '#34c759');
+    renderCatList('yr-cat-exp', d.expCats, '#ff3b30');
+}
+
+function updateBudgetDOM(budgetData) {
+    const cont = document.getElementById('budget-container');
+    if(!cont) return;
+    if (budgetData.length === 0) {
+        cont.innerHTML = '<div style="text-align:center;color:var(--gray);">No expenses yet</div>';
+    } else {
+        let html = '';
+        budgetData.forEach(b => {
+            let colorClass = 'bg-green';
+            if (b.pct > 85) colorClass = 'bg-orange';
+            if (b.pct > 100) colorClass = 'bg-red';
+            let width = Math.min(b.pct, 100);
+            html += `<div class="budget-item">
+                <div class="bg-head"><span>${b.category}</span><span class="bg-nums sensitive">${b.spent.toFixed(0)} / ${b.limit} €</span></div>
+                <div class="budget-track"><div class="budget-bar ${colorClass}" style="width:${width}%"></div></div>
+            </div>`;
+        });
+        cont.innerHTML = html;
+    }
+}
+
+function updateSavingsDOM(savingsData, runwayData) {
+    document.getElementById('flow-in').innerText = "€ " + savingsData.income;
+    document.getElementById('flow-out').innerText = "€ " + savingsData.expenses;
+    document.getElementById('flow-save').innerText = "€ " + savingsData.savings;
+    document.getElementById('flow-rate').innerText = "Rate: " + savingsData.rate + "%";
+    const elSave = document.getElementById('flow-save');
+    if(elSave) elSave.style.color = parseFloat(savingsData.savings) >= 0 ? 'var(--stocks-bg)' : 'var(--danger)';
+    
+    const elFlowOutFix = document.getElementById('flow-out-fix');
+    if (elFlowOutFix) {
+        let fixedAmount = (runwayData && runwayData.fixed) ? runwayData.fixed : 0;
+        if (!fixedAmount && typeof getMonthlyFixedCost === 'function') {
+            fixedAmount = getMonthlyFixedCost();
+        }
+        const fmtFixOut = new Intl.NumberFormat('it-IT').format(fixedAmount);
+        elFlowOutFix.innerText = `(Fix: € ${fmtFixOut})`;
+    }
+}
    
 /**
  * Updates the Dashboard Summary DOM elements natively.
@@ -455,64 +458,57 @@ function updateDashboardDOM(d) {
     * Dashboard Data Polling Management.
     * Handles the cyclical update of the Recap/Dashboard tab.
     */
-   let dashboardPollInterval = null;
+   let dashboardPollTimeout = null;
+   let isDashboardPolling = false;
    
    function startDashboardPolling() {
-     // 1. Safety Clear: Ensure no duplicate intervals are running
-     stopDashboardPolling();
+     if (isDashboardPolling) return;
+     isDashboardPolling = true;
+     console.log("🟢 Dashboard Polling Started (Smart Loop)");
      
-     console.log("🟢 Dashboard Polling Started (60s interval)");
-     
-     // 2. SET INTERVAL (Cyclic updates)
-     dashboardPollInterval = setInterval(() => {
-         // Safety Check: Verify user is still on the Dashboard/Recap tab
-         // NOTE: Ensure 'p-recap' matches the actual ID of your Recap tab container
-         const dashboardPage = document.getElementById('p-recap'); 
-         const isVisible = dashboardPage && 
-                           dashboardPage.style.display !== 'none' && 
-                           !dashboardPage.classList.contains('hidden');
-   
-         // --- NEW: Check Selected Year ---
-         // Get the currently selected year from the dropdown
-         const yearBox = document.getElementById('trendYear');
-         const currentYear = new Date().getFullYear().toString();
-         const selectedYear = yearBox ? yearBox.value : currentYear;
-   
-         if (isVisible) {
-             // Only perform the update if the user is looking at the CURRENT year
-             if (selectedYear === currentYear) {
+     const poll = () => {
+         if (!isDashboardPolling) return;
+         dashboardPollTimeout = setTimeout(async () => {
+             const dashboardPage = document.getElementById('p-recap'); 
+             const isVisible = dashboardPage && 
+                               dashboardPage.style.display !== 'none' && 
+                               !dashboardPage.classList.contains('hidden');
+             
+             const yearBox = document.getElementById('trendYear');
+             const currentYear = new Date().getFullYear().toString();
+             const selectedYear = yearBox ? yearBox.value : currentYear;
+             
+             if (!document.hidden && isVisible && selectedYear === currentYear) {
                  console.log("🔄 Polling Dashboard Data...");
-                 
-                 // Refresh Dashboard/Recap numbers seamlessly
-                 google.script.run.withSuccessHandler(data => {
+                 try {
+                     const data = await run('getDashboardData');
                      if(data && !data.error) {
-                         // Update cache
                          localStorage.setItem('dashboard_cache', JSON.stringify(data));
-                         // Update UI without full page refresh
                          updateDashboardDOM(data);
                      }
-                 }).getDashboardData();
-                 
-                 // Optional: You can also refresh bank balances here if needed
-                 // fetchBalances();
+                 } catch(err) {
+                     console.warn("Polling error:", err);
+                 }
+             } else if (document.hidden) {
+                 console.log("⏸️ Dashboard Polling skipped: Document hidden");
+             } else if (!isVisible) {
+                 console.log("⏸️ Dashboard Polling skipped: Dashboard not visible");
              } else {
-                 // Skip polling so historical data isn't overwritten
-                 console.log("⏸️ Dashboard Polling skipped: viewing historical year (" + selectedYear + ")");
+                 console.log("⏸️ Dashboard Polling skipped: Viewing historical year");
              }
-             
-         } else {
-             // If page is hidden but interval is running, stop it to save resources
-             stopDashboardPolling();
-         }
-     }, 60000); // 60 Seconds Interval (adjust to 120000 for 2 mins if it's too heavy)
+             poll();
+         }, 60000); // 60s
+     };
+     poll();
    }
    
    function stopDashboardPolling() {
-     if (dashboardPollInterval) {
-         clearInterval(dashboardPollInterval);
-         dashboardPollInterval = null;
-         console.log("🔴 Dashboard Polling Stopped");
+     isDashboardPolling = false;
+     if (dashboardPollTimeout) {
+         clearTimeout(dashboardPollTimeout);
+         dashboardPollTimeout = null;
      }
+     console.log("🔴 Dashboard Polling Stopped");
    }
    
    function fetchBudgets(pre) {
@@ -788,21 +784,22 @@ function injectMasterMenus() {
     <div class="kebab-menu-container">
        <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;" onchange="handleImageInput(this)">
        
-       <button type="button" class="kebab-trigger" onclick="toggleMasterMenu(this)">
+       <button type="button" class="kebab-trigger" onclick="toggleMasterMenu(this)" aria-haspopup="menu" aria-expanded="false" aria-label="Open menu">
           &#8942;
        </button>
        
-       <div class="kebab-dropdown-content">
-          <button type="button" onclick="openSettings()">⚙️ Settings</button> <button type="button" onclick="openPortfolioAlerts()">
+       <div class="kebab-dropdown-content" role="menu">
+          <button type="button" role="menuitem" onclick="openSettings()">⚙️ Settings</button> 
+          <button type="button" role="menuitem" onclick="openPortfolioAlerts()">
               🔔 Portfolio Alerts
               <span id="portfolio-badge-count" style="background: #ff3b30; color: white; font-size: 10px; font-weight: 800; border-radius: 10px; padding: 2px 5px; margin-left: 8px; display: none;">0</span>
           </button>
-          <button type="button" onclick="startVoiceInput()">🎙️ Voice Input</button>
-          <button type="button" onclick="document.getElementById('camInput').click()">📸 Camera Input</button>
-          <button type="button" class="theme-toggler" onclick="toggleTheme()">🌙 Theme</button>
-          <button type="button" onclick="togglePrivacy()">👁️ Privacy</button>
-          <button type="button" onclick="openGeminiSheet()">✨ AI</button>
-          <button type="button" onclick="openAnalystAI()">🧠 Analyst AI</button>
+          <button type="button" role="menuitem" onclick="startVoiceInput()">🎙️ Voice Input</button>
+          <button type="button" role="menuitem" onclick="document.getElementById('camInput').click()">📸 Camera Input</button>
+          <button type="button" class="theme-toggler" role="menuitem" onclick="toggleTheme()">🌙 Theme</button>
+          <button type="button" role="menuitem" onclick="togglePrivacy()">👁️ Privacy</button>
+          <button type="button" role="menuitem" onclick="openGeminiSheet()">✨ AI</button>
+          <button type="button" role="menuitem" onclick="openAnalystAI()">🧠 Analyst AI</button>
        </div>
     </div>
   `;
@@ -821,22 +818,28 @@ function toggleMasterMenu(buttonElement) {
   
   // Close all other open dropdowns
   const allDropdowns = document.querySelectorAll('.kebab-dropdown-content');
-  allDropdowns.forEach(dropdown => {
+  const allTriggers = document.querySelectorAll('.kebab-trigger');
+  
+  allDropdowns.forEach((dropdown, index) => {
     if (dropdown !== currentMenu && dropdown.classList.contains('show-kebab')) {
       dropdown.classList.remove('show-kebab');
+      if(allTriggers[index]) allTriggers[index].setAttribute('aria-expanded', 'false');
     }
   });
   
   // Toggle the current one
-  currentMenu.classList.toggle('show-kebab');
+  const isExpanded = currentMenu.classList.toggle('show-kebab');
+  buttonElement.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
 }
 
 // Close when clicking outside
 window.addEventListener('click', function(event) {
   if (!event.target.closest('.kebab-trigger')) {
     const allDropdowns = document.querySelectorAll('.kebab-dropdown-content');
-    allDropdowns.forEach(dropdown => {
+    const allTriggers = document.querySelectorAll('.kebab-trigger');
+    allDropdowns.forEach((dropdown, index) => {
       dropdown.classList.remove('show-kebab');
+      if(allTriggers[index]) allTriggers[index].setAttribute('aria-expanded', 'false');
     });
   }
 });

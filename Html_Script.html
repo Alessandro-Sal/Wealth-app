@@ -6,20 +6,36 @@
     * ======================================================================================
     */
    
-   /** * Promise Wrapper for Google Script Run.
+   /**
+    * Promise Wrapper for Google Script Run with Retry Logic.
     * Converts the standard callback-based google.script.run into a modern Promise-based structure.
-    * 
     */
    const run = (fnName, ...args) => {
-     return new Promise((resolve, reject) => {
-       google.script.run
-         .withSuccessHandler(resolve)
-         .withFailureHandler(error => {
-           console.error(`Server Error [${fnName}]:`, error);
-           reject(error);
-         })
-         [fnName](...args);
-     });
+     const maxRetries = 2;
+     const retryDelay = 1000;
+     const attempt = (retriesLeft) => {
+       return new Promise((resolve, reject) => {
+         google.script.run
+           .withSuccessHandler(resolve)
+           .withFailureHandler(error => {
+             console.error(`Server Error [${fnName}]:`, error);
+             if (retriesLeft > 0) {
+                 console.warn(`Retrying [${fnName}] in ${retryDelay}ms... (${retriesLeft} retries left)`);
+                 setTimeout(() => attempt(retriesLeft - 1).then(resolve).catch(reject), retryDelay);
+             } else {
+                 if(typeof Swal !== 'undefined') {
+                     Swal.fire({
+                         toast: true, position: 'top-end', showConfirmButton: false, timer: 3000,
+                         icon: 'error', title: `Network Error (${fnName})`
+                     });
+                 }
+                 reject(error);
+             }
+           })
+           [fnName](...args);
+       });
+     };
+     return attempt(maxRetries);
    };
    
    // --- Global Variables ---
@@ -254,8 +270,10 @@
 window.addEventListener('click', function(event) {
   if (!event.target.closest('.kebab-trigger')) {
     const allDropdowns = document.querySelectorAll('.kebab-dropdown-content');
-    allDropdowns.forEach(dropdown => {
+    const allTriggers = document.querySelectorAll('.kebab-trigger');
+    allDropdowns.forEach((dropdown, index) => {
       dropdown.classList.remove('show-kebab');
+      if(allTriggers[index]) allTriggers[index].setAttribute('aria-expanded', 'false');
     });
   }
 });

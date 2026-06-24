@@ -19,12 +19,23 @@
  * Evaluates the 'Html_Index' template, sets metadata (title, viewport),
  * and serves the final HTML output.
  */
-function doGet() {
-  // 1. Create the TEMPLATE object
-  var template = HtmlService.createTemplateFromFile('Html_Index');
+function doGet(e) {
+  // 1. Determine which template to load (V1 or V2 via ?v2=true)
+  var templateName = 'Html_Index';
+  if (e && e.parameter && e.parameter.v2 === 'true') {
+    templateName = 'Html_Index_v2';
+  }
   
-  // 2. Evaluate the template (executes scriptlets <?!= ?>) to get the output
-  var output = template.evaluate();
+  // 2. Create the output object
+  var output;
+  if (templateName === 'Html_Index_v2') {
+    // V2 is already a bundled HTML file, no need to evaluate as a template
+    output = HtmlService.createHtmlOutputFromFile(templateName);
+  } else {
+    // V1 uses templates
+    var template = HtmlService.createTemplateFromFile(templateName);
+    output = template.evaluate();
+  }
   
   // 3. Configure final output settings
   output

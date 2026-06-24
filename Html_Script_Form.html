@@ -1342,7 +1342,10 @@ function openSubs() {
                </div>
                <div style="text-align:right;">
                    <div class="sensitive" style="font-size:16px; font-weight:900; color:var(--stocks-bg); margin-bottom:5px;">€ ${c.amount.toFixed(2)}</div>
-                   <button type="button" onclick="settleCredit('${c.id}', ${c.amount}, '${c.category}', '${c.note}')" style="background:rgba(52, 199, 89, 0.1); color:var(--success); border:none; padding:6px 12px; border-radius:8px; font-weight:bold; font-size:11px; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.05);">Settle ✅</button>
+                   <div style="display:flex; gap:5px; justify-content:flex-end;">
+                       <button type="button" onclick="settleCredit('${c.id}', ${c.amount}, '${c.category}', '${c.note}')" style="background:rgba(52, 199, 89, 0.1); color:var(--success); border:none; padding:6px 12px; border-radius:8px; font-weight:bold; font-size:11px; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.05);">Settle ✅</button>
+                       <button type="button" onclick="markLostCredit('${c.id}')" style="background:rgba(255, 59, 48, 0.1); color:var(--danger); border:none; padding:6px 12px; border-radius:8px; font-weight:bold; font-size:11px; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.05);" title="Segna come perso">Perso ❌</button>
+                   </div>
                </div>
            </div>`;
        });
@@ -1392,6 +1395,33 @@ function openSubs() {
            }
        });
    }
+
+   function markLostCredit(id) {
+       Swal.fire({
+           title: 'Credito Perso?',
+           text: "Vuoi segnare questo credito come perso? Non verrà registrato alcun rimborso.",
+           icon: 'warning',
+           showCancelButton: true,
+           confirmButtonColor: 'var(--danger)',
+           cancelButtonColor: 'var(--gray)',
+           confirmButtonText: 'Sì, perso ❌',
+           cancelButtonText: 'Annulla'
+       }).then((result) => {
+           if (result.isConfirmed) {
+               Swal.fire({ title: 'Updating...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+               
+               google.script.run.withSuccessHandler((res) => {
+                   Swal.fire({ icon: 'success', title: 'Fatto!', text: res.message, showConfirmButton: false, timer: 1500 });
+                   // Refresh related dashboard data
+                   fetchActiveCredits();
+                   fetchHistory();
+               }).withFailureHandler((err) => {
+                   Swal.fire('Errore', err.message, 'error');
+               }).markCreditAsLost(id);
+           }
+       });
+   }
+
    function convertSplitCurrency() {
        const amt = parseFloat(document.getElementById('splitForeignAmt').value);
        const currency = document.getElementById('splitCurrency').value;

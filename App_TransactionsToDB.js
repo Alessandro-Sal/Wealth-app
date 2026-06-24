@@ -244,6 +244,52 @@ function settleActiveCredit(id, amount, category, note, bankCol) {
 }
 
 /**
+ * Segna un credito come perso (Lost/Bad Debt): lo sposta nel foglio Settled_Credits
+ * senza creare una transazione di rimborso (nessuna spesa/entrata viene scritta).
+ */
+function markCreditAsLost(id) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const creditSheet = ss.getSheetByName("Active_Credits");
+  const settledSheet = ss.getSheetByName("Settled_Credits");
+  
+  if (!creditSheet) throw new Error("Foglio Active_Credits mancante.");
+  if (!settledSheet) throw new Error("Crea prima il foglio 'Settled_Credits'!");
+
+  const data = creditSheet.getDataRange().getValues();
+  let found = false;
+  let rowData = [];
+  
+  let rowToDelete = -1;
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]) === String(id)) {
+      rowData = data[i];   // Save original data
+      rowToDelete = i + 1; // Riga reale sul foglio
+      found = true;
+      break;
+    }
+  }
+  if (!found) throw new Error("Credito non trovato o già gestito.");
+
+  // 1. Save to History (Settled_Credits) with a special status "Lost"
+  const settleDate = new Date();
+  settledSheet.appendRow([
+    rowData[0], // Original ID
+    rowData[1], // Original Date
+    rowData[2], // Who
+    rowData[3], // Category
+    rowData[4], // Note
+    rowData[5], // Amount
+    settleDate, // Settled Date
+    "Lost"      // Bank Col equivalent indicating Lost/Bad Debt
+  ]);
+
+  // 2. Elimina la riga da Active_Credits senza creare il refund
+  creditSheet.deleteRow(rowToDelete);
+
+  return { success: true, message: "Credito segnato come perso." };
+}
+
+/**
  * Salda tutti i debiti di una persona specifica in blocco.
  * Conserva la precisione delle categorie dividendo il rimborso su più transazioni.
  */

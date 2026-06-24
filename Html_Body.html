@@ -30,7 +30,7 @@
       </div>
    </div>
    <div id="common-backdrop" onclick="closeAllSheets()"></div>
-   <div id="calc-sheet" class="sheet-modal">
+   <div id="calc-sheet" class="sheet-modal" role="dialog" aria-modal="true">
       <div class="sheet-header">
          <div style="display:flex; background:#e5e5ea; border-radius:8px; padding:2px; width:100%; max-width:340px; overflow-x:auto;">
             <div id="tab-btn-c" onclick="switchCalcTab('calc')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; background:white; color:black; transition:0.2s;">CALC</div>
@@ -213,7 +213,7 @@
          </div>
       </div>
    </div>
-   <div id="subs-sheet" class="sheet-modal">
+   <div id="subs-sheet" class="sheet-modal" role="dialog" aria-modal="true">
       <div class="sheet-header">
          <span style="font-size:12px; font-weight:bold; color:var(--gray); letter-spacing:1px;">FIXED EXPENSES</span>
          <button class="sheet-close" onclick="closeAllSheets()">Cancel</button>
@@ -228,7 +228,7 @@
       ADD FIXED EXPENSE
       </button>
    </div>
-   <div id="search-sheet" class="sheet-modal">
+   <div id="search-sheet" class="sheet-modal" role="dialog" aria-modal="true">
       <div class="sheet-header">
          <span style="font-size:12px; font-weight:bold; color:var(--gray); letter-spacing:1px;">HISTORY SEARCH</span>
          <button class="sheet-close" onclick="closeAllSheets()">Close</button>
@@ -273,7 +273,7 @@
          <div style="text-align:center; color:var(--gray); margin-top:20px;">Use filters to search</div>
       </div>
    </div>
-   <div id="invest-search-sheet" class="sheet-modal">
+   <div id="invest-search-sheet" class="sheet-modal" role="dialog" aria-modal="true">
       <div class="sheet-header">
          <span style="font-size:12px; font-weight:bold; color:var(--invest-bg); letter-spacing:1px;">INVESTMENT HISTORY</span>
          <button class="sheet-close" onclick="closeAllSheets()">Close</button>
@@ -296,7 +296,7 @@
          <div style="text-align:center; color:var(--gray); margin-top:20px;">Search your portfolio history</div>
       </div>
    </div>
-   <div id="gemini-sheet" class="sheet-modal" style="height: 80vh;">
+   <div id="gemini-sheet" class="sheet-modal" role="dialog" aria-modal="true" style="height: 80vh;">
       <div class="sheet-header" style="display:flex; justify-content:space-between; align-items:center;">
          <div style="display:flex; align-items:center; gap:8px;">
             <span style="font-size:12px; font-weight:bold; color:#764ba2;">✨ AI ASSISTANT</span>
@@ -331,7 +331,7 @@
          <button onclick="sendToGemini()" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; border:none; border-radius:12px; width:50px; font-size:20px;">➤</button>
       </div>
    </div>
-   <div id="risk-sheet" class="sheet-modal" style="height: 85vh; background: #fbfbfd; display: flex; flex-direction: column;">
+   <div id="risk-sheet" class="sheet-modal" role="dialog" aria-modal="true" style="height: 85vh; background: #fbfbfd; display: flex; flex-direction: column;">
       <div class="sheet-header" style="flex-shrink: 0;">
          <span style="font-size:12px; font-weight:bold; color:var(--danger); letter-spacing:1px;">⚠️ RISK REPORT</span>
          <button class="sheet-close" onclick="closeAllSheets()">Close</button>
@@ -1517,14 +1517,14 @@
                <div style="position: relative; z-index: 10;">
                   <div style="font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.9;">💎 Total Net Worth</div>
                   <div class="sensitive" style="display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; margin-top: 5px;">
-                     <span id="tot-eur" style="font-size: 46px; font-weight: 900; letter-spacing: -2px; text-shadow: 0 4px 20px rgba(0,0,0,0.15);">€ --</span>
-                     <span id="liq-usd" style="font-size: 18px; font-weight: 700; opacity: 0.9; background: rgba(0,0,0,0.15); padding: 4px 10px; border-radius: 10px;">$ --</span>
+                     <span id="tot-eur" aria-live="polite" style="font-size: 46px; font-weight: 900; letter-spacing: -2px; text-shadow: 0 4px 20px rgba(0,0,0,0.15);">€ --</span>
+                     <span id="liq-usd" aria-live="polite" style="font-size: 18px; font-weight: 700; opacity: 0.9; background: rgba(0,0,0,0.15); padding: 4px 10px; border-radius: 10px;">$ --</span>
                   </div>
                   <div style="height: 1px; background: rgba(255,255,255,0.25); margin: 25px 0 20px 0; box-shadow: 0 1px 2px rgba(0,0,0,0.05);"></div>
                   <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.9;">💧 Liquid Net Worth</div>
                   <div class="sensitive" style="display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; margin-top: 5px;">
-                     <span id="liq-eur" style="font-size: 28px; font-weight: 800; letter-spacing: -1px; text-shadow: 0 2px 10px rgba(0,0,0,0.1);">€ --</span>
-                     <span id="tot-usd" style="font-size: 14px; font-weight: 700; opacity: 0.85; background: rgba(0,0,0,0.15); padding: 2px 8px; border-radius: 8px;">$ --</span>
+                     <span id="liq-eur" aria-live="polite" style="font-size: 28px; font-weight: 800; letter-spacing: -1px; text-shadow: 0 2px 10px rgba(0,0,0,0.1);">€ --</span>
+                     <span id="tot-usd" aria-live="polite" style="font-size: 14px; font-weight: 700; opacity: 0.85; background: rgba(0,0,0,0.15); padding: 2px 8px; border-radius: 8px;">$ --</span>
                   </div>
                </div>
             </div>
@@ -2315,7 +2315,7 @@
       <div class="context-menu-item" id="ctx-news">📰 Search News</div>
       <div class="context-menu-item" id="ctx-chart">📊 View on TradingView</div>
    </div>
-   <div id="portfolio-news-sheet" class="sheet-modal">
+   <div id="portfolio-news-sheet" class="sheet-modal" role="dialog" aria-modal="true">
       <div class="sheet-header">
          <div style="display:flex; align-items:center; gap:6px;">
             <span style="font-size:16px;">🔔</span>
@@ -2326,7 +2326,7 @@
       <div id="portfolio-news-quick-list" style="padding: 10px 0; max-height: 65vh; overflow-y: auto;">
       </div>
    </div>
-   <div id="portfolio-alerts-sheet" class="sheet-modal">
+   <div id="portfolio-alerts-sheet" class="sheet-modal" role="dialog" aria-modal="true">
       <div class="sheet-header" style="flex-direction: column; align-items: stretch; gap: 15px; padding-bottom: 5px; border-bottom: 1px solid var(--row-border);">
          <div style="display:flex; justify-content:space-between; align-items:center;">
             <div style="display:flex; align-items:center; gap:8px;">
@@ -2353,7 +2353,7 @@
          </div>
       </div>
    </div>
-   <div id="ticker-notes-sheet" class="sheet-modal">
+   <div id="ticker-notes-sheet" class="sheet-modal" role="dialog" aria-modal="true">
       <div class="sheet-header">
          <div style="display:flex; align-items:center; gap:8px;">
             <span style="font-size:16px;">📝</span>
@@ -2453,7 +2453,7 @@
          <div style="height:40px;"></div>
       </div>
    </div>
-   <div id="settings-sheet" class="sheet-modal">
+   <div id="settings-sheet" class="sheet-modal" role="dialog" aria-modal="true">
    <div class="sheet-header" style="border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 15px;">
       <span style="font-size:14px; font-weight:800; color:var(--text-main); letter-spacing:0.5px;">⚙️ Impostazioni App</span>
       <button class="sheet-close" onclick="closeAllSheets()" style="background:var(--section-bg); border-radius:12px; padding:6px 12px; font-weight:bold; color:var(--text-main); border:none;">Fine</button>
