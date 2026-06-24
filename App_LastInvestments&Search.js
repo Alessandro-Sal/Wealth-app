@@ -11,8 +11,19 @@ function getLastInvestments() {
     const sheet = ss.getSheetByName(sheetName);
     if (!sheet) return [];
     
-    const lastRow = sheet.getLastRow();
-    if (lastRow < 3) return []; // No data available
+    const maxRow = sheet.getLastRow();
+    if (maxRow < 3) return []; // No data available
+
+    // Find the real last row by checking column A (Date) to avoid formatting issues
+    const dateCol = sheet.getRange(3, 1, maxRow - 2, 1).getValues();
+    let lastRow = 2;
+    for (let i = 0; i < dateCol.length; i++) {
+      if (dateCol[i][0] && String(dateCol[i][0]).trim() !== "") {
+        lastRow = i + 3;
+      }
+    }
+
+    if (lastRow < 3) return [];
 
     // FIX (1.6): legge solo le ultime ~12 righe invece di tutto lo storico per restituirne 5.
     const totalRows = lastRow - 2; // i dati partono da riga 3

@@ -645,7 +645,13 @@ textarea:focus {
 	padding: 10px 15px;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 	margin-bottom: 10px;
-	transition: background 0.3s;
+	transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.2s, background 0.3s;
+	-webkit-tap-highlight-color: transparent;
+}
+
+.card:active {
+	transform: scale(0.97) !important;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03) !important;
 }
 
 .section-header {

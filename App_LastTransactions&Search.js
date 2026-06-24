@@ -12,8 +12,19 @@ function getLastTransactions() {
   if (!sheet) return [];
   
   const startRow = 20; 
-  const lastRow = sheet.getLastRow();
+  const maxRow = sheet.getLastRow();
   
+  if (maxRow < startRow) return [];
+
+  // Find the real last row by checking column B (Type) to avoid formatting issues
+  const typeCol = sheet.getRange(startRow, 2, maxRow - startRow + 1, 1).getValues();
+  let lastRow = startRow - 1;
+  for (let i = 0; i < typeCol.length; i++) {
+    if (typeCol[i][0] && String(typeCol[i][0]).trim() !== "") {
+      lastRow = startRow + i;
+    }
+  }
+
   if (lastRow < startRow) return [];
 
   // FIX (1.6): legge solo le ultime ~12 righe invece dell'intero foglio (anche centinaia
