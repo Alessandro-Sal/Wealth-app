@@ -383,14 +383,25 @@ body.dark-mode .floating-year-selector {
 }
 
 /* --- FORMS & INPUTS --- */
+@keyframes iosSlideIn {
+	0% {
+		opacity: 0;
+		transform: translateX(15px) scale(0.98);
+	}
+	100% {
+		opacity: 1;
+		transform: translateX(0) scale(1);
+	}
+}
+
 .page {
 	display: none;
 	padding: 15px;
-	animation: fadeIn 0.3s;
 }
 
 .active-page {
 	display: block;
+	animation: iosSlideIn 0.35s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 form {
