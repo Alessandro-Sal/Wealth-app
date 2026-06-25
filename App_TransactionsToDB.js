@@ -110,11 +110,12 @@ function addTransaction(data) {
         
         if (isCrypto) {
           histRowData[7] = totalInvestAmount; // Col H (8)
+          destSheet.getRange(histRow, 1, 1, 8).setValues([histRowData.slice(0, 8)]);
+        } else {
+          // Avoid overwriting formula in Col H for Stocks
+          destSheet.getRange(histRow, 1, 1, 7).setValues([histRowData.slice(0, 7)]);
         }
-        histRowData[12] = generatedTxId; // Col M (13)
-
-        // Write History in one call
-        destSheet.getRange(histRow, 1, 1, 13).setValues([histRowData]);
+        destSheet.getRange(histRow, 13, 1, 1).setValue(generatedTxId); // Col M (13)
       }
     }
   }

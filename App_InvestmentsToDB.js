@@ -189,7 +189,12 @@ function addInvestTransaction(data) {
       histRowData[12] = transactionId;
   }
 
-  sheet.getRange(newRow, 1, 1, 13).setValues([histRowData]);
+  if (isCrypto) {
+      sheet.getRange(newRow, 1, 1, 7).setValues([histRowData.slice(0, 7)]);
+  } else {
+      sheet.getRange(newRow, 1, 1, 7).setValues([histRowData.slice(0, 7)]);
+  }
+  sheet.getRange(newRow, 13, 1, 1).setValue(transactionId);
 
   if (data.action === "Withdrawal") {
     const txDate = new Date(data.date);
