@@ -229,6 +229,8 @@ function addInvestTransaction(data) {
       expSheet.getRange(targetRow, 1, 1, numCols).setValues([expRowData]);
     }
   }
+  
+  invalidatePortfolioCache();
   return "Investment Saved (" + data.type + ")";
   } finally {
     lock.releaseLock(); // FIX (1.10): rilascia sempre il lock, su ogni percorso di uscita
