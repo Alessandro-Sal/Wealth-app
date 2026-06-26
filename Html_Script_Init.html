@@ -13,6 +13,19 @@
     * 3. Handles Skeleton loading UI.
     * 
     */
+   const APP_STATE = {
+       history: null,
+       balances: null,
+       budgets: null
+   };
+
+   function stateChanged(key, data) {
+       const str = JSON.stringify(data);
+       if (APP_STATE[key] === str) return false;
+       APP_STATE[key] = str;
+       return true;
+   }
+
    async function initApp() {
      console.log("🚀 App Launch: Skeleton First...");
      
@@ -79,9 +92,9 @@
          
          // PERFORMANCE FIX: Avvia chiamate secondarie solo DOPO il caricamento principale
          // per non saturare la pool di connessioni simultanee di Google Apps Script
-         fetchBalances();
-         fetchSubsStatus();
-         fetchActiveCredits();
+         fetchBalances(fastData.balances);
+         fetchSubsStatus(fastData.subsStatus);
+         fetchActiveCredits(fastData.credits);
 
          // --- STAGE 3: HEAVY DATA FETCH (Lazy Load) ---
          run('loadHeavyContent', currentYear).then(heavyData => {
@@ -517,6 +530,7 @@ function updateDashboardDOM(d) {
      google.script.run.withSuccessHandler(renderBudgets).getBudgetStatus();
    }
    function renderBudgets(data) {
+     if (!stateChanged('budgets', data)) return;
      const cont = document.getElementById('budget-container');
      if (data.length === 0) { cont.innerHTML = '<div style="text-align:center;color:var(--gray);">No expenses yet</div>'; return; }
      let html = '';
@@ -535,6 +549,7 @@ function updateDashboardDOM(d) {
      google.script.run.withSuccessHandler(renderBalances).getBankBalances();
    }
    function renderBalances(data) {
+     if (!stateChanged('balances', data)) return;
      if (data) {
          document.getElementById('bal-col5').innerText = data.col5;
          document.getElementById('bal-col6').innerText = data.col6;
@@ -603,6 +618,7 @@ function updateDashboardDOM(d) {
    }
    
    function renderHistory(data) {
+     if (!stateChanged('history', data)) return;
      const container = document.getElementById('history-container');
      if (!data || data.length === 0) { container.innerHTML = '<div style="text-align:center; padding:10px; color:var(--gray)">No recent transactions</div>'; return; }
      let html = '';

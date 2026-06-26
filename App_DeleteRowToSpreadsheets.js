@@ -67,6 +67,7 @@ function deleteRow(sheetName, rowIndex) {
 
   // --- 3. DELETE ORIGINAL ROW ---
   sheet.deleteRow(rowIndex);
+  invalidateAllDataCache(); // Invalidate global caches
   return "Deleted";
 }
 
@@ -162,5 +163,6 @@ function removeCreditAndOriginalTx(creditId, linkedTxId) {
     }
   }
   
+  invalidateAllDataCache(); // Invalidate global caches
   return "Success";
 }

@@ -103,3 +103,13 @@ function invalidatePortfolioCache() {
 function invalidateWatchlistCache() {
   invalidateCacheKey('WATCHLIST');
 }
+
+/**
+ * Invalida le cache principali generate da loadFastStart e loadHeavyContent
+ * Da chiamare ogni volta che si aggiunge, modifica o elimina una transazione.
+ */
+function invalidateAllDataCache(year) {
+  const currentYear = year || new Date().getFullYear().toString();
+  invalidateCacheKey('FAST_START_' + currentYear);
+  invalidateCacheKey('HEAVY_CONTENT_' + currentYear);
+}

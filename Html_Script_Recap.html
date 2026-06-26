@@ -152,6 +152,8 @@ function renderEvoChart(data) {
     const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
     const textColor = isDark ? '#fff' : '#333';
 
+    if (evoChartInstance) { evoChartInstance.destroy(); }
+
     evoChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -335,6 +337,8 @@ function renderCashflowChart(data) {
     const isDark = document.body.classList.contains('dark-mode');
     const textColor = isDark ? '#fff' : '#333';
     const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+
+    if (cashflowChartInstance) { cashflowChartInstance.destroy(); }
 
     cashflowChartInstance = new Chart(ctx, {
         type: 'bar',
@@ -691,6 +695,8 @@ function renderCPScatterChart() {
     // Dividi profitti e perdite per colorare i puntini di verde o rosso
     const wins = scatterData.filter(d => d.y >= 0);
     const losses = scatterData.filter(d => d.y < 0);
+
+    if (cpScatterChartInstance) { cpScatterChartInstance.destroy(); }
 
     cpScatterChartInstance = new Chart(ctx, {
         type: 'scatter',

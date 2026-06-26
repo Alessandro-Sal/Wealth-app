@@ -6,26 +6,23 @@
  * @return {Object} Object containing all fast-loading data points.
  */
 function loadFastStart(year) {
-  const t1 = new Date().getTime();
-  
-  return {
-    // Core Data (servono per il primo paint istantaneo della dashboard)
-    years: getAvailableYears(),
-    dashboard: getDashboardData(),
-    savings: getMonthlySavings(),
-    budget: getBudgetStatus(),
-    transactions: getLastTransactions(),
-    historyNW: getHistoryNWData(year),
-    yearlyTotals: getYearlyTotals(year),
-
-    // FIX (1.18): fire / projection / runway SPOSTATE in loadHeavyContent.
-    // Erano tra i calcoli piu' pesanti (leggono "Expenses Tracker" intero) e gonfiavano
-    // il primo round-trip a ~5-8s. renderAllData() usa guardie (if data.fire / .projection /
-    // .runway) ed e' richiamata anche sui dati "heavy", quindi compariranno subito dopo,
-    // senza errori, mentre la dashboard principale e' gia' interattiva.
-
-    serverTime: new Date().getTime() - t1
-  };
+  const currentYear = year || new Date().getFullYear().toString();
+  return getFromCache('FAST_START_' + currentYear, () => {
+    const t1 = new Date().getTime();
+    return {
+      years: getAvailableYears(),
+      dashboard: getDashboardData(),
+      savings: getMonthlySavings(),
+      budget: getBudgetStatus(),
+      transactions: getLastTransactions(),
+      historyNW: getHistoryNWData(year),
+      yearlyTotals: getYearlyTotals(year),
+      balances: getBankBalances(),
+      subsStatus: getSubsStatus(),
+      credits: getActiveCredits(),
+      serverTime: new Date().getTime() - t1
+    };
+  }, 1800); // 30 minutes cache
 }
 
 /**
@@ -36,22 +33,21 @@ function loadFastStart(year) {
  * @return {Object} Object containing heavy data points (Portfolio, Charts, etc.).
  */
 function loadHeavyContent(year) {
-  // NOTE: Watchlist removed to optimize performance
-  return {
-    portfolio: getLivePortfolio(),
-    pension: getPensionData(),
-    charts: {
-      financial: getMonthlyChartData(year),
-      categories: getMonthlyCategoryBreakdown(year)
-    },
-    autocomplete: getAutocompleteData(),
-
-    // FIX (1.18): spostate qui da loadFastStart (vedi sopra). renderAllData() le rende
-    // appena arriva questo payload, tramite le sue guardie if(data.fire/.projection/.runway).
-    fire: getFireProgress(year),
-    projection: getYearlyProjection(year),
-    runway: getRunwayData(year)
-  };
+  const currentYear = year || new Date().getFullYear().toString();
+  return getFromCache('HEAVY_CONTENT_' + currentYear, () => {
+    return {
+      portfolio: getLivePortfolio(),
+      pension: getPensionData(),
+      charts: {
+        financial: getMonthlyChartData(year),
+        categories: getMonthlyCategoryBreakdown(year)
+      },
+      autocomplete: getAutocompleteData(),
+      fire: getFireProgress(year),
+      projection: getYearlyProjection(year),
+      runway: getRunwayData(year)
+    };
+  }, 3600); // 1 hour cache
 }
 
 /**

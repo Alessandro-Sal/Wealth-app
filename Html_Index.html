@@ -11,6 +11,27 @@
       <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
       <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
       <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+      <link id="dynamic-manifest" rel="manifest" href="">
+      <script>
+        // Inject Dynamic PWA Manifest for Google Apps Script
+        const manifest = {
+          "name": "Wealth App",
+          "short_name": "Wealth",
+          "display": "standalone",
+          "background_color": "#121212",
+          "theme_color": "#121212",
+          "icons": [{
+            "src": "https://cdn-icons-png.flaticon.com/512/2830/2830305.png",
+            "sizes": "512x512",
+            "type": "image/png"
+          }]
+        };
+        const manifestString = JSON.stringify(manifest);
+        const dataUri = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(manifestString);
+        document.addEventListener('DOMContentLoaded', () => {
+          document.getElementById('dynamic-manifest').setAttribute('href', dataUri);
+        });
+      </script>
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
       <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
       <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -27,7 +48,8 @@
       <?!= include('css_NUKE'); ?>
    </head>
    <body>
-      <?!= include('Html_Body'); ?>
+      <?!= include('Html_Modals'); ?>
+      <?!= include('Html_Pages'); ?>
       <style>
          .footer-credits {
          text-align: center;         

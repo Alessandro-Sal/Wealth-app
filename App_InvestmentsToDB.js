@@ -229,8 +229,8 @@ function addInvestTransaction(data) {
       expSheet.getRange(targetRow, 1, 1, numCols).setValues([expRowData]);
     }
   }
-  
   invalidatePortfolioCache();
+  invalidateAllDataCache(); // Invalidate global caches
   return "Investment Saved (" + data.type + ")";
   } finally {
     lock.releaseLock(); // FIX (1.10): rilascia sempre il lock, su ogni percorso di uscita
@@ -256,6 +256,7 @@ function manageAssetBackend(payload) {
   if(action === 'Update') {
      if(asset.type !== "Real Estate") throw new Error("Puoi aggiornare manualmente solo gli Immobili.");
      dbAssets.getRange(aRow, 6).setValue(parseFloat(newVal)); 
+     invalidateAllDataCache(); // Invalidate global caches
      return "Valore di mercato aggiornato a €" + newVal;
   }
 

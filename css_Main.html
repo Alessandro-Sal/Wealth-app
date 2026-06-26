@@ -27,7 +27,9 @@
 
 	/* Aliases: usate in alcuni componenti (Market, Watchlist modal).
 	   Mappate sui token equivalenti per garantire coerenza col dark mode. */
-	--card-bg: var(--white);
+	--card-bg: rgba(255, 255, 255, 0.75);
+	--card-border: rgba(255, 255, 255, 0.5);
+	--card-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
 	--bg-color: var(--section-bg);
 	--font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 	--font-mono: 'SF Mono', 'Consolas', monospace;
@@ -133,6 +135,10 @@ body.dark-mode {
 	--input-border: #3a3a3c;
 	--section-bg: #1c1c1e;
 	--row-border: #38383a;
+
+	--card-bg: rgba(28, 28, 30, 0.65);
+	--card-border: rgba(255, 255, 255, 0.1);
+	--card-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 body.dark-mode .header-actions {
@@ -826,4 +832,20 @@ body.privacy-mode #runway-val.sensitive {
 }
 .grid-2-col { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
   @media (max-width: 768px) { .grid-2-col { grid-template-columns: 1fr; } }
+
+/* --- MICRO ANIMATIONS & PREMIUM INTERACTIONS --- */
+button, .nav-btn, .submit-btn, .action-btn, [onclick], .card, .h-item {
+    transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.2s, background 0.3s, box-shadow 0.2s !important;
+}
+
+button:active, .nav-btn:active, .submit-btn:active, .action-btn:active, [onclick]:active, .h-item:active {
+    transform: scale(0.96) !important;
+    opacity: 0.8;
+}
+
+/* Add a very subtle scale to cards to make them feel alive */
+.card:active {
+    transform: scale(0.98) !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+}
 </style>

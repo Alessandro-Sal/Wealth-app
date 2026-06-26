@@ -152,6 +152,8 @@ function addTransaction(data) {
 
   //if (generatedTxId) SpreadsheetApp.flush();
 
+  invalidateAllDataCache(); // Invalidate global caches
+
   return "Saved Successfully";
   } finally {
     lock.releaseLock(); // FIX (1.10): rilascia sempre il lock, anche sui return di errore
@@ -287,6 +289,8 @@ function markCreditAsLost(id) {
   // 2. Elimina la riga da Active_Credits senza creare il refund
   creditSheet.deleteRow(rowToDelete);
 
+  invalidateAllDataCache(); // Invalidate global caches
+
   return { success: true, message: "Credito segnato come perso." };
 }
 
@@ -404,6 +408,7 @@ function addStandaloneDebt(data) {
       });
   } catch (e) { Logger.log("Errore spese fisse: " + e.message); }
 
+  invalidateAllDataCache(); // Invalidate global caches
   return "Debt recorded successfully.";
 }
 
@@ -543,6 +548,7 @@ function renegotiateDebtBackend(oldDebtId, newRatePct, newYears, newDateStr, ban
      });
   }
 
+  invalidateAllDataCache(); // Invalidate global caches
   return "Rinegoziazione completata con successo!\nNuovo capitale ricalcolato: € " + outstandingAmount.toFixed(2) + "\nNuova rata: € " + newPmt.toFixed(2);
 }
 

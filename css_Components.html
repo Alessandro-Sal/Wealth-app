@@ -651,10 +651,13 @@ textarea:focus {
 
 /* --- CARDS & LISTS --- */
 .card {
-	background: var(--white);
+	background: var(--card-bg);
+	border: 1px solid var(--card-border);
+	backdrop-filter: blur(15px);
+	-webkit-backdrop-filter: blur(15px);
 	border-radius: 0 0 12px 12px;
 	padding: 10px 15px;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+	box-shadow: var(--card-shadow);
 	margin-bottom: 10px;
 	transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.2s, background 0.3s;
 	-webkit-tap-highlight-color: transparent;
