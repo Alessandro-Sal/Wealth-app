@@ -238,6 +238,8 @@ To enable AI features and secure your app:
 
 > 🔒 **Privacy Note**: Because you copied the template, the memory (Cache and Script Properties) is completely blank. The original creator's API keys and passwords are NEVER transferred to your copy.
 
+> 💡 **Troubleshooting: Locked UI**: If your app accumulates too much cache over time, the Google UI might lock you out saying you have >50 properties. In that case, open `App_Secrets.js`, paste your keys into the `setupMyApiKeys()` function, hit **Run**, and then delete your keys from the file to avoid leaking them.
+
 ### Step 4 — (Optional) Advanced Developers / CLASP
 
 If you want to contribute to the code or push updates from this GitHub repository to your Google Sheet:
