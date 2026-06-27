@@ -32,6 +32,7 @@ Key design principles:
 - **Privacy-first**: All data stays within your Google account
 - **Italy-aware**: Full support for Italian fiscal reporting, "Zainetto Fiscale", and capital gains tax (26%)
 - **AI-powered**: Google Gemini integration for insights, OCR receipts, voice input, and market analysis
+- **High Performance**: Two-phase loading architecture (Fast Start & Lazy Loading) ensures instant UI interactivity
 
 ---
 
@@ -46,6 +47,7 @@ Key design principles:
 - **Tax Optimization (Italian Law)**
   - *Zainetto Fiscale*: tracks capital loss expiry (4-year rule) and optimizes tax credits
   - Auto-calculation of 26% capital gains tax on profits
+- **Ticker Notes** — Cloud-synced personal notes for individual assets (e.g. target prices, investment thesis)
 - **Drill-down Analytics** — Asset breakdown by Sector, Industry, Country, and Instrument type
 
 ### 🤖 AI Integration (Gemini 1.5 Flash)
@@ -59,6 +61,8 @@ Key design principles:
 ### 📊 Dashboard & Analytics
 
 - **Interactive Charts** powered by Chart.js: Sankey Flow, Asset Allocation, Monthly Trends, Savings Evolution
+- **Planned Expenses** — Track future expenses that dynamically impact your Budget and Runway before they are even paid
+- **Market News Feed** — Aggregated financial news tailored to your portfolio
 - **Financial Runway** — Calculates survival months based on liquid cash vs average expenses
 - **FIRE Progress** — Tracks Financial Independence progress using the 4% withdrawal rule
 - **Budget Guardian** — Real-time spending alerts when budget thresholds are exceeded
@@ -75,7 +79,7 @@ Key design principles:
 
 - **Privacy Mode** — Blurs all sensitive values with a single tap or via PIN abort
 - **PIN Lock** — Secure access control to the application
-- **Automated Backups** — Nightly Google Drive snapshots + monthly data freeze
+- **Automated Backups & Export** — Nightly Google Drive snapshots, monthly data freezes, and manual full-database JSON export
 - **Pull-to-Refresh** — Native mobile-like refresh gesture
 - **Real Assets** — Track non-financial assets (property, etc.)
 - **Pension Module** — Monitor pension fund contributions and projections
