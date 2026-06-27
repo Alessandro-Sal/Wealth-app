@@ -66,6 +66,12 @@ function clearServerCache() {
     'CRYPTO_FNG'
   ]); 
   
+  // Invalidate main app caches
+  if (typeof invalidateAllDataCache === 'function') invalidateAllDataCache();
+  if (typeof invalidateConfigCache === 'function') invalidateConfigCache();
+  if (typeof invalidatePortfolioCache === 'function') invalidatePortfolioCache();
+  if (typeof invalidateWatchlistCache === 'function') invalidateWatchlistCache();
+  
   // Delete the permanent persistent property for Dividends
   props.deleteProperty('DIVIDEND_ESTIMATES_PERSISTENT_V1');
 
