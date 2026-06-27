@@ -7,3 +7,6 @@ COMANDI.md
 .git/
 .agents/**
 frontend-v2/**
+.clasp-script1.json
+.clasp-script2.json
+sync-scripts.bat
