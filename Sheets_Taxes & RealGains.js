@@ -578,13 +578,21 @@ function calculateZainettoReport(allData) {
     let expiredAmount = 0;
     let expiryYearLimit = year - 4; 
 
-    // A. USE BASKET
-    let usedZainetto = 0;
-    let taxableBase = 0;
+    // 0. CAPTURE PREV ZAINETTO BEFORE ANY OPERATION
+    let prevZainetto = 0;
+    for (let amount of minusBucket.values()) prevZainetto += amount;
 
-    if (tradingGain > 0) {
+    // A. NET CURRENT YEAR GAINS AND LOSSES FIRST
+    let netAnnualCompensable = tradingGain - s.lossAnno;
+    
+    let usedZainetto = 0;
+    let taxableBase = gainNoComp; // Starts with Non-Compensable gains
+
+    if (netAnnualCompensable > 0) {
+      // We have a NET gain after applying this year's losses. 
+      // Now use Zainetto (past losses) to offset the remaining gain.
       let availableYears = Array.from(minusBucket.keys()).sort((a, b) => a - b);
-      let remainingGain = tradingGain;
+      let remainingGain = netAnnualCompensable;
 
       for (let pastYear of availableYears) {
         if (year - pastYear > 4) continue; 
@@ -598,25 +606,14 @@ function calculateZainettoReport(allData) {
         if (minusBucket.get(pastYear) === 0) minusBucket.delete(pastYear);
         if (remainingGain === 0) break;
       }
-      taxableBase = gainNoComp + remainingGain;
-    } else {
-      taxableBase = gainNoComp;
-    }
-
-    // B. NEW LOSSES
-    if (s.lossAnno > 0) {
-      let netAnnual = s.gainCompensabile - s.lossAnno;
-      if (netAnnual < 0) {
-        minusBucket.set(year, Math.abs(netAnnual));
-        usedZainetto = 0; 
-        taxableBase = gainNoComp; 
-      }
+      taxableBase += remainingGain;
+    } else if (netAnnualCompensable < 0) {
+      // We have a NET loss this year. Add it to the bucket.
+      minusBucket.set(year, Math.abs(netAnnualCompensable));
     }
 
     // C. CLEAN EXPIRED LOSSES
     // FIX (1.14): si cattura l'importo in scadenza PRIMA di rimuoverlo dal basket.
-    // Nel codice originale lo step C cancellava minusBucket[year-4] prima che lo step D
-    // lo cercasse (4-(year-yOrigin)===0), quindi l'alert "URGENT" non scattava MAI.
     let aboutToExpire = minusBucket.has(expiryYearLimit) ? minusBucket.get(expiryYearLimit) : 0;
     if (minusBucket.has(expiryYearLimit)) {
       minusBucket.delete(expiryYearLimit);
@@ -659,8 +656,8 @@ function calculateZainettoReport(allData) {
     let estimatedTax = taxableBase * 0.26;
     report.push([
       year, s.gainCompensabile, gainNoComp, 
-      (s.lossAnno > s.gainCompensabile) ? (s.lossAnno - s.gainCompensabile) : 0, 
-      usedZainetto, expiredAmount, taxableBase, estimatedTax, totalResiduo, notes.join(" ")
+      s.lossAnno, 
+      usedZainetto, expiredAmount, taxableBase, estimatedTax, totalResiduo, notes.join(" "), prevZainetto
     ]);
   }
   return report;

@@ -48,6 +48,17 @@ function getRunwayData(year) {
     }
   }
 
+  // --- DEDUCT PLANNED EXPENSES ---
+  try {
+    const currentYear = new Date().getFullYear();
+    let unpaidPlanned = getUnpaidPlannedExpensesTotal(currentYear);
+    if (unpaidPlanned > 0) {
+      liquidCash = Math.max(0, liquidCash - unpaidPlanned);
+    }
+  } catch (e) {
+    console.error("Error fetching planned expenses for runway", e);
+  }
+
   // Calculate Average
   let monthsCount = activeMonths.size || 1; // Prevent division by zero
   
@@ -144,6 +155,16 @@ function getYearlyProjection(year) {
     if (remainingMonths > 0) {
       projected = currentSavings + (avgMonthly * remainingMonths);
     }
+  }
+  
+  // --- SUBTRACT PLANNED UNPAID EXPENSES ---
+  try {
+    let unpaidPlanned = getUnpaidPlannedExpensesTotal(year);
+    if (unpaidPlanned > 0) {
+      projected -= unpaidPlanned;
+    }
+  } catch (e) {
+    console.error("Error fetching planned expenses", e);
   }
 
   return {

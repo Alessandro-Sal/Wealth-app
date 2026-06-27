@@ -303,6 +303,16 @@
                <div style="font-size:12px; color:var(--gray); text-align:center; padding: 20px 0;">Loading subscriptions...</div>
             </div>
          </div>
+         <div class="dash-widget span-2 span-pc-2" id="planned-expenses-widget">
+            <div class="widget-title">
+               <div class="badge-icon" style="background:#ff9500; color:#fff;">📅</div>
+               Spese Programmate
+               <span onclick="openPlannedExpenseModal()" style="cursor: pointer; font-size: 24px; font-weight: 800; color: var(--primary); margin-left: auto; line-height: 1; transition: 0.2s;">+</span>
+            </div>
+            <div id="planned-expenses-list" style="display:flex; flex-direction:column; gap:12px; margin-top:5px; max-height: 280px; overflow-y: auto;">
+               <div style="font-size:12px; color:var(--gray); text-align:center; padding: 20px 0;">Caricamento spese...</div>
+            </div>
+         </div>
          <div class="history-list">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                <div class="h-title" style="margin-bottom:0;">Last Transactions</div>
@@ -1642,6 +1652,16 @@
     </div>
 </div>
             <div class="dash-grid">
+               <!-- Tax Alert Banner -->
+               <div id="tax-alert-banner" class="span-2 span-pc-4" style="display:none; background:rgba(255,59,48,0.1); border-left:4px solid var(--danger); padding:15px; border-radius:8px; margin-bottom:15px;">
+                   <div style="font-weight:bold; color:var(--danger); display:flex; align-items:center; gap:8px;">
+                      ⚠️ ATTENZIONE: Minusvalenze in Scadenza!
+                   </div>
+                   <div id="tax-alert-text" style="font-size:13px; color:var(--text-main); margin-top:5px;">
+                      Hai delle minusvalenze in scadenza quest'anno.
+                   </div>
+               </div>
+
                <div class="dash-widget span-2 span-pc-2" style="margin-top: 20px; margin-bottom: 30px; overflow: hidden;">
                   <div class="widget-title">
                      <div class="badge-icon bg-blue">🏛️</div>
@@ -1662,6 +1682,33 @@
                   <div style="margin-top: 15px; border-top: 1px dashed var(--row-border); padding-top: 10px; display: flex; justify-content: space-between; align-items: center;">
                      <span style="font-size: 11px; font-weight: 800; color: var(--gray); text-transform: uppercase;">Total Potential Offset</span>
                      <span id="tax-harvest-total" class="sensitive" style="font-size: 18px; font-weight: 900; color: var(--success);">€ 0.00</span>
+                  </div>
+               </div>
+
+               <!-- What-If Simulator -->
+               <div class="dash-widget span-2 span-pc-4" style="margin-bottom: 30px; overflow: hidden;">
+                  <div class="widget-title">
+                     <div class="badge-icon bg-purple">🔮</div>
+                     What-If Simulator
+                  </div>
+                  <div style="font-size: 12px; color: var(--gray); margin-bottom: 15px;">Simulate a sale to see its impact on your Taxable Base and Zainetto.</div>
+                  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 15px;">
+                      <div style="flex:1; min-width:120px;">
+                          <label style="font-size:10px; text-transform:uppercase; font-weight:bold; color:var(--gray); margin-bottom: 4px; display: block;">Ticker</label>
+                          <input type="text" id="simTicker" placeholder="e.g. AAPL" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--row-border); background: var(--bg); color: var(--text-main);">
+                      </div>
+                      <div style="flex:1; min-width:80px;">
+                          <label style="font-size:10px; text-transform:uppercase; font-weight:bold; color:var(--gray); margin-bottom: 4px; display: block;">Qty</label>
+                          <input type="number" id="simQty" placeholder="10" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--row-border); background: var(--bg); color: var(--text-main);">
+                      </div>
+                      <div style="flex:1; min-width:100px;">
+                          <label style="font-size:10px; text-transform:uppercase; font-weight:bold; color:var(--gray); margin-bottom: 4px; display: block;">Sell Price (€)</label>
+                          <input type="number" id="simPrice" placeholder="150" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--row-border); background: var(--bg); color: var(--text-main);">
+                      </div>
+                  </div>
+                  <button type="button" onclick="runTaxSimulation()" style="width:100%; padding:10px; background:var(--primary); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Run Simulation</button>
+                  <div id="sim-result" style="margin-top:15px; display:none; background:var(--section-bg); padding:15px; border-radius:8px;">
+                      <!-- Results will be injected here -->
                   </div>
                </div>
             </div>

@@ -1940,5 +1940,230 @@ function openSubs() {
                }
            }
        }
-   }, true); // 'true' enables the capturing phase
+    }, true); // 'true' enables the capturing phase
+
+    // --- PLANNED EXPENSES ---
+    
+    function fetchPlannedExpensesStatus() {
+        const container = document.getElementById('planned-expenses-list');
+        if (!container) return;
+        container.innerHTML = '<div style="font-size:12px; color:var(--gray); text-align:center; padding: 20px 0;">Loading...</div>';
+    
+        run('getPlannedExpensesStatus')
+        .then(data => renderPlannedExpensesStatus(data))
+        .catch(e => {
+            console.error("Error fetching planned expenses:", e);
+            container.innerHTML = '<div style="font-size:12px; color:var(--danger); text-align:center; padding: 20px 0;">Failed to load data.</div>';
+        });
+    }
+
+    function renderPlannedExpensesStatus(data) {
+        const container = document.getElementById('planned-expenses-list');
+        if (!container) return;
+        
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div style="font-size:12px; color:var(--gray); text-align:center; padding: 20px 0;">Nessuna spesa programmata.</div>';
+            return;
+        }
+
+        let html = '';
+        data.forEach(exp => {
+            const bgStyle = exp.isPaid 
+                ? 'background: rgba(52, 199, 89, 0.05); border: 1px solid rgba(52, 199, 89, 0.2);' 
+                : 'background: var(--white); border: 1px solid rgba(0,0,0,0.04);';
+            const opacityStyle = exp.isPaid ? 'opacity: 0.85; transition: 0.3s;' : 'opacity: 1;';
+            const valFmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(exp.amount);
+
+            let alertHtml = '';
+            if (exp.isPaid) {
+                alertHtml = `<span style="font-size:9px; background:rgba(52, 199, 89, 0.15); color:var(--success); padding:3px 8px; border-radius:8px; font-weight:800; margin-left:8px; text-transform:uppercase; letter-spacing: 0.5px;">✅ Pagata</span>`;
+            }
+
+            let monthStr = (exp.expectedDay ? exp.expectedDay + '/' : '') + exp.expectedMonth + '/' + exp.expectedYear;
+
+            html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-radius:12px; ${bgStyle} ${opacityStyle} box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+               <div style="display:flex; align-items:center; flex:1;">
+                   <div style="min-width:30px; height:30px; background:var(--section-bg); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; color:var(--text-main); margin-right:12px;">${monthStr}</div>
+                   <div>
+                       <div style="font-weight:bold; font-size:13px; display:flex; align-items:center;">
+                          ${exp.note} ${alertHtml}
+                       </div>
+                       <div style="font-size:11px; color:var(--gray); margin-top:2px;">
+                          ${exp.cat}
+                       </div>
+                   </div>
+               </div>
+               <div style="text-align:right;">
+                   <div class="sensitive" style="font-weight:800; font-size:14px; color:var(--text-main); margin-bottom:4px;">${valFmt}</div>
+                   ${!exp.isPaid ? `<button type="button" onclick="markPlannedExpensePaid(event, '${exp.id}')" style="background:none; border:none; color:var(--success); font-size:11px; font-weight:bold; cursor:pointer;">PAGA ORA</button> <button type="button" onclick="deletePlannedExpenseUI(event, '${exp.id}')" style="background:none; border:none; color:var(--danger); font-size:11px; font-weight:bold; cursor:pointer; margin-left:10px;">ELIMINA</button>` : `<button type="button" onclick="deletePlannedExpenseUI(event, '${exp.id}')" style="background:none; border:none; color:var(--danger); font-size:11px; font-weight:bold; cursor:pointer;">ELIMINA</button>`}
+               </div>
+            </div>`;
+        });
+        container.innerHTML = html;
+        if(typeof maskSensitiveElements === 'function') maskSensitiveElements();
+    }
+
+    function openPlannedExpenseModal() {
+        const modal = document.getElementById('planned-expense-sheet');
+        const backdrop = document.getElementById('common-backdrop');
+        const catSelect = document.getElementById('plannedCategory');
+        
+        if (catSelect && typeof GLOBAL_APP_CONFIG !== 'undefined' && GLOBAL_APP_CONFIG.categories && GLOBAL_APP_CONFIG.categories['Expense']) {
+            catSelect.innerHTML = "";
+            const defaultOpt = document.createElement("option");
+            defaultOpt.value = "";
+            defaultOpt.text = "-- Seleziona Categoria --";
+            catSelect.appendChild(defaultOpt);
+            
+            GLOBAL_APP_CONFIG.categories['Expense'].forEach(cat => {
+                const opt = document.createElement("option");
+                opt.value = cat;
+                opt.text = cat;
+                catSelect.appendChild(opt);
+            });
+        }
+
+        if (modal && backdrop) {
+            modal.classList.add('active');
+            backdrop.classList.add('active');
+        }
+    }
+
+    function savePlannedExpense() {
+        const note = document.getElementById('plannedNote').value;
+        const amount = parseFloat(document.getElementById('plannedAmount').value);
+        const cat = document.getElementById('plannedCategory').value;
+        const day = document.getElementById('plannedDay').value;
+        const month = document.getElementById('plannedMonth').value;
+        const year = document.getElementById('plannedYear').value;
+
+        if (!note || isNaN(amount) || !month || !year) {
+            Swal.fire({ icon: 'error', title: 'Errore', text: 'Compila tutti i campi obbligatori!' });
+            return;
+        }
+
+        const data = { 
+            cat, 
+            note, 
+            amount, 
+            expectedDay: day ? parseInt(day) : null,
+            expectedMonth: parseInt(month), 
+            expectedYear: parseInt(year) 
+        };
+        const btn = document.querySelector('#planned-expense-sheet button');
+        btn.innerHTML = 'SALVATAGGIO...';
+        btn.disabled = true;
+
+        run('addPlannedExpense', data)
+        .then(res => {
+            Swal.fire({ icon: 'success', title: 'Salvato', text: res, timer: 1500, showConfirmButton: false });
+            closeAllSheets();
+            document.getElementById('plannedNote').value = '';
+            document.getElementById('plannedAmount').value = '';
+            if (document.getElementById('plannedDay')) document.getElementById('plannedDay').value = '';
+            fetchPlannedExpensesStatus();
+            if(typeof loadDashboardData === 'function') loadDashboardData(); // Refresh runway
+        })
+        .catch(err => Swal.fire({ icon: 'error', title: 'Errore', text: String(err) }))
+        .finally(() => { btn.innerHTML = 'SALVA SPESA'; btn.disabled = false; });
+    }
+
+    function markPlannedExpensePaid(event, id) {
+        if (event) event.preventDefault();
+        const isDark = document.body.classList.contains('dark-mode');
+        
+        let optionsHtml = '<option value="" disabled selected>-- Seleziona Banca --</option>';
+        if (typeof GLOBAL_APP_CONFIG !== 'undefined' && GLOBAL_APP_CONFIG.bankMapping) {
+            Object.keys(GLOBAL_APP_CONFIG.bankMapping).forEach(col => {
+                optionsHtml += `<option value="${col}">${GLOBAL_APP_CONFIG.bankMapping[col]}</option>`;
+            });
+        } else {
+            optionsHtml += `
+               <option value="5">Intesa SP</option>
+               <option value="6">N26</option>
+               <option value="7">Wallet</option>
+               <option value="8">Buddy</option>
+               <option value="9">Revolut</option>
+            `;
+        }
+
+        Swal.fire({
+            title: 'Segna come pagata',
+            html: `
+                <div style="font-size:14px; margin-bottom:15px; text-align:center;">
+                    Confermi di aver pagato questa spesa?<br>L'importo verrà scalato dal saldo selezionato e inserito nell'Expenses Tracker.
+                </div>
+                <div style="text-align:left; margin-top:15px;">
+                    <label style="font-size:12px; font-weight:bold; color:var(--gray);">Banca / Conto</label>
+                    <select id="swal-planned-bank" class="swal2-input" style="width:100%; margin:0; padding:0 10px; font-size:14px; height:45px;">
+                        ${optionsHtml}
+                    </select>
+                </div>
+                <div style="text-align:left; margin-top:15px;">
+                    <label style="font-size:12px; font-weight:bold; color:var(--gray);">Importo Effettivo (opzionale)</label>
+                    <input type="number" id="swal-planned-amount" class="swal2-input" placeholder="€ (lascia vuoto per importo previsto)" step="0.01" style="width:100%; margin:0; padding:0 10px; font-size:14px; height:45px;">
+                </div>
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sì, pagata',
+            cancelButtonText: 'Annulla',
+            background: isDark ? '#1c1c1e' : '#fff',
+            color: isDark ? '#fff' : '#000',
+            preConfirm: () => {
+                const bankCol = document.getElementById('swal-planned-bank').value;
+                let amount = document.getElementById('swal-planned-amount').value;
+                if (!bankCol) {
+                    Swal.showValidationMessage('Devi selezionare un conto da cui scalare i soldi!');
+                    return false;
+                }
+                amount = amount ? parseFloat(amount) : null;
+                return { bankCol, amount };
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const bankCol = result.value.bankCol;
+                const actualAmount = result.value.amount;
+                
+                Swal.fire({ title: 'Registrazione in corso...', allowOutsideClick: false, background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000' });
+                Swal.showLoading();
+                
+                run('payPlannedExpense', id, actualAmount, bankCol)
+                .then(res => {
+                    Swal.fire({ icon: 'success', title: 'Fatto', text: res, timer: 1500, showConfirmButton: false, background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000' });
+                    fetchPlannedExpensesStatus();
+                    if(typeof loadDashboardData === 'function') loadDashboardData();
+                })
+                .catch(err => Swal.fire({ icon: 'error', title: 'Errore', text: String(err), background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000' }));
+            }
+        });
+    }
+
+    function deletePlannedExpenseUI(event, id) {
+        if (event) event.preventDefault();
+        const isDark = document.body.classList.contains('dark-mode');
+        Swal.fire({
+            title: 'Elimina spesa',
+            text: 'Vuoi eliminare questa spesa programmata?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Elimina',
+            background: isDark ? '#1c1c1e' : '#fff',
+            color: isDark ? '#fff' : '#000'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({ title: 'Eliminazione...', allowOutsideClick: false, background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000' });
+                Swal.showLoading();
+                run('deletePlannedExpense', id)
+                .then(res => {
+                    Swal.fire({ icon: 'success', title: 'Eliminata', text: res, timer: 1500, showConfirmButton: false, background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000' });
+                    fetchPlannedExpensesStatus();
+                    if(typeof loadDashboardData === 'function') loadDashboardData();
+                })
+                .catch(err => Swal.fire({ icon: 'error', title: 'Errore', text: String(err), background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000' }));
+            }
+        });
+    }
+
 </script>

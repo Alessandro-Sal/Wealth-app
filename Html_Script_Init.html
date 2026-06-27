@@ -94,6 +94,7 @@
          // per non saturare la pool di connessioni simultanee di Google Apps Script
          fetchBalances(fastData.balances);
          fetchSubsStatus(fastData.subsStatus);
+         fetchPlannedExpensesStatus();
          fetchActiveCredits(fastData.credits);
 
          // --- STAGE 3: HEAVY DATA FETCH (Lazy Load) ---
@@ -749,22 +750,33 @@ function updateDashboardDOM(d) {
            return;
        }
        
+       // Handle Expiring Zainetto Alert
+       const alertBanner = document.getElementById('tax-alert-banner');
+       const alertText = document.getElementById('tax-alert-text');
+       if (data.zainettoDetails && data.zainettoDetails.isExpiringThisYear && alertBanner && alertText) {
+           alertBanner.style.display = 'block';
+           let amtFmt = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(data.zainettoDetails.expiringAmount);
+           alertText.innerHTML = `Hai <b>€ ${amtFmt}</b> di minusvalenze pregresse che scadranno alla fine di quest'anno se non compensate con plusvalenze.`;
+       } else if (alertBanner) {
+           alertBanner.style.display = 'none';
+       }
+
        // Render Tax Bill
        let billHtml = '';
        data.bill.forEach(item => {
            let valColor = "var(--text-main)";
-           if(item.metric.includes("Gains")) valColor = "var(--success)";
+           if(item.metric.includes("Gains") || item.metric.includes("Residual Basket")) valColor = "var(--success)";
            if(item.metric.includes("Losses") || item.metric.includes("TAX DUE") || item.metric.includes("TAXABLE")) valColor = "var(--danger)";
            
            let valFmt = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.value);
            
            billHtml += `
-           <div class="tax-row">
+           <div class="tax-row" style="display:flex; justify-content:space-between; align-items:center; padding: 10px 0; border-bottom: 1px solid var(--row-border);">
                <div>
-                   <div class="tax-label">${item.metric}</div>
-                   <div class="tax-desc">${item.desc}</div>
+                   <div class="tax-label" style="font-weight: 800; font-size: 13px; color: var(--text-main);">${item.metric}</div>
+                   <div class="tax-desc" style="font-size: 11px; color: var(--gray); margin-top:2px;">${item.desc}</div>
                </div>
-               <div class="tax-val sensitive" style="color: ${valColor};">€ ${valFmt}</div>
+               <div class="tax-val sensitive" style="font-weight: 900; font-size: 14px; color: ${valColor};">€ ${valFmt}</div>
            </div>`;
        });
        document.getElementById('tax-bill-container').innerHTML = billHtml || '<div style="text-align:center; color:var(--gray); padding: 20px;">No tax data</div>';
@@ -791,6 +803,62 @@ function updateDashboardDOM(d) {
        
        let totFmt = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(data.totalPotential);
        document.getElementById('tax-harvest-total').innerText = "€ " + totFmt;
+   }
+
+   function runTaxSimulation() {
+       const ticker = document.getElementById('simTicker').value;
+       const qty = document.getElementById('simQty').value;
+       const price = document.getElementById('simPrice').value;
+       const resDiv = document.getElementById('sim-result');
+       
+       if(!ticker || !qty || !price) {
+           alert("Please fill all fields for the simulation.");
+           return;
+       }
+       
+       resDiv.style.display = 'block';
+       resDiv.innerHTML = '<div style="text-align:center; color:var(--gray); font-size:12px;">Running simulation...</div>';
+       
+       google.script.run.withSuccessHandler(function(res) {
+           if(res && res.success) {
+               let tbFmt = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(res.simulatedTaxableBase);
+               let taxFmt = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(res.simulatedTaxDue);
+               let resFmt = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(res.simulatedResidualBasket);
+               
+               function formatDelta(val, invertColors) {
+                   if(Math.abs(val) < 0.01) return `<span style="color:var(--gray); font-size:11px; margin-left:6px;">(0.00)</span>`;
+                   let color = val > 0 ? "var(--danger)" : "var(--success)";
+                   if(invertColors) color = val > 0 ? "var(--success)" : "var(--danger)";
+                   let sign = val > 0 ? "+" : "";
+                   let f = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+                   return `<span style="color:${color}; font-size:11px; margin-left:6px;">(${sign}€ ${f})</span>`;
+               }
+
+               let dTb = formatDelta(res.deltaTaxableBase, false); // Increase in taxable base is BAD
+               let dTax = formatDelta(res.deltaTaxDue, false);     // Increase in tax due is BAD
+               let dRes = formatDelta(res.deltaResidualBasket, true); // Increase in residual basket is GOOD
+               
+               resDiv.innerHTML = `
+                   <div style="font-weight:bold; font-size:12px; color:var(--text-main); margin-bottom:10px; border-bottom:1px solid var(--row-border); padding-bottom:5px;">
+                      Simulation Results <span style="font-weight:normal; color:var(--gray); font-size:10px;">(${res.inferredType})</span>
+                   </div>
+                   <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                       <span style="font-size:12px; color:var(--gray);">New Taxable Base:</span>
+                       <span style="font-size:13px; font-weight:bold; color:var(--text-main);">€ ${tbFmt} ${dTb}</span>
+                   </div>
+                   <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                       <span style="font-size:12px; color:var(--gray);">New Estimated Tax Due:</span>
+                       <span style="font-size:13px; font-weight:bold; color:var(--text-main);">€ ${taxFmt} ${dTax}</span>
+                   </div>
+                   <div style="display:flex; justify-content:space-between;">
+                       <span style="font-size:12px; color:var(--gray);">New Residual Basket:</span>
+                       <span style="font-size:13px; font-weight:bold; color:var(--text-main);">€ ${resFmt} ${dRes}</span>
+                   </div>
+               `;
+           } else {
+               resDiv.innerHTML = '<div style="color:var(--danger); font-size:12px;">Simulation failed. Ensure ticker exists.</div>';
+           }
+       }).simulateSale(ticker, qty, price);
    }
 
 function injectMasterMenus() {

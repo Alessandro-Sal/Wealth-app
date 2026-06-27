@@ -228,6 +228,53 @@
       ADD FIXED EXPENSE
       </button>
    </div>
+   <div id="planned-expense-sheet" class="sheet-modal" role="dialog" aria-modal="true">
+      <div class="sheet-header">
+         <span style="font-size:12px; font-weight:bold; color:var(--gray); letter-spacing:1px;">NUOVA SPESA PROGRAMMATA</span>
+         <button class="sheet-close" onclick="closeAllSheets()">Annulla</button>
+      </div>
+      <div style="padding: 15px 0; display:flex; flex-direction:column; gap:15px;">
+         <div>
+            <label>Nota / Descrizione (Es. Vacanza)</label>
+            <input type="text" id="plannedNote" placeholder="Inserisci nota...">
+         </div>
+         <div style="display:flex; gap:10px;">
+            <div style="flex:1;">
+               <label>Importo Previsto</label>
+               <input type="number" id="plannedAmount" placeholder="€">
+            </div>
+            <div style="flex:1;">
+               <label>Categoria</label>
+               <select id="plannedCategory">
+                  <option value="Travel">Travel</option>
+                  <option value="Car">Car</option>
+                  <option value="Taxes">Taxes</option>
+                  <option value="Health">Health</option>
+                  <option value="House">House</option>
+                  <option value="Shopping">Shopping</option>
+                  <option value="Other">Other</option>
+               </select>
+            </div>
+         </div>
+         <div style="display:flex; gap:10px;">
+            <div style="flex:1;">
+               <label>Giorno (1-31)</label>
+               <input type="number" id="plannedDay" min="1" max="31" placeholder="Opz.">
+            </div>
+            <div style="flex:1;">
+               <label>Mese (1-12)</label>
+               <input type="number" id="plannedMonth" min="1" max="12" placeholder="Es. 8">
+            </div>
+            <div style="flex:1;">
+               <label>Anno</label>
+               <input type="number" id="plannedYear" placeholder="Es. 2026">
+            </div>
+         </div>
+      </div>
+      <button type="button" onclick="savePlannedExpense()" style="margin-top:10px; padding:15px; background:var(--primary); color:white; border:none; border-radius:12px; font-weight:bold; font-size:16px; width:100%;">
+      SALVA SPESA
+      </button>
+   </div>
    <div id="search-sheet" class="sheet-modal" role="dialog" aria-modal="true">
       <div class="sheet-header">
          <span style="font-size:12px; font-weight:bold; color:var(--gray); letter-spacing:1px;">HISTORY SEARCH</span>
