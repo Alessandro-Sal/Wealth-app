@@ -204,46 +204,48 @@ Wealth-app/
 
 ## 🚀 Installation & Setup
 
-### Prerequisites
+**Wealth-App** is incredibly easy to install. You don't need to configure servers, databases, or copy-paste code manually. We distribute the entire application (Database + Backend + Frontend) through a single **Google Sheets Template**.
 
-- A **Google Account**
-- [CLASP](https://github.com/google/clasp) installed (optional, for local development):
-  ```bash
-  npm install -g @google/clasp
-  clasp login
-  ```
+### Step 1 — Get Your Copy
 
-### Step 1 — Create the Google Sheet
+1. Click on the **[Official Wealth-App Database Template](https://docs.google.com/spreadsheets/d/1GenATQRFQ0Te_Uu1ma2HttTHEAE7qfJIjQ-7v9n-OZs/copy)**.
+2. Google will ask if you want to make a copy. Click **"Make a copy"**.
+3. **That's it!** You now have a 100% private replica of the Database in your Google Drive, and all the Apps Script code is already bound to it.
 
-Create a new Google Spreadsheet and set up the following required tabs:
+### Step 2 — Deploy the Web App
 
-| Sheet Name | Purpose |
-|---|---|
-| `Expenses Tracker` | Daily transactions |
-| `NW Analitico` | Net Worth historical snapshots |
-| `Portfolio` | Investment positions |
-| `Watchlist` | Stocks/ETFs to monitor |
-| `Config` | App configuration values |
+Now you need to generate your personal URL to access the app from your smartphone or browser:
 
-### Step 2 — Open Apps Script
+1. Open your newly copied Google Sheet.
+2. From the top menu, go to **Extensions → Apps Script**.
+3. In the Apps Script editor, click on **Deploy → New deployment** (top right blue button).
+4. Select type **Web app**.
+5. Set **Execute as: Me** and **Who has access: Only myself** (for maximum privacy).
+6. Click **Deploy** and authorize the permissions when Google prompts you.
+7. Copy the generated **Web app URL**. Save this URL on your phone's home screen!
 
-In your Google Sheet: **Extensions → Apps Script**
+### Step 3 — Configure Security & API Keys
 
-### Step 3 — Copy the Code
+To enable AI features and secure your app:
 
-Create each file listed in the **File Structure** above and paste the corresponding code.
+1. In the Apps Script editor, go to **Project Settings (⚙️ icon) → Script Properties**.
+2. Click **Add script property** and add the following keys:
 
-> 💡 **With CLASP**: clone this repo and run `clasp push` to deploy all files at once.
+| Property | Value | Description |
+|---|---|---|
+| `APP_PIN` | `1234` | Your 4-digit PIN to unlock the app and reveal hidden amounts. |
+| `GEMINI_API_KEY` | `your-key` | Your [Google AI Studio](https://aistudio.google.com/) API key for AI features. |
 
-### Step 4 — Configure API Keys
+> 🔒 **Privacy Note**: Because you copied the template, the memory (Cache and Script Properties) is completely blank. The original creator's API keys and passwords are NEVER transferred to your copy.
 
-In Apps Script: **Project Settings → Script Properties**, add:
+### Step 4 — (Optional) Advanced Developers / CLASP
 
-| Key | Value |
-|---|---|
-| `GEMINI_API_KEY` | Your [Google AI Studio](https://aistudio.google.com/) API key |
-
-> ⚠️ **Never hardcode API keys in the source files.**
+If you want to contribute to the code or push updates from this GitHub repository to your Google Sheet:
+1. Copy the **Script ID** from your Apps Script Project Settings.
+2. Clone this repo: `git clone https://github.com/Alessandro-Sal/Wealth-app.git`
+3. Run `clasp login`
+4. Run `clasp clone <YOUR_SCRIPT_ID>` (or update the `.clasp.json` manually).
+5. Edit code locally and use `clasp push` to sync.
 
 ### Step 5 — Set Triggers
 
