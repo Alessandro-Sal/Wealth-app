@@ -1,4 +1,4 @@
-App_Secrets.js
+# Secrets are now managed via PropertiesService, this file is safe to track.
 .clasp.json
 COMANDI.md
 .agents
