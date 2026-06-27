@@ -147,11 +147,13 @@ Wealth-app/
 ├── 📄 App.js                          # doGet() entry point
 │
 ├── 🖥️  Html_*.html                    # Frontend: SPA views & client-side scripts
-│   ├── Html_Index.html                # SPA entry point
+│   ├── Html_Index.html                # SPA entry point (Legacy/v1)
+│   ├── Html_Index_v2.html             # Next-gen SPA entry point (v2)
 │   ├── Html_Body.html                 # Layout shell
+│   ├── Html_Pages.html                # Custom pages definitions
 │   ├── Html_Script_Init.html          # Bootstrap & session management
 │   ├── Html_Script_Navigation.html    # SPA router
-│   ├── Html_Script_Form.html          # Form handlers (add transactions/investments)
+│   ├── Html_Script_Form.html          # Form handlers (transactions/investments)
 │   ├── Html_Script_Chart.html         # Chart.js renderer
 │   ├── Html_Script_Market.html        # Live ticker
 │   ├── Html_Script_Module.html        # Modals & panels
@@ -164,43 +166,71 @@ Wealth-app/
 │   ├── css_Components.html            # Cards, badges, lists
 │   ├── css_Modals.html                # Overlay & dialogs
 │   ├── css_Market.html                # Ticker styles
-│   └── css_News.html                  # Feed cards
+│   ├── css_News.html                  # Feed cards
+│   ├── css_Cyberpunk_broken.html      # Experimental styling
+│   └── css_NUKE.Html                  # Experimental styles / Overrides
 │
 ├── ⚙️  App_*.js                       # Backend controllers & business logic
-│   ├── App_DashboardData.js           # Net Worth aggregation
-│   ├── App_GetLivePortfolio.js        # Real-time prices
-│   ├── App_TransactionsToDB.js        # Write transactions to Sheets
-│   ├── App_InvestmentsToDB.js         # Write investments to Sheets
+│   ├── App_AI.js                      # Gemini AI: chat, OCR, voice
+│   ├── App_AnalyticsChart.js          # Analytics chart endpoints
 │   ├── App_BankBalances.js            # Bank account balances
 │   ├── App_BudgetGuardian.js          # Budget alert logic
-│   ├── App_FinancialRunaway.js        # Financial runway & FIRE calculator
-│   ├── App_TaxOptimization.js         # Zainetto Fiscale logic
-│   ├── App_Watchlist.js               # Watchlist & target prices
-│   ├── App_SniperAlert.js             # Buy/sell alert engine
-│   ├── App_MondayBriefing.js          # Weekly AI briefing email
-│   ├── App_MarketMail.js              # Market analysis email
-│   ├── App_DividendsMail.js           # Dividend notification
-│   ├── App_AI.js                      # Gemini AI: chat, OCR, voice
+│   ├── App_BudgetStatus.js            # Budget status endpoints
 │   ├── App_Cache.js                   # Caching layer
-│   ├── App_Security.js                # PIN & privacy mode
+│   ├── App_CashflowEvolution.js       # Cashflow charting logic
+│   ├── App_ClosedPosition.js          # Closed positions handling
+│   ├── App_DashboardData.js           # Net Worth aggregation
+│   ├── App_DeleteRowToSpreadsheets.js # Row deletion utility
+│   ├── App_DividendsMail.js           # Dividend notification
+│   ├── App_ExportDB.js                # Full DB JSON export to Drive
+│   ├── App_FinancialRunaway.js        # Financial runway & FIRE calculator
+│   ├── App_Fixed_expenses&subscription.js # Subs & fixed costs tracking
+│   ├── App_GetDataYEARS.js            # Historical years data
+│   ├── App_GetLivePortfolio.js        # Real-time prices
+│   ├── App_HistoricalPortfolioEvolution.js # Historic portfolio charting
+│   ├── App_InvestmentsToDB.js         # Write investments to Sheets
+│   ├── App_LastInvestments&Search.js  # Search & query recent investments
+│   ├── App_LastTransactions&Search.js # Search & query recent transactions
+│   ├── App_MarketMail.js              # Market analysis email
+│   ├── App_MondayBriefing.js          # Weekly AI briefing email
+│   ├── App_MonthlyChartSavings.js     # Savings chart logic
+│   ├── App_MonthlySavings.js          # Monthly savings aggregation
+│   ├── App_News.js                    # Fetch tailored market news
+│   ├── App_NotesTicker.js             # Asset-specific notes sync
+│   ├── App_NotifyConfig.js            # Notification configuration
+│   ├── App_Optimization.js            # Two-phase loading logic (Fast/Heavy)
 │   ├── App_Pension.js                 # Pension module
+│   ├── App_PlannedExpenses.js         # Future expenses planner
+│   ├── App_Reporting.js               # PDF Export logic
+│   ├── App_Secrets.js                 # API Keys management
+│   ├── App_Security.js                # PIN & privacy mode
+│   ├── App_Settings.js                # Settings handling
+│   ├── App_SniperAlert.js             # Buy/sell alert engine
+│   ├── App_TaxOptimization.js         # Zainetto Fiscale logic
+│   ├── App_TransactionsToDB.js        # Write transactions to Sheets
 │   ├── App_Trips.js                   # Travel log
-│   └── App_Utils.js                   # Shared utilities
+│   ├── App_Utils.js                   # Shared utilities
+│   └── App_Watchlist.js               # Watchlist & target prices
 │
 ├── 📊 Sheets_*.js                     # Data access layer (Google Sheets R/W)
-│   ├── Sheets_Trading.js              # FIFO engine + cutoff date filter
-│   ├── Sheets_Taxes & RealGains.js    # Capital gains & tax calculations
-│   ├── Sheets_TaxOptimization.js      # Zainetto Fiscale data layer
-│   ├── Sheets_Cachefinance.js         # Market price cache
-│   ├── Sheets_Backup.js               # Nightly backup to Drive
 │   ├── Sheets_Archive.js              # Monthly data freeze
 │   ├── Sheets_Automation.js           # Trigger scheduler
+│   ├── Sheets_Backup.js               # Nightly backup to Drive
+│   ├── Sheets_Cachefinance.js         # Market price cache
+│   ├── Sheets_Derivates Engine (NO ACTIVE).js # Unused derivatives logic
+│   ├── Sheets_Funzione popola data.js # Date auto-population utility
 │   ├── Sheets_RealAssets.js           # Real estate tracking
-│   └── Sheets_Utils.js                # Helper functions
+│   ├── Sheets_Taxes & RealGains.js    # Capital gains & tax calculations
+│   ├── Sheets_TaxOptimization.js      # Zainetto Fiscale data layer
+│   ├── Sheets_Trading.js              # FIFO engine + cutoff date filter
+│   ├── Sheets_Utils.js                # Helper functions
+│   └── Sheets_YahooFInanceInfo.js     # Yahoo Finance scraper helper
 │
 ├── 🤖 AI_Config.js                    # Gemini model configuration
 ├── 🧪 Testing_TestAIVers.js           # AI integration tests
+├── 📂 frontend-v2/                    # Directory for V2 frontend resources
 ├── 📋 appsscript.json                 # GAS manifest
+├── ⚙️  .clasp.json / .claspignore     # Clasp deployment configurations
 └── 📝 ARCHITECTURE.md                 # Detailed architecture diagrams
 ```
 
