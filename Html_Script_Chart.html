@@ -327,40 +327,214 @@ function renderAssetChart(summary) {
    }
    
    /**
-    * Renders the Sankey Diagram (Flow of Money).
-    * 
+    * Renders the Sankey Diagram (Flow of Money) using ECharts.
     */
    function renderSankeyChart(data) {
-     const ctx = document.getElementById('sankeyChart').getContext('2d');
-     if (sankeyChartInstance) sankeyChartInstance.destroy();
+     const chartDom = document.getElementById('sankeyChart');
+     if (!chartDom) return;
+     if (sankeyChartInstance && typeof sankeyChartInstance.dispose === 'function') {
+         sankeyChartInstance.dispose();
+     } else if (sankeyChartInstance && typeof sankeyChartInstance.destroy === 'function') {
+         sankeyChartInstance.destroy();
+     }
      
+     const isDark = document.body.classList.contains('dark-mode'); 
+     const txtColor = isDark ? '#fff' : '#333';
      const cIncome = '#34c759'; 
      const cExpense = '#ff3b30'; 
      const cSaving = '#007aff'; 
      const cPool = '#8e8e93'; 
-     const isDark = document.body.classList.contains('dark-mode'); 
-     const txtColor = isDark ? 'white' : 'black';
      
-     const sankeyData = [];
+     let nodesMap = new Map();
+     let links = [];
+     
+     nodesMap.set('Wallet 💰', cPool);
      
      // Income Flows
      if (data.incCats) data.incCats.forEach(item => { 
-         if (item.val > 0) sankeyData.push({ from: item.cat, to: 'Wallet 💰', flow: item.val, colorMode: 'gradient', colorFrom: cIncome, colorTo: cPool }); 
+         if (item.val > 0) {
+             let catName = item.cat + '\u200B'; // Zero-width space to prevent cycles if income and exp have same name
+             nodesMap.set(catName, cIncome);
+             links.push({source: catName, target: 'Wallet 💰', value: item.val});
+         }
      });
      
      // Expense Flows
      if (data.expCats) data.expCats.forEach(item => { 
-         if (item.val > 0) sankeyData.push({ from: 'Wallet 💰', to: item.cat, flow: item.val, colorMode: 'gradient', colorFrom: cPool, colorTo: cExpense }); 
+         if (item.val > 0) {
+             nodesMap.set(item.cat, cExpense);
+             links.push({source: 'Wallet 💰', target: item.cat, value: item.val});
+         }
      });
      
      // Saving Flows
-     if (data.rawSaving > 0) sankeyData.push({ from: 'Wallet 💰', to: 'Savings 🐷', flow: data.rawSaving, colorMode: 'gradient', colorFrom: cPool, colorTo: cSaving });
+     if (data.rawSaving > 0) {
+         // Invisible spacer to detach savings from expenses
+         nodesMap.set(' ', 'transparent');
+         links.push({source: 'Wallet 💰', target: ' ', value: data.rawSaving * 0.15}); // 15% relative gap
+         
+         nodesMap.set('Risparmi 🏦', cSaving);
+         links.push({source: 'Wallet 💰', target: 'Risparmi 🏦', value: data.rawSaving});
+     }
      
-     sankeyChartInstance = new Chart(ctx, {
-         type: 'sankey',
-         data: { datasets: [{ data: sankeyData, colorFrom: (c) => c.dataset.data[c.dataIndex].colorFrom, colorTo: (c) => c.dataset.data[c.dataIndex].colorTo, borderWidth: 0, labels: { color: txtColor, font: { size: 10, weight: 'bold' }, padding: 10 }, size: 'max', nodeWidth: 10 }] },
-         options: { responsive: true, maintainAspectRatio: false, layout: { padding: 10 }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => { const item = ctx.raw; if (document.body.classList.contains('privacy-mode')) return `${item.from} → ${item.to}: ****`; const val = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(item.flow); return `${item.from} → ${item.to}: ${val}`; } } } } }
-     });
+     let nodes = Array.from(nodesMap.entries()).map(([name, color]) => ({
+         name: name,
+         itemStyle: { 
+             color: color,
+             borderWidth: name === ' ' ? 0 : undefined,
+             borderColor: name === ' ' ? 'transparent' : undefined
+         },
+         depth: (name.includes('Risparmi') || name === ' ') ? 2 : undefined
+     }));
+     
+     sankeyChartInstance = echarts.init(chartDom);
+     
+     let option = {
+         tooltip: {
+             trigger: 'item',
+             triggerOn: 'mousemove',
+             formatter: function (params) {
+                 if (params.data.name === ' ' || params.data.target === ' ') return ''; // Hide spacer
+                 if (document.body.classList.contains('privacy-mode')) return '****';
+                 let val = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(params.data.value);
+                 if (params.dataType === 'node') {
+                     return `${params.data.name}: ${val}`;
+                 } else {
+                     return `${params.data.source} &rarr; ${params.data.target}: <br/><b>${val}</b>`;
+                 }
+             }
+         },
+         series: {
+             type: 'sankey',
+             layout: 'none',
+             layoutIterations: 0,
+             emphasis: {
+                 focus: 'adjacency'
+             },
+             nodeAlign: 'justify',
+             data: nodes,
+             links: links,
+             lineStyle: {
+                 color: 'gradient',
+                 curveness: 0.5,
+                 opacity: 0.4
+             },
+             itemStyle: {
+                 borderWidth: 0,
+                 borderColor: '#aaa'
+             },
+             label: {
+                 color: txtColor,
+                 fontFamily: 'Inter, sans-serif',
+                 fontSize: 11,
+                 fontWeight: 'bold',
+                 formatter: function (p) {
+                     return p.name === ' ' ? '' : p.name;
+                 }
+             }
+         }
+     };
+     
+     sankeyChartInstance.setOption(option);
+      
+     // Interactive drill-down for categories
+     sankeyChartInstance.on('click', function (params) {
+         console.log("Sankey clicked!", params);
+         
+         let targetName = "";
+         if (params.dataType === 'node') {
+             targetName = params.data.name;
+         } else if (params.dataType === 'edge') {
+             // If they click the flow line, deduce the category
+             if (params.data.target && params.data.target.includes('Wallet')) {
+                 targetName = params.data.source;
+             } else {
+                 targetName = params.data.target;
+             }
+         }
+         
+         if (!targetName || targetName.includes('Wallet') || targetName.includes('Risparmi')) return;
+         
+         try {
+             let categoryName = targetName.replace(/\u200B/g, '').trim();
+                 
+                 let yearBox = document.getElementById('trendYear');
+                 let currentYear = new Date().getFullYear().toString();
+                 let selectedYear = yearBox ? yearBox.value : currentYear;
+                 
+                 Swal.fire({
+                     title: 'Caricamento...',
+                     html: 'Recupero dati per <b>' + categoryName + '</b>',
+                     allowOutsideClick: false,
+                     didOpen: () => {
+                         Swal.showLoading();
+                     }
+                 });
+                 
+                 google.script.run.withFailureHandler(function(err) {
+                     console.error("Backend Error:", err);
+                     Swal.fire('Errore', 'Impossibile recuperare i dati', 'error');
+                 }).withSuccessHandler(function(monthlyData) {
+                     console.log("Received monthly data:", monthlyData);
+                     if (!monthlyData) {
+                         Swal.fire('Errore', 'Nessun dato restituito', 'error');
+                         return;
+                     }
+                     
+                     let isIncome = !!monthlyData.income[categoryName];
+                     let trendData = monthlyData.expense[categoryName] || monthlyData.income[categoryName] || new Array(12).fill(0);
+                     
+                     Swal.fire({
+                         title: categoryName,
+                         html: '<div id="catChart" style="width:100%;height:300px;"></div>',
+                         width: 600,
+                         showCloseButton: true,
+                         showConfirmButton: false,
+                         didOpen: () => {
+                             const catChartDom = document.getElementById('catChart');
+                             if (!catChartDom) return;
+                             const catChart = echarts.init(catChartDom);
+                             const isDark = document.body.classList.contains('dark-mode'); 
+                             const txtColor = isDark ? '#b0b0b0' : '#666';
+                             const barColor = isIncome ? '#34c759' : '#ff3b30';
+                             
+                             catChart.setOption({
+                                 tooltip: {
+                                     trigger: 'axis',
+                                     formatter: function (p) {
+                                         if (document.body.classList.contains('privacy-mode')) return p[0].name + '<br/><b>*** €</b>';
+                                         let val = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(p[0].value);
+                                         return p[0].name + '<br/><b>' + val + '</b>';
+                                     }
+                                 },
+                                 grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                                 xAxis: {
+                                     type: 'category',
+                                     data: ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'],
+                                     axisLabel: { color: txtColor }
+                                 },
+                                 yAxis: {
+                                     type: 'value',
+                                     axisLabel: { 
+                                         color: txtColor, 
+                                         formatter: function(val) {
+                                             return document.body.classList.contains('privacy-mode') ? '***' : val + ' €';
+                                         }
+                                     }
+                                 },
+                                 series: [{
+                                     data: trendData,
+                                     type: 'bar',
+                                     itemStyle: { color: barColor, borderRadius: [4, 4, 0, 0] }
+                                 }]
+                             });
+                         }
+                     });
+                 }).getMonthlyCategoryBreakdown(selectedYear);
+             } catch (e) {
+                 console.error("Click handler error:", e);
+             }
+         });
    }
    
    /**
@@ -368,7 +542,12 @@ function renderAssetChart(summary) {
     */
    function updateAllCharts() {
      const allCharts = [myChart, assetChart, analyticsChartInstance, expenseStackInstance, incomeStackInstance, pensionChartInstance, tripChartInstance, sankeyChartInstance, nwTrendChartInstance];
-     allCharts.forEach(chart => { if (chart) chart.update(); });
+     allCharts.forEach(chart => { 
+         if (chart) {
+             if (typeof chart.update === 'function') chart.update();
+             if (typeof chart.resize === 'function') chart.resize();
+         }
+     });
    }
    function getChartTheme() {
        const isDark = document.body.classList.contains('dark-mode');
@@ -489,5 +668,12 @@ function renderAssetChart(summary) {
          }
        });
      }).getHistoricalNetWorthTrend();
-   }
+    }
+    
+    // Add global resize listener to resize ECharts and Chart.js instances when window size changes
+    window.addEventListener('resize', function() {
+        if (typeof updateAllCharts === 'function') {
+            updateAllCharts();
+        }
+    });
 </script>
