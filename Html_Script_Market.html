@@ -6,6 +6,14 @@
     * ======================================================================================
     */
    
+   // --- Scroll Helpers ---
+   function scrollLiveAsset(id, direction) {
+      const container = document.getElementById(id);
+      if(container) {
+         container.scrollBy({ left: direction * 300, behavior: 'smooth' });
+      }
+   }
+   
    // --- Watchlist Management ---
    
    function fetchWatchlist(isUpdate = false) {

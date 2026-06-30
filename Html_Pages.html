@@ -659,8 +659,14 @@
                <div id="portfolio-heatmap-container" class="heatmap-container"></div>
                <div class="live-asset-group">
                   <div class="live-asset-title">
-                     <div style="font-size:14px; font-weight:800; color:var(--text-main);">📈 STOCKS</div>
-                     <div style="font-size:11px; font-weight:700; color:var(--gray);">(24h %)</div>
+                     <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="font-size:14px; font-weight:800; color:var(--text-main);">📈 STOCKS</div>
+                        <div style="font-size:11px; font-weight:700; color:var(--gray);">(24h %)</div>
+                     </div>
+                     <div style="display:flex; gap:4px;">
+                        <button onclick="scrollLiveAsset('live-stocks', -1)" style="background:var(--section-bg); border:1px solid var(--row-border); border-radius:6px; color:var(--gray); cursor:pointer; padding: 2px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); font-weight:bold;">&lt;</button>
+                        <button onclick="scrollLiveAsset('live-stocks', 1)" style="background:var(--section-bg); border:1px solid var(--row-border); border-radius:6px; color:var(--gray); cursor:pointer; padding: 2px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); font-weight:bold;">&gt;</button>
+                     </div>
                   </div>
                   <div id="live-stocks" class="live-scroll">
                      <div style="padding:15px; color:var(--gray); font-size:12px; font-weight:600;">Tap 'Market' tab to refresh...</div>
@@ -668,8 +674,14 @@
                </div>
                <div class="live-asset-group">
                   <div class="live-asset-title">
-                     <div style="font-size:14px; font-weight:800; color:var(--text-main);">📦 ETFs</div>
-                     <div style="font-size:11px; font-weight:700; color:var(--gray);">(24h %)</div>
+                     <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="font-size:14px; font-weight:800; color:var(--text-main);">📦 ETFs</div>
+                        <div style="font-size:11px; font-weight:700; color:var(--gray);">(24h %)</div>
+                     </div>
+                     <div style="display:flex; gap:4px;">
+                        <button onclick="scrollLiveAsset('live-etfs', -1)" style="background:var(--section-bg); border:1px solid var(--row-border); border-radius:6px; color:var(--gray); cursor:pointer; padding: 2px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); font-weight:bold;">&lt;</button>
+                        <button onclick="scrollLiveAsset('live-etfs', 1)" style="background:var(--section-bg); border:1px solid var(--row-border); border-radius:6px; color:var(--gray); cursor:pointer; padding: 2px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); font-weight:bold;">&gt;</button>
+                     </div>
                   </div>
                   <div id="live-etfs" class="live-scroll">
                      <div style="padding:15px; color:var(--gray); font-size:12px; font-weight:600;">Tap 'Market' tab to refresh...</div>
@@ -677,8 +689,14 @@
                </div>
                <div class="live-asset-group" style="margin-bottom:0;">
                   <div class="live-asset-title">
-                     <div style="font-size:14px; font-weight:800; color:var(--text-main);">₿ CRYPTO</div>
-                     <div style="font-size:11px; font-weight:700; color:var(--gray);">(Live Price)</div>
+                     <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="font-size:14px; font-weight:800; color:var(--text-main);">₿ CRYPTO</div>
+                        <div style="font-size:11px; font-weight:700; color:var(--gray);">(Live Price)</div>
+                     </div>
+                     <div style="display:flex; gap:4px;">
+                        <button onclick="scrollLiveAsset('live-crypto', -1)" style="background:var(--section-bg); border:1px solid var(--row-border); border-radius:6px; color:var(--gray); cursor:pointer; padding: 2px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); font-weight:bold;">&lt;</button>
+                        <button onclick="scrollLiveAsset('live-crypto', 1)" style="background:var(--section-bg); border:1px solid var(--row-border); border-radius:6px; color:var(--gray); cursor:pointer; padding: 2px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); font-weight:bold;">&gt;</button>
+                     </div>
                   </div>
                   <div id="live-crypto" class="live-scroll" style="margin-bottom:0; padding-bottom:5px;">
                      <div style="padding:15px; color:var(--gray); font-size:12px; font-weight:600;">Tap 'Market' tab to refresh...</div>
@@ -687,9 +705,15 @@
             </div>
             <div class="dash-widget">
                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px; flex-wrap:wrap; gap:10px;">
-                  <div class="widget-title" style="margin:0;">
-                     <div class="badge-icon bg-purple">⭐</div>
-                     My Watchlist
+                  <div class="widget-title" style="margin:0; display:flex; align-items:center; gap:8px;">
+                     <div style="display:flex; align-items:center;">
+                        <div class="badge-icon bg-purple">⭐</div>
+                        My Watchlist
+                     </div>
+                     <div style="display:flex; gap:4px; margin-left: 10px;">
+                        <button onclick="scrollLiveAsset('wl-list', -1)" style="background:var(--section-bg); border:1px solid var(--row-border); border-radius:6px; color:var(--gray); cursor:pointer; padding: 2px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); font-weight:bold;">&lt;</button>
+                        <button onclick="scrollLiveAsset('wl-list', 1)" style="background:var(--section-bg); border:1px solid var(--row-border); border-radius:6px; color:var(--gray); cursor:pointer; padding: 2px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); font-weight:bold;">&gt;</button>
+                     </div>
                   </div>
                   <div style="display:flex; align-items:center; gap: 10px;">
                      <div style="display:flex; background:var(--section-bg); border-radius:10px; padding:4px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.03);">
