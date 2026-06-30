@@ -39,7 +39,6 @@
    
        if (tab === 'recap') {
            fetchDashboard(); 
-           setTimeout(() => { if (typeof updateAllCharts === 'function') updateAllCharts(); }, 50);
        }
        if (tab === 'market') {
            startMarketPolling(); 
@@ -52,6 +51,10 @@
            fetchInvestHistory();
        }
      }
+     
+     // FIX per grafici schiacciati (ECharts):
+     // Costringe il ridimensionamento dei grafici ogni volta che si cambia tab e il contenitore diventa visibile.
+     setTimeout(() => { if (typeof updateAllCharts === 'function') updateAllCharts(); }, 50);
    }
    
    /**

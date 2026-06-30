@@ -12,9 +12,11 @@
     */
    function renderFinancialChart(year) {
      if (!year) year = document.getElementById('trendYear').value;
-     const ctx = document.getElementById('expensesChart').getContext('2d');
+     const chartDom = document.getElementById('expensesChart');
+     if (!chartDom) return;
      
-     if (myChart) { myChart.destroy(); }
+     if (myChart && typeof myChart.dispose === 'function') { myChart.dispose(); }
+     else if (myChart && typeof myChart.destroy === 'function') { myChart.destroy(); }
      
      google.script.run.withSuccessHandler(data => {
          const colIncome = '#28a745'; 
@@ -22,83 +24,110 @@
          const colSavings = '#007aff';
          
          const avgs = data.averages || { income: 0, expense: 0, savings: 0 };
+         const isPrivacy = document.body.classList.contains('privacy-mode');
          const fmt = (v) => "€ " + new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(v);
          
-         myChart = new Chart(ctx, {
-             type: 'bar',
-             data: {
-                 labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-                 datasets: [
-                     { label: 'Income', data: data.income, backgroundColor: colIncome, borderRadius: 4, order: 2 },
-                     { label: 'Expense', data: data.expense, backgroundColor: colExpense, borderRadius: 4, order: 3 },
-                     { label: 'Savings', data: data.savings, type: 'line', borderColor: colSavings, borderWidth: 2, tension: 0.4, pointRadius: 0, hitRadius: 10, order: 1 }
+         myChart = echarts.init(chartDom);
+         const theme = getChartTheme();
+         
+         const option = {
+             tooltip: {
+                 trigger: 'axis',
+                 axisPointer: { type: 'shadow' },
+                 backgroundColor: theme.tooltipBg,
+                 textStyle: { color: theme.tooltipText },
+                 formatter: function (params) {
+                     let res = params[0].name + '<br/>';
+                     params.forEach(p => {
+                         if (document.body.classList.contains('privacy-mode')) {
+                             res += p.marker + ' ' + p.seriesName + ': <b>****</b><br/>';
+                         } else {
+                             let val = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(p.value);
+                             res += p.marker + ' ' + p.seriesName + ': <b>' + val + '</b><br/>';
+                         }
+                     });
+                     return res;
+                 }
+             },
+             legend: {
+                 data: ['Income', 'Expense', 'Savings'],
+                 bottom: 0,
+                 textStyle: { color: theme.text },
+                 icon: 'circle'
+             },
+             grid: {
+                 top: '50px',
+                 left: '2%',
+                 right: '2%',
+                 bottom: '10%',
+                 containLabel: true
+             },
+             xAxis: {
+                 type: 'category',
+                 data: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                 axisLine: { show: false },
+                 axisTick: { show: false },
+                 axisLabel: { color: theme.text }
+             },
+             yAxis: {
+                 type: 'value',
+                 splitLine: { lineStyle: { color: theme.grid, type: 'dashed' } },
+                 axisLabel: { 
+                     color: theme.text,
+                     formatter: function(val) {
+                         if (document.body.classList.contains('privacy-mode')) return '****';
+                         return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(val);
+                     }
+                 }
+             },
+             graphic: {
+                 elements: [
+                     {
+                         type: 'group',
+                         right: 10,
+                         top: 10,
+                         children: [
+                             {
+                                 type: 'text',
+                                 style: {
+                                     text: isPrivacy ? 'Inc: **** | Exp: **** | Sav: ****' : `Inc: ${fmt(avgs.income)} | Exp: ${fmt(avgs.expense)} | Sav: ${fmt(avgs.savings)}`,
+                                     fill: theme.text,
+                                     font: '600 11px Inter, sans-serif'
+                                 }
+                             }
+                         ]
+                     }
                  ]
              },
-             options: {
-                 responsive: true, maintainAspectRatio: false,
-                 layout: { padding: { top: 40, right: 10 } },
-                 plugins: {
-                     legend: { position: 'bottom', labels: { boxWidth: 8, usePointStyle: true, font: { size: 11 }, padding: 15 } },
-                     tooltip: {
-                         mode: 'index', intersect: false, 
-                         backgroundColor: 'rgba(255, 255, 255, 0.9)', titleColor: '#000', bodyColor: '#000', borderColor: '#ddd', borderWidth: 1,
-                         callbacks: {
-                             label: function(context) {
-                                 let label = context.dataset.label || '';
-                                 if (label) label += ': ';
-                                 // Privacy Masking
-                                 if (document.body.classList.contains('privacy-mode')) return label + '****';
-                                 if (context.parsed.y !== null) label += new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(context.parsed.y);
-                                 return label;
-                             }
-                         }
-                     }
+             series: [
+                 {
+                     name: 'Savings',
+                     type: 'line',
+                     data: data.savings,
+                     itemStyle: { color: colSavings },
+                     lineStyle: { width: 3 },
+                     symbol: 'circle',
+                     symbolSize: 6,
+                     z: 3
                  },
-                 scales: {
-                     x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-                     y: { grid: { color: '#f2f2f7', borderDash: [5, 5] }, border: { display: false }, ticks: { font: { size: 10 }, callback: (v) => (document.body.classList.contains('privacy-mode') ? '****' : new Intl.NumberFormat('it-IT', { notation: "compact" }).format(v)) } }
+                 {
+                     name: 'Income',
+                     type: 'bar',
+                     data: data.income,
+                     itemStyle: { color: colIncome, borderRadius: [4, 4, 0, 0] },
+                     barGap: '10%',
+                     barCategoryGap: '30%'
+                 },
+                 {
+                     name: 'Expense',
+                     type: 'bar',
+                     data: data.expense,
+                     itemStyle: { color: colExpense, borderRadius: [4, 4, 0, 0] }
                  }
-             },
-             plugins: [{
-                 id: 'avgLabels',
-                 afterDraw: (chart) => {
-                     if (document.body.classList.contains('privacy-mode')) return;
-                     
-                     const ctx = chart.ctx; 
-                     const topY = 10; 
-                     let rightX = chart.chartArea.right;
-                     
-                     ctx.save(); 
-                     ctx.font = "600 10px Inter, sans-serif"; 
-                     ctx.textBaseline = "middle";
-                     
-                     const drawBadge = (label, value, color) => {
-                         const text = `${label}: ${fmt(value)}`; 
-                         const width = ctx.measureText(text).width + 16; 
-                         const height = 22; 
-                         const badgeX = rightX - width;
-                         
-                         ctx.fillStyle = color + '15'; 
-                         ctx.beginPath(); 
-                         ctx.roundRect(badgeX, topY, width, height, 6); 
-                         ctx.fill();
-                         
-                         ctx.strokeStyle = color + '40'; 
-                         ctx.lineWidth = 1; 
-                         ctx.stroke();
-                         
-                         ctx.fillStyle = color; 
-                         ctx.fillText(text, badgeX + 8, topY + height / 2 + 1);
-                         rightX -= (width + 6);
-                     };
-                     
-                     drawBadge('Sav', avgs.savings, colSavings); 
-                     drawBadge('Exp', avgs.expense, colExpense); 
-                     drawBadge('Inc', avgs.income, colIncome);
-                     ctx.restore();
-                 }
-             }]
-         });
+             ]
+         };
+         
+         myChart.setOption(option);
      }).getMonthlyChartData(year);
    }
    
@@ -106,11 +135,11 @@
  * Renders the Asset Allocation Doughnut Chart.
  */
 function renderAssetChart(summary) {
-  const canvas = document.getElementById('assetAllocationChart');
-  if (!canvas) return; 
+  const chartDom = document.getElementById('assetAllocationChart');
+  if (!chartDom) return; 
   
-  const ctx = canvas.getContext('2d');
-  if (assetChart) { assetChart.destroy(); }
+  if (assetChart && typeof assetChart.dispose === 'function') { assetChart.dispose(); }
+  else if (assetChart && typeof assetChart.destroy === 'function') { assetChart.destroy(); }
   
   const s = summary || {};
   const valStocks = s.stocks?.raw || 0; 
@@ -119,8 +148,7 @@ function renderAssetChart(summary) {
   const valOthers = s.others?.raw || 0; 
   const valPension = s.pension?.raw || 0;
   
- const valLiquid = s.liquid?.raw || 0;
-
+  const valLiquid = s.liquid?.raw || 0;
   const valRealEstate = s.realEstate?.raw || 0;
   const valBonds = s.bonds?.raw || 0;
   
@@ -128,37 +156,79 @@ function renderAssetChart(summary) {
   const values = [valStocks, valLiquid, valEtfs, valCrypto, valBonds, valRealEstate, valOthers, valPension];
   
   const totalCheck = values.reduce((a, b) => a + b, 0);
-  const finalValues = totalCheck > 0 ? values : [1]; 
   const finalColors = totalCheck > 0 ? ['#28a745', '#007aff', '#555555', '#ffc107', '#32ade6', '#34c759', '#ff2d55', '#fd7e14'] : ['#e5e5ea'];
   
   // FIX: Usa AllocatedTotal per allineare le % al 100% esatto senza lo sfasamento dei debiti
   const chartGrandTotal = s.allocatedTotal > 0 ? s.allocatedTotal : totalCheck;
-
-  assetChart = new Chart(ctx, {
-      type: 'doughnut',
-      data: { labels: labels, datasets: [{ data: finalValues, backgroundColor: finalColors, borderWidth: 0, hoverOffset: 4, borderRadius: 5 }] },
-      options: {
-          responsive: true, maintainAspectRatio: false, cutout: '80%',
-          plugins: {
-              legend: { display: totalCheck > 0, position: 'bottom', labels: { boxWidth: 10, font: { size: 11 }, padding: 15 } },
-              tooltip: {
-                  enabled: totalCheck > 0,
-                  callbacks: {
-                      label: function(context) {
-                          let label = context.label || ''; if (label) label += ': ';
-                          let val = context.raw;
-                          
-                          let percentage = chartGrandTotal > 0 ? ((val / chartGrandTotal) * 100).toFixed(1) + '%' : '0.0%';
-                          
-                          if (document.body.classList.contains('privacy-mode')) return `${label} **** (${percentage})`;
-                          if (val !== null) label += new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val);
-                          return `${label} (${percentage})`;
-                      }
-                  }
-              }
+  
+  const dataSeries = [];
+  if (totalCheck > 0) {
+      for (let i = 0; i < labels.length; i++) {
+          if (values[i] > 0) {
+              dataSeries.push({ value: values[i], name: labels[i], itemStyle: { color: finalColors[i] } });
           }
       }
-  });
+  } else {
+      dataSeries.push({ value: 1, name: 'No Data', itemStyle: { color: '#e5e5ea' } });
+  }
+  
+  assetChart = echarts.init(chartDom);
+  const theme = getChartTheme();
+  
+  const option = {
+      tooltip: {
+          trigger: 'item',
+          backgroundColor: theme.tooltipBg,
+          textStyle: { color: theme.tooltipText },
+          formatter: function (params) {
+              if (totalCheck === 0) return 'No Data';
+              let percentage = chartGrandTotal > 0 ? ((params.value / chartGrandTotal) * 100).toFixed(1) + '%' : '0.0%';
+              let res = params.marker + ' ' + params.name + ': <br/>';
+              if (document.body.classList.contains('privacy-mode')) {
+                  res += '<b>****</b> (' + percentage + ')';
+              } else {
+                  let val = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(params.value);
+                  res += '<b>' + val + '</b> (' + percentage + ')';
+              }
+              return res;
+          }
+      },
+      legend: {
+          show: totalCheck > 0,
+          bottom: 0,
+          textStyle: { color: theme.text },
+          icon: 'circle'
+      },
+      series: [
+          {
+              type: 'pie',
+              radius: ['50%', '80%'],
+              avoidLabelOverlap: false,
+              itemStyle: {
+                  borderRadius: 5,
+                  borderColor: theme.bg,
+                  borderWidth: 2
+              },
+              label: { show: false, position: 'center' },
+              emphasis: {
+                  label: {
+                      show: true,
+                      fontSize: 14,
+                      fontWeight: 'bold',
+                      color: theme.text,
+                      formatter: function(params) {
+                          if (totalCheck === 0) return '';
+                          return params.name + '\n' + (chartGrandTotal > 0 ? ((params.value / chartGrandTotal) * 100).toFixed(1) + '%' : '');
+                      }
+                  }
+              },
+              labelLine: { show: false },
+              data: dataSeries
+          }
+      ]
+  };
+  
+  assetChart.setOption(option);
 }
    
    /**
@@ -179,81 +249,110 @@ function renderAssetChart(summary) {
      };
      
      const createChart = (ctxId, mapData, existingInstance, totalAvgValue, themeColor, specificAverages) => {
-         const ctx = document.getElementById(ctxId).getContext('2d');
-         if (existingInstance) existingInstance.destroy();
+         const chartDom = document.getElementById(ctxId);
+         if (!chartDom) return existingInstance;
+         if (existingInstance && typeof existingInstance.dispose === 'function') existingInstance.dispose();
+         else if (existingInstance && typeof existingInstance.destroy === 'function') existingInstance.destroy();
          
          const sortedCats = Object.keys(mapData).sort();
-         let datasets = [];
-         sortedCats.forEach((cat, i) => { datasets.push({ label: cat, data: mapData[cat], backgroundColor: getCatColor(cat, i), borderRadius: 2 }); });
+         let series = [];
+         sortedCats.forEach((cat, i) => { 
+             series.push({ 
+                 name: cat, 
+                 type: 'bar', 
+                 stack: 'total', 
+                 data: mapData[cat], 
+                 itemStyle: { color: getCatColor(cat, i), borderRadius: [0, 0, 0, 0] },
+                 emphasis: { focus: 'series' }
+             }); 
+         });
          
-         return new Chart(ctx, {
-             type: 'bar',
-             data: { labels: months, datasets: datasets },
-             options: {
-                 responsive: true, 
-                 maintainAspectRatio: false, 
-                 layout: { padding: { top: 35 } },
-                 scales: { 
-                     x: { stacked: true, grid: { display: false }, ticks: {font:{size:10}} }, 
-                     y: { 
-                         stacked: true, 
-                         border: { display: false }, 
-                         grid: { color: '#f2f2f7' }, 
-                         ticks: { 
-                             font:{size:10}, 
-                             callback: function(value) { 
-                                 // Hide Y-axis values in privacy mode
-                                 if (document.body.classList.contains('privacy-mode')) return '****'; 
-                                 return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(value); 
-                             } 
-                         } 
-                     } 
-                 },
-                 plugins: {
-                     legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 10 }, padding: 10, usePointStyle: true } },
-                     tooltip: { 
-                         mode: 'nearest', 
-                         intersect: true, 
-                         backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                         titleColor: '#000', 
-                         bodyColor: '#333', 
-                         borderColor: '#eee', 
-                         borderWidth: 1, 
-                         callbacks: { 
-                             label: function(context) { 
-                                 let label = context.dataset.label || ''; 
-                                 
-                                 // Hide Tooltip values in privacy mode
-                                 if (document.body.classList.contains('privacy-mode')) return label + ': ****'; 
-                                 
-                                 let currentVal = context.parsed.y; 
-                                 let valStr = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(currentVal); 
-                                 let avgStr = ""; 
-                                 if (specificAverages && specificAverages[label]) { 
-                                     let avgVal = specificAverages[label]; 
-                                     let avgFmt = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(avgVal); 
-                                     avgStr = ` (Ø ${avgFmt})`; 
-                                 } 
-                                 return `${label}: ${valStr}${avgStr}`; 
-                             } 
-                         } 
+         const instance = echarts.init(chartDom);
+         const theme = getChartTheme();
+         
+         const option = {
+             tooltip: {
+                 trigger: 'axis',
+                 axisPointer: { type: 'shadow' },
+                 backgroundColor: theme.tooltipBg,
+                 textStyle: { color: theme.tooltipText },
+                 formatter: function (params) {
+                     let res = params[0].name + '<br/>';
+                     const isPrivacy = document.body.classList.contains('privacy-mode');
+                     params.forEach(p => {
+                         if (p.value === 0) return;
+                         let label = p.seriesName;
+                         if (isPrivacy) {
+                             res += p.marker + ' ' + label + ': <b>****</b><br/>';
+                         } else {
+                             let valStr = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(p.value);
+                             let avgStr = "";
+                             if (specificAverages && specificAverages[label]) {
+                                 let avgVal = specificAverages[label];
+                                 let avgFmt = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(avgVal);
+                                 avgStr = ` (Ø ${avgFmt})`;
+                             }
+                             res += p.marker + ' ' + label + ': <b>' + valStr + '</b>' + avgStr + '<br/>';
+                         }
+                     });
+                     return res;
+                 }
+             },
+             legend: {
+                 bottom: 0,
+                 type: 'scroll',
+                 textStyle: { color: theme.text },
+                 icon: 'circle'
+             },
+             grid: {
+                 top: '40px',
+                 left: '2%',
+                 right: '2%',
+                 bottom: '15%',
+                 containLabel: true
+             },
+             xAxis: {
+                 type: 'category',
+                 data: months,
+                 axisLine: { show: false },
+                 axisTick: { show: false },
+                 axisLabel: { color: theme.text }
+             },
+             yAxis: {
+                 type: 'value',
+                 splitLine: { lineStyle: { color: theme.grid, type: 'dashed' } },
+                 axisLabel: {
+                     color: theme.text,
+                     formatter: function(val) {
+                         if (document.body.classList.contains('privacy-mode')) return '****';
+                         return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(val);
                      }
                  }
              },
-             // Custom plugins must be placed OUTSIDE the "options" object
-             plugins: [{
-                 id: 'avgLabelSingle',
-                 afterDraw: (chart) => {
-                     // Hide top right average badge in privacy mode
-                     if (document.body.classList.contains('privacy-mode') || !totalAvgValue) return;
-                     const ctx = chart.ctx; ctx.save(); ctx.font = "600 11px Inter, sans-serif";
-                     const text = "Ø Tot: € " + new Intl.NumberFormat('it-IT', {maximumFractionDigits: 0}).format(totalAvgValue);
-                     const metrics = ctx.measureText(text); const width = metrics.width + 20; const height = 24; const x = chart.chartArea.right - width; const y = 0;
-                     ctx.fillStyle = themeColor + '15'; ctx.beginPath(); ctx.roundRect(x, y, width, height, 8); ctx.fill();
-                     ctx.fillStyle = themeColor; ctx.textBaseline = 'middle'; ctx.fillText(text, x + 10, y + height/2 + 1); ctx.restore();
-                 }
-             }]
-         });
+             graphic: totalAvgValue ? {
+                 elements: [
+                     {
+                         type: 'group',
+                         right: 10,
+                         top: 10,
+                         children: [
+                             {
+                                 type: 'text',
+                                 style: {
+                                     text: document.body.classList.contains('privacy-mode') ? 'Ø Tot: ****' : `Ø Tot: € ${new Intl.NumberFormat('it-IT', {maximumFractionDigits: 0}).format(totalAvgValue)}`,
+                                     fill: theme.text,
+                                     font: '600 11px Inter, sans-serif'
+                                 }
+                             }
+                         ]
+                     }
+                 ]
+             } : null,
+             series: series
+         };
+         
+         instance.setOption(option);
+         return instance;
      };
      
      const catAvgs = data.catAverages || { income: {}, expense: {} };
@@ -265,8 +364,10 @@ function renderAssetChart(summary) {
     * Renders the Pension Growth Chart (Cumulative vs Annual).
     */
    function renderPensionChart(data) {
-     const ctx = document.getElementById('pensionChart').getContext('2d');
-     if (pensionChartInstance) pensionChartInstance.destroy();
+     const chartDom = document.getElementById('pensionChart');
+     if (!chartDom) return;
+     if (pensionChartInstance && typeof pensionChartInstance.dispose === 'function') pensionChartInstance.dispose();
+     else if (pensionChartInstance && typeof pensionChartInstance.destroy === 'function') pensionChartInstance.destroy();
      
      const currentYear = new Date().getFullYear();
      const activeData = data.filter(d => { const y = parseInt(d.year); if (y <= currentYear) return true; return d.annual > 0; });
@@ -319,11 +420,71 @@ function renderAssetChart(summary) {
          document.getElementById('pension-proj').innerHTML = `€ ${projFormatted}<div style="font-size:9px; color:gray; margin-top:2px;">~ € ${monthlyFormatted}/month</div>`;
      }
      
-     pensionChartInstance = new Chart(ctx, {
-         type: 'line',
-         data: { labels: labels, datasets: [ { label: 'Total', data: values, borderColor: '#4b4b4d', backgroundColor: 'rgba(75, 75, 77, 0.1)', borderWidth: 2, fill: true, tension: 0.4, yAxisID: 'y' }, { label: 'Deposit', data: annuals, type: 'bar', backgroundColor: '#34c759', borderWidth: 0, borderRadius: 4, yAxisID: 'y1' } ] },
-         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, y1: { display: false }, x: { grid: { display: false } } } }
-     });
+     pensionChartInstance = echarts.init(chartDom);
+     const theme = getChartTheme();
+     
+     const option = {
+         tooltip: {
+             trigger: 'axis',
+             axisPointer: { type: 'cross' },
+             backgroundColor: theme.tooltipBg,
+             textStyle: { color: theme.tooltipText },
+             formatter: function (params) {
+                 let res = params[0].name + '<br/>';
+                 params.forEach(p => {
+                     let val = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(p.value);
+                     res += p.marker + ' ' + p.seriesName + ': <b>' + (document.body.classList.contains('privacy-mode') ? '****' : val) + '</b><br/>';
+                 });
+                 return res;
+             }
+         },
+         grid: {
+             top: 10,
+             left: 0,
+             right: 0,
+             bottom: 20,
+             containLabel: false
+         },
+         xAxis: {
+             type: 'category',
+             data: labels,
+             axisLine: { show: false },
+             axisTick: { show: false },
+             axisLabel: { color: theme.text, fontSize: 10 }
+         },
+         yAxis: [
+             { type: 'value', show: false },
+             { type: 'value', show: false }
+         ],
+         series: [
+             {
+                 name: 'Total',
+                 type: 'line',
+                 yAxisIndex: 0,
+                 data: values,
+                 itemStyle: { color: '#4b4b4d' },
+                 areaStyle: {
+                     color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                         { offset: 0, color: 'rgba(75, 75, 77, 0.4)' },
+                         { offset: 1, color: 'rgba(75, 75, 77, 0.05)' }
+                     ])
+                 },
+                 lineStyle: { width: 2 },
+                 symbol: 'none',
+                 smooth: 0.4
+             },
+             {
+                 name: 'Deposit',
+                 type: 'bar',
+                 yAxisIndex: 1,
+                 data: annuals,
+                 itemStyle: { color: '#34c759', borderRadius: [4, 4, 0, 0] },
+                 barMaxWidth: 20
+             }
+         ]
+     };
+     
+     pensionChartInstance.setOption(option);
    }
    
    /**
@@ -540,15 +701,28 @@ function renderAssetChart(summary) {
    /**
     * Utility to force update all charts (e.g., when toggling privacy mode).
     */
-   function updateAllCharts() {
-     const allCharts = [myChart, assetChart, analyticsChartInstance, expenseStackInstance, incomeStackInstance, pensionChartInstance, tripChartInstance, sankeyChartInstance, nwTrendChartInstance];
-     allCharts.forEach(chart => { 
-         if (chart) {
-             if (typeof chart.update === 'function') chart.update();
-             if (typeof chart.resize === 'function') chart.resize();
-         }
-     });
-   }
+    function updateAllCharts() {
+      const allCharts = [];
+      if (typeof myChart !== 'undefined' && myChart) allCharts.push(myChart);
+      if (typeof assetChart !== 'undefined' && assetChart) allCharts.push(assetChart);
+      if (typeof analyticsChartInstance !== 'undefined' && analyticsChartInstance) allCharts.push(analyticsChartInstance);
+      if (typeof expenseStackInstance !== 'undefined' && expenseStackInstance) allCharts.push(expenseStackInstance);
+      if (typeof incomeStackInstance !== 'undefined' && incomeStackInstance) allCharts.push(incomeStackInstance);
+      if (typeof pensionChartInstance !== 'undefined' && pensionChartInstance) allCharts.push(pensionChartInstance);
+      if (typeof tripChartInstance !== 'undefined' && tripChartInstance) allCharts.push(tripChartInstance);
+      if (typeof sankeyChartInstance !== 'undefined' && sankeyChartInstance) allCharts.push(sankeyChartInstance);
+      if (typeof nwTrendChartInstance !== 'undefined' && nwTrendChartInstance) allCharts.push(nwTrendChartInstance);
+      if (typeof evoChartInstance !== 'undefined' && evoChartInstance) allCharts.push(evoChartInstance);
+      if (typeof cashflowChartInstance !== 'undefined' && cashflowChartInstance) allCharts.push(cashflowChartInstance);
+      if (typeof cpScatterChartInstance !== 'undefined' && cpScatterChartInstance) allCharts.push(cpScatterChartInstance);
+
+      allCharts.forEach(chart => { 
+          if (chart) {
+              if (typeof chart.update === 'function') chart.update(); // Chart.js
+              if (typeof chart.resize === 'function') chart.resize(); // ECharts
+          }
+      });
+    }
    function getChartTheme() {
        const isDark = document.body.classList.contains('dark-mode');
        return {
@@ -564,13 +738,12 @@ function renderAssetChart(summary) {
     * Renders the Net Worth and Asset Class Historical Trend Chart.
     * Uses Chart.js with responsive datasets and privacy mode support (hides Y-axis and Tooltips).
     */
-   let nwTrendChartInstance = null;
-   
    function renderNetWorthTrendChart() {
-     const canvas = document.getElementById('nwTrendChart');
-     if (!canvas) return; 
+     const chartDom = document.getElementById('nwTrendChart');
+     if (!chartDom) return; 
      
-     const ctx = canvas.getContext('2d');
+     if (nwTrendChartInstance && typeof nwTrendChartInstance.dispose === 'function') nwTrendChartInstance.dispose();
+     else if (nwTrendChartInstance && typeof nwTrendChartInstance.destroy === 'function') nwTrendChartInstance.destroy();
      
      google.script.run.withSuccessHandler(data => {
        const loader = document.getElementById('nw-loading-indicator');
@@ -580,95 +753,95 @@ function renderAssetChart(summary) {
            return;
        }
        
-       if (nwTrendChartInstance) {
-         nwTrendChartInstance.destroy();
-       }
-   
-       const isDark = document.body.classList.contains('dark-mode');
-       const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
-   
-       nwTrendChartInstance = new Chart(ctx, {
-         type: 'line',
-         data: {
-           labels: data.labels,
-           datasets: [
-             { label: 'Total Net Worth', data: data.totalNW, borderColor: '#007aff', backgroundColor: 'rgba(0, 122, 255, 0.1)', borderWidth: 3, fill: true, tension: 0.4, order: 1 },
-             { label: 'Liquid Net Worth', data: data.liquidNW, borderColor: '#34c759', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, borderDash: [5, 5], order: 2 },
-             
-             // USD Counterparts (Hidden by default)
-             { label: 'Total Net Worth (USD)', data: data.totalNW_USD, borderColor: '#5ac8fa', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, borderDash: [2, 2], hidden: true, order: 3 },
-             { label: 'Liquid Net Worth (USD)', data: data.liquidNW_USD, borderColor: '#30b0c7', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, borderDash: [2, 2], hidden: true, order: 4 },
-             
-             // Asset Classes
-             { label: 'Cash', data: data.cash, borderColor: '#32ade6', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 5 },
-             { label: 'Cash Eq', data: data.cashEq, borderColor: '#00c7be', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 6 },
-             { label: 'Stocks', data: data.stocks, borderColor: '#5856d6', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 7 },
-             { label: 'ETFs', data: data.etfs, borderColor: '#8e8e93', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 8 },
-             { label: 'Crypto', data: data.crypto, borderColor: '#ffcc00', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 9 },
-             { label: 'Pension', data: data.pension, borderColor: '#fd7e14', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, hidden: true, order: 10 }
-           ]
-         },
-         options: {
-           responsive: true,
-           maintainAspectRatio: false,
-           interaction: {
-             mode: 'index',
-             intersect: false,
-           },
-           plugins: {
-             legend: { 
-               position: 'bottom', 
-               labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 }, padding: 15 } 
-             },
-             tooltip: {
-               backgroundColor: isDark ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-               titleColor: isDark ? '#fff' : '#000',
-               bodyColor: isDark ? '#ddd' : '#333',
-               borderColor: isDark ? '#333' : '#eee',
-               borderWidth: 1,
-               callbacks: {
-                 label: function(context) {
-                   let label = context.dataset.label || '';
-                   if (label) label += ': ';
-                   
-                   // HIDE DATA IN TOOLTIP ON PRIVACY MODE
-                   if (document.body.classList.contains('privacy-mode')) return label + '****';
-                   
-                   // Dynamic Currency Formatting (EUR vs USD)
-                   let isUSD = label.includes('USD');
-                   let val = new Intl.NumberFormat(isUSD ? 'en-US' : 'it-IT', { 
-                     style: 'currency', 
-                     currency: isUSD ? 'USD' : 'EUR', 
-                     maximumFractionDigits: 0 
-                   }).format(context.parsed.y);
-                   
-                   return label + val;
+       nwTrendChartInstance = echarts.init(chartDom);
+       const theme = getChartTheme();
+       const isPrivacy = document.body.classList.contains('privacy-mode');
+       
+       const option = {
+         tooltip: {
+           trigger: 'axis',
+           backgroundColor: theme.tooltipBg,
+           textStyle: { color: theme.tooltipText },
+           formatter: function (params) {
+             let res = params[0].name + '<br/>';
+             params.forEach(p => {
+                 let isUSD = p.seriesName.includes('USD');
+                 if (isPrivacy) {
+                     res += p.marker + ' ' + p.seriesName + ': <b>****</b><br/>';
+                 } else {
+                     let val = new Intl.NumberFormat(isUSD ? 'en-US' : 'it-IT', { style: 'currency', currency: isUSD ? 'USD' : 'EUR', maximumFractionDigits: 0 }).format(p.value);
+                     res += p.marker + ' ' + p.seriesName + ': <b>' + val + '</b><br/>';
                  }
-               }
-             }
-           },
-           scales: {
-             x: { 
-               grid: { display: false },
-               ticks: { font: { size: 10 } }
-             },
-             y: { 
-               grid: { color: gridColor, borderDash: [5, 5] }, 
-               border: { display: false },
-               ticks: {
-                 font: { size: 10 },
-                 // HIDE DATA ON Y AXIS WHEN PRIVACY MODE IS ACTIVE
-                 callback: function(value) {
-                   if (document.body.classList.contains('privacy-mode')) return '****';
-                   return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(value);
-                 }
-               }
-             }
+             });
+             return res;
            }
-         }
-       });
+         },
+         legend: {
+           bottom: 0,
+           type: 'scroll',
+           textStyle: { color: theme.text },
+           icon: 'circle'
+         },
+         grid: {
+             top: '10px',
+             left: '2%',
+             right: '2%',
+             bottom: '15%',
+             containLabel: true
+         },
+         xAxis: {
+             type: 'category',
+             data: data.labels,
+             axisLine: { show: false },
+             axisTick: { show: false },
+             axisLabel: { color: theme.text }
+         },
+         yAxis: {
+             type: 'value',
+             splitLine: { lineStyle: { color: theme.grid, type: 'dashed' } },
+             axisLabel: {
+                 color: theme.text,
+                 formatter: function(val) {
+                     if (document.body.classList.contains('privacy-mode')) return '****';
+                     return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(val);
+                 }
+             }
+         },
+         series: [
+           { name: 'Total Net Worth', type: 'line', data: data.totalNW, itemStyle: { color: '#007aff' }, areaStyle: { color: 'rgba(0, 122, 255, 0.1)' }, lineStyle: { width: 3 }, symbol: 'none', smooth: 0.4, z: 10 },
+           { name: 'Liquid Net Worth', type: 'line', data: data.liquidNW, itemStyle: { color: '#34c759' }, lineStyle: { type: 'dashed', width: 2 }, symbol: 'none', smooth: 0.4, z: 9 },
+           
+           // USD Counterparts (Hidden by default)
+           { name: 'Total Net Worth (USD)', type: 'line', data: data.totalNW_USD, itemStyle: { color: '#5ac8fa' }, lineStyle: { type: 'dashed', width: 2 }, symbol: 'none', smooth: 0.4 },
+           { name: 'Liquid Net Worth (USD)', type: 'line', data: data.liquidNW_USD, itemStyle: { color: '#30b0c7' }, lineStyle: { type: 'dashed', width: 2 }, symbol: 'none', smooth: 0.4 },
+           
+           // Asset Classes
+           { name: 'Cash', type: 'line', data: data.cash, itemStyle: { color: '#32ade6' }, lineStyle: { width: 2 }, symbol: 'none', smooth: 0.4 },
+           { name: 'Cash Eq', type: 'line', data: data.cashEq, itemStyle: { color: '#00c7be' }, lineStyle: { width: 2 }, symbol: 'none', smooth: 0.4 },
+           { name: 'Stocks', type: 'line', data: data.stocks, itemStyle: { color: '#5856d6' }, lineStyle: { width: 2 }, symbol: 'none', smooth: 0.4 },
+           { name: 'ETFs', type: 'line', data: data.etfs, itemStyle: { color: '#8e8e93' }, lineStyle: { width: 2 }, symbol: 'none', smooth: 0.4 },
+           { name: 'Crypto', type: 'line', data: data.crypto, itemStyle: { color: '#ffcc00' }, lineStyle: { width: 2 }, symbol: 'none', smooth: 0.4 },
+           { name: 'Pension', type: 'line', data: data.pension, itemStyle: { color: '#fd7e14' }, lineStyle: { width: 2 }, symbol: 'none', smooth: 0.4 }
+         ]
+       };
+       
+       // Hide all except total and liquid by default
+       option.legend.selected = {
+           'Total Net Worth': true,
+           'Liquid Net Worth': true,
+           'Total Net Worth (USD)': false,
+           'Liquid Net Worth (USD)': false,
+           'Cash': false,
+           'Cash Eq': false,
+           'Stocks': false,
+           'ETFs': false,
+           'Crypto': false,
+           'Pension': false
+       };
+       
+       nwTrendChartInstance.setOption(option);
      }).getHistoricalNetWorthTrend();
-    }
+   }
     
     // Add global resize listener to resize ECharts and Chart.js instances when window size changes
     window.addEventListener('resize', function() {

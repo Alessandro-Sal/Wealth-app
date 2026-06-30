@@ -122,9 +122,12 @@
    function renderTripChart(trips) {
      const canvas = document.getElementById('tripChart'); 
      if (!canvas) return;
-     const ctx = canvas.getContext('2d');
      
-     if (tripChartInstance) { tripChartInstance.destroy(); }
+     if (tripChartInstance && typeof tripChartInstance.dispose === 'function') {
+         tripChartInstance.dispose();
+     } else if (tripChartInstance && typeof tripChartInstance.destroy === 'function') {
+         tripChartInstance.destroy();
+     }
      
      if (!trips || trips.length === 0) return;
      
@@ -133,36 +136,85 @@
      const dAccom = trips.map(t => t.accom); 
      const dOther = trips.map(t => t.other);
      
-     tripChartInstance = new Chart(ctx, {
-         type: 'bar',
-         data: {
-             labels: labels,
-             datasets: [ 
-                 { label: 'Transport', data: dTransport, backgroundColor: '#5856d6', stack: 'Stack 0' }, 
-                 { label: 'Accommodation', data: dAccom, backgroundColor: '#ff9500', stack: 'Stack 0' }, 
-                 { label: 'Extra', data: dOther, backgroundColor: '#34c759', stack: 'Stack 0' } 
-             ]
-         },
-         options: {
-             responsive: true, maintainAspectRatio: false,
-             plugins: {
-                 legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
-                 tooltip: { 
-                     callbacks: { 
-                         label: function(context) { 
-                             let label = context.dataset.label || ''; 
-                             if (label) { label += ': '; } 
-                             if (context.parsed.y !== null) { label += context.parsed.y.toFixed(0) + '€'; } 
-                             return label; 
-                         } 
-                     } 
-                 }
-             },
-             scales: { 
-                 x: { grid: { display: false }, ticks: { font: { size: 10 } } }, 
-                 y: { stacked: true, grid: { color: '#f2f2f7' }, ticks: { display: false } } 
+     const isDark = document.body.classList.contains('dark-mode');
+     const textColor = isDark ? '#fff' : '#333';
+     const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : '#f2f2f7';
+
+     tripChartInstance = echarts.init(canvas);
+
+     const option = {
+         tooltip: {
+             trigger: 'axis',
+             axisPointer: { type: 'shadow' },
+             backgroundColor: isDark ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+             textStyle: { color: isDark ? '#fff' : '#333' },
+             borderColor: isDark ? '#333' : '#eee',
+             borderWidth: 1,
+             formatter: function(params) {
+                 const isPrivacy = document.body.classList.contains('privacy-mode');
+                 let result = `<strong>${params[0].name}</strong><br/>`;
+                 params.forEach(p => {
+                     let val = isPrivacy ? '****' : p.value.toFixed(0) + '€';
+                     result += `${p.marker} ${p.seriesName}: <b>${val}</b><br/>`;
+                 });
+                 return result;
              }
-         }
-     });
+         },
+         legend: {
+             data: ['Transport', 'Accommodation', 'Extra'],
+             bottom: 0,
+             textStyle: { color: textColor, fontSize: 10 },
+             icon: 'circle'
+         },
+         grid: {
+             left: '2%',
+             right: '2%',
+             bottom: '15%',
+             top: '5%',
+             containLabel: true
+         },
+         xAxis: {
+             type: 'category',
+             data: labels,
+             axisLabel: { color: textColor, fontSize: 10 },
+             axisLine: { show: false },
+             axisTick: { show: false },
+             splitLine: { show: false }
+         },
+         yAxis: {
+             type: 'value',
+             axisLabel: { show: false },
+             splitLine: {
+                 lineStyle: {
+                     color: gridColor
+                 }
+             }
+         },
+         series: [
+             {
+                 name: 'Transport',
+                 type: 'bar',
+                 stack: 'Total',
+                 data: dTransport,
+                 itemStyle: { color: '#5856d6' }
+             },
+             {
+                 name: 'Accommodation',
+                 type: 'bar',
+                 stack: 'Total',
+                 data: dAccom,
+                 itemStyle: { color: '#ff9500' }
+             },
+             {
+                 name: 'Extra',
+                 type: 'bar',
+                 stack: 'Total',
+                 data: dOther,
+                 itemStyle: { color: '#34c759' } // Note: ECharts doesn't support border radius on stacked bars as easily without cutting overlapping segments, but we can omit it here.
+             }
+         ]
+     };
+
+     tripChartInstance.setOption(option);
    }
 </script>

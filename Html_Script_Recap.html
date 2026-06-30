@@ -126,8 +126,6 @@ function sortEvoTable(colIndex) {
 function renderEvoChart(data) {
     const canvas = document.getElementById('evoChart');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    
     if (evoChartInstance) {
         evoChartInstance.destroy();
     }
@@ -152,66 +150,88 @@ function renderEvoChart(data) {
     const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
     const textColor = isDark ? '#fff' : '#333';
 
-    if (evoChartInstance) { evoChartInstance.destroy(); }
+    if (evoChartInstance && typeof evoChartInstance.dispose === 'function') {
+        evoChartInstance.dispose();
+    } else if (evoChartInstance && typeof evoChartInstance.destroy === 'function') {
+        evoChartInstance.destroy();
+    }
 
-    evoChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Invested',
-                    data: investedData,
-                    backgroundColor: '#8e8e93', // Gray
-                    borderRadius: 4
-                },
-                {
-                    label: 'Value',
-                    data: valueData,
-                    backgroundColor: '#007aff', // Blue
-                    borderRadius: 4
-                }
-            ]
+    evoChartInstance = echarts.init(canvas);
+
+    const option = {
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+            backgroundColor: isDark ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            textStyle: { color: isDark ? '#fff' : '#333' },
+            borderColor: isDark ? '#333' : '#eee',
+            borderWidth: 1,
+            formatter: function(params) {
+                const isPrivacy = document.body.classList.contains('privacy-mode');
+                let result = `<strong>${params[0].name}</strong><br/>`;
+                params.forEach(p => {
+                    let formatted = isPrivacy ? '****' : new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(p.value);
+                    result += `${p.marker} ${p.seriesName}: <b>${formatted}</b><br/>`;
+                });
+                return result;
+            }
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { color: textColor, font: { size: 11 }, usePointStyle: true, boxWidth: 8, padding: 20 }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            // Mask values in privacy mode
-                            if (document.body.classList.contains('privacy-mode')) return context.dataset.label + ': ****';
-                            return context.dataset.label + ': ' + new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(context.raw);
-                        }
-                    }
+        legend: {
+            data: ['Invested', 'Value'],
+            bottom: 0,
+            textStyle: { color: textColor, fontSize: 11 },
+            icon: 'circle'
+        },
+        grid: {
+            left: '2%',
+            right: '2%',
+            bottom: '12%',
+            top: '5%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: labels,
+            axisLabel: { color: textColor, fontSize: 10, fontWeight: 'bold', interval: 0, rotate: 45 },
+            axisLine: { show: false },
+            axisTick: { show: false },
+            splitLine: { show: false }
+        },
+        yAxis: {
+            type: 'value',
+            axisLabel: {
+                color: textColor,
+                fontSize: 10,
+                formatter: function(value) {
+                    if (document.body.classList.contains('privacy-mode')) return '****';
+                    return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(value);
                 }
             },
-            scales: {
-                x: {
-                    grid: { display: false },
-                    ticks: { color: textColor, font: { size: 10, weight: 'bold' } }
-                },
-                y: {
-                    grid: { color: gridColor, borderDash: [5, 5] },
-                    border: { display: false },
-                    ticks: {
-                        color: textColor,
-                        font: { size: 10 },
-                        callback: function(value) {
-                            // Mask y-axis ticks in privacy mode
-                            if (document.body.classList.contains('privacy-mode')) return '****';
-                            return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(value);
-                        }
-                    }
+            splitLine: {
+                lineStyle: {
+                    color: gridColor,
+                    type: 'dashed'
                 }
             }
-        }
-    });
+        },
+        series: [
+            {
+                name: 'Invested',
+                type: 'bar',
+                data: investedData,
+                itemStyle: { color: '#8e8e93', borderRadius: [4, 4, 0, 0] },
+                barGap: '0%'
+            },
+            {
+                name: 'Value',
+                type: 'bar',
+                data: valueData,
+                itemStyle: { color: '#007aff', borderRadius: [4, 4, 0, 0] }
+            }
+        ]
+    };
+
+    evoChartInstance.setOption(option);
 }
 
 // --- GLOBAL VARIABLES FOR CASHFLOW ---
@@ -307,8 +327,6 @@ function renderCashflowTable(data) {
 function renderCashflowChart(data) {
     const canvas = document.getElementById('cashflowChart');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    
     if (cashflowChartInstance) {
         cashflowChartInstance.destroy();
     }
@@ -338,65 +356,88 @@ function renderCashflowChart(data) {
     const textColor = isDark ? '#fff' : '#333';
     const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
 
-    if (cashflowChartInstance) { cashflowChartInstance.destroy(); }
+    if (cashflowChartInstance && typeof cashflowChartInstance.dispose === 'function') {
+        cashflowChartInstance.dispose();
+    } else if (cashflowChartInstance && typeof cashflowChartInstance.destroy === 'function') {
+        cashflowChartInstance.destroy();
+    }
 
-    cashflowChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: years,
-            datasets: [
-                {
-                    label: 'Total Deposits (Buys)',
-                    data: yearlyDeposits,
-                    backgroundColor: '#ff9500', // Warning/Orange
-                    borderRadius: 4
-                },
-                {
-                    label: 'Total Inflow (Sells + Divs)',
-                    data: yearlyInflows,
-                    backgroundColor: '#34c759', // Success/Green
-                    borderRadius: 4
-                }
-            ]
+    cashflowChartInstance = echarts.init(canvas);
+
+    const option = {
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+            backgroundColor: isDark ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            textStyle: { color: isDark ? '#fff' : '#333' },
+            borderColor: isDark ? '#333' : '#eee',
+            borderWidth: 1,
+            formatter: function(params) {
+                const isPrivacy = document.body.classList.contains('privacy-mode');
+                let result = `<strong>${params[0].name}</strong><br/>`;
+                params.forEach(p => {
+                    let formatted = isPrivacy ? '****' : new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(p.value);
+                    result += `${p.marker} ${p.seriesName}: <b>${formatted}</b><br/>`;
+                });
+                return result;
+            }
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { color: textColor, font: { size: 11 }, usePointStyle: true, boxWidth: 8, padding: 20 }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            // Apply privacy mode to tooltips
-                            if (document.body.classList.contains('privacy-mode')) return context.dataset.label + ': ****';
-                            return context.dataset.label + ': ' + new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(context.raw);
-                        }
-                    }
+        legend: {
+            data: ['Total Deposits (Buys)', 'Total Inflow (Sells + Divs)'],
+            bottom: 0,
+            textStyle: { color: textColor, fontSize: 11 },
+            icon: 'circle'
+        },
+        grid: {
+            left: '2%',
+            right: '2%',
+            bottom: '12%',
+            top: '5%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: years,
+            axisLabel: { color: textColor, fontSize: 10, fontWeight: 'bold' },
+            axisLine: { show: false },
+            axisTick: { show: false },
+            splitLine: { show: false }
+        },
+        yAxis: {
+            type: 'value',
+            axisLabel: {
+                color: textColor,
+                fontSize: 10,
+                formatter: function(value) {
+                    if (document.body.classList.contains('privacy-mode')) return '****';
+                    return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(value);
                 }
             },
-            scales: {
-                x: {
-                    grid: { display: false },
-                    ticks: { color: textColor, font: { weight: 'bold' } }
-                },
-                y: {
-                    grid: { color: gridColor, borderDash: [5, 5] },
-                    border: { display: false },
-                    ticks: {
-                        color: textColor,
-                        callback: function(value) {
-                            // Apply privacy mode to y-axis
-                            if (document.body.classList.contains('privacy-mode')) return '****';
-                            return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(value);
-                        }
-                    }
+            splitLine: {
+                lineStyle: {
+                    color: gridColor,
+                    type: 'dashed'
                 }
             }
-        }
-    });
+        },
+        series: [
+            {
+                name: 'Total Deposits (Buys)',
+                type: 'bar',
+                data: yearlyDeposits,
+                itemStyle: { color: '#ff9500', borderRadius: [4, 4, 0, 0] },
+                barGap: '0%'
+            },
+            {
+                name: 'Total Inflow (Sells + Divs)',
+                type: 'bar',
+                data: yearlyInflows,
+                itemStyle: { color: '#34c759', borderRadius: [4, 4, 0, 0] }
+            }
+        ]
+    };
+
+    cashflowChartInstance.setOption(option);
 }
 
 // --- GLOBAL VARIABLES FOR CLOSED POSITIONS ---
@@ -670,8 +711,6 @@ let cpScatterChartInstance = null;
 function renderCPScatterChart() {
     const canvas = document.getElementById('cpScatterChart');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-
     if (cpScatterChartInstance) cpScatterChartInstance.destroy();
 
     // Map and clean data for the scatter plot
@@ -692,66 +731,93 @@ function renderCPScatterChart() {
     const textColor = isDark ? '#fff' : '#333';
     const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
 
-    // Dividi profitti e perdite per colorare i puntini di verde o rosso
     const wins = scatterData.filter(d => d.y >= 0);
     const losses = scatterData.filter(d => d.y < 0);
 
-    if (cpScatterChartInstance) { cpScatterChartInstance.destroy(); }
+    if (cpScatterChartInstance && typeof cpScatterChartInstance.dispose === 'function') {
+        cpScatterChartInstance.dispose();
+    } else if (cpScatterChartInstance && typeof cpScatterChartInstance.destroy === 'function') {
+        cpScatterChartInstance.destroy();
+    }
 
-    cpScatterChartInstance = new Chart(ctx, {
-        type: 'scatter',
-        data: {
-            datasets: [
-                {
-                    label: 'Profit Trades',
-                    data: wins,
-                    backgroundColor: 'rgba(52, 199, 89, 0.7)',
-                    borderColor: 'rgba(52, 199, 89, 1)',
-                    pointRadius: 6,
-                    pointHoverRadius: 9
-                },
-                {
-                    label: 'Loss Trades',
-                    data: losses,
-                    backgroundColor: 'rgba(255, 59, 48, 0.7)',
-                    borderColor: 'rgba(255, 59, 48, 1)',
-                    pointRadius: 6,
-                    pointHoverRadius: 9
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'top', labels: { color: textColor, font: { size: 10, weight: 'bold' }, usePointStyle: true, boxWidth: 6 } },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            let raw = context.raw;
-                            let privacy = document.body.classList.contains('privacy-mode');
-                            let pnlStr = privacy ? '****' : new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(raw.pnl);
-                            return `${raw.ticker} | Days Held: ${raw.x} | ROI: ${raw.y.toFixed(2)}% | P&L: ${pnlStr}`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    type: 'linear',
-                    position: 'bottom',
-                    title: { display: true, text: 'Days Held', color: textColor, font: { weight: 'bold', size: 11 } },
-                    ticks: { color: textColor, font: { size: 10 } },
-                    grid: { color: gridColor }
-                },
-                y: {
-                    title: { display: true, text: 'ROI %', color: textColor, font: { weight: 'bold', size: 11 } },
-                    ticks: { color: textColor, callback: v => v + '%', font: { size: 10 } },
-                    grid: { color: gridColor, borderDash: [5, 5] }
-                }
+    cpScatterChartInstance = echarts.init(canvas);
+
+    const option = {
+        tooltip: {
+            trigger: 'item',
+            backgroundColor: isDark ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            textStyle: { color: isDark ? '#fff' : '#333' },
+            borderColor: isDark ? '#333' : '#eee',
+            borderWidth: 1,
+            formatter: function(params) {
+                let raw = params.data; // [x, y, ticker, pnl]
+                let privacy = document.body.classList.contains('privacy-mode');
+                let pnlStr = privacy ? '****' : new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(raw[3]);
+                return `<strong>${raw[2]}</strong><br/>Days Held: ${raw[0]}<br/>ROI: ${raw[1].toFixed(2)}%<br/>P&L: ${pnlStr}`;
             }
-        }
-    });
+        },
+        legend: {
+            data: ['Profit Trades', 'Loss Trades'],
+            top: 0,
+            textStyle: { color: textColor, fontSize: 10, fontWeight: 'bold' },
+            icon: 'circle'
+        },
+        grid: {
+            left: '2%',
+            right: '2%',
+            bottom: '5%',
+            top: '15%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'value',
+            name: 'Days Held',
+            nameLocation: 'middle',
+            nameGap: 25,
+            nameTextStyle: { color: textColor, fontWeight: 'bold', fontSize: 11 },
+            axisLabel: { color: textColor, fontSize: 10 },
+            splitLine: { lineStyle: { color: gridColor } }
+        },
+        yAxis: {
+            type: 'value',
+            name: 'ROI %',
+            nameTextStyle: { color: textColor, fontWeight: 'bold', fontSize: 11 },
+            axisLabel: {
+                color: textColor,
+                fontSize: 10,
+                formatter: '{value}%'
+            },
+            splitLine: {
+                lineStyle: { color: gridColor, type: 'dashed' }
+            }
+        },
+        series: [
+            {
+                name: 'Profit Trades',
+                type: 'scatter',
+                data: wins.map(w => [w.x, w.y, w.ticker, w.pnl]),
+                itemStyle: {
+                    color: 'rgba(52, 199, 89, 0.7)',
+                    borderColor: 'rgba(52, 199, 89, 1)',
+                    borderWidth: 1
+                },
+                symbolSize: 10
+            },
+            {
+                name: 'Loss Trades',
+                type: 'scatter',
+                data: losses.map(l => [l.x, l.y, l.ticker, l.pnl]),
+                itemStyle: {
+                    color: 'rgba(255, 59, 48, 0.7)',
+                    borderColor: 'rgba(255, 59, 48, 1)',
+                    borderWidth: 1
+                },
+                symbolSize: 10
+            }
+        ]
+    };
+
+    cpScatterChartInstance.setOption(option);
 }
 /**
  * Calls the backend to retrieve the summary of Real Estate, Bonds, and Liabilities.

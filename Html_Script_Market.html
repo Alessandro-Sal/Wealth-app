@@ -795,7 +795,7 @@
          analyticsDataCache = data;
          const container = document.getElementById('chartContainer');
          if (!document.getElementById('analyticsChart') && container) { 
-             container.innerHTML = '<canvas id="analyticsChart"></canvas>'; 
+             container.innerHTML = '<div id="analyticsChart" style="width: 100%; height: 100%;"></div>'; 
          }
          updateAnalyticsChart();
      }).getAnalyticsData();
@@ -814,7 +814,6 @@ function updateAnalyticsChart() {
     if (!analyticsDataCache) return;
     const ctxEl = document.getElementById('analyticsChart'); 
     if (!ctxEl) return;
-    const ctx = ctxEl.getContext('2d');
     
     const assetType = document.getElementById('assetSelect').value; 
     const chartType = document.getElementById('chartSelect').value; 
@@ -959,106 +958,142 @@ function updateAnalyticsChart() {
         }
     }
     
-    if (analyticsChartInstance) { analyticsChartInstance.destroy(); }
+    if (analyticsChartInstance && typeof analyticsChartInstance.dispose === 'function') {
+        analyticsChartInstance.dispose();
+    } else if (analyticsChartInstance && typeof analyticsChartInstance.destroy === 'function') {
+        analyticsChartInstance.destroy();
+    }
     
+    analyticsChartInstance = echarts.init(ctxEl);
+
     const isPie = ['breakdown', 'winloss', 'sector', 'industry', 'country', 'currency'].includes(chartType);
     const isScatter = chartType === 'efficiency';
     
-    // Impostazioni Globali Chart.js per dark mode
     const isDark = document.body.classList.contains('dark-mode');
     const textColor = isDark ? '#fff' : '#8e8e93';
     const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)';
 
-    analyticsChartInstance = new Chart(ctx, {
-        type: isScatter ? 'scatter' : (isPie ? 'doughnut' : 'bar'),
-        data: { 
-            labels: labels, 
-            datasets: [{ 
-                data: values, 
-                backgroundColor: colors, 
-                borderWidth: isPie ? 2 : 0, // Bordo solo per le torte
-                borderColor: isDark ? '#1c1c1e' : '#fff',
-                borderRadius: isPie || isScatter ? 0 : 6, // Angoli arrotondati premium per le barre
-                pointRadius: isScatter ? 6 : undefined,
-                pointHoverRadius: isScatter ? 9 : undefined
-            }] 
-        },
-        options: {
-            responsive: true, 
-            maintainAspectRatio: false,
-            cutout: isPie ? '75%' : undefined, // Torta più sottile ed elegante
-            plugins: {
-                legend: { 
-                    display: isPie, 
-                    position: 'right', 
-                    labels: { color: textColor, font: { size: 11, family: 'Inter' }, boxWidth: 10, padding: 12 } 
-                },
-                tooltip: {
-                    backgroundColor: isDark ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                    titleColor: isDark ? '#fff' : '#000',
-                    bodyColor: isDark ? '#ddd' : '#333',
-                    borderColor: isDark ? '#333' : '#eee',
-                    borderWidth: 1,
-                    padding: 10,
-                    callbacks: {
-                        label: function(context) {
-                            let label = context.label || ''; 
-                            let val = Number(context.parsed.y !== undefined && !isPie ? context.parsed.y : context.parsed); 
-                            const idx = context.dataIndex;
-                            
-                            if (formatType === 'scatter') {
-                                let raw = context.raw; 
-                                let formattedEur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(raw.gainEur);
-                                return isPrivacy ? `${raw.ticker} | ROI: ${raw.y.toFixed(2)}% | P&L: ****` : `${raw.ticker} | ROI: ${raw.y.toFixed(2)}% | P&L: ${formattedEur}`;
-                            }
+    let seriesData = [];
+    if (isScatter) {
+        seriesData = values.map((v, i) => [v.x, v.y, v.ticker, v.gainEur, Array.isArray(colors) ? colors[i] : colors]);
+    } else if (isPie) {
+        seriesData = values.map((v, i) => ({ value: v, name: labels[i], itemStyle: { color: Array.isArray(colors) ? colors[i] : colors } }));
+    } else {
+        seriesData = values.map((v, i) => ({ 
+            value: v, 
+            itemStyle: { color: Array.isArray(colors) ? colors[i] : colors },
+            secondary: secondaryValues[i] !== undefined ? secondaryValues[i] : null
+        }));
+    }
 
-                            if (formatType === 'percent_combo') { 
-                                let eurVal = secondaryValues[idx]; 
-                                let formattedEur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(eurVal); 
-                                return isPrivacy ? `${label}: ${val}% (Gain: ***)` : `${label}: ${val}% (Gain: ${formattedEur})`; 
-                            }
-                            if (formatType === 'currency') { 
-                                let suffix = ""; 
-                                if ((isPie || chartType === 'invested' || chartType === 'breakdown') && totalValue > 0) { 
-                                    let pct = ((val / totalValue) * 100).toFixed(1); 
-                                    suffix = ` (${pct}%)`; 
-                                } 
-                                if (isPrivacy) return `${label}: ***${suffix}`; 
-                                let formattedEur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val); 
-                                return `${label}: ${formattedEur}${suffix}`; 
-                            }
-                            if (formatType === 'percent') return `${label}: ${val}%`; 
-                            return `${label}: ${val}`;
-                        }
-                    }
+    const option = {
+        tooltip: {
+            trigger: isPie || isScatter ? 'item' : 'axis',
+            backgroundColor: isDark ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            textStyle: { color: isDark ? '#fff' : '#333' },
+            borderColor: isDark ? '#333' : '#eee',
+            borderWidth: 1,
+            formatter: function(params) {
+                let p = Array.isArray(params) ? params[0] : params;
+                let isPrivacy = document.body.classList.contains('privacy-mode');
+                
+                if (isScatter) {
+                    let d = p.data; // [x, y, ticker, gainEur, color]
+                    let formattedEur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(d[3]);
+                    return isPrivacy ? `${d[2]}<br/>ROI: ${d[1].toFixed(2)}%<br/>P&L: ****` : `${d[2]}<br/>ROI: ${d[1].toFixed(2)}%<br/>P&L: ${formattedEur}`;
                 }
-            },
-            scales: { 
-                x: { 
-                    display: !isPie, 
-                    type: isScatter ? 'linear' : 'category',
-                    title: { display: isScatter, text: isScatter ? 'Days Held' : '', color: textColor, font: { weight: 'bold' } },
-                    ticks: { color: textColor, font: {size: 10}, maxRotation: 45, minRotation: 0 }, 
-                    grid: { display: false } 
-                }, 
-                y: { 
-                    display: !isPie, 
-                    title: { display: isScatter, text: isScatter ? 'ROI %' : '', color: textColor, font: { weight: 'bold' } },
-                    border: { display: false },
-                    ticks: { 
-                        color: textColor, 
-                        font: {size: 10},
-                        callback: function(value) { 
-                            if (document.body.classList.contains('privacy-mode')) return '****'; 
-                            if (formatType === 'percent' || formatType === 'percent_combo' || formatType === 'scatter') return value + '%'; 
-                            return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(value); 
-                        } 
-                    }, 
-                    grid: { color: gridColor, drawBorder: false } 
-                } 
+                
+                let label = p.name;
+                let val = p.value;
+                
+                if (formatType === 'percent_combo') {
+                    let eurVal = p.data.secondary;
+                    let formattedEur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(eurVal);
+                    return isPrivacy ? `${label}: ${val}%<br/>Gain: ***` : `${label}: ${val}%<br/>Gain: ${formattedEur}`;
+                }
+                
+                if (formatType === 'currency') {
+                    let suffix = ""; 
+                    if ((isPie || chartType === 'invested' || chartType === 'breakdown') && totalValue > 0) { 
+                        let pct = ((val / totalValue) * 100).toFixed(1); 
+                        suffix = ` (${pct}%)`; 
+                    } 
+                    if (isPrivacy) return `${label}: ***${suffix}`; 
+                    let formattedEur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val); 
+                    return `${label}: ${formattedEur}${suffix}`;
+                }
+                
+                if (formatType === 'percent') return `${label}: ${val}%`; 
+                if (formatType === 'number') return `${label}: ${val}`;
+                return `${label}: ${val}`;
             }
-        }
-    });
+        },
+        grid: {
+            top: 20,
+            left: '2%',
+            right: isPie ? '35%' : '2%', // Leave room for legend if pie
+            bottom: '5%',
+            containLabel: true
+        },
+        xAxis: {
+            show: !isPie,
+            type: isScatter ? 'value' : 'category',
+            name: isScatter ? 'Days Held' : '',
+            nameLocation: 'middle',
+            nameGap: 25,
+            nameTextStyle: { color: textColor, fontWeight: 'bold' },
+            data: !isScatter ? labels : undefined,
+            axisLabel: { color: textColor, fontSize: 10, interval: 0, rotate: 45 },
+            axisLine: { show: false },
+            axisTick: { show: false },
+            splitLine: { show: false }
+        },
+        yAxis: {
+            show: !isPie,
+            type: 'value',
+            name: isScatter ? 'ROI %' : '',
+            nameTextStyle: { color: textColor, fontWeight: 'bold' },
+            splitLine: { lineStyle: { color: gridColor, type: 'dashed' } },
+            axisLabel: {
+                color: textColor,
+                fontSize: 10,
+                formatter: function(value) {
+                    if (document.body.classList.contains('privacy-mode')) return '****';
+                    if (formatType === 'percent' || formatType === 'percent_combo' || formatType === 'scatter') return value + '%';
+                    return new Intl.NumberFormat('it-IT', { notation: "compact" }).format(value);
+                }
+            }
+        },
+        series: [{
+            type: isScatter ? 'scatter' : (isPie ? 'pie' : 'bar'),
+            radius: isPie ? ['45%', '75%'] : undefined,
+            center: isPie ? ['40%', '50%'] : undefined,
+            itemStyle: isScatter ? {
+                color: (params) => params.data[4]
+            } : (isPie ? {
+                borderColor: isDark ? '#1c1c1e' : '#fff',
+                borderWidth: 2
+            } : {
+                borderRadius: [6, 6, 0, 0]
+            }),
+            symbolSize: isScatter ? 10 : undefined,
+            data: seriesData,
+            label: { show: false } // We only rely on tooltips
+        }]
+    };
+    
+    if (isPie) {
+        option.legend = {
+            type: 'scroll',
+            orient: 'vertical',
+            right: 0,
+            top: 'center',
+            textStyle: { color: textColor, fontSize: 11 },
+            icon: 'circle'
+        };
+    }
+
+    analyticsChartInstance.setOption(option);
 }
    /**
     * Market Data Polling Management.
