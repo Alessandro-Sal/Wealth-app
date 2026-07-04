@@ -155,6 +155,12 @@ function handleTypeChange() {
          splitToggle.checked = false;
          if (typeof toggleSplitSection === 'function') toggleSplitSection();
      }
+     
+     window.editingTx = null;
+     const btnSave = document.querySelector('.btn-save:not(.btn-invest)');
+     if (btnSave) {
+         btnSave.innerText = "SAVE TRANSACTION";
+     }
    }
    
    /**
@@ -280,8 +286,8 @@ function sendTransaction() {
          }
      }
 
-     const originalText = btn.innerText; 
-     btn.innerText = "⏳ SAVING..."; 
+     const originalText = window.editingTx ? "UPDATE TRANSACTION" : "SAVE TRANSACTION";
+     btn.innerText = window.editingTx ? "⏳ UPDATING..." : "⏳ SAVING..."; 
      btn.classList.add('btn-loading');
      
      // --- OPTIMISTIC UI: Immediately add transaction to history ---
@@ -304,10 +310,21 @@ function sendTransaction() {
          }
      }
      
+     let payload = { type, category, details: details || "No Note", amounts, splitData };
+     let apiCall = 'addTransaction';
+     if (window.editingTx) {
+         apiCall = 'updateTransaction';
+         payload.row = window.editingTx.row;
+         payload.sheetName = window.editingTx.sheet;
+     }
+     
      google.script.run.withSuccessHandler(m => { 
          btn.innerText = originalText; 
          btn.classList.remove('btn-loading'); 
          Swal.fire({ icon: 'success', title: 'Saved!', text: details || 'Transaction recorded', showConfirmButton: false, timer: 1500 }); 
+         
+         if (window.editingTx) { window.editingTx = null; }
+
          // FIX (2.12): i 3 refresh principali della dashboard (storico, saldi, budget) in UN
          // solo round-trip via getPostTransactionRefresh (FASE 2). Prima erano 3 chiamate
          // google.script.run separate. subs/credits restano separati perché aggiornano
@@ -324,7 +341,65 @@ function sendTransaction() {
          btn.innerText = originalText; 
          btn.classList.remove('btn-loading'); 
          Swal.fire({ icon: 'error', title: 'Error', text: err.message }); 
-     }).addTransaction({ type, category, details: details || "No Note", amounts, splitData });
+     })[apiCall](payload);
+   }
+   
+   function editTx(sheet, row) {
+     if (navigator.vibrate) navigator.vibrate(50);
+     const isDark = document.body.classList.contains('dark-mode');
+     
+     Swal.fire({ title: 'Loading...', timerProgressBar: true, didOpen: () => { Swal.showLoading() }, background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000' });
+     
+     google.script.run.withSuccessHandler(res => {
+         Swal.close();
+         
+         if (typeof changeTab === 'function') changeTab('add');
+         closeAllSheets();
+         
+         window.editingTx = { sheet: res.sheetName, row: res.row };
+         
+         document.getElementById('tType').value = res.type;
+         handleTypeChange();
+         document.getElementById('tCat').value = res.category;
+         document.getElementById('tDet').value = res.details;
+         
+         document.querySelectorAll('.input-wrapper').forEach(wrapper => { 
+              let i = wrapper.querySelector('.bank-in');
+              if(i) {
+                  let colIndex = i.getAttribute('data-col');
+                  if (res.amounts && res.amounts[colIndex]) {
+                      let amount = parseFloat(res.amounts[colIndex]);
+                      let isMinus = amount < 0;
+                      let absAmount = Math.abs(amount);
+                      
+                      i.value = absAmount;
+                      
+                      let icon = wrapper.querySelector('.sign-toggle');
+                      if (icon) {
+                          if (isMinus) {
+                              icon.classList.remove('sign-plus');
+                              icon.classList.add('sign-minus');
+                              icon.innerHTML = '&#8722;';
+                              i.style.color = 'var(--danger)';
+                          } else {
+                              icon.classList.remove('sign-minus');
+                              icon.classList.add('sign-plus');
+                              icon.innerText = '+';
+                              i.style.color = 'var(--stocks-bg)';
+                          }
+                      }
+                  } else {
+                      i.value = ""; 
+                  }
+              }
+          });
+          
+          const btn = document.querySelector('.btn-save:not(.btn-invest)');
+          if (btn) btn.innerText = "UPDATE TRANSACTION";
+          
+     }).withFailureHandler(err => {
+         Swal.fire({ icon: 'error', title: 'Error', text: err.message });
+     }).getTransactionDetails(sheet, row);
    }
    
    function deleteTx(sheet, row) {
@@ -545,7 +620,20 @@ function sendInvestment() {
              else if (r.type === 'Investment') colorStyle = 'var(--invest-bg)'; 
              else if (r.type === 'Transfer') colorStyle = 'var(--primary)';
              
-             html += `<div class="search-res-item"><div class="sr-left"><span class="sr-cat">${r.category} <span style="font-weight:normal; font-size:11px;">(${r.type})</span></span><span class="sr-note">${r.details}</span><span class="sr-date">${r.date}</span></div><div class="sr-amt sensitive" style="color:${colorStyle}">${parseFloat(r.amount).toFixed(2)} €</div></div>`;
+             let editBtn = (r.type === 'Investment' || r.type === 'Pension' || r.type === 'Debt') ? '' : `<span class="sr-edit" style="cursor:pointer; margin-right:8px;" onclick="editTx('${r.sheet}', ${r.row})">✏️</span>`;
+             let delBtn = `<span class="sr-del" style="cursor:pointer;" onclick="deleteTx('${r.sheet}', ${r.row})">🗑️</span>`;
+             
+             html += `<div class="search-res-item">
+                        <div class="sr-left">
+                           <span class="sr-cat">${r.category} <span style="font-weight:normal; font-size:11px;">(${r.type})</span></span>
+                           <span class="sr-note">${r.details}</span>
+                           <span class="sr-date">${r.date}</span>
+                        </div>
+                        <div class="sr-right" style="display:flex; flex-direction:column; align-items:flex-end;">
+                           <div class="sr-amt sensitive" style="color:${colorStyle}">${parseFloat(r.amount).toFixed(2)} €</div>
+                           <div style="margin-top:5px;">${editBtn}${delBtn}</div>
+                        </div>
+                      </div>`;
          });
          resCont.innerHTML = html;
      }).searchTransactions(query, type, cat, month, year);

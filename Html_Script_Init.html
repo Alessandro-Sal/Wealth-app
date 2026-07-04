@@ -630,7 +630,8 @@ function updateDashboardDOM(d) {
          if (tx.details && tx.details !== "No Note" && tx.details !== "") {
              noteHtml = `<div style="font-size:11px; color:#8e8e93; margin-bottom:2px; font-style:italic; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px;">${tx.details}</div>`;
          }
-         html += `<div class="h-item"><div class="h-left"><span class="h-cat">${tx.category}</span>${noteHtml} <span class="h-date">${tx.date}</span></div><div class="h-right"><div class="h-amt ${colorClass} sensitive">€ ${displayAmt}</div><div style="display:flex; align-items:center; justify-content:flex-end;"><div class="h-type">${tx.type}</div><span class="h-del" onclick="deleteTx('Expenses Tracker 2026', ${tx.row})">🗑️</span></div></div></div>`;
+         let editBtn = (tx.type === 'Investment' || tx.type === 'Pension' || tx.type === 'Debt') ? '' : `<span class="h-edit" style="margin-right:12px; cursor:pointer;" onclick="editTx('${tx.sheet || 'Expenses Tracker 2026'}', ${tx.row})">✏️</span>`;
+         html += `<div class="h-item"><div class="h-left"><span class="h-cat">${tx.category}</span>${noteHtml} <span class="h-date">${tx.date}</span></div><div class="h-right"><div class="h-amt ${colorClass} sensitive">€ ${displayAmt}</div><div style="display:flex; align-items:center; justify-content:flex-end;"><div class="h-type" style="margin-right:8px;">${tx.type}</div>${editBtn}<span class="h-del" style="cursor:pointer;" onclick="deleteTx('${tx.sheet || 'Expenses Tracker 2026'}', ${tx.row})">🗑️</span></div></div></div>`;
      });
      container.innerHTML = html;
    }

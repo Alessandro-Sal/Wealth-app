@@ -834,13 +834,22 @@ body.privacy-mode #runway-val.sensitive {
   @media (max-width: 768px) { .grid-2-col { grid-template-columns: 1fr; } }
 
 /* --- MICRO ANIMATIONS & PREMIUM INTERACTIONS --- */
-button, .nav-btn, .submit-btn, .action-btn, [onclick], .card, .h-item {
+button, .nav-btn, .submit-btn, .action-btn, [onclick], .card {
     transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.2s, background 0.3s, box-shadow 0.2s !important;
 }
 
-button:active, .nav-btn:active, .submit-btn:active, .action-btn:active, [onclick]:active, .h-item:active {
+button:active, .nav-btn:active, .submit-btn:active, .action-btn:active, [onclick]:active {
     transform: scale(0.96) !important;
     opacity: 0.8;
+}
+
+span.h-edit, span.h-del, span.sr-edit, span.sr-del {
+    padding: 6px;
+    margin: -6px; /* Offset the padding to not break layout */
+    display: inline-block;
+}
+span.h-edit:active, span.h-del:active, span.sr-edit:active, span.sr-del:active {
+    transform: none !important;
 }
 
 /* Add a very subtle scale to cards to make them feel alive */

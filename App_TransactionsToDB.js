@@ -669,3 +669,81 @@ function repayDebtBackend(payload) {
      return `Estinzione parziale completata. Nuovo residuo: €${newPrincipal.toFixed(2)}`;
   }
 }
+
+/**
+ * Retrieves the exact details of a transaction for editing.
+ */
+function getTransactionDetails(sheetName, row) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) throw new Error("Sheet not found: " + sheetName);
+  
+  const maxCols = sheet.getLastColumn();
+  const data = sheet.getRange(row, 1, 1, Math.max(10, maxCols)).getValues()[0];
+  
+  let amounts = {};
+  for (let i = 4; i <= 9; i++) { // Cols E to J (Indices 4 to 9)
+    if (data[i] !== "" && data[i] !== null && data[i] !== 0) {
+      amounts[i + 1] = data[i]; // +1 because array is 0-indexed, and we need 1-indexed column for frontend mapping
+    }
+  }
+  
+  return {
+    row: row,
+    sheetName: sheetName,
+    date: Utilities.formatDate(new Date(data[0]), Session.getScriptTimeZone(), "yyyy-MM-dd"),
+    type: data[1],
+    category: data[2],
+    details: data[3],
+    amounts: amounts
+  };
+}
+
+/**
+ * Updates an existing transaction.
+ */
+function updateTransaction(data) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    return "Error: Sistema occupato, riprova tra qualche secondo.";
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(data.sheetName);
+    if (!sheet) throw new Error("Sheet not found");
+
+    const row = data.row;
+    const maxCols = sheet.getLastColumn();
+    
+    // Leggiamo la data esistente (o tutto il row array per preservare altri dati)
+    let existingData = sheet.getRange(row, 1, 1, maxCols).getValues()[0];
+    
+    existingData[1] = data.type;
+    existingData[2] = data.category;
+    existingData[3] = data.details;
+    
+    // Azzeriamo le colonne degli importi bancari (da E a J, indici 4-9)
+    for (let c = 4; c <= 9; c++) {
+      existingData[c] = "";
+    }
+    
+    // Impostiamo i nuovi importi
+    for (let col in data.amounts) {
+      let colIdx = parseInt(col);
+      let val = parseFloat(data.amounts[col]);
+      if (colIdx > 0 && colIdx <= maxCols) {
+        existingData[colIdx - 1] = val;
+      }
+    }
+    
+    sheet.getRange(row, 1, 1, maxCols).setValues([existingData]);
+    
+    invalidateAllDataCache(); // Invalidate global caches
+    return "Aggiornata con successo";
+  } finally {
+    lock.releaseLock();
+  }
+}

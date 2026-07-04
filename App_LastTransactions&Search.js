@@ -48,6 +48,7 @@ function getLastTransactions() {
       
       transactions.push({
         row: readStart + i,
+        sheet: "Expenses Tracker " + currentYear,
         date: Utilities.formatDate(new Date(dataRange[i][0]), ss.getSpreadsheetTimeZone(), "dd/MM"),
         type: dataRange[i][1], 
         category: dataRange[i][2], 
@@ -129,6 +130,8 @@ function searchTransactions(query, typeFilter, categoryFilter, monthFilter, year
     }
 
     results.push({ 
+      row: startRow + i,
+      sheet: sheetName,
       date: Utilities.formatDate(rowDate, ss.getSpreadsheetTimeZone(), "dd/MM/yy"), 
       category: rowCat, 
       details: rowNote, 
