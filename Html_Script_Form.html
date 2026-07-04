@@ -1165,6 +1165,11 @@ function openSubs() {
             // Standardize the day icon for both types of expenses
             let dayIcon = sub.payDay ? `<div style="min-width:30px; height:30px; background:var(--section-bg); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:var(--text-main); box-shadow:inset 0 2px 4px rgba(0,0,0,0.02);">${sub.payDay}</div>` : '';
 
+            let payBtn = '';
+            if (sub.isPayableWindow && !sub.isPaid) {
+                payBtn = `<button type="button" onclick="paySubscriptionDirectly('${sub.id}', '${sub.note.replace(/'/g, "\\'")}')" style="margin-top:8px; background:var(--primary); color:white; border:none; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:bold; cursor:pointer;">Pay</button>`;
+            }
+
             if (sub.isInstallment) {
                 // Format Dates if they exist (MM/YYYY)
                 let dateStr = '';
@@ -1189,8 +1194,9 @@ function openSubs() {
                                 ${dateStr}
                             </div>
                         </div>
-                        <div class="sensitive" style="text-align:right;">
-                            <div style="font-size:16px; font-weight:900; color:var(--danger); letter-spacing:-0.5px;">€ ${sub.amount.toFixed(2)}<span style="font-size:10px; color:var(--gray); font-weight:700;">/mo</span></div>
+                        <div style="text-align:right;">
+                            <div class="sensitive" style="font-size:16px; font-weight:900; color:var(--danger); letter-spacing:-0.5px;">€ ${sub.amount.toFixed(2)}<span style="font-size:10px; color:var(--gray); font-weight:700;">/mo</span></div>
+                            ${payBtn}
                         </div>
                     </div>
                     
@@ -1216,12 +1222,47 @@ function openSubs() {
                             <span style="font-size:10px; color:var(--gray); font-weight:600; margin-top:2px;">Recurring</span>
                         </div>
                     </div>
-                    <div class="sensitive" style="font-size:15px; font-weight:800; color:var(--text-main); letter-spacing:-0.5px;">€ ${sub.amount.toFixed(2)}</div>
+                    <div style="display:flex; flex-direction:column; align-items:flex-end;">
+                        <div class="sensitive" style="font-size:15px; font-weight:800; color:var(--text-main); letter-spacing:-0.5px;">€ ${sub.amount.toFixed(2)}</div>
+                        ${payBtn}
+                    </div>
                 </div>`;
             }
         });
         container.innerHTML = html;
     }
+
+    window.paySubscriptionDirectly = function(id, note) {
+        const isDark = document.body.classList.contains('dark-mode');
+        Swal.fire({
+            title: 'Pay Expense?',
+            text: note,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#007aff',
+            cancelButtonColor: '#8e8e93',
+            confirmButtonText: 'Confirm',
+            cancelButtonText: 'Cancel',
+            background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const status = document.getElementById('f-stat');
+                if(status) status.innerText = "⏳ Paying Subscription...";
+                
+                google.script.run.withSuccessHandler(m => {
+                    if(status) status.innerText = "";
+                    Swal.fire({ icon: 'success', title: 'Done!', text: 'Subscription paid.', showConfirmButton: false, timer: 1500 });
+                    if (typeof fetchHistory === 'function') fetchHistory();
+                    if (typeof fetchBalances === 'function') fetchBalances();
+                    if (typeof fetchBudgets === 'function') fetchBudgets();
+                    if (typeof fetchSubsStatus === 'function') fetchSubsStatus();
+                }).withFailureHandler(e => {
+                    Swal.fire({ icon: 'error', title: 'Error', text: e.message });
+                    if(status) status.innerText = "";
+                }).addSelectedSubs([parseInt(id, 10)]);
+            }
+        });
+    };
 
    // --- LOGICA MODULO SPLIT CON SMART LOCKS ---
    let splitFriendsCount = 0;

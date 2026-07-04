@@ -79,7 +79,12 @@ function getSubsStatus() {
     let cleanSubNote = String(sub.note).replace(/\s+/g, ' ').trim().toLowerCase();
     const isPaid = paidNotes.includes(cleanSubNote);
 
+    let currentPayDate = new Date(today.getFullYear(), today.getMonth(), sub.payDay || 1);
+    let diffDays = Math.round((today - currentPayDate) / (1000 * 60 * 60 * 24));
+    let isPayableWindow = !isPaid && sub.payDay && (diffDays >= -3 && diffDays <= 3);
+
     let status = {
+      id: sub.id,
       note: sub.note,
       amount: totalAmt,
       payDay: sub.payDay || null,
@@ -92,7 +97,8 @@ function getSubsStatus() {
       progressPct: 0,
       alert: false,
       daysUntilNext: 999,
-      isPaid: isPaid 
+      isPaid: isPaid,
+      isPayableWindow: isPayableWindow
     };
 
     if (sub.startDate && today < new Date(sub.startDate)) status.isActive = false;
