@@ -8,6 +8,7 @@ function getMarketNews(category = 'market') {
     let allTickers = [];
     
     // Dynamically build the Portfolio URL if requested
+    let googleNewsUrl = '';
     if (category === 'portfolio') {
       const portfolio = getLivePortfolio();
       
@@ -28,9 +29,13 @@ function getMarketNews(category = 'market') {
       
       if (allTickers.length > 0) {
         const tickerString = encodeURIComponent(allTickers.join(','));
+        // Use OR for Google News query (e.g. AAPL OR MSFT)
+        const googleTickerString = encodeURIComponent(allTickers.join(' OR '));
         portfolioUrl = `https://feeds.finance.yahoo.com/rss/2.0/headline?s=${tickerString}&region=US&lang=en-US`;
+        googleNewsUrl = `https://news.google.com/rss/search?q=${googleTickerString}&hl=it&gl=IT&ceid=IT:it`;
       } else {
         portfolioUrl = 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US';
+        googleNewsUrl = `https://news.google.com/rss/search?q=Mercati%20Finanziari&hl=it&gl=IT&ceid=IT:it`;
       }
     }
 
@@ -46,7 +51,8 @@ function getMarketNews(category = 'market') {
         { url: 'https://www.investing.com/rss/news_25.rss', source: 'Investing.com' }
       ],
       'portfolio': [
-        { url: portfolioUrl, source: 'Yahoo Finance' }
+        { url: portfolioUrl, source: 'Yahoo Finance' },
+        { url: googleNewsUrl, source: 'Google News IT' }
       ],
       'world': [
         { url: 'http://feeds.bbci.co.uk/news/world/rss.xml', source: 'BBC Global' },
