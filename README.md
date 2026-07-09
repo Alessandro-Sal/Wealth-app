@@ -61,6 +61,7 @@ Key design principles:
 ### 📊 Dashboard & Analytics
 
 - **Interactive Charts** powered by Chart.js: Sankey Flow, Asset Allocation, Monthly Trends, Savings Evolution
+- **Smart Suggestions** — Instantly predicts and autofills recurring expenses based on your transaction history
 - **Planned Expenses** — Track future expenses that dynamically impact your Budget and Runway before they are even paid
 - **Market News Feed** — Aggregated financial news tailored to your portfolio
 - **Financial Runway** — Calculates survival months based on liquid cash vs average expenses
