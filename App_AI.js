@@ -43,12 +43,19 @@ Keep responses concise and professional.\n\n`;
   console.log("Chat AI: Attempting OPENROUTER...");
   let response = fetchUniversalAI(fullPrompt, 'OPENROUTER');
   
-  if (!response) {
+  if (!response || response.startsWith("DEBUG_ERROR:")) {
+    let orError = response || "NO_KEY";
     console.log("Chat AI: OPENROUTER failed. Falling back to GEMINI...");
-    response = fetchUniversalAI(fullPrompt, 'GEMINI');
+    let geminiResponse = fetchUniversalAI(fullPrompt, 'GEMINI');
+    
+    if (!geminiResponse || geminiResponse.startsWith("DEBUG_ERROR:")) {
+       let geminiError = geminiResponse || "NO_KEY";
+       return `[DEBUG] All AI models failed. \nOpenRouter: ${orError}\nGemini: ${geminiError}\n\nPlease check your API keys or quota.`;
+    }
+    return geminiResponse;
   }
 
-  return response || "All AI models are currently busy. Please try again shortly.";
+  return response;
 }
 
 /**
@@ -92,11 +99,10 @@ function parseExpenseAI(inputData, mode) {
   const API_KEY = typeof GEMINI_API_KEY !== 'undefined' ? GEMINI_API_KEY : null; 
   if (!API_KEY) return { error: "Missing API Key" };
 
-  // Vision/Fast models
   const MODELS = [
-    "gemini-2.5-flash", 
     "gemini-2.0-flash", 
-    "gemini-flash-latest"
+    "gemini-1.5-flash", 
+    "gemini-1.5-flash-8b"
   ];
 
   const CATS = "Alimentazione, Alloggio, Trasporti, Free-Time, Necessità, Regali, Uscite, Viaggi, Altro, Stipendio";

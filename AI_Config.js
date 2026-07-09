@@ -92,10 +92,10 @@ function fetchUniversalAI(prompt, provider = 'GEMINI', useWebSearch = false) {
     // deep-research-pro...), provati in serie con fetch bloccante -> nel caso peggiore
     // 60-150s e rischio di superare il limite di 6 minuti di esecuzione su analyzeAsset.
     const geminiModels = [
-      "gemini-2.5-flash",       // veloce e capace (default)
-      "gemini-2.0-flash",       // fallback stabile
-      "gemini-flash-latest",    // alias sempre valido
-      "gemini-2.5-flash-lite"   // ultimo fallback economico
+      "gemini-2.0-flash",       // latest stable
+      "gemini-1.5-flash",       // fallback stabile
+      "gemini-1.5-flash-8b",    // faster fallback
+      "gemini-1.5-pro"          // heavy fallback
     ];
 
     // Deadline di sicurezza: non superare ~90s complessivi nella cascata Gemini.
@@ -151,12 +151,13 @@ function executeFetch(url, headers, payload, providerName) {
         return data.candidates[0].content.parts[0].text;
       }
     } else {
-      console.warn(`[${providerName}] Error ${code}: ${res.getContentText()}`);
+      let errStr = data.error ? (data.error.message || JSON.stringify(data.error)) : res.getContentText();
+      console.warn(`[${providerName}] Error ${code}: ${errStr}`);
       if (code === 429) Utilities.sleep(2000); // Back-off for rate limits
-      return null;
+      return `DEBUG_ERROR: [${providerName} ${code}] ${errStr}`;
     }
   } catch (e) {
     console.error(`Fetch Exception on ${providerName}:`, e);
-    return null;
+    return `DEBUG_ERROR: [EXCEPTION] ${e.toString()}`;
   }
 }
