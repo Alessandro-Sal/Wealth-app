@@ -191,6 +191,7 @@
        input.style.color = 'var(--stocks-bg)';
      }
      if(navigator.vibrate) navigator.vibrate(20);
+     if (typeof updateTransactionTotal === 'function') updateTransactionTotal();
    }
    
    /**
@@ -221,7 +222,41 @@
          // Passiamo 'null' in modo che il Caso 1 della funzione si attivi correttamente
          if (typeof updateSplitMath === 'function') updateSplitMath(null);
      }
+     if (typeof updateTransactionTotal === 'function') updateTransactionTotal();
    }
+
+   /**
+    * Calcola il totale della transazione in base agli input attuali
+    */
+   function updateTransactionTotal() {
+       const addTxForm = document.getElementById('addTxForm');
+       if (!addTxForm) return;
+       
+       let total = 0;
+       const bankInputs = addTxForm.querySelectorAll('.bank-in');
+       bankInputs.forEach(input => {
+           const val = parseFloat(input.value) || 0;
+           const icon = input.parentElement.querySelector('.sign-toggle');
+           if (icon && icon.classList.contains('sign-minus')) {
+               total -= val;
+           } else {
+               total += val;
+           }
+       });
+       
+       const totalDisplay = document.getElementById('tx-total-val');
+       if (totalDisplay) {
+           totalDisplay.innerText = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(total);
+           if (total < 0) {
+               totalDisplay.style.color = 'var(--danger)';
+           } else if (total > 0) {
+               totalDisplay.style.color = 'var(--success)';
+           } else {
+               totalDisplay.style.color = 'var(--text-main)';
+           }
+       }
+   }
+
    /**
     * Switches the active sub-tab inside the Recap (Dashboard) page.
     * Forces a resize event to ensure Chart.js canvases render correctly 

@@ -864,12 +864,14 @@ function updateDashboardDOM(d) {
 
 function injectMasterMenus() {
   const menuHTML = `
-    <div class="kebab-menu-container">
-       <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;" onchange="handleImageInput(this)">
-       
-       <button type="button" class="kebab-trigger" onclick="toggleMasterMenu(this)" aria-haspopup="menu" aria-expanded="false" aria-label="Open menu">
-          &#8942;
-       </button>
+    <div style="display:flex; align-items:center; gap:12px;">
+       <button type="button" onclick="togglePrivacy()" style="background:none; border:none; font-size:22px; cursor:pointer; padding:0; display:flex; align-items:center; justify-content:center;" title="Privacy Mode">👁️</button>
+       <div class="kebab-menu-container">
+          <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;" onchange="handleImageInput(this)">
+          
+          <button type="button" class="kebab-trigger" onclick="toggleMasterMenu(this)" aria-haspopup="menu" aria-expanded="false" aria-label="Open menu">
+             &#8942;
+          </button>
        
        <div class="kebab-dropdown-content" role="menu">
           <button type="button" role="menuitem" onclick="openSettings()">⚙️ Settings</button> 
@@ -880,13 +882,12 @@ function injectMasterMenus() {
           <button type="button" role="menuitem" onclick="startVoiceInput()">🎙️ Voice Input</button>
           <button type="button" role="menuitem" onclick="document.getElementById('camInput').click()">📸 Camera Input</button>
           <button type="button" class="theme-toggler" role="menuitem" onclick="toggleTheme()">🌙 Theme</button>
-          <button type="button" role="menuitem" onclick="togglePrivacy()">👁️ Privacy</button>
           <button type="button" role="menuitem" onclick="openGeminiSheet()">✨ AI</button>
           <button type="button" role="menuitem" onclick="openAnalystAI()">🧠 Analyst AI</button>
        </div>
+       </div>
     </div>
   `;
-
   // Find all placeholders and insert the HTML
   const placeholders = document.querySelectorAll('.master-menu-placeholder');
   placeholders.forEach(placeholder => {
