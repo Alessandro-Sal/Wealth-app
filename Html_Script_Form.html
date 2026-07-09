@@ -2297,5 +2297,132 @@ function openSubs() {
             }
         });
     }
+    // --- SMART SUGGESTIONS LOGIC ---
+    function fetchAndRenderSmartSuggestions() {
+        const container = document.getElementById('smart-suggestions-container');
+        if (!container) return;
+        
+        container.innerHTML = '<span style="font-size:12px; color:var(--gray); font-style:italic;">⏳ Loading smart suggestions...</span>';
+        
+        run('getSmartSuggestions').then(suggestions => {
+            if (!suggestions || suggestions.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            
+            container.style.display = 'flex';
+            container.innerHTML = '';
+            
+            suggestions.forEach(s => {
+                const btn = document.createElement('div');
+                btn.className = 'smart-chip';
+                const isDark = document.body.classList.contains('dark-mode');
+                
+                btn.style.cssText = `
+                    background: ${isDark ? '#2c2c2e' : '#ffffff'};
+                    color: ${isDark ? '#ffffff' : '#000000'};
+                    padding: 8px 14px;
+                    border-radius: 12px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    white-space: nowrap;
+                    border: 1px solid ${isDark ? '#3a3a3c' : '#e5e5ea'};
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    transition: transform 0.1s ease, box-shadow 0.2s ease, background 0.2s ease;
+                `;
+                
+                let displayNote = s.note;
+                if (displayNote.length > 15) displayNote = displayNote.substring(0, 15) + '...';
+                
+                btn.innerHTML = `<span style="opacity:0.7; font-size:14px;">⚡</span> <span>${displayNote}</span> <span style="opacity:0.5; margin-left:4px;">&euro;${s.amount.toFixed(2)}</span>`;
+                
+                btn.onmousedown = () => {
+                    btn.style.transform = 'scale(0.95)';
+                    btn.style.background = isDark ? '#3a3a3c' : '#f2f2f7';
+                };
+                btn.onmouseup = () => {
+                    btn.style.transform = 'scale(1)';
+                    btn.style.background = isDark ? '#2c2c2e' : '#ffffff';
+                };
+                btn.onmouseleave = () => {
+                    btn.style.transform = 'scale(1)';
+                    btn.style.background = isDark ? '#2c2c2e' : '#ffffff';
+                };
+                
+                btn.onclick = () => applySmartSuggestion(s);
+                container.appendChild(btn);
+            });
+        }).catch(err => {
+            console.error("Smart Suggestions Error:", err);
+            container.style.display = 'none';
+        });
+    }
+    
+    function applySmartSuggestion(s) {
+        if (navigator.vibrate) navigator.vibrate(50);
+        
+        // Tipo: Expense
+        document.getElementById('tType').value = 'Expense';
+        if (typeof toggleCategory === 'function') toggleCategory('Expense');
+        
+        // Categoria
+        const tCat = document.getElementById('tCat');
+        if (tCat) {
+            let foundCat = false;
+            for (let i = 0; i < tCat.options.length; i++) {
+                if (tCat.options[i].value === s.category) {
+                    tCat.selectedIndex = i;
+                    foundCat = true;
+                    break;
+                }
+            }
+            if (!foundCat && s.category) {
+                const opt = document.createElement('option');
+                opt.value = s.category;
+                opt.text = s.category;
+                tCat.add(opt);
+                tCat.value = s.category;
+            }
+            if (typeof updateNoteSuggestions === 'function') updateNoteSuggestions();
+        }
+        
+        // Nota
+        document.getElementById('tDet').value = s.note;
+        
+        // Azzera campi banche
+        document.querySelectorAll('.bank-in').forEach(inp => {
+            inp.value = '';
+            const icon = inp.parentElement.querySelector('.sign-toggle');
+            if (icon) {
+                icon.classList.remove('sign-minus');
+                icon.classList.add('sign-plus');
+                icon.innerText = '+';
+            }
+        });
+        
+        // Importo nella banca corretta (aggiungiamo il '-' per forzare l'icona in modalità spesa)
+        if (s.bankCol !== -1) {
+            const bankIn = document.querySelector(`.bank-in[data-col="${s.bankCol}"]`);
+            if (bankIn) {
+                bankIn.value = "-" + s.amount;
+                if (typeof syncIconColor === 'function') syncIconColor(bankIn);
+                
+                // Effetto visivo per confermare
+                const originalBg = bankIn.style.backgroundColor || '';
+                bankIn.style.transition = 'background-color 0.3s';
+                bankIn.style.backgroundColor = 'rgba(52, 199, 89, 0.2)';
+                setTimeout(() => {
+                    bankIn.style.backgroundColor = originalBg;
+                }, 1000);
+            }
+        }
+        
+        // Totale
+        if (typeof updateTransactionTotal === 'function') updateTransactionTotal();
+    }
 
 </script>

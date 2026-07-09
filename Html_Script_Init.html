@@ -43,6 +43,10 @@
      if (typeof checkPortfolioAlertsSilent === 'function') {
        setTimeout(checkPortfolioAlertsSilent, 2000);
      }
+     
+     if (typeof fetchAndRenderSmartSuggestions === 'function') {
+         setTimeout(fetchAndRenderSmartSuggestions, 500);
+     }
      // Theme Setup
      const savedTheme = localStorage.getItem('theme');
      if (savedTheme === 'dark') toggleTheme();
