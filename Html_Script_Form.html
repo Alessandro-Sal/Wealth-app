@@ -159,8 +159,11 @@ function handleTypeChange() {
      window.editingTx = null;
      const btnSave = document.querySelector('.btn-save:not(.btn-invest)');
      if (btnSave) {
-         btnSave.innerText = "SAVE TRANSACTION";
+         btnSave.innerText = "SAVE";
      }
+     
+     // Resetta il totale a zero
+     if (typeof updateTransactionTotal === 'function') updateTransactionTotal();
    }
    
    /**
@@ -286,7 +289,7 @@ function sendTransaction() {
          }
      }
 
-     const originalText = window.editingTx ? "UPDATE TRANSACTION" : "SAVE TRANSACTION";
+     const originalText = window.editingTx ? "UPDATE" : "SAVE";
      btn.innerText = window.editingTx ? "⏳ UPDATING..." : "⏳ SAVING..."; 
      btn.classList.add('btn-loading');
      

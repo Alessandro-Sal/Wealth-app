@@ -201,9 +201,9 @@
      const wrapper = input.parentElement;
      const icon = wrapper.querySelector('.sign-toggle');
      
-     // Se l'utente digita esplicitamente un "-", lo assorbiamo nel bottone e puliamo il testo
-     if (input.value.includes('-')) {
-         input.value = input.value.replace(/-/g, '');
+     // Se l'utente digita esplicitamente un "-" all'inizio, lo assorbiamo nel bottone e puliamo il testo
+     if (input.value.startsWith('-')) {
+         input.value = input.value.substring(1);
          if (icon.classList.contains('sign-plus')) {
              toggleSignIcon(icon); // Gira il bottone su meno
          }
