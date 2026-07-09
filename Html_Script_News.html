@@ -7,6 +7,28 @@
    const CHUNK_SIZE = 30;        
    
    /**
+    * Formats date as relative time (e.g. "2h ago", "5m ago")
+    */
+   function timeAgo(dateString) {
+     const date = new Date(dateString);
+     if (isNaN(date)) return dateString;
+     const now = new Date();
+     const seconds = Math.floor((now - date) / 1000);
+     
+     let interval = seconds / 31536000;
+     if (interval > 1) return Math.floor(interval) + "a fa";
+     interval = seconds / 2592000;
+     if (interval > 1) return Math.floor(interval) + "m fa";
+     interval = seconds / 86400;
+     if (interval > 1) return Math.floor(interval) + "g fa";
+     interval = seconds / 3600;
+     if (interval > 1) return Math.floor(interval) + "h fa";
+     interval = seconds / 60;
+     if (interval > 1) return Math.floor(interval) + " min fa";
+     return "ora";
+   }
+
+   /**
     * Security: Esegue l'escape dei caratteri HTML speciali per prevenire XSS.
     * Da usare SEMPRE quando si inserisce in innerHTML testo proveniente da fonti
     * esterne non controllate (es. titoli/summary dei feed news).
@@ -180,106 +202,120 @@
     * Renders a specific chunk of articles (Pagination)
     */
    function renderNextChunk() {
-     const container = document.getElementById('news-container');
-     if (!container) return;
-   
-     const existingBtn = document.getElementById('load-more-btn');
-     if (existingBtn) existingBtn.remove();
-   
-     const chunk = filteredNews.slice(displayedNewsCount, displayedNewsCount + CHUNK_SIZE);
-     const savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
-   
-     chunk.forEach((item, chunkIndex) => {
-       const absoluteIndex = displayedNewsCount + chunkIndex;
-       
-       const dateObj = new Date(item.date);
-       const formattedDate = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-       
-       const readTime = Math.max(2, Math.floor(item.title.length / 20) % 5 + 1);
-       
-       let badgeColor = 'rgba(0, 122, 255, 0.1)';
-       let badgeText = '#007aff';
-       if (item.category === 'portfolio') { badgeColor = 'rgba(52, 199, 89, 0.1)'; badgeText = '#34c759'; }
-       else if (item.category === 'world') { badgeColor = 'rgba(88, 86, 214, 0.1)'; badgeText = '#5856d6'; }
-       else if (item.category === 'politics') { badgeColor = 'rgba(255, 59, 48, 0.1)'; badgeText = '#ff3b30'; }
-       else if (item.category === 'science' || item.category === 'tech') { badgeColor = 'rgba(255, 149, 0, 0.1)'; badgeText = '#ff9500'; }
-   
-       let tickersHtml = '';
-       if (item.relatedTickers && item.relatedTickers.length > 0) {
-           tickersHtml = '<div class="ticker-pill-container">';
-           item.relatedTickers.forEach(t => { tickersHtml += `<span class="ticker-pill">📈 ${t}</span>`; });
-           tickersHtml += '</div>';
-       }
-       
-       const isSaved = savedNews.some(savedItem => savedItem.link === item.link);
-       const bookmarkClass = isSaved ? 'bookmark-btn bookmarked' : 'bookmark-btn';
-   
-       // Build Image HTML if available
-       let imageHtml = '';
-       if (item.imageUrl) {
-           imageHtml = `<div class="news-thumbnail-wrapper">
-                           <img src="${item.imageUrl}" alt="News Image" onerror="this.parentElement.style.display='none'">
-                        </div>`;
-       }
-   
-       // --- CHANGED: Use a DIV instead of A tag so we can intercept the click ---
-       const newsCard = document.createElement('div');
-       newsCard.className = 'news-card';
-       newsCard.style.cursor = 'pointer';
-       
-       // Intercept clicks to open the modal
-       newsCard.onclick = function(e) {
-           // Prevent modal if user clicks on action buttons or the AI summary box
-           if (e.target.closest('.news-card-actions') || e.target.closest('.ai-article-summary')) return; 
-           openNewsModal(absoluteIndex);
-       };
-       
-      newsCard.innerHTML = `
-         <div style="display: flex; align-items: flex-start; justify-content: space-between;">
-             <div style="flex: 1; min-width: 0;">
-                 
-                 <div class="news-card-header" style="display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 12px; padding-right: 10px; gap: 6px;">
-                     
-                     <div style="display: flex; align-items: center; gap: 10px;">
-                         <span class="news-badge" style="background:${badgeColor}; color:${badgeText};">${item.category}</span>
-                         
-                         <div class="news-card-actions">
-                            <div class="ai-btn" onclick="summarizeArticle(${absoluteIndex}, event, this)" title="AI Insight">✨</div>
-                            <div class="share-btn" onclick="shareArticle('${item.link}', '${escapeHtml(item.title).replace(/'/g, "\\'")}', event)" title="Share">📤</div>
-                            <div class="${bookmarkClass}" onclick="toggleBookmark(${absoluteIndex}, event)" title="Save">🔖</div>
-                         </div>
-                     </div>
-                     
-                     <span class="news-read-time" style="white-space: nowrap;">⏱️ ${readTime} min</span>
-                 </div>
-                 
-                 <h3 class="news-title">${escapeHtml(item.title)}</h3>
-                 ${item.summary ? `<p class="news-summary">${escapeHtml(item.summary)}</p>` : ''}
-                 ${tickersHtml}
-             </div>
-             ${imageHtml}
-         </div>
-         
-         <div id="ai-summary-box-${absoluteIndex}" class="ai-article-summary"></div>
-         
-         <div class="news-footer">
-           <div class="news-source-icon">🗞️</div>
-           <span>${item.source} • ${formattedDate}</span>
-         </div>
-       `;
-       
-       container.appendChild(newsCard);
-         });
+      const container = document.getElementById('news-container');
+      if (!container) return;
+
+      const existingBtn = document.getElementById('load-more-btn');
+      if (existingBtn) existingBtn.remove();
+
+      const chunk = filteredNews.slice(displayedNewsCount, displayedNewsCount + CHUNK_SIZE);
+      const savedNews = JSON.parse(localStorage.getItem('saved_news') || '[]');
+
+      chunk.forEach((item, chunkIndex) => {
+        const absoluteIndex = displayedNewsCount + chunkIndex;
+        
+        const itemDate = item.date || new Date().toISOString();
+        const formattedDate = timeAgo(itemDate);
+        
+        const itemTitle = item.title || 'Senza Titolo';
+        const itemSource = item.source || 'Fonte Sconosciuta';
+        
+        const readTime = Math.max(2, Math.floor(itemTitle.length / 20) % 5 + 1);
+        const sentiment = getQuickSentiment(itemTitle);
+        
+        let badgeColor = 'rgba(0, 122, 255, 0.1)';
+        let badgeText = '#007aff';
+        if (item.category === 'portfolio') { badgeColor = 'rgba(52, 199, 89, 0.1)'; badgeText = '#34c759'; }
+        else if (item.category === 'world') { badgeColor = 'rgba(88, 86, 214, 0.1)'; badgeText = '#5856d6'; }
+        else if (item.category === 'politics') { badgeColor = 'rgba(255, 59, 48, 0.1)'; badgeText = '#ff3b30'; }
+        else if (item.category === 'science' || item.category === 'tech') { badgeColor = 'rgba(255, 149, 0, 0.1)'; badgeText = '#ff9500'; }
+
+        let tickersHtml = '';
+        if (item.relatedTickers && item.relatedTickers.length > 0) {
+            tickersHtml = '<div class="ticker-pill-container">';
+            item.relatedTickers.forEach(t => { tickersHtml += '<span class="ticker-pill">📈 ' + t + '</span>'; });
+            tickersHtml += '</div>';
+        }
+        
+        const isSaved = savedNews.some(savedItem => savedItem.link === item.link);
+        const bookmarkClass = isSaved ? 'bookmark-btn bookmarked' : 'bookmark-btn';
+
+        // Build Image HTML with Fallback
+        let imageUrlToUse = item.imageUrl;
+        if (!imageUrlToUse) {
+            const fallbackIndex = (itemTitle.length + itemSource.length) % 4;
+            const fallbacks = [
+                'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&q=80',
+                'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=400&q=80',
+                'https://images.unsplash.com/photo-1526628953301-3e589a6a8b74?w=400&q=80',
+                'https://images.unsplash.com/photo-1642790106117-e829e14a795f?w=400&q=80'
+            ];
+            imageUrlToUse = fallbacks[fallbackIndex];
+        }
+        
+        let imageHtml = '<div class="news-thumbnail-wrapper"><img src="' + imageUrlToUse + '" alt="News Image" onerror="this.parentElement.style.display=\'none\'"></div>';
+
+        const newsCard = document.createElement('div');
+        newsCard.className = 'news-card';
+        newsCard.style.cursor = 'pointer';
+        
+        newsCard.onclick = function(e) {
+            if (e.target.closest('.news-card-actions') || e.target.closest('.ai-article-summary')) return; 
+            openNewsModal(absoluteIndex);
+        };
+
+        const sentimentTag = sentiment.tag ? sentiment.tag : (sentiment.icon !== '\u26aa' ? '<span style="font-size:12px;">' + sentiment.icon + '</span>' : '');
+        const summaryHtml = item.summary ? '<p class="news-summary">' + escapeHtml(item.summary) + '</p>' : '';
+        const safeTitle = escapeHtml(itemTitle);
+        // Correctly pass single quote to inline JS
+        const onclickShare = "shareArticle('" + item.link + "', '" + safeTitle.replace(/'/g, "\\'") + "', event)";
+
+        let cardHtml = '';
+        cardHtml += '<div style="display: flex; align-items: flex-start; justify-content: space-between;">';
+        cardHtml += '<div style="flex: 1; min-width: 0;">';
+        cardHtml += '<div class="news-card-header" style="display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 12px; padding-right: 10px; gap: 6px;">';
+        cardHtml += '<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">';
+        cardHtml += '<span class="news-badge" style="background:' + badgeColor + '; color:' + badgeText + ';">' + item.category + '</span>';
+        cardHtml += sentimentTag;
+        cardHtml += '<div class="news-card-actions" style="margin-left: auto;">';
+        cardHtml += '<div class="ai-btn" onclick="summarizeArticle(' + absoluteIndex + ', event, this)" title="AI Insight">✨</div>';
+        cardHtml += '<div class="share-btn" onclick="' + onclickShare + '" title="Share">📤</div>';
+        cardHtml += '<div class="' + bookmarkClass + '" onclick="toggleBookmark(' + absoluteIndex + ', event)" title="Save">🔖</div>';
+        cardHtml += '</div></div>';
+        cardHtml += '<span class="news-read-time" style="white-space: nowrap;">⏱️ ' + readTime + ' min</span>';
+        cardHtml += '</div>';
+        cardHtml += '<h3 class="news-title">' + safeTitle + '</h3>';
+        cardHtml += summaryHtml;
+        cardHtml += tickersHtml;
+        cardHtml += '</div>' + imageHtml + '</div>';
+        cardHtml += '<div id="ai-summary-box-' + absoluteIndex + '" class="ai-article-summary"></div>';
+        cardHtml += '<div class="news-footer"><div class="news-source-icon">🗞️</div>';
+        cardHtml += '<span>' + itemSource + ' • ' + formattedDate + '</span></div>';
+        
+        newsCard.innerHTML = cardHtml;
+        
+        container.appendChild(newsCard);
+      });
    
      displayedNewsCount += chunk.length;
    
      if (displayedNewsCount < filteredNews.length) {
-       const loadMoreBtn = document.createElement('button');
-       loadMoreBtn.id = 'load-more-btn';
-       loadMoreBtn.className = 'load-more-btn';
-       loadMoreBtn.innerText = 'Load Older News ⬇️';
-       loadMoreBtn.onclick = renderNextChunk;
-       container.appendChild(loadMoreBtn);
+       const observerTarget = document.createElement('div');
+       observerTarget.id = 'news-scroll-observer';
+       observerTarget.style.height = '20px';
+       observerTarget.style.width = '100%';
+       observerTarget.style.gridColumn = '1 / -1';
+       container.appendChild(observerTarget);
+       
+       const observer = new IntersectionObserver((entries) => {
+           if (entries[0].isIntersecting) {
+               observer.disconnect();
+               observerTarget.remove();
+               renderNextChunk();
+           }
+       }, { rootMargin: '200px' });
+       
+       observer.observe(observerTarget);
      }
    }
    

@@ -44,6 +44,7 @@ function getMarketNews(category = 'market') {
       'market': [
         { url: 'https://feeds.a.dj.com/rss/RSSMarketsMain.xml', source: 'Wall Street Journal' },
         { url: 'https://www.ilsole24ore.com/rss/finanza.xml', source: 'Il Sole 24 Ore' },
+        { url: 'https://news.google.com/rss/search?q=Mercati+Finanziari+OR+Borsa+Italiana+OR+Economia&hl=it&gl=IT&ceid=IT:it', source: 'Google News Finanza' },
         { url: 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10001147', source: 'CNBC' },
         { url: 'https://www.teleborsa.it/rss/news.xml', source: 'Teleborsa' },
         { url: 'https://www.milanofinanza.it/rss/news', source: 'Milano Finanza' },
