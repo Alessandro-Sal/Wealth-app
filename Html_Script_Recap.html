@@ -20,14 +20,14 @@ function fetchHistoricalPortfolioEvo(year) {
         // Handle Server Error
         if (data && data.error) {
             tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 20px; color: var(--danger);">Server Error: ${data.error}</td></tr>`;
-            if (evoChartInstance) evoChartInstance.destroy();
+            if (evoChartInstance) typeof evoChartInstance.dispose === 'function' ? evoChartInstance.dispose() : evoChartInstance.destroy();
             return;
         }
         
         // Handle Empty Data
         if (!data || data.length === 0) {
             tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 20px; color: var(--gray);">No positions found for ${year}.</td></tr>`;
-            if (evoChartInstance) evoChartInstance.destroy();
+            if (evoChartInstance) typeof evoChartInstance.dispose === 'function' ? evoChartInstance.dispose() : evoChartInstance.destroy();
             return;
         }
         
@@ -126,9 +126,6 @@ function sortEvoTable(colIndex) {
 function renderEvoChart(data) {
     const canvas = document.getElementById('evoChart');
     if (!canvas) return;
-    if (evoChartInstance) {
-        evoChartInstance.destroy();
-    }
 
     // Sort data by Current Value (descending) so the largest holdings are on the left
     const sortedData = [...data].sort((a, b) => {
@@ -249,13 +246,13 @@ function fetchPortfolioCashflow(year) {
     run('getPortfolioCashflowData').then(data => {
         if (data && data.error) {
             if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 20px;">Error: ${data.error}</td></tr>`;
-            if (cashflowChartInstance) cashflowChartInstance.destroy();
+            if (cashflowChartInstance) typeof cashflowChartInstance.dispose === 'function' ? cashflowChartInstance.dispose() : cashflowChartInstance.destroy();
             return;
         }
         
         if (!data || data.length === 0) {
             if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--gray); padding: 20px;">No cashflow data found.</td></tr>`;
-            if (cashflowChartInstance) cashflowChartInstance.destroy();
+            if (cashflowChartInstance) typeof cashflowChartInstance.dispose === 'function' ? cashflowChartInstance.dispose() : cashflowChartInstance.destroy();
             return;
         }
 
@@ -269,7 +266,7 @@ function fetchPortfolioCashflow(year) {
         // 2. GESTISCI IL CASO IN CUI NON CI SONO DATI PER L'ANNO SPECIFICO
         if (filteredData.length === 0) {
             if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--gray); padding: 20px;">No cashflow data found for ${year}.</td></tr>`;
-            if (cashflowChartInstance) cashflowChartInstance.destroy();
+            if (cashflowChartInstance) typeof cashflowChartInstance.dispose === 'function' ? cashflowChartInstance.dispose() : cashflowChartInstance.destroy();
             return;
         }
 
@@ -327,9 +324,6 @@ function renderCashflowTable(data) {
 function renderCashflowChart(data) {
     const canvas = document.getElementById('cashflowChart');
     if (!canvas) return;
-    if (cashflowChartInstance) {
-        cashflowChartInstance.destroy();
-    }
 
     // Extract unique sorted years
     const years = [...new Set(data.map(d => d.year))].sort();
@@ -711,7 +705,6 @@ let cpScatterChartInstance = null;
 function renderCPScatterChart() {
     const canvas = document.getElementById('cpScatterChart');
     if (!canvas) return;
-    if (cpScatterChartInstance) cpScatterChartInstance.destroy();
 
     // Map and clean data for the scatter plot
     let scatterData = cpData.map(d => {
