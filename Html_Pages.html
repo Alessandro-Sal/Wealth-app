@@ -298,9 +298,12 @@
             </div>
          </div>
          <div class="dash-widget span-2 span-pc-2" id="subs-status-widget">
-            <div class="widget-title">
+            <div class="widget-title" style="display:flex; align-items:center;">
                <div class="badge-icon bg-purple">🔄</div>
-               Subs & Installments
+               <div style="display:flex; flex-direction:column; line-height: 1.2; margin-left: 8px;">
+                  <span>Subs & Installments</span>
+                  <span id="subs-remaining-total" style="font-size: 11px; font-weight: normal; color: var(--gray);"></span>
+               </div>
                <span onclick="openSubs()" style="cursor: pointer; font-size: 24px; font-weight: 800; color: var(--primary); margin-left: auto; line-height: 1; transition: 0.2s;">+</span>
             </div>
             <div id="subs-status-list" style="display:flex; flex-direction:column; gap:12px; margin-top:5px; max-height: 280px; overflow-y: auto;">
@@ -308,9 +311,12 @@
             </div>
          </div>
          <div class="dash-widget span-2 span-pc-2" id="planned-expenses-widget">
-            <div class="widget-title">
+            <div class="widget-title" style="display:flex; align-items:center;">
                <div class="badge-icon" style="background:#ff9500; color:#fff;">📅</div>
-               Spese Programmate
+               <div style="display:flex; flex-direction:column; line-height: 1.2; margin-left: 8px;">
+                  <span>Spese Programmate</span>
+                  <span id="planned-remaining-total" style="font-size: 11px; font-weight: normal; color: var(--gray);"></span>
+               </div>
                <span onclick="openPlannedExpenseModal()" style="cursor: pointer; font-size: 24px; font-weight: 800; color: var(--primary); margin-left: auto; line-height: 1; transition: 0.2s;">+</span>
             </div>
             <div id="planned-expenses-list" style="display:flex; flex-direction:column; gap:12px; margin-top:5px; max-height: 280px; overflow-y: auto;">
