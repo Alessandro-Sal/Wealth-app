@@ -36,7 +36,7 @@
             <div id="tab-btn-c" onclick="switchCalcTab('calc')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; background:white; color:black; transition:0.2s;">CALC</div>
             <div id="tab-btn-f" onclick="switchCalcTab('fx')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">FX 💱</div>
             <div id="tab-btn-r" onclick="switchCalcTab('roi')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">ROI 🚀</div>
-            <div id="tab-btn-l" onclick="switchCalcTab('loan')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">LOAN 🏠</div>
+            
             <div id="tab-btn-t" onclick="switchCalcTab('tax')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">TAX 🏛️</div>
             <div id="tab-btn-i" onclick="switchCalcTab('inf')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">INF 📉</div>
             <div id="tab-btn-fire" onclick="switchCalcTab('fire')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">FIRE 🔥</div>
@@ -210,6 +210,144 @@
             <div style="font-size:12px; color:var(--gray);">Required Capital (Invested)</div>
             <div id="fireVal" style="font-size:32px; font-weight:800; color:var(--warning);">€ 0</div>
             <div style="font-size:12px; color:var(--gray); margin-top:5px;">To live off interest forever</div>
+         </div>
+      </div>
+   </div>
+   <div id="affordability-sheet" class="sheet-modal" role="dialog" aria-modal="true">
+      <div class="sheet-header">
+         <div style="display:flex; background:#e5e5ea; border-radius:8px; padding:2px; width:100%; max-width:340px; overflow-x:auto;">
+            <div id="tab-btn-dti" onclick="switchAffTab('dti')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; background:white; color:black; transition:0.2s;">DTI ⚖️</div>
+            <div id="tab-btn-aloan" onclick="switchAffTab('aloan')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">LOAN 🏠</div>
+            <div id="tab-btn-buy" onclick="switchAffTab('buy')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">BUY 💰</div>
+            <div id="tab-btn-stress" onclick="switchAffTab('stress')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">STRESS ⚠️</div>
+         </div>
+         <button class="sheet-close" onclick="closeAllSheets()">Done</button>
+      </div>
+
+      <!-- DTI TAB -->
+      <div id="view-dti" style="display:block; padding-top:10px;">
+         <div style="font-size:12px; color:var(--gray); margin-bottom:15px; text-align:center; line-height:1.4;"><strong>DTI (Debt-to-Income)</strong> measures the percentage of your monthly income that goes toward paying debts. Banks typically prefer a DTI under 30-35%.</div>
+         <div style="background:var(--white); border:1px solid #ddd; border-radius:12px; padding:15px; margin-bottom:15px;">
+            <label style="margin-top:0">Average Net Monthly Income (€)</label>
+            <input type="number" inputmode="decimal" id="dtiIncome" placeholder="2500" style="font-size:20px; font-weight:bold;">
+            <label style="margin-top:10px">Current Total Monthly Debt (€)</label>
+            <input type="number" inputmode="decimal" id="dtiDebt" placeholder="500" style="font-size:20px; font-weight:bold;">
+         </div>
+         <button onclick="calcDTI()" style="width:100%; padding:15px; background:var(--primary); color:white; border:none; border-radius:12px; font-weight:bold; font-size:18px;">CALCULATE DTI</button>
+         <div id="dtiResult" style="margin-top:20px; text-align:center; display:none;">
+            <div style="font-size:12px; color:var(--gray);">Debt-to-Income Ratio</div>
+            <div id="dtiRatio" style="font-size:32px; font-weight:800; color:var(--text-main);">0%</div>
+            <div style="font-size:12px; color:var(--gray); margin-top:5px;" id="dtiMessage">Safe</div>
+            <div style="width:100%; background:#e5e5ea; border-radius:10px; height:20px; margin-top:15px; overflow:hidden;">
+               <div id="dtiBar" style="width:0%; height:100%; background:var(--success); transition:0.5s;"></div>
+            </div>
+         </div>
+      </div>
+
+      <!-- LOAN TAB -->
+      <div id="view-aloan" style="display:none; padding-top:10px;">
+         <div style="font-size:12px; color:var(--gray); margin-bottom:15px; text-align:center; line-height:1.4;">Simulate a new loan to see the monthly payment and how it will impact your current average monthly cashflow.</div>
+         <div style="background:var(--white); border:1px solid #ddd; border-radius:12px; padding:15px; margin-bottom:15px;">
+            <label style="margin-top:0">Loan Amount (€)</label>
+            <input type="number" inputmode="decimal" id="aloanAmount" placeholder="150000" style="font-size:20px; font-weight:bold;">
+            <div style="display:flex; gap:10px; margin-top:10px;">
+               <div style="flex:1;">
+                  <label>Interest (%)</label>
+                  <input type="number" inputmode="decimal" id="aloanRate" placeholder="3.5" value="3.5">
+               </div>
+               <div style="flex:1;">
+                  <label>Years</label>
+                  <input type="number" inputmode="decimal" id="aloanYears" placeholder="20" value="20">
+               </div>
+            </div>
+         </div>
+         <button onclick="calcALoan()" style="width:100%; padding:15px; background:var(--danger); color:white; border:none; border-radius:12px; font-weight:bold; font-size:18px;">SIMULATE LOAN</button>
+         <div id="aloanResult" style="margin-top:20px; text-align:center; display:none;">
+            <div style="font-size:12px; color:var(--gray);">Monthly Payment</div>
+            <div class="sensitive" id="aloanMonthly" style="font-size:32px; font-weight:800; color:var(--text-main);">€ 0</div>
+            <div style="font-size:12px; color:var(--gray); margin-top:5px;">Total Interest Paid</div>
+            <div class="sensitive" id="aloanInterest" style="font-size:16px; font-weight:bold; color:var(--danger);">€ 0</div>
+            <div style="margin-top:15px; padding:10px; background:rgba(255,59,48,0.1); border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+               <span style="font-size:12px; color:var(--gray);">New Avg Cashflow</span>
+               <span class="sensitive" id="aloanCashflow" style="font-size:16px; font-weight:bold; color:var(--danger);">€ 0</span>
+            </div>
+         </div>
+      </div>
+
+      <!-- BUYING POWER TAB -->
+      <div id="view-buy" style="display:none; padding-top:10px;">
+         <div style="font-size:12px; color:var(--gray); margin-bottom:15px; text-align:center; line-height:1.4;">Calculates your maximum buying power assuming the bank finances <strong>max 80%</strong> of the house (LTV), and <strong>~10%</strong> of the house value goes to taxes, notary, and agency fees.</div>
+         <div style="background:var(--white); border:1px solid #ddd; border-radius:12px; padding:15px; margin-bottom:15px;">
+            <label style="margin-top:0">Available Liquidity (€)</label>
+            <input type="number" inputmode="decimal" id="buyLiq" placeholder="50000" style="font-size:20px; font-weight:bold;">
+            <label style="margin-top:10px">Max Monthly Payment You Can Afford (€)</label>
+            <input type="number" inputmode="decimal" id="buyMonthly" placeholder="800" style="font-size:20px; font-weight:bold;">
+            <div style="display:flex; gap:10px; margin-top:10px;">
+               <div style="flex:1;">
+                  <label>Interest (%)</label>
+                  <input type="number" inputmode="decimal" id="buyRate" value="3.5">
+               </div>
+               <div style="flex:1;">
+                  <label>Years</label>
+                  <input type="number" inputmode="decimal" id="buyYears" value="20">
+               </div>
+            </div>
+         </div>
+         <button onclick="calcBuyPower()" style="width:100%; padding:15px; background:var(--stocks-bg); color:white; border:none; border-radius:12px; font-weight:bold; font-size:18px;">CALCULATE POWER</button>
+         <div id="buyResult" style="margin-top:20px; text-align:center; display:none;">
+            <div style="font-size:12px; color:var(--gray);">Max House Price</div>
+            <div class="sensitive" id="buyMaxHouse" style="font-size:32px; font-weight:800; color:var(--stocks-bg);">€ 0</div>
+            <div style="display:flex; justify-content:space-between; margin-top:15px; font-size:12px; color:var(--gray); border-top:1px solid #eee; padding-top:10px;">
+               <span>Max Loan:</span>
+               <span class="sensitive" id="buyMaxLoan" style="font-weight:bold; color:var(--text-main);">€ 0</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:5px; font-size:12px; color:var(--gray);">
+               <span>Taxes/Notary/Fees (~10%):</span>
+               <span class="sensitive" id="buyFees" style="font-weight:bold; color:var(--danger);">-€ 0</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:5px; font-size:12px; color:var(--gray);">
+               <span>Downpayment (Acconto):</span>
+               <span class="sensitive" id="buyDown" style="font-weight:bold; color:var(--danger);">-€ 0</span>
+            </div>
+         </div>
+      </div>
+
+      <!-- STRESS TEST TAB -->
+      <div id="view-stress" style="display:none; padding-top:10px;">
+         <div style="font-size:12px; color:var(--gray); margin-bottom:15px; text-align:center; line-height:1.4;">Stress test your personal finances against adverse scenarios (income loss, expenses surge) to see if your cashflow remains positive.</div>
+         <div style="background:var(--white); border:1px solid #ddd; border-radius:12px; padding:15px; margin-bottom:15px;">
+            <label style="margin-top:0">Average Net Monthly Income (€)</label>
+            <input type="number" inputmode="decimal" id="stressIncome" placeholder="2500" style="font-size:20px; font-weight:bold;">
+            <label style="margin-top:10px">Total Monthly Expenses (Fixed + Variable) (€)</label>
+            <input type="number" inputmode="decimal" id="stressExpenses" placeholder="2000" style="font-size:20px; font-weight:bold;">
+         </div>
+         <button onclick="calcStress()" style="width:100%; padding:15px; background:var(--warning); color:white; border:none; border-radius:12px; font-weight:bold; font-size:18px;">RUN STRESS TEST</button>
+         <div id="stressResult" style="margin-top:20px; display:none; background:var(--white); border-radius:12px; padding:15px; border:1px solid #eee;">
+            <div style="font-weight:bold; font-size:14px; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;">Scenarios:</div>
+            
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px; align-items:center;">
+               <div>
+                  <div style="font-size:13px; font-weight:bold;">20% Income Loss</div>
+                  <div style="font-size:11px; color:var(--gray);">Income: €<span class="sensitive" id="stressIncDrop">0</span></div>
+               </div>
+               <div id="stressS1" style="font-size:13px; font-weight:bold; padding:4px 8px; border-radius:6px; background:#f0f0f0;">--</div>
+            </div>
+            
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px; align-items:center;">
+               <div>
+                  <div style="font-size:13px; font-weight:bold;">+20% Expenses Jump</div>
+                  <div style="font-size:11px; color:var(--gray);">Expenses: €<span class="sensitive" id="stressExpJump">0</span></div>
+               </div>
+               <div id="stressS2" style="font-size:13px; font-weight:bold; padding:4px 8px; border-radius:6px; background:#f0f0f0;">--</div>
+            </div>
+            
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+               <div>
+                  <div style="font-size:13px; font-weight:bold;">Perfect Storm</div>
+                  <div style="font-size:11px; color:var(--gray);">Income drop + Exp jump</div>
+               </div>
+               <div id="stressS3" style="font-size:13px; font-weight:bold; padding:4px 8px; border-radius:6px; background:#f0f0f0;">--</div>
+            </div>
          </div>
       </div>
    </div>

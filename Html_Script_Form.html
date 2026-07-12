@@ -786,23 +786,199 @@ function openSubs() {
      if (activeView) activeView.style.display = 'block';
    }
    
-   function calcLoan() {
-     let P = parseFloat(document.getElementById('loanAmount').value) || 0; 
-     let r = (parseFloat(document.getElementById('loanRate').value) || 0) / 100 / 12; 
-     let n = (parseFloat(document.getElementById('loanYears').value) || 0) * 12;
-     
-     if (P === 0 || n === 0) return;
-     
-     let monthlyPayment = (r === 0) ? P / n : P * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1); 
-     let totalPaid = monthlyPayment * n; 
-     let totalInterest = totalPaid - P;
-     
-     const fmt = (num) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(num);
-     
-     document.getElementById('loanMonthly').innerText = fmt(monthlyPayment); 
-     document.getElementById('loanInterest').innerText = fmt(totalInterest); 
-     document.getElementById('loanResult').style.display = 'block';
-   }
+   function openAffordabilitySheet() {
+      closeAllSheets();
+      const sheet = document.getElementById('affordability-sheet');
+      const backdrop = document.getElementById('common-backdrop');
+      
+      // Auto-fill some data if missing
+      let incEl = document.getElementById('dtiIncome');
+      let debtEl = document.getElementById('dtiDebt');
+      let stressInc = document.getElementById('stressIncome');
+      let stressExp = document.getElementById('stressExpenses');
+      
+      // Get values from existing fixed expenses if they exist in DOM
+      let pList = document.getElementById('planned-expenses-list');
+      let plannedTot = (pList && pList.hasAttribute('data-total-all')) ? parseFloat(pList.getAttribute('data-total-all')) : 0;
+      
+      let sList = document.getElementById('subs-status-list');
+      let subsTot = (sList && sList.hasAttribute('data-total-all')) ? parseFloat(sList.getAttribute('data-total-all')) : 0;
+      let installmentsTot = (sList && sList.hasAttribute('data-total-installments')) ? parseFloat(sList.getAttribute('data-total-installments')) : subsTot;
+      
+      // For DTI (Debt-to-Income), the bank usually only cares about Installments (Loans/Mortgages), but we prefill with all fixed costs if no installments exist
+      let totalDebtToFill = installmentsTot > 0 ? installmentsTot : Math.round(subsTot + plannedTot);
+      
+      if(!debtEl.value) debtEl.value = Math.round(totalDebtToFill);
+      if(!stressExp.value) stressExp.value = Math.round(subsTot + plannedTot + 1000); // Guessed living expenses
+      
+      // Update a new info text inside the modal to show remaining expenses
+      let pElem = document.getElementById('planned-remaining-total');
+      let sElem = document.getElementById('subs-remaining-total');
+      let remainingPlanned = pElem ? pElem.innerText : '0';
+      let remainingSubs = sElem ? sElem.innerText : '0';
+      
+      let infoDiv = document.getElementById('affordability-info-header');
+      if (infoDiv) {
+           infoDiv.innerHTML = `<div style="font-size:12px; color:var(--gray); text-align:center; margin-bottom:15px;">
+               <strong>Current Month Remaining:</strong><br>
+               Subscriptions & Installments: <span class="sensitive">${remainingSubs.replace('Da pagare:', '').replace('Tutto pagato ✓', '0')}</span> | 
+               Planned Expenses: <span class="sensitive">${remainingPlanned.replace('Da pagare:', '').replace('Tutto pagato ✓', '0')}</span>
+           </div>`;
+      }
+      
+      sheet.classList.add('active'); 
+      backdrop.classList.add('active'); 
+      switchAffTab('dti');
+    }
+
+    function switchAffTab(mode) {
+      ['view-dti', 'view-aloan', 'view-buy', 'view-stress'].forEach(id => { 
+          const el = document.getElementById(id); 
+          if (el) el.style.display = 'none'; 
+      });
+      
+      ['tab-btn-dti', 'tab-btn-aloan', 'tab-btn-buy', 'tab-btn-stress'].forEach(id => { 
+          const btn = document.getElementById(id); 
+          if (btn) { btn.style.background = 'transparent'; btn.style.color = '#8e8e93'; } 
+      });
+      
+      const activeBtn = document.getElementById('tab-btn-' + mode); 
+      if (activeBtn) { activeBtn.style.background = 'white'; activeBtn.style.color = 'black'; }
+      
+      const activeView = document.getElementById('view-' + mode); 
+      if (activeView) activeView.style.display = 'block';
+    }
+
+    function calcDTI() {
+      let inc = parseFloat(document.getElementById('dtiIncome').value) || 0;
+      let debt = parseFloat(document.getElementById('dtiDebt').value) || 0;
+      if(inc === 0) return;
+      
+      let dti = (debt / inc) * 100;
+      let ratioEl = document.getElementById('dtiRatio');
+      let msgEl = document.getElementById('dtiMessage');
+      let barEl = document.getElementById('dtiBar');
+      
+      ratioEl.innerText = dti.toFixed(1) + "%";
+      barEl.style.width = Math.min(dti, 100) + "%";
+      
+      if(dti <= 30) {
+          ratioEl.style.color = "var(--success)";
+          barEl.style.background = "var(--success)";
+          msgEl.innerText = "Safe - You have good borrowing capacity.";
+      } else if(dti <= 40) {
+          ratioEl.style.color = "var(--warning)";
+          barEl.style.background = "var(--warning)";
+          msgEl.innerText = "Warning - Approaching maximum debt limits.";
+      } else {
+          ratioEl.style.color = "var(--danger)";
+          barEl.style.background = "var(--danger)";
+          msgEl.innerText = "Danger - Debt is too high relative to income.";
+      }
+      document.getElementById('dtiResult').style.display = 'block';
+    }
+
+    function calcALoan() {
+      let P = parseFloat(document.getElementById('aloanAmount').value) || 0; 
+      let r = (parseFloat(document.getElementById('aloanRate').value) || 0) / 100 / 12; 
+      let n = (parseFloat(document.getElementById('aloanYears').value) || 0) * 12;
+      
+      if (P === 0 || n === 0) return;
+      
+      let monthlyPayment = (r === 0) ? P / n : P * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1); 
+      let totalPaid = monthlyPayment * n; 
+      let totalInterest = totalPaid - P;
+      
+      const fmt = (num) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(num);
+      
+      document.getElementById('aloanMonthly').innerText = fmt(monthlyPayment); 
+      document.getElementById('aloanInterest').innerText = fmt(totalInterest); 
+      
+      let inc = parseFloat(document.getElementById('dtiIncome').value) || parseFloat(document.getElementById('stressIncome').value) || 0;
+      let exp = parseFloat(document.getElementById('stressExpenses').value) || 0;
+      if(inc > 0) {
+          let currentCashflow = inc - exp;
+          let newCashflow = currentCashflow - monthlyPayment;
+          document.getElementById('aloanCashflow').innerText = fmt(newCashflow);
+          document.getElementById('aloanCashflow').style.color = newCashflow >= 0 ? "var(--success)" : "var(--danger)";
+      } else {
+          document.getElementById('aloanCashflow').innerText = "Update Income to see";
+          document.getElementById('aloanCashflow').style.color = "var(--gray)";
+      }
+      
+      document.getElementById('aloanResult').style.display = 'block';
+      applyPrivacyFilters();
+    }
+
+    function calcBuyPower() {
+        let liq = parseFloat(document.getElementById('buyLiq').value) || 0;
+        let pmt = parseFloat(document.getElementById('buyMonthly').value) || 0;
+        let r = (parseFloat(document.getElementById('buyRate').value) || 0) / 100 / 12; 
+        let n = (parseFloat(document.getElementById('buyYears').value) || 0) * 12;
+        
+        if(pmt === 0 || n === 0) return;
+        
+        let maxLoanIncome = (r === 0) ? pmt * n : pmt * (Math.pow(1 + r, n) - 1) / (r * Math.pow(1 + r, n));
+        
+        let maxHouseIncome = (liq + maxLoanIncome) / 1.10;
+        let maxHouseLiq = liq / 0.30;
+        
+        let housePrice = Math.min(maxHouseIncome, maxHouseLiq);
+        if (housePrice < 0) housePrice = 0;
+        
+        let maxLoan = housePrice * 0.80; 
+        if (maxLoan > maxLoanIncome) maxLoan = maxLoanIncome;
+        
+        let fees = housePrice * 0.10;
+        let down = housePrice - maxLoan;
+        if (down < 0) down = 0;
+      
+      const fmt = (num) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(num);
+      
+      document.getElementById('buyMaxHouse').innerText = fmt(housePrice);
+      document.getElementById('buyMaxLoan').innerText = fmt(maxLoan);
+      document.getElementById('buyFees').innerText = "- " + fmt(fees);
+      document.getElementById('buyDown').innerText = "- " + fmt(down);
+      
+      document.getElementById('buyResult').style.display = 'block';
+      applyPrivacyFilters();
+    }
+
+    function calcStress() {
+      let inc = parseFloat(document.getElementById('stressIncome').value) || 0;
+      let exp = parseFloat(document.getElementById('stressExpenses').value) || 0;
+      if(inc === 0 || exp === 0) return;
+      
+      let s1_inc = inc * 0.8;
+      let s1_cf = s1_inc - exp;
+      
+      let s2_exp = exp * 1.2;
+      let s2_cf = inc - s2_exp;
+      
+      let s3_cf = s1_inc - s2_exp;
+      
+      const fmt = (num) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(num);
+      
+      document.getElementById('stressIncDrop').innerText = fmt(s1_inc);
+      document.getElementById('stressExpJump').innerText = fmt(s2_exp);
+      
+      let r1 = document.getElementById('stressS1');
+      let r2 = document.getElementById('stressS2');
+      let r3 = document.getElementById('stressS3');
+      
+      const updateS = (el, val) => {
+          el.innerText = (val > 0 ? "+" : "") + fmt(val) + "/mo";
+          el.style.background = val >= 0 ? "rgba(52, 199, 89, 0.2)" : "rgba(255, 59, 48, 0.2)";
+          el.style.color = val >= 0 ? "var(--success)" : "var(--danger)";
+      };
+      
+      updateS(r1, s1_cf);
+      updateS(r2, s2_cf);
+      updateS(r3, s3_cf);
+      
+      document.getElementById('stressResult').style.display = 'block';
+      applyPrivacyFilters();
+    }
    
    function calcCompound() {
      let P = parseFloat(document.getElementById('roiInit').value) || 0; 
@@ -1143,13 +1319,20 @@ function openSubs() {
         if (!container) return;
         
         let totalRemaining = 0;
+        let totalSubsAll = 0;
+        let totalInstallments = 0;
         if (data && data.length > 0) {
             data.forEach(sub => {
+                totalSubsAll += sub.amount;
+                if (sub.isInstallment) totalInstallments += sub.amount;
                 if (!sub.isPaid) {
                     totalRemaining += sub.amount;
                 }
             });
         }
+        
+        container.setAttribute('data-total-all', totalSubsAll);
+        container.setAttribute('data-total-installments', totalInstallments);
         
         const totalContainer = document.getElementById('subs-remaining-total');
         if (totalContainer) {
@@ -2113,16 +2296,22 @@ function openSubs() {
         if (!container) return;
         
         let totalRemaining = 0;
+        let totalAll = 0;
         const currentMonth = new Date().getMonth() + 1;
         const currentYear = new Date().getFullYear();
 
         if (data && data.length > 0) {
             data.forEach(exp => {
-                if (!exp.isPaid && exp.expectedMonth === currentMonth && exp.expectedYear === currentYear) {
-                    totalRemaining += exp.amount;
+                if (exp.expectedMonth === currentMonth && exp.expectedYear === currentYear) {
+                    totalAll += exp.amount;
+                    if (!exp.isPaid) {
+                        totalRemaining += exp.amount;
+                    }
                 }
             });
         }
+        
+        container.setAttribute('data-total-all', totalAll);
         
         const totalContainer = document.getElementById('planned-remaining-total');
         if (totalContainer) {
