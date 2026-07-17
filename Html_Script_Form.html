@@ -792,10 +792,16 @@ function openSubs() {
       const backdrop = document.getElementById('common-backdrop');
       
       // Auto-fill some data if missing
-      let incEl = document.getElementById('dtiIncome');
       let debtEl = document.getElementById('dtiDebt');
       let stressInc = document.getElementById('stressIncome');
       let stressExp = document.getElementById('stressExpenses');
+      
+      let liqSpan = document.getElementById('liq-eur');
+      let currentLiqStr = liqSpan ? liqSpan.innerText.replace('€', '').trim().replace(/\./g, "").replace(",", ".") : "0";
+      let currentLiq = parseFloat(currentLiqStr) || 0;
+      
+      let buyLiqEl = document.getElementById('buyLiq');
+      if(buyLiqEl && !buyLiqEl.value && currentLiq > 0) buyLiqEl.value = Math.round(currentLiq);
       
       // Get values from existing fixed expenses if they exist in DOM
       let pList = document.getElementById('planned-expenses-list');
@@ -829,15 +835,16 @@ function openSubs() {
       sheet.classList.add('active'); 
       backdrop.classList.add('active'); 
       switchAffTab('dti');
+      applyPrivacyFilters();
     }
 
     function switchAffTab(mode) {
-      ['view-dti', 'view-aloan', 'view-buy', 'view-stress'].forEach(id => { 
+      ['view-dti', 'view-aloan', 'view-buy', 'view-payoff', 'view-stress'].forEach(id => { 
           const el = document.getElementById(id); 
           if (el) el.style.display = 'none'; 
       });
       
-      ['tab-btn-dti', 'tab-btn-aloan', 'tab-btn-buy', 'tab-btn-stress'].forEach(id => { 
+      ['tab-btn-dti', 'tab-btn-aloan', 'tab-btn-buy', 'tab-btn-payoff', 'tab-btn-stress'].forEach(id => { 
           const btn = document.getElementById(id); 
           if (btn) { btn.style.background = 'transparent'; btn.style.color = '#8e8e93'; } 
       });
@@ -908,6 +915,9 @@ function openSubs() {
       
       document.getElementById('aloanResult').style.display = 'block';
       applyPrivacyFilters();
+      setTimeout(() => {
+          renderAmortizationChart('aloanAmortizationChart', P, r, n, monthlyPayment);
+      }, 150);
     }
 
     function calcBuyPower() {
@@ -942,6 +952,12 @@ function openSubs() {
       
       document.getElementById('buyResult').style.display = 'block';
       applyPrivacyFilters();
+      
+      if (maxLoan > 0) {
+          setTimeout(() => {
+              renderAmortizationChart('buyAmortizationChart', maxLoan, r, n, pmt);
+          }, 150);
+      }
     }
 
     function calcStress() {
@@ -976,8 +992,300 @@ function openSubs() {
       updateS(r2, s2_cf);
       updateS(r3, s3_cf);
       
+      let msg = (s1_cf > 0 && s2_cf > 0) ? "Robust - Survives both stress tests." : "Vulnerable - Review expenses or savings.";
+      document.getElementById('stressMessage').innerText = msg;
+      
       document.getElementById('stressResult').style.display = 'block';
       applyPrivacyFilters();
+    }
+    
+    let aloanChartInstance = null;
+    let buyChartInstance = null;
+    
+    function renderAmortizationChart(containerId, principal, monthlyRate, totalMonths, monthlyPmt) {
+      const chartDom = document.getElementById(containerId);
+      if (!chartDom) return;
+      
+      let chartInstance = containerId === 'aloanAmortizationChart' ? aloanChartInstance : buyChartInstance;
+      if (chartInstance && typeof chartInstance.dispose === 'function') chartInstance.dispose();
+      
+      chartInstance = echarts.init(chartDom);
+      if (containerId === 'aloanAmortizationChart') aloanChartInstance = chartInstance;
+      else buyChartInstance = chartInstance;
+      
+      let remainingPrincipal = principal;
+      let cumulativeInterest = 0;
+      
+      let xAxisData = [];
+      let principalData = [];
+      let interestData = [];
+      
+      for (let i = 1; i <= totalMonths; i++) {
+          let interestForMonth = remainingPrincipal * monthlyRate;
+          let principalForMonth = monthlyPmt - interestForMonth;
+          if (principalForMonth > remainingPrincipal) principalForMonth = remainingPrincipal;
+          
+          remainingPrincipal -= principalForMonth;
+          if (remainingPrincipal < 0) remainingPrincipal = 0;
+          
+          cumulativeInterest += interestForMonth;
+          
+          if (i === 1 || i % 12 === 0 || i === totalMonths) {
+              xAxisData.push('Year ' + Math.ceil(i/12));
+              principalData.push(Math.round(remainingPrincipal));
+              interestData.push(Math.round(cumulativeInterest));
+          }
+          if (remainingPrincipal <= 0) break;
+      }
+      
+      const isDark = document.body.classList.contains('dark-mode');
+      const textColor = isDark ? '#b0b0b0' : '#666';
+      
+      const option = {
+          tooltip: {
+              trigger: 'axis',
+              formatter: function (params) {
+                  if (document.body.classList.contains('privacy-mode')) return 'Hidden in Privacy Mode';
+                  let res = params[0].name + '<br/>';
+                  params.forEach(p => {
+                      res += p.marker + p.seriesName + ': € ' + p.value.toLocaleString() + '<br/>';
+                  });
+                  return res;
+              }
+          },
+          legend: {
+              data: ['Remaining Principal', 'Cumulative Interest'],
+              textStyle: { color: textColor, fontSize: 10 },
+              bottom: 0
+          },
+          grid: { left: '3%', right: '4%', bottom: '15%', top: '5%', containLabel: true },
+          xAxis: {
+              type: 'category',
+              boundaryGap: false,
+              data: xAxisData,
+              axisLabel: { color: textColor, fontSize: 10 }
+          },
+          yAxis: {
+              type: 'value',
+              axisLabel: { 
+                  color: textColor, fontSize: 10,
+                  formatter: function (value) {
+                      if (document.body.classList.contains('privacy-mode')) return '€ ***';
+                      return '€ ' + (value / 1000 >= 1 ? (value/1000) + 'k' : value);
+                  }
+              },
+              splitLine: { lineStyle: { color: isDark ? '#333' : '#eee' } }
+          },
+          series: [
+              {
+                  name: 'Remaining Principal',
+                  type: 'line',
+                  areaStyle: { opacity: 0.3 },
+                  lineStyle: { width: 2 },
+                  itemStyle: { color: '#007aff' },
+                  data: principalData
+              },
+              {
+                  name: 'Cumulative Interest',
+                  type: 'line',
+                  areaStyle: { opacity: 0.3 },
+                  lineStyle: { width: 2 },
+                  itemStyle: { color: '#ff3b30' },
+                  data: interestData
+              }
+          ]
+      };
+      
+      chartInstance.setOption(option);
+      setTimeout(() => {
+          chartInstance.resize();
+      }, 50);
+    }
+    
+    function calcPayoff() {
+      let extraPmt = parseFloat(document.getElementById('payoffExtra').value) || 0;
+      
+      // Find existing debts from the DOM
+      let debts = [];
+      
+      const existingSubsList = document.getElementById('subs-status-list');
+      if (existingSubsList && existingSubsList.hasAttribute('data-raw-subs')) {
+           try {
+               const rawData = JSON.parse(existingSubsList.getAttribute('data-raw-subs'));
+               rawData.forEach(sub => {
+                   if (sub.isInstallment && sub.remainingAmount > 0 && sub.cost > 0) {
+                       let remainingMonths = Math.ceil(sub.remainingAmount / sub.cost);
+                       debts.push({
+                           name: sub.name,
+                           principal: sub.remainingAmount,
+                           pmt: sub.cost,
+                           rate: 5.0, // Assumed average if not explicitly known
+                           remainingMonths: remainingMonths
+                       });
+                   }
+               });
+           } catch(e) {}
+      }
+      
+      let simAmount = parseFloat(document.getElementById('payoffSimAmount').value) || 0;
+      let simRate = parseFloat(document.getElementById('payoffSimRate').value) || 0;
+      let simPmt = parseFloat(document.getElementById('payoffSimPmt').value) || 0;
+      
+      if (simAmount > 0 && simPmt > 0) {
+          debts.push({
+              name: 'Simulated Debt',
+              principal: simAmount,
+              pmt: simPmt,
+              rate: simRate,
+              remainingMonths: Math.ceil(simAmount / simPmt)
+          });
+      }
+      
+      if (debts.length === 0) {
+          alert("No active debts found or simulated.");
+          return;
+      }
+      
+      // Sort by interest rate descending (Avalanche)
+      debts.sort((a, b) => b.rate - a.rate);
+      
+      let totalMonthsNormal = 0;
+      let totalInterestNormal = 0;
+      
+      let totalMonthsAvalanche = 0;
+      let totalInterestAvalanche = 0;
+      
+      // Normal Scenario (minimum payments only)
+      let normalData = [Math.round(debts.reduce((sum, d) => sum + d.principal, 0))];
+      let normalDebts = JSON.parse(JSON.stringify(debts));
+      while(normalDebts.some(d => d.principal > 0)) {
+          totalMonthsNormal++;
+          if (totalMonthsNormal > 600) break; // 50 years max guard
+          normalDebts.forEach(d => {
+              if (d.principal > 0) {
+                  let interest = d.principal * (d.rate / 100 / 12);
+                  totalInterestNormal += interest;
+                  let pmtToApply = Math.min(d.pmt, d.principal + interest);
+                  d.principal -= (pmtToApply - interest);
+              }
+          });
+          normalData.push(Math.round(normalDebts.reduce((sum, d) => sum + Math.max(0, d.principal), 0)));
+      }
+      
+      // Avalanche Scenario (extra payment goes to highest rate debt)
+      let avalancheData = [Math.round(debts.reduce((sum, d) => sum + d.principal, 0))];
+      let avDebts = JSON.parse(JSON.stringify(debts));
+      while(avDebts.some(d => d.principal > 0)) {
+          totalMonthsAvalanche++;
+          if (totalMonthsAvalanche > 600) break;
+          
+          let extraAvailable = extraPmt;
+          
+          avDebts.forEach(d => {
+              if (d.principal > 0) {
+                  let interest = d.principal * (d.rate / 100 / 12);
+                  totalInterestAvalanche += interest;
+                  let pmtToApply = Math.min(d.pmt, d.principal + interest);
+                  d.principal -= (pmtToApply - interest);
+                  
+                  // If debt is paid off by normal payment, any remainder rolls over as extra
+                  if (d.pmt > (pmtToApply - interest) && d.principal <= 0) {
+                       extraAvailable += (d.pmt - pmtToApply);
+                  }
+              }
+          });
+          
+          // Apply extra payments to highest rate debt first
+          for (let i = 0; i < avDebts.length; i++) {
+              if (avDebts[i].principal > 0 && extraAvailable > 0) {
+                  let toPay = Math.min(avDebts[i].principal, extraAvailable);
+                  avDebts[i].principal -= toPay;
+                  extraAvailable -= toPay;
+              }
+          }
+          avalancheData.push(Math.round(avDebts.reduce((sum, d) => sum + Math.max(0, d.principal), 0)));
+      }
+        
+        let interestSaved = totalInterestNormal - totalInterestAvalanche;
+        let timeSaved = totalMonthsNormal - totalMonthsAvalanche;
+        if (interestSaved < 0) interestSaved = 0;
+        if (timeSaved < 0) timeSaved = 0;
+        
+        const fmt = (num) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(num);
+        
+        document.getElementById('payoffInterestSaved').innerText = fmt(interestSaved);
+        document.getElementById('payoffTimeSaved').innerText = timeSaved + " months";
+        
+        let tableHtml = `<table style="width:100%; border-collapse:collapse; text-align:left;">
+            <tr style="border-bottom:1px solid #ddd;"><th>Debt</th><th>Pmt</th><th>Months Left (w/ Extra)</th></tr>`;
+        
+        debts.forEach(d => {
+            let monthsLeft = d.remainingMonths;
+            let monthsLeftAv = 0;
+            let tempPrincipal = d.principal;
+            while(tempPrincipal > 0 && monthsLeftAv < 600) {
+                monthsLeftAv++;
+                let interest = tempPrincipal * (d.rate / 100 / 12);
+                let pmtToApply = d.pmt + (d.name === debts[0].name ? extraPmt : 0);
+                tempPrincipal -= (pmtToApply - interest);
+            }
+            
+            tableHtml += `<tr style="border-bottom:1px solid #eee;">
+                <td style="padding:4px 0;">${d.name}</td>
+                <td>${fmt(d.pmt)}</td>
+                <td><span style="color:var(--gray); text-decoration:line-through; margin-right:5px;">${monthsLeft}</span> <b style="color:var(--success);">${monthsLeftAv}</b></td>
+            </tr>`;
+        });
+        tableHtml += `</table>`;
+        
+        document.getElementById('payoffPlanTable').innerHTML = tableHtml;
+        document.getElementById('payoffResult').style.display = 'block';
+        applyPrivacyFilters();
+        
+        setTimeout(() => {
+            const chartDom = document.getElementById('payoffChart');
+            if (chartDom) {
+                let chartInstance = echarts.getInstanceByDom(chartDom) || echarts.init(chartDom);
+                let maxMonths = Math.max(normalData.length, avalancheData.length);
+                let xAxisData = Array.from({length: maxMonths}, (_, i) => 'M' + i);
+                
+                const isDark = document.body.classList.contains('dark-mode');
+                const textColor = isDark ? '#b0b0b0' : '#666';
+                
+                chartInstance.setOption({
+                    tooltip: {
+                        trigger: 'axis',
+                        formatter: function(params) {
+                            if (document.body.classList.contains('privacy-mode')) return 'Hidden in Privacy Mode';
+                            let res = 'Month ' + params[0].dataIndex + '<br/>';
+                            params.forEach(p => {
+                                res += p.marker + p.seriesName + ': € ' + p.value.toLocaleString() + '<br/>';
+                            });
+                            return res;
+                        }
+                    },
+                    legend: { data: ['Normal', 'Avalanche Strategy'], textStyle: { color: textColor, fontSize: 10 }, bottom: 0 },
+                    grid: { left: '3%', right: '4%', bottom: '15%', top: '5%', containLabel: true },
+                    xAxis: { type: 'category', boundaryGap: false, data: xAxisData, axisLabel: { color: textColor, fontSize: 10 } },
+                    yAxis: {
+                        type: 'value',
+                        axisLabel: {
+                            color: textColor, fontSize: 10,
+                            formatter: function (value) {
+                                if (document.body.classList.contains('privacy-mode')) return '€ ***';
+                                return '€ ' + (value / 1000 >= 1 ? (value/1000) + 'k' : value);
+                            }
+                        },
+                        splitLine: { lineStyle: { color: isDark ? '#333' : '#eee' } }
+                    },
+                    series: [
+                        { name: 'Normal', type: 'line', data: normalData, itemStyle: { color: 'var(--gray)' }, lineStyle: { type: 'dashed' } },
+                        { name: 'Avalanche Strategy', type: 'line', data: avalancheData, itemStyle: { color: 'var(--success)' }, areaStyle: { color: 'rgba(52, 199, 89, 0.1)' } }
+                    ]
+                });
+                setTimeout(() => { chartInstance.resize(); }, 50);
+            }
+        }, 150);
     }
    
    function calcCompound() {

@@ -213,16 +213,19 @@
          </div>
       </div>
    </div>
-   <div id="affordability-sheet" class="sheet-modal" role="dialog" aria-modal="true">
-      <div class="sheet-header">
+   <div id="affordability-sheet" class="sheet-modal" role="dialog" aria-modal="true" style="max-height: 85vh; display: flex; flex-direction: column; overflow-y: hidden !important;">
+      <div class="sheet-header" style="flex-shrink: 0;">
          <div style="display:flex; background:#e5e5ea; border-radius:8px; padding:2px; width:100%; max-width:340px; overflow-x:auto;">
             <div id="tab-btn-dti" onclick="switchAffTab('dti')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; background:white; color:black; transition:0.2s;">DTI ⚖️</div>
             <div id="tab-btn-aloan" onclick="switchAffTab('aloan')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">LOAN 🏠</div>
             <div id="tab-btn-buy" onclick="switchAffTab('buy')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">BUY 💰</div>
+            <div id="tab-btn-payoff" onclick="switchAffTab('payoff')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">PAYOFF ❄️</div>
             <div id="tab-btn-stress" onclick="switchAffTab('stress')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">STRESS ⚠️</div>
          </div>
          <button class="sheet-close" onclick="closeAllSheets()">Done</button>
       </div>
+
+      <div style="flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 0 40px 0;">
 
       <!-- DTI TAB -->
       <div id="view-dti" style="display:block; padding-top:10px;">
@@ -262,15 +265,17 @@
             </div>
          </div>
          <button onclick="calcALoan()" style="width:100%; padding:15px; background:var(--danger); color:white; border:none; border-radius:12px; font-weight:bold; font-size:18px;">SIMULATE LOAN</button>
-         <div id="aloanResult" style="margin-top:20px; text-align:center; display:none;">
-            <div style="font-size:12px; color:var(--gray);">Monthly Payment</div>
-            <div class="sensitive" id="aloanMonthly" style="font-size:32px; font-weight:800; color:var(--text-main);">€ 0</div>
-            <div style="font-size:12px; color:var(--gray); margin-top:5px;">Total Interest Paid</div>
-            <div class="sensitive" id="aloanInterest" style="font-size:16px; font-weight:bold; color:var(--danger);">€ 0</div>
-            <div style="margin-top:15px; padding:10px; background:rgba(255,59,48,0.1); border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
-               <span style="font-size:12px; color:var(--gray);">New Avg Cashflow</span>
-               <span class="sensitive" id="aloanCashflow" style="font-size:16px; font-weight:bold; color:var(--danger);">€ 0</span>
-            </div>
+         <div id="aloanResult" style="display:none; margin-top:20px; background:var(--section-bg); padding:15px; border-radius:12px;">
+            <div style="font-size:14px; color:var(--gray); margin-bottom:5px;">Est. Monthly Payment</div>
+            <div id="aloanMonthly" class="sensitive" style="font-size:26px; font-weight:800; color:var(--text-main); margin-bottom:15px;">€ 0</div>
+            
+            <div style="font-size:14px; color:var(--gray); margin-bottom:5px;">Total Interest Paid</div>
+            <div id="aloanInterest" class="sensitive" style="font-size:18px; font-weight:700; color:var(--danger); margin-bottom:15px;">€ 0</div>
+            
+            <div style="font-size:14px; color:var(--gray); margin-bottom:5px;">New Net Monthly Cashflow</div>
+            <div id="aloanCashflow" class="sensitive" style="font-size:18px; font-weight:700; color:var(--success);">€ 0</div>
+            
+            <div id="aloanAmortizationChart" style="width:100%; height:200px; margin-top:20px;"></div>
          </div>
       </div>
 
@@ -294,21 +299,55 @@
             </div>
          </div>
          <button onclick="calcBuyPower()" style="width:100%; padding:15px; background:var(--stocks-bg); color:white; border:none; border-radius:12px; font-weight:bold; font-size:18px;">CALCULATE POWER</button>
-         <div id="buyResult" style="margin-top:20px; text-align:center; display:none;">
-            <div style="font-size:12px; color:var(--gray);">Max House Price</div>
-            <div class="sensitive" id="buyMaxHouse" style="font-size:32px; font-weight:800; color:var(--stocks-bg);">€ 0</div>
-            <div style="display:flex; justify-content:space-between; margin-top:15px; font-size:12px; color:var(--gray); border-top:1px solid #eee; padding-top:10px;">
-               <span>Max Loan:</span>
-               <span class="sensitive" id="buyMaxLoan" style="font-weight:bold; color:var(--text-main);">€ 0</span>
+         <div id="buyResult" style="display:none; margin-top:20px; background:var(--section-bg); padding:15px; border-radius:12px;">
+            <div style="font-size:14px; color:var(--gray); margin-bottom:5px;">Max House Price</div>
+            <div id="buyMaxHouse" class="sensitive" style="font-size:26px; font-weight:800; color:var(--text-main); margin-bottom:15px;">€ 0</div>
+            
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+               <span style="color:var(--gray); font-size:14px;">Bank Loan (80%)</span>
+               <span id="buyMaxLoan" class="sensitive" style="font-weight:700; color:var(--text-main);">€ 0</span>
             </div>
-            <div style="display:flex; justify-content:space-between; margin-top:5px; font-size:12px; color:var(--gray);">
-               <span>Taxes/Notary/Fees (~10%):</span>
-               <span class="sensitive" id="buyFees" style="font-weight:bold; color:var(--danger);">-€ 0</span>
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+               <span style="color:var(--gray); font-size:14px;">Downpayment (20%)</span>
+               <span id="buyDown" class="sensitive" style="font-weight:700; color:var(--danger);">- € 0</span>
             </div>
-            <div style="display:flex; justify-content:space-between; margin-top:5px; font-size:12px; color:var(--gray);">
-               <span>Downpayment (Acconto):</span>
-               <span class="sensitive" id="buyDown" style="font-weight:bold; color:var(--danger);">-€ 0</span>
+            <div style="display:flex; justify-content:space-between;">
+               <span style="color:var(--gray); font-size:14px;">Fees & Taxes (~10%)</span>
+               <span id="buyFees" class="sensitive" style="font-weight:700; color:var(--danger);">- € 0</span>
             </div>
+            
+            <div id="buyAmortizationChart" style="width:100%; height:200px; margin-top:20px;"></div>
+         </div>
+      </div>
+
+      <!-- PAYOFF STRATEGY TAB -->
+      <div id="view-payoff" style="display:none; padding-top:10px;">
+         <div style="font-size:12px; color:var(--gray); margin-bottom:15px; text-align:center; line-height:1.4;">Avalanche Method: see how extra monthly payments can destroy your debts and save you interest.</div>
+         <div style="background:var(--white); border:1px solid #ddd; border-radius:12px; padding:15px; margin-bottom:15px;">
+            <label style="margin-top:0">Extra Monthly Payment (€)</label>
+            <input type="number" inputmode="decimal" id="payoffExtra" placeholder="100" style="font-size:20px; font-weight:bold;">
+            
+            <div style="margin-top:15px;">
+               <label style="margin-top:0">Add a Simulated Debt? (Optional)</label>
+               <div style="display:flex; gap:10px; margin-top:5px;">
+                  <input type="number" inputmode="decimal" id="payoffSimAmount" placeholder="Amount (€)" style="flex:1;">
+                  <input type="number" inputmode="decimal" id="payoffSimRate" placeholder="Rate (%)" style="width:80px;">
+                  <input type="number" inputmode="decimal" id="payoffSimPmt" placeholder="Pmt (€/mo)" style="width:100px;">
+               </div>
+            </div>
+            
+            <button class="sheet-close" style="background:var(--primary); color:white; margin-top:15px;" onclick="calcPayoff()">Calculate Strategy</button>
+         </div>
+
+         <div id="payoffResult" style="display:none; margin-top:20px; background:var(--section-bg); padding:15px; border-radius:12px;">
+            <div style="font-size:14px; color:var(--gray); margin-bottom:5px;">Total Interest Saved</div>
+            <div id="payoffInterestSaved" class="sensitive" style="font-size:26px; font-weight:800; color:var(--success); margin-bottom:15px;">€ 0</div>
+            
+            <div style="font-size:14px; color:var(--gray); margin-bottom:5px;">Time Saved (Months)</div>
+            <div id="payoffTimeSaved" style="font-size:18px; font-weight:700; color:var(--primary); margin-bottom:15px;">0 months</div>
+            
+            <div id="payoffPlanTable" style="margin-top:15px; font-size:12px; max-height:250px; overflow-y:auto;"></div>
+            <div id="payoffChart" style="width:100%; height:200px; margin-top:20px;"></div>
          </div>
       </div>
 
@@ -349,6 +388,7 @@
                <div id="stressS3" style="font-size:13px; font-weight:bold; padding:4px 8px; border-radius:6px; background:#f0f0f0;">--</div>
             </div>
          </div>
+      </div>
       </div>
    </div>
    <div id="subs-sheet" class="sheet-modal" role="dialog" aria-modal="true">
@@ -516,7 +556,7 @@
          <button onclick="sendToGemini()" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; border:none; border-radius:12px; width:50px; font-size:20px;">➤</button>
       </div>
    </div>
-   <div id="risk-sheet" class="sheet-modal" role="dialog" aria-modal="true" style="height: 85vh; background: #fbfbfd; display: flex; flex-direction: column;">
+   <div id="risk-sheet" class="sheet-modal" role="dialog" aria-modal="true" style="max-height: 85vh; background: #fbfbfd; display: flex; flex-direction: column; overflow-y: hidden !important;">
       <div class="sheet-header" style="flex-shrink: 0;">
          <span style="font-size:12px; font-weight:bold; color:var(--danger); letter-spacing:1px;">⚠️ RISK REPORT</span>
          <button class="sheet-close" onclick="closeAllSheets()">Close</button>
