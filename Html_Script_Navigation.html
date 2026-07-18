@@ -173,7 +173,7 @@
    const ptrElement = document.createElement('div');
    ptrElement.id = 'ptr-indicator';
    ptrElement.style.cssText = `position: fixed; top: -60px; left: 0; width: 100%; height: 60px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #007aff; font-size: 24px; z-index: 999; transition: top 0.3s ease; background: rgba(255,255,255,0.8); backdrop-filter: blur(5px);`;
-   ptrElement.innerHTML = '⬇️ Pull'; 
+   ptrElement.innerHTML = `\x3Csvg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px; vertical-align:middle;">\x3Cpath d="M12 5v14"/>\x3Cpath d="m19 12-7 7-7-7"/>\x3C/svg> Pull`; 
    document.body.appendChild(ptrElement);
    
    window.addEventListener('touchstart', e => { 
@@ -187,11 +187,11 @@
      if (window.scrollY === 0 && pullDistance > 0) {
        if (pullDistance < ptrThreshold) {
           ptrElement.style.top = (pullDistance / 2.5 - 60) + 'px';
-          ptrElement.innerHTML = '⬇️ Pull';
+          ptrElement.innerHTML = `\x3Csvg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px; vertical-align:middle;">\x3Cpath d="M12 5v14"/>\x3Cpath d="m19 12-7 7-7-7"/>\x3C/svg> Pull`;
           ptrElement.style.opacity = '0.5';
        } else {
           ptrElement.style.top = '0px'; 
-          ptrElement.innerHTML = '🚀 Release!';
+          ptrElement.innerHTML = `\x3Csvg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px; vertical-align:middle;">\x3Cpath d="M12 19V5"/>\x3Cpath d="m5 12 7-7 7 7"/>\x3C/svg> Release!`;
           ptrElement.style.opacity = '1';
        }
      }
@@ -229,7 +229,7 @@
      
      setTimeout(() => {
        ptrElement.style.top = '-60px';
-       setTimeout(() => ptrElement.innerHTML = '⬇️ Pull', 300);
+       setTimeout(() => ptrElement.innerHTML = `\x3Csvg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px; vertical-align:middle;">\x3Cpath d="M12 5v14"/>\x3Cpath d="m19 12-7 7-7-7"/>\x3C/svg> Pull`, 300);
      }, 1500);
    }
    
@@ -238,7 +238,7 @@
    // Offline Banner
    const offlineDiv = document.createElement('div');
    offlineDiv.id = 'offline-banner';
-   offlineDiv.innerText = '⚠️ No Connection';
+   offlineDiv.innerHTML = `\x3Csvg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px; vertical-align:middle;">\x3Cpath d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>\x3Cline x1="12" y1="9" x2="12" y2="13"/>\x3Cline x1="12" y1="17" x2="12.01" y2="17"/>\x3C/svg> No Connection`;
    document.body.appendChild(offlineDiv);
    
    function updateOnlineStatus() {
@@ -248,7 +248,7 @@
        offlineDiv.innerText = 'Connection Restored';
        setTimeout(() => { 
            offlineDiv.style.background = '#ff3b30'; 
-           offlineDiv.innerText = '⚠️ No Connection'; 
+           offlineDiv.innerHTML = `\x3Csvg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px; vertical-align:middle;">\x3Cpath d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>\x3Cline x1="12" y1="9" x2="12" y2="13"/>\x3Cline x1="12" y1="17" x2="12.01" y2="17"/>\x3C/svg> No Connection`; 
        }, 2000);
      } else {
        offlineDiv.style.top = '0'; 
@@ -261,7 +261,7 @@
    // Scroll to Top Button
    const btnUp = document.createElement('div');
    btnUp.id = 'btn-up';
-   btnUp.innerHTML = '⬆️';
+   btnUp.innerHTML = `\x3Csvg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--white);">\x3Cpath d="m18 15-6-6-6 6"/>\x3C/svg>`;
    btnUp.onclick = () => window.scrollTo({top: 0, behavior: 'smooth'});
    document.body.appendChild(btnUp);
    
@@ -361,7 +361,7 @@
             title: 'Modifica Spesa Fissa',
             html: `<select id="swal-edit-expense-id" class="swal2-input" style="width: 80%;">${optionsHtml}</select>`,
             showCancelButton: true,
-            confirmButtonText: 'Avanti ➔',
+            confirmButtonText: 'Avanti',
             cancelButtonText: 'Annulla',
             background: isDark ? '#1c1c1e' : '#fff',
             color: isDark ? '#fff' : '#000',
@@ -469,7 +469,7 @@
                 <div style="margin-top: 20px; text-align: left; width: 80%; margin-left: auto; margin-right: auto; background: var(--section-bg); padding: 10px; border-radius: 10px;">
                     <label style="font-size: 14px; color: var(--text-main); display:flex; align-items:center; gap:8px; cursor:pointer;">
                         <input type="checkbox" id="swal-split-check" style="width:18px; height:18px;" ${sub.isSplit ? 'checked' : ''}>
-                        🔁 Dividi su più conti (Split)
+                        \x3Csvg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:4px;">\x3Cpath d="m17 2 4 4-4 4"/>\x3Cpath d="M3 11v-1a4 4 0 0 1 4-4h14"/>\x3Cpath d="m7 22-4-4 4-4"/>\x3Cpath d="M21 13v1a4 4 0 0 1-4 4H3"/>\x3C/svg> Dividi su più conti (Split)
                     </label>
                 </div>
 
@@ -633,7 +633,7 @@
                <div style="margin-top: 20px; text-align: left; width: 80%; margin-left: auto; margin-right: auto; background: var(--section-bg); padding: 10px; border-radius: 10px;">
                    <label style="font-size: 14px; color: var(--text-main); display:flex; align-items:center; gap:8px; cursor:pointer;">
                        <input type="checkbox" id="swal-split-check" style="width:18px; height:18px;">
-                       🔁 Dividi su più conti (Split)
+                       \x3Csvg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:4px;">\x3Cpath d="m17 2 4 4-4 4"/>\x3Cpath d="M3 11v-1a4 4 0 0 1 4-4h14"/>\x3Cpath d="m7 22-4-4 4-4"/>\x3Cpath d="M21 13v1a4 4 0 0 1-4 4H3"/>\x3C/svg> Dividi su più conti (Split)
                    </label>
                </div>
 

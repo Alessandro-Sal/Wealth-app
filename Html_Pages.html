@@ -10,35 +10,36 @@
                </div>
             </div>
             <div class="header-actions">
-               <button type="button" class="mini-theme-btn" onclick="openPortfolioAlerts()" style="font-size: 18px; background:var(--section-bg); border:none; width:36px; height:36px; cursor:pointer; position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.05);" title="Portfolio Alerts">
-               🔔
+               <button type="button" class="mini-theme-btn" onclick="openPortfolioAlerts()" style="font-size: 18px; background:var(--section-bg); border:none; width:36px; height:36px; cursor:pointer; position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.05);" title="Portfolio Alerts" aria-label="Portfolio Alerts">
+               <i data-lucide="bell"></i>
                <span id="portfolio-badge-count" style="position: absolute; top: -4px; right: -4px; background: #ff3b30; color: white; font-size: 10px; font-weight: 800; border-radius: 10px; padding: 2px 5px; border: 2px solid var(--white); display: none; box-shadow: 0 2px 4px rgba(255,59,48,0.4);">0</span>
                </button>
-               <button type="button" class="mini-theme-btn" onclick="loadNews(currentNewsCategory)" style="font-size: 18px; background:var(--section-bg); border:none; width:36px; height:36px; cursor:pointer;">🔄</button>
+               <button type="button" class="mini-theme-btn" onclick="loadNews(currentNewsCategory)" style="font-size: 18px; background:var(--section-bg); border:none; width:36px; height:36px; cursor:pointer;" aria-label="Refresh news"><i data-lucide="refresh-cw"></i></button>
             </div>
          </div>
           <form id="txForm">
          <div class="news-search-container" style="display: flex; gap: 10px;">
             <div style="position: relative; flex: 1;">
-               <span class="search-icon">🔍</span>
+               <span class="search-icon" style="display:flex; align-items:center; padding-left:10px;"><i data-lucide="search" style="width:16px; height:16px;"></i></span>
                <input type="text" id="newsSearchInput" placeholder="Search articles, tickers or topics..." onkeyup="filterNewsItems()">
             </div>
             <button type="button" onclick="requestAIBriefing()" class="ai-brief-btn" style="background: linear-gradient(135deg, #007aff, #5856d6); color: white; border: none; border-radius: 12px; padding: 0 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: transform 0.2s; box-shadow: 0 4px 10px rgba(0, 122, 255, 0.2);">
-            ✨ AI
+            <i data-lucide="sparkles" style="width:16px; height:16px;"></i> AI
             </button>
          </div>
          <div class="news-cat-scroll">
-    <button type="button" class="news-cat-btn active" onclick="setNewsCategory('market', this, event)">📊 Markets</button>
-    <button type="button" class="news-cat-btn" onclick="setNewsCategory('portfolio', this, event)">💼 My Portfolio</button>
-    <button type="button" class="news-cat-btn" onclick="setNewsCategory('world', this, event)">🌍 World</button>
-    <button type="button" class="news-cat-btn" onclick="setNewsCategory('politics', this, event)">🏛️ Politics</button>
-    <button type="button" class="news-cat-btn" onclick="setNewsCategory('science', this, event)">🔬 Science</button>
-    <button type="button" class="news-cat-btn" onclick="setNewsCategory('culture', this, event)">🎭 Culture</button>
-    <button type="button" class="news-cat-btn" onclick="setNewsCategory('saved', this, event)">🔖 Saved</button>
+    <button type="button" class="news-cat-btn active" onclick="setNewsCategory('market', this, event)"><i data-lucide="bar-chart-2" style="width:14px; height:14px; margin-right:4px;"></i> Markets</button>
+    <button type="button" class="news-cat-btn" onclick="setNewsCategory('portfolio', this, event)"><i data-lucide="briefcase" style="width:14px; height:14px; margin-right:4px;"></i> My Portfolio</button>
+    <button type="button" class="news-cat-btn" onclick="setNewsCategory('world', this, event)"><i data-lucide="globe" style="width:14px; height:14px; margin-right:4px;"></i> World</button>
+    <button type="button" class="news-cat-btn" onclick="setNewsCategory('politics', this, event)"><i data-lucide="landmark" style="width:14px; height:14px; margin-right:4px;"></i> Politics</button>
+    <button type="button" class="news-cat-btn" onclick="setNewsCategory('science', this, event)"><i data-lucide="flask-conical" style="width:14px; height:14px; margin-right:4px;"></i> Science</button>
+    <button type="button" class="news-cat-btn" onclick="setNewsCategory('culture', this, event)"><i data-lucide="palette" style="width:14px; height:14px; margin-right:4px;"></i> Culture</button>
+    <button type="button" class="news-cat-btn" onclick="setNewsCategory('saved', this, event)"><i data-lucide="bookmark" style="width:14px; height:14px; margin-right:4px;"></i> Saved</button>
 </div>
          <div id="news-container" class="news-grid">
-            <div class="loader" style="text-align: center; color: var(--gray); padding: 40px; grid-column: 1 / -1;">
-               Loading latest news...
+            <div class="loader" style="text-align: center; color: var(--gray); padding: 40px; grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+               <i data-lucide="loader-2" class="spin"></i>
+               <span>Loading latest news...</span>
             </div>
          </div>
          </form>
@@ -63,14 +64,14 @@
             </div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                <div style="background: rgba(52, 199, 89, 0.08); border-radius: 12px; padding: 12px; display:flex; align-items:center; gap: 10px;">
-                  <div style="background:white; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 5px rgba(0,0,0,0.05);"><span style="font-size:16px;">⬇️</span></div>
+                  <div style="background:white; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); color:var(--success);"><i data-lucide="arrow-down-circle" style="width:20px; height:20px;"></i></div>
                   <div>
                      <div style="font-size:10px; font-weight:600; color:var(--success); text-transform:uppercase;">Income</div>
                      <div id="flow-in" class="sensitive" style="font-size:15px; font-weight:700; color:var(--text-main);">€ --</div>
                   </div>
                </div>
                <div style="background: rgba(255, 59, 48, 0.08); border-radius: 12px; padding: 12px; display:flex; align-items:center; gap: 10px;">
-                  <div style="background:white; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 5px rgba(0,0,0,0.05);"><span style="font-size:16px;">⬆️</span></div>
+                  <div style="background:white; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); color:var(--danger);"><i data-lucide="arrow-up-circle" style="width:20px; height:20px;"></i></div>
                   <div>
                      <div style="font-size:10px; font-weight:600; color:var(--danger); text-transform:uppercase;">Expenses</div>
                      <div style="display:flex; align-items:baseline; gap:4px; flex-wrap: wrap;">
@@ -84,13 +85,13 @@
          <label>Type</label>
          <select id="tType" onchange="handleTypeChange()">
             <option value="">Choose Type...</option>
-            <option value="Income">🟢 Income</option>
-            <option value="Expense">🔴 Expense</option>
-            <option value="Transfer">🔵 Transfer</option>
-            <option value="Storno">⚪ Refund</option>
-            <option value="Investment">🟠 Investment</option>
-            <option value="Pension">🐢 Pension</option>
-            <option value="Debt">🏦 Debt / Loan</option>
+            <option value="Income">Income</option>
+            <option value="Expense">Expense</option>
+            <option value="Transfer">Transfer</option>
+            <option value="Storno">Refund</option>
+            <option value="Investment">Investment</option>
+            <option value="Pension">Pension</option>
+            <option value="Debt">Debt / Loan</option>
          </select>
          <div id="pension-inputs" style="display:none; background:#f0f0f5; padding:15px; border-radius:12px; margin-top:15px; border:1px solid #d1d1d6;">
             <div style="font-size:12px; color:#555; margin-bottom:10px; font-weight:bold;">PENSION FUND DETAILS</div>
@@ -126,7 +127,7 @@
             <input type="number" inputmode="decimal" id="penAmount" step="0.01" placeholder="Ex. 120.50" style="font-size:24px; font-weight:bold; color:#2c3e50;">
          </div>
          <div id="debt-inputs" style="display:none; background:rgba(255, 59, 48, 0.05); padding:15px; border-radius:12px; margin-top:15px; border:1px solid rgba(255, 59, 48, 0.1);">
-            <div style="font-size:12px; color:var(--danger); margin-bottom:10px; font-weight:bold;">🏦 DEBT / LOAN DETAILS</div>
+            <div style="font-size:12px; color:var(--danger); margin-bottom:10px; font-weight:bold; display:flex; align-items:center; gap:6px;"><i data-lucide="landmark" style="width:14px; height:14px;"></i> DEBT / LOAN DETAILS</div>
             <label style="margin-top:0">Loan Name / Scope</label>
             <input type="text" id="debtName" placeholder="e.g. Car Loan" style="background:white; font-weight:bold;">
             <label>Amount Borrowed (€)</label>
@@ -157,10 +158,10 @@
             </select>
 
             <button type="button" onclick="initRenegotiation()" style="margin-top:20px; width:100%; background:rgba(0,122,255,0.1); color:var(--primary); border:none; padding:12px; border-radius:12px; font-weight:bold; cursor:pointer; font-size:14px; display:flex; justify-content:center; align-items:center; gap:8px;">
-                <span style="font-size:16px;">🔄</span> Rinegozia o Estendi Debito
+                <i data-lucide="refresh-cw" style="width:16px; height:16px;"></i> Rinegozia o Estendi Debito
             </button>
             <button type="button" onclick="initDebtRepayment()" style="margin-top:10px; width:100%; background:rgba(52, 199, 89, 0.1); color:var(--success); border:none; padding:12px; border-radius:12px; font-weight:bold; cursor:pointer; font-size:14px; display:flex; justify-content:center; align-items:center; gap:8px;">
-                <span style="font-size:16px;">💸</span> Estinzione Anticipata
+                <i data-lucide="banknote" style="width:16px; height:16px;"></i> Estinzione Anticipata
             </button>
          </div>
          <div id="standard-inputs">
@@ -219,7 +220,7 @@
          <div style="margin-top: 25px; background: rgba(0, 122, 255, 0.05); border-radius: 16px; padding: 15px; border: 1px solid rgba(0, 122, 255, 0.1);">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                <div style="display:flex; align-items:center; gap: 10px;">
-                  <div style="background:var(--white); width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-size:16px;">👥</div>
+                  <div style="background:var(--white); width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); color:var(--primary);"><i data-lucide="users" style="width:18px; height:18px;"></i></div>
                   <span style="font-weight:800; color:var(--primary); font-size:14px; letter-spacing:0.5px;">Split with Friends</span>
                </div>
                <label class="switch-ios" style="margin: 0;">
@@ -232,7 +233,7 @@
                
                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                   <span style="font-size:12px; font-weight:800; color:var(--gray);">Total Paid: <span id="split-total-paid" style="color:var(--text-main);">€ 0.00</span></span>
-                  <button type="button" onclick="splitEqually()" style="background:rgba(0,122,255,0.1); color:var(--primary); border:none; padding:4px 10px; border-radius:8px; font-size:11px; font-weight:bold; cursor:pointer;">➗ Split Equally</button>
+                  <button type="button" onclick="splitEqually()" style="background:rgba(0,122,255,0.1); color:var(--primary); border:none; padding:4px 10px; border-radius:8px; font-size:11px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;"><i data-lucide="divide" style="width:12px; height:12px;"></i> Split Equally</button>
                </div>
                
                <div style="display:flex; gap:8px; margin-bottom:15px; align-items:flex-end; background:rgba(0,0,0,0.02); padding:10px; border-radius:12px; border:1px solid rgba(0,0,0,0.05);">
@@ -242,15 +243,15 @@
                   </div>
                   <div style="flex:1.5;">
                      <select id="splitCurrency" style="background:white; margin-top:4px; width:100%; border:1px solid #ddd; border-radius:8px; padding:8px; height:35px; box-sizing:border-box; font-size:13px;">
-                        <option value="GBP">🇬🇧 GBP</option>
-                        <option value="USD">🇺🇸 USD</option>
-                        <option value="CHF">🇨🇭 CHF</option>
-                        <option value="JPY">🇯🇵 JPY</option>
-                        <option value="AUD">🇦🇺 AUD</option>
+                        <option value="GBP">GBP</option>
+                        <option value="USD">USD</option>
+                        <option value="CHF">CHF</option>
+                        <option value="JPY">JPY</option>
+                        <option value="AUD">AUD</option>
                      </select>
                   </div>
                   <div style="flex:1;">
-                     <button type="button" onclick="convertSplitCurrency()" style="background:var(--stocks-bg); color:white; border:none; border-radius:8px; height:35px; width:100%; font-weight:bold; cursor:pointer;">⇄ EUR</button>
+                     <button type="button" onclick="convertSplitCurrency()" style="background:var(--stocks-bg); color:white; border:none; border-radius:8px; height:35px; width:100%; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;"><i data-lucide="arrow-right-left" style="width:14px; height:14px;"></i> EUR</button>
                   </div>
                </div>
                
@@ -258,14 +259,14 @@
                   <label style="margin-top:0; font-size:11px; color:var(--gray);">My Share (€)</label>
                   <div style="display:flex; align-items:center; gap:8px;">
                       <input type="number" inputmode="decimal" id="splitMyShare" placeholder="0.00" oninput="updateSplitMath(this)" data-locked="false" style="background:white; margin-top:4px; flex:1;">
-                      <button type="button" class="split-lock-btn" onclick="toggleSplitLock(this)" style="background:none; border:none; font-size:16px; cursor:pointer; opacity:0.5; padding:5px;">🔓</button>
+                      <button type="button" class="split-lock-btn" onclick="toggleSplitLock(this)" style="background:none; border:none; cursor:pointer; opacity:0.5; padding:5px; color:var(--gray);" aria-label="Toggle lock"><i data-lucide="unlock" style="width:18px; height:18px;" class="lock-icon"></i></button>
                   </div>
                </div>
                
                <label style="margin-top:0; font-size:11px; color:var(--gray);">Friends</label>
                <div id="split-friends-list" style="display:flex; flex-direction:column; gap:8px;">
                   </div>
-               <button type="button" onclick="addSplitFriend()" style="width:100%; background:white; border:1px dashed var(--primary); color:var(--primary); padding:8px; border-radius:8px; font-size:12px; font-weight:bold; margin-top:10px; cursor:pointer;">+ Add Friend</button>
+               <button type="button" onclick="addSplitFriend()" style="width:100%; background:white; border:1px dashed var(--primary); color:var(--primary); padding:8px; border-radius:8px; font-size:12px; font-weight:bold; margin-top:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;"><i data-lucide="plus" style="width:14px; height:14px;"></i> Add Friend</button>
                
                <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:12px 15px; border-radius:12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); margin-top:15px;">
                   <span style="font-size:12px; font-weight:800; color:var(--gray); text-transform:uppercase;">To Collect:</span>
@@ -289,9 +290,9 @@
          <div class="dash-widget span-2 span-pc-2" id="active-credits-widget">
             <div class="widget-title" style="display:flex; justify-content:space-between; align-items:center;">
                <div style="display:flex; align-items:center; gap:8px;">
-                  <div class="badge-icon bg-blue">🤝</div> To Collect
+                  <div class="badge-icon bg-blue" style="display:flex;align-items:center;justify-content:center;"><i data-lucide="handshake" style="width:16px; height:16px;"></i></div> To Collect
                </div>
-               <button type="button" onclick="showCreditsSummary()" style="background:rgba(0,122,255,0.1); color:var(--primary); border:none; border-radius:8px; padding:6px 12px; font-size:11px; font-weight:bold; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.05);">👥 By Person</button>
+               <button type="button" onclick="showCreditsSummary()" style="background:rgba(0,122,255,0.1); color:var(--primary); border:none; border-radius:8px; padding:6px 12px; font-size:11px; font-weight:bold; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.05); display:flex; align-items:center; gap:4px;"><i data-lucide="users" style="width:14px; height:14px;"></i> By Person</button>
             </div>
             <div id="active-credits-list" style="display:flex; flex-direction:column; gap:12px; margin-top:5px; max-height: 280px; overflow-y: auto;">
                <div style="font-size:12px; color:var(--gray); text-align:center; padding: 20px 0;">Loading credits...</div>
@@ -299,12 +300,12 @@
          </div>
          <div class="dash-widget span-2 span-pc-2" id="subs-status-widget">
             <div class="widget-title" style="display:flex; align-items:center;">
-               <div class="badge-icon bg-purple">🔄</div>
+               <div class="badge-icon bg-purple" style="display:flex;align-items:center;justify-content:center;"><i data-lucide="refresh-ccw" style="width:16px; height:16px;"></i></div>
                <div style="display:flex; flex-direction:column; line-height: 1.2; margin-left: 8px;">
                   <span>Subs & Installments</span>
                   <span id="subs-remaining-total" style="font-size: 11px; font-weight: normal; color: var(--gray);"></span>
                </div>
-               <span onclick="openSubs()" style="cursor: pointer; font-size: 24px; font-weight: 800; color: var(--primary); margin-left: auto; line-height: 1; transition: 0.2s;">+</span>
+               <span onclick="openSubs()" style="cursor: pointer; color: var(--primary); margin-left: auto; transition: 0.2s;"><i data-lucide="plus-circle" style="width:24px; height:24px;"></i></span>
             </div>
             <div id="subs-status-list" style="display:flex; flex-direction:column; gap:12px; margin-top:5px; max-height: 280px; overflow-y: auto;">
                <div style="font-size:12px; color:var(--gray); text-align:center; padding: 20px 0;">Loading subscriptions...</div>
@@ -312,12 +313,12 @@
          </div>
          <div class="dash-widget span-2 span-pc-2" id="planned-expenses-widget">
             <div class="widget-title" style="display:flex; align-items:center;">
-               <div class="badge-icon" style="background:#ff9500; color:#fff;">📅</div>
+               <div class="badge-icon" style="background:#ff9500; color:#fff; display:flex;align-items:center;justify-content:center;"><i data-lucide="calendar" style="width:16px; height:16px;"></i></div>
                <div style="display:flex; flex-direction:column; line-height: 1.2; margin-left: 8px;">
                   <span>Spese Programmate</span>
                   <span id="planned-remaining-total" style="font-size: 11px; font-weight: normal; color: var(--gray);"></span>
                </div>
-               <span onclick="openPlannedExpenseModal()" style="cursor: pointer; font-size: 24px; font-weight: 800; color: var(--primary); margin-left: auto; line-height: 1; transition: 0.2s;">+</span>
+               <span onclick="openPlannedExpenseModal()" style="cursor: pointer; color: var(--primary); margin-left: auto; transition: 0.2s;"><i data-lucide="plus-circle" style="width:24px; height:24px;"></i></span>
             </div>
             <div id="planned-expenses-list" style="display:flex; flex-direction:column; gap:12px; margin-top:5px; max-height: 280px; overflow-y: auto;">
                <div style="font-size:12px; color:var(--gray); text-align:center; padding: 20px 0;">Caricamento spese...</div>
@@ -343,11 +344,11 @@
          </div>
          <label>Asset Class</label>
          <select id="invType" onchange="toggleInvestAssets()">
-            <option value="Stocks">Stocks 🏢</option>
-            <option value="ETF">ETF (Indices) 🌐</option>
-            <option value="Crypto">Crypto ₿</option>
-            <option value="Bond">Bonds / BTP 📜</option>
-            <option value="RealEstate">Real Estate 🏠</option>
+            <option value="Stocks">Stocks</option>
+            <option value="ETF">ETF (Indices)</option>
+            <option value="Crypto">Crypto</option>
+            <option value="Bond">Bonds / BTP</option>
+            <option value="RealEstate">Real Estate</option>
          </select>
          
          <label>Date</label>
@@ -394,7 +395,7 @@
          </div>
 
          <div id="realestate-inputs" style="display:none; background:rgba(0,122,255,0.05); padding:15px; border-radius:12px; margin-top:15px; border:1px solid rgba(0,122,255,0.1);">
-            <div style="font-size:12px; color:var(--primary); margin-bottom:10px; font-weight:bold;">🏠 REAL ESTATE DETAILS</div>
+            <div style="font-size:12px; color:var(--primary); margin-bottom:10px; font-weight:bold; display:flex; align-items:center; gap:6px;"><i data-lucide="home" style="width:14px; height:14px;"></i> REAL ESTATE DETAILS</div>
             <label style="margin-top:0">Property Name</label>
             <input type="text" id="reName" placeholder="e.g. Casa Milano">
             <label>Market Value (€)</label>
@@ -423,12 +424,12 @@
                <option value="9">Revolut</option>
             </select>
             <button type="button" onclick="initAssetManagement()" style="margin-bottom:15px; width:100%; background:rgba(255, 149, 0, 0.1); color:#ff9500; border:none; padding:10px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:13px; display:flex; justify-content:center; align-items:center; gap:8px;">
-                <span style="font-size:15px;">🛠️</span> Gestisci (Vendi o Aggiorna Valore)
+                <i data-lucide="wrench" style="width:16px; height:16px;"></i> Gestisci (Vendi o Aggiorna Valore)
             </button>
          </div>
 
          <div id="bond-inputs" style="display:none; background:rgba(88, 86, 214, 0.05); padding:15px; border-radius:12px; margin-top:15px; border:1px solid rgba(88, 86, 214, 0.1);">
-            <div style="font-size:12px; color:var(--purple); margin-bottom:10px; font-weight:bold;">📜 BOND DETAILS</div>
+            <div style="font-size:12px; color:var(--purple); margin-bottom:10px; font-weight:bold; display:flex; align-items:center; gap:6px;"><i data-lucide="scroll" style="width:14px; height:14px;"></i> BOND DETAILS</div>
             <label style="margin-top:0">Bond Name</label>
             <input type="text" id="bondName" placeholder="e.g. BTP Valore 2027">
             <label>ISIN / Yahoo Ticker</label>
@@ -460,7 +461,7 @@
                <option value="9">Revolut</option>
             </select>
             <button type="button" onclick="initAssetManagement()" style="margin-bottom:15px; width:100%; background:rgba(255, 149, 0, 0.1); color:#ff9500; border:none; padding:10px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:13px; display:flex; justify-content:center; align-items:center; gap:8px;">
-                <span style="font-size:15px;">🛠️</span> Gestisci (Vendi o Aggiorna Valore)
+                <i data-lucide="wrench" style="width:16px; height:16px;"></i> Gestisci (Vendi o Aggiorna Valore)
             </button>
          </div>
          <p style="font-size:11px; color:var(--gray); margin-top:5px; margin-bottom:0;">*Unit Price calculated automatically.</p>
@@ -472,7 +473,7 @@
          </div>
          <div id="inv-stat" style="text-align:center; margin-top:15px; font-weight:bold; color: var(--invest-bg); font-size: 14px;"></div>
          <div style="margin-top:20px; border-top:1px dashed var(--row-border); padding-top:15px;">
-            <label style="margin-top:0; font-size:11px; color:var(--invest-bg);">⚡ DCA Simulator (Pre-Buy)</label>
+            <label style="margin-top:0; font-size:11px; color:var(--invest-bg); display:flex; align-items:center; gap:4px;"><i data-lucide="zap" style="width:12px; height:12px;"></i> DCA Simulator (Pre-Buy)</label>
             <div style="display:flex; gap:5px;">
                <div style="flex:1;">
                   <label for="dcaCurQty" style="display:block; font-size:9px; font-weight:600; color:var(--gray); margin-bottom:2px; text-transform:uppercase;">Old Qty</label>
@@ -497,7 +498,7 @@
             <div id="dcaResult" style="text-align:center; font-weight:bold; margin-top:5px; font-size:14px;"></div>
          </div>
          <div style="margin-top:15px; border-top:1px dashed var(--row-border); padding-top:15px;">
-            <label style="margin-top:0; font-size:11px; color:var(--danger);">🚑 Break-Even Calc (Recovery)</label>
+            <label style="margin-top:0; font-size:11px; color:var(--danger); display:flex; align-items:center; gap:4px;"><i data-lucide="ambulance" style="width:12px; height:12px;"></i> Break-Even Calc (Recovery)</label>
             <div style="display:flex; gap:5px;">
                <div style="flex:1;">
                   <label for="beBuyPrice" style="display:block; font-size:9px; font-weight:600; color:var(--gray); margin-bottom:2px; text-transform:uppercase;">Buy Price</label>
@@ -512,7 +513,7 @@
             <div id="beResult" style="text-align:center; margin-top:5px; font-size:13px; min-height:18px;"></div>
          </div>
          <div style="margin-top:15px; border-top:1px dashed var(--row-border); padding-top:15px;">
-            <label style="margin-top:0; font-size:11px; color:var(--primary);">🎯 Strategy Planner (Take Profit / Stop Loss)</label>
+            <label style="margin-top:0; font-size:11px; color:var(--primary); display:flex; align-items:center; gap:4px;"><i data-lucide="target" style="width:12px; height:12px;"></i> Strategy Planner (Take Profit / Stop Loss)</label>
             <div style="display:flex; gap:5px;">
                <div style="flex:1;">
                   <label for="stratEntry" style="display:block; font-size:9px; font-weight:600; color:var(--gray); margin-bottom:2px; text-transform:uppercase;">Entry Price</label>
@@ -542,7 +543,7 @@
          <div class="history-list" style="margin-top: 30px;">
             <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 1px solid #ddd; padding-bottom:5px; margin-bottom:10px;">
                <div class="h-title" style="color: var(--stocks-bg); margin:0; padding:0; border:none;">Stocks History</div>
-               <div onclick="openInvestSearch()" style="font-size:11px; color:var(--primary); font-weight:800; cursor:pointer; letter-spacing:0.5px;">SEE ALL ➜</div>
+               <div onclick="openInvestSearch()" style="font-size:11px; color:var(--primary); font-weight:800; cursor:pointer; letter-spacing:0.5px; display:flex; align-items:center; gap:4px;">SEE ALL <i data-lucide="arrow-right" style="width:12px; height:12px;"></i></div>
             </div>
             
             <div id="hist-stocks">
@@ -551,7 +552,7 @@
             
             <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 1px solid #ddd; padding-bottom:5px; margin-bottom:10px; margin-top:20px;">
                <div class="h-title" style="color: var(--crypto-bg); margin:0; padding:0; border:none;">Crypto History</div>
-               <div onclick="openInvestSearch()" style="font-size:11px; color:var(--primary); font-weight:800; cursor:pointer; letter-spacing:0.5px;">SEE ALL ➜</div>
+               <div onclick="openInvestSearch()" style="font-size:11px; color:var(--primary); font-weight:800; cursor:pointer; letter-spacing:0.5px; display:flex; align-items:center; gap:4px;">SEE ALL <i data-lucide="arrow-right" style="width:12px; height:12px;"></i></div>
             </div>
             
             <div id="hist-crypto">

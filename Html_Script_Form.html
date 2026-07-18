@@ -193,7 +193,7 @@ function sendTransaction() {
 
          const originalText = btn.innerText; 
          btn.disabled = true;
-         btn.innerHTML = `<svg class="spin-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> SAVING...`; 
+         btn.innerHTML = `\x3Csvg class="spin-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;">\x3Cpath d="M21 12a9 9 0 1 1-6.219-8.56"/>\x3C/svg> SAVING...`; 
          btn.classList.add('btn-loading');
 
          google.script.run.withSuccessHandler(res => {
@@ -224,7 +224,7 @@ function sendTransaction() {
          }
          const originalText = btn.innerText; 
          btn.disabled = true;
-         btn.innerHTML = `<svg class="spin-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> SAVING...`; 
+         btn.innerHTML = `\x3Csvg class="spin-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;">\x3Cpath d="M21 12a9 9 0 1 1-6.219-8.56"/>\x3C/svg> SAVING...`; 
          btn.classList.add('btn-loading');
          
          google.script.run.withSuccessHandler(res => { 
@@ -298,8 +298,8 @@ function sendTransaction() {
      const originalText = window.editingTx ? "UPDATE" : "SAVE";
      btn.disabled = true;
      btn.innerHTML = window.editingTx 
-         ? `<svg class="spin-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> UPDATING...` 
-         : `<svg class="spin-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> SAVING...`; 
+         ? `\x3Csvg class="spin-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;">\x3Cpath d="M21 12a9 9 0 1 1-6.219-8.56"/>\x3C/svg> UPDATING...` 
+         : `\x3Csvg class="spin-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;">\x3Cpath d="M21 12a9 9 0 1 1-6.219-8.56"/>\x3C/svg> SAVING...`; 
      btn.classList.add('btn-loading');
      
      // --- OPTIMISTIC UI: Immediately add transaction to history ---
@@ -513,7 +513,7 @@ function sendInvestment() {
      
      const originalText = btn.innerText; 
      btn.disabled = true;
-     btn.innerHTML = `<svg class="spin-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> PROCESSING...`; 
+     btn.innerHTML = `\x3Csvg class="spin-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;">\x3Cpath d="M21 12a9 9 0 1 1-6.219-8.56"/>\x3C/svg> PROCESSING...`; 
      btn.classList.add('btn-loading');
      
      google.script.run.withSuccessHandler(m => { 
@@ -637,8 +637,8 @@ function sendInvestment() {
              else if (r.type === 'Investment') colorStyle = 'var(--invest-bg)'; 
              else if (r.type === 'Transfer') colorStyle = 'var(--primary)';
              
-             let editBtn = (r.type === 'Investment' || r.type === 'Pension' || r.type === 'Debt') ? '' : `<span class="sr-edit" style="cursor:pointer; margin-right:8px;" onclick="editTx('${r.sheet}', ${r.row})">✏️</span>`;
-             let delBtn = `<span class="sr-del" style="cursor:pointer;" onclick="deleteTx('${r.sheet}', ${r.row})">🗑️</span>`;
+             let editBtn = (r.type === 'Investment' || r.type === 'Pension' || r.type === 'Debt') ? '' : `<span class="sr-edit" role="button" aria-label="Edit" style="cursor:pointer; margin-right:8px; display:inline-flex; align-items:center;" onclick="editTx('${r.sheet}', ${r.row})"><i data-lucide="pencil" style="width:14px; height:14px;"></i></span>`;
+             let delBtn = `<span class="sr-del" role="button" aria-label="Delete" style="cursor:pointer; display:inline-flex; align-items:center;" onclick="deleteTx('${r.sheet}', ${r.row})"><i data-lucide="trash-2" style="width:14px; height:14px;"></i></span>`;
              
              html += `<div class="search-res-item">
                         <div class="sr-left">
@@ -681,7 +681,7 @@ function openSubs() {
             // Nuova formattazione: mostra sempre l'importo, e aggiunge l'etichetta SPLIT se necessario
             let amtDisplay = `€${sub.amt.toFixed(2)}`;
             if (sub.isSplit) {
-                amtDisplay += " - SPLIT 🔁"; 
+                amtDisplay += " - SPLIT"; 
             }
             
             opt.text = `${sub.note} (${amtDisplay})`;
