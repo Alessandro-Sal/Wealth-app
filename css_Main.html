@@ -834,6 +834,17 @@ body.privacy-mode #runway-val.sensitive {
   @media (max-width: 768px) { .grid-2-col { grid-template-columns: 1fr; } }
 
 /* --- MICRO ANIMATIONS & PREMIUM INTERACTIONS --- */
+/* Minimum touch targets for mobile accessibility (44x44px) */
+button, .nav-btn, .submit-btn, .action-btn, .calc-btn, .nav-tab-btn, .ai-chip, .pin-btn, .mini-theme-btn {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 button, .nav-btn, .submit-btn, .action-btn, [onclick], .card {
     transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.2s, background 0.3s, box-shadow 0.2s !important;
 }

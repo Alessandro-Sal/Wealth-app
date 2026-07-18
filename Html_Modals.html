@@ -24,44 +24,44 @@
          <button class="pin-btn" onclick="addPin(7)">7</button>
          <button class="pin-btn" onclick="addPin(8)">8</button>
          <button class="pin-btn" onclick="addPin(9)">9</button>
-         <button class="pin-btn" style="background:transparent; border:none; font-size:24px;" onclick="abortPin()">✕</button>
+         <button class="pin-btn" aria-label="Cancel" style="background:transparent; border:none; font-size:24px;" onclick="abortPin()">✕</button>
          <button class="pin-btn" onclick="addPin(0)">0</button>
-         <button class="pin-btn" style="background:transparent; border:none; font-size:22px;" onclick="clearPin()">⌫</button>
+         <button class="pin-btn" aria-label="Delete" style="background:transparent; border:none; font-size:22px;" onclick="clearPin()">⌫</button>
       </div>
    </div>
    <div id="common-backdrop" onclick="closeAllSheets()"></div>
    <div id="calc-sheet" class="sheet-modal" role="dialog" aria-modal="true">
       <div class="sheet-header">
          <div style="display:flex; background:#e5e5ea; border-radius:8px; padding:2px; width:100%; max-width:340px; overflow-x:auto;">
-            <div id="tab-btn-c" onclick="switchCalcTab('calc')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; background:white; color:black; transition:0.2s;">CALC</div>
-            <div id="tab-btn-f" onclick="switchCalcTab('fx')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">FX 💱</div>
-            <div id="tab-btn-r" onclick="switchCalcTab('roi')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">ROI 🚀</div>
+            <div id="tab-btn-c" onclick="switchCalcTab('calc')" class="nav-tab-btn" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:4px; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; background:white; color:black; transition:0.2s;">CALC <i data-lucide="calculator" width="14" height="14"></i></div>
+            <div id="tab-btn-f" onclick="switchCalcTab('fx')" class="nav-tab-btn" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:4px; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">FX <i data-lucide="arrow-right-left" width="14" height="14"></i></div>
+            <div id="tab-btn-r" onclick="switchCalcTab('roi')" class="nav-tab-btn" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:4px; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">ROI <i data-lucide="rocket" width="14" height="14"></i></div>
             
-            <div id="tab-btn-t" onclick="switchCalcTab('tax')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">TAX 🏛️</div>
-            <div id="tab-btn-i" onclick="switchCalcTab('inf')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">INF 📉</div>
-            <div id="tab-btn-fire" onclick="switchCalcTab('fire')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">FIRE 🔥</div>
+            <div id="tab-btn-t" onclick="switchCalcTab('tax')" class="nav-tab-btn" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:4px; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">TAX <i data-lucide="landmark" width="14" height="14"></i></div>
+            <div id="tab-btn-i" onclick="switchCalcTab('inf')" class="nav-tab-btn" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:4px; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">INF <i data-lucide="trending-down" width="14" height="14"></i></div>
+            <div id="tab-btn-fire" onclick="switchCalcTab('fire')" class="nav-tab-btn" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:4px; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">FIRE <i data-lucide="flame" width="14" height="14"></i></div>
          </div>
          <button class="sheet-close" onclick="closeAllSheets()">Done</button>
       </div>
       <div id="view-calc" style="display:block;">
          <div class="calc-display" id="cDisp">0</div>
          <div class="calc-grid">
-            <button class="calc-btn clear" onclick="cClear()">C</button>
-            <button class="calc-btn op" onclick="cOp('/')">÷</button>
-            <button class="calc-btn op" onclick="cOp('*')">×</button>
-            <button class="calc-btn op" onclick="cBack()">⌫</button>
+            <button class="calc-btn clear" aria-label="Clear Calculator" onclick="cClear()">C</button>
+            <button class="calc-btn op" aria-label="Divide" onclick="cOp('/')">÷</button>
+            <button class="calc-btn op" aria-label="Multiply" onclick="cOp('*')">×</button>
+            <button class="calc-btn op" aria-label="Backspace" onclick="cBack()">⌫</button>
             <button class="calc-btn" onclick="cNum(7)">7</button>
             <button class="calc-btn" onclick="cNum(8)">8</button>
             <button class="calc-btn" onclick="cNum(9)">9</button>
-            <button class="calc-btn op" onclick="cOp('-')">-</button>
+            <button class="calc-btn op" aria-label="Subtract" onclick="cOp('-')">-</button>
             <button class="calc-btn" onclick="cNum(4)">4</button>
             <button class="calc-btn" onclick="cNum(5)">5</button>
             <button class="calc-btn" onclick="cNum(6)">6</button>
-            <button class="calc-btn op" onclick="cOp('+')">+</button>
+            <button class="calc-btn op" aria-label="Add" onclick="cOp('+')">+</button>
             <button class="calc-btn" onclick="cNum(1)">1</button>
             <button class="calc-btn" onclick="cNum(2)">2</button>
             <button class="calc-btn" onclick="cNum(3)">3</button>
-            <button class="calc-btn op" style="grid-row: span 2; background:var(--stocks-bg);" onclick="cCalc()">=</button>
+            <button class="calc-btn op" aria-label="Equals" style="grid-row: span 2; background:var(--stocks-bg);" onclick="cCalc()">=</button>
             <button class="calc-btn" style="grid-column: span 2;" onclick="cNum(0)">0</button>
             <button class="calc-btn" onclick="cNum('.')">.</button>
          </div>
@@ -216,11 +216,11 @@
    <div id="affordability-sheet" class="sheet-modal" role="dialog" aria-modal="true" style="max-height: 85vh; display: flex; flex-direction: column; overflow-y: hidden !important;">
       <div class="sheet-header" style="flex-shrink: 0;">
          <div style="display:flex; background:#e5e5ea; border-radius:8px; padding:2px; width:100%; max-width:340px; overflow-x:auto;">
-            <div id="tab-btn-dti" onclick="switchAffTab('dti')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; background:white; color:black; transition:0.2s;">DTI ⚖️</div>
-            <div id="tab-btn-aloan" onclick="switchAffTab('aloan')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">LOAN 🏠</div>
-            <div id="tab-btn-buy" onclick="switchAffTab('buy')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">BUY 💰</div>
-            <div id="tab-btn-payoff" onclick="switchAffTab('payoff')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">PAYOFF ❄️</div>
-            <div id="tab-btn-stress" onclick="switchAffTab('stress')" class="nav-tab-btn" style="flex:1; text-align:center; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">STRESS ⚠️</div>
+            <div id="tab-btn-dti" onclick="switchAffTab('dti')" class="nav-tab-btn" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:4px; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; background:white; color:black; transition:0.2s;">DTI <i data-lucide="scale" width="14" height="14"></i></div>
+            <div id="tab-btn-aloan" onclick="switchAffTab('aloan')" class="nav-tab-btn" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:4px; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">LOAN <i data-lucide="home" width="14" height="14"></i></div>
+            <div id="tab-btn-buy" onclick="switchAffTab('buy')" class="nav-tab-btn" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:4px; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">BUY <i data-lucide="coins" width="14" height="14"></i></div>
+            <div id="tab-btn-payoff" onclick="switchAffTab('payoff')" class="nav-tab-btn" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:4px; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">PAYOFF <i data-lucide="snowflake" width="14" height="14"></i></div>
+            <div id="tab-btn-stress" onclick="switchAffTab('stress')" class="nav-tab-btn" style="flex:1; display:inline-flex; align-items:center; justify-content:center; gap:4px; padding:6px 2px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; color:#8e8e93; transition:0.2s;">STRESS <i data-lucide="alert-triangle" width="14" height="14"></i></div>
          </div>
          <button class="sheet-close" onclick="closeAllSheets()">Done</button>
       </div>
@@ -541,15 +541,15 @@
          </div>
       </div>
       <div class="ai-chips-container">
-         <button class="ai-chip" onclick="fillGemini('Come sta andando il mio mese finanziario?')">📊 Month</button>
-         <button class="ai-chip" onclick="fillGemini('Quali sono le mie ultime spese?')">💸 Expenses</button>
-         <button class="ai-chip" onclick="fillGemini('Come sta andando il portafoglio stocks?')">📈 Stocks</button>
-         <button class="ai-chip" onclick="fillGemini('A quanto ammonta il patrimonio?')">💰 Net Worth</button>
-         <button class="ai-chip magic" onclick="fillGemini('Analisi completa finanze')">✨ Report</button>
-         <button class="ai-chip budget" onclick="fillGemini('Come va il budget?')">📉 Budget</button>
-         <button class="ai-chip crypto" onclick="fillGemini('Situazione Crypto?')">₿ Crypto</button>
-         <button class="ai-chip fire" onclick="fillGemini('Status FIRE?')">🔥 FIRE</button>
-         <button class="ai-chip subs" onclick="fillGemini('Quale spese fisse ho?')">🔄 Subs</button>
+         <button class="ai-chip" onclick="fillGemini('Come sta andando il mio mese finanziario?')"><i data-lucide="bar-chart-2" width="14" height="14"></i> Month</button>
+         <button class="ai-chip" onclick="fillGemini('Quali sono le mie ultime spese?')"><i data-lucide="banknote" width="14" height="14"></i> Expenses</button>
+         <button class="ai-chip" onclick="fillGemini('Come sta andando il portafoglio stocks?')"><i data-lucide="trending-up" width="14" height="14"></i> Stocks</button>
+         <button class="ai-chip" onclick="fillGemini('A quanto ammonta il patrimonio?')"><i data-lucide="wallet" width="14" height="14"></i> Net Worth</button>
+         <button class="ai-chip magic" onclick="fillGemini('Analisi completa finanze')"><i data-lucide="sparkles" width="14" height="14"></i> Report</button>
+         <button class="ai-chip budget" onclick="fillGemini('Come va il budget?')"><i data-lucide="pie-chart" width="14" height="14"></i> Budget</button>
+         <button class="ai-chip crypto" onclick="fillGemini('Situazione Crypto?')"><i data-lucide="bitcoin" width="14" height="14"></i> Crypto</button>
+         <button class="ai-chip fire" onclick="fillGemini('Status FIRE?')"><i data-lucide="flame" width="14" height="14"></i> FIRE</button>
+         <button class="ai-chip subs" onclick="fillGemini('Quale spese fisse ho?')"><i data-lucide="refresh-cw" width="14" height="14"></i> Subs</button>
       </div>
       <div style="display:flex; gap:10px; margin-top:auto;">
          <input type="text" id="geminiInput" placeholder="Ask..." style="margin-top:0; border:1px solid #ddd;">

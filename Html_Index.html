@@ -40,6 +40,7 @@
       <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
       <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
       <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+      <script src="https://unpkg.com/lucide@latest"></script>
       
       <?!= include('css_Main'); ?>
       <?!= include('css_Components'); ?>
@@ -115,5 +116,11 @@
          /* Previene lo spostamento del body */
          body { position: static !important; min-height: 100% !important; top: 0px !important; }
       </style>
+      <!-- Initialize Lucide Icons -->
+      <script>
+        document.addEventListener('DOMContentLoaded', () => {
+          lucide.createIcons();
+        });
+      </script>
    </body>
 </html>
