@@ -95,7 +95,14 @@
        
        if (!myWatchlistData || myWatchlistData.length === 0) { 
            cont.className = "";
-           cont.innerHTML = '<div style="text-align:center; padding:20px; color:#999; font-size:14px;">Watchlist is empty.<br>Use the + button to add tickers.</div>'; 
+           cont.innerHTML = `
+           <div class="empty-state">
+               <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                   <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+               </svg>
+               <div class="empty-title">Watchlist is empty</div>
+               <div class="empty-subtitle">Use the + button to add tickers.</div>
+           </div>`;
            return; 
        }
    
@@ -2381,7 +2388,15 @@ function updateAnalyticsChart() {
              }
          } else { 
              c.className = "live-scroll"; 
-             c.innerHTML = '<div style="padding:10px; font-size:12px;">No data</div>'; 
+             c.innerHTML = `
+             <div class="empty-state" style="padding: 20px;">
+                 <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 32px; height: 32px; margin-bottom: 8px;">
+                     <circle cx="12" cy="12" r="10"></circle>
+                     <line x1="12" y1="8" x2="12" y2="12"></line>
+                     <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                 </svg>
+                 <div class="empty-title" style="font-size: 14px;">No data</div>
+             </div>`;
          }
      };
    

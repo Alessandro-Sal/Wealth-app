@@ -20,14 +20,15 @@
 	/* Hidden initially */
 	left: 0;
 	width: 100%;
-	background: rgba(249, 249, 249, 0.85) !important;
-	backdrop-filter: blur(25px) !important;
-	-webkit-backdrop-filter: blur(25px) !important;
-	border-radius: 20px 20px 0 0;
-	padding: 20px 20px 90px 20px;
+	background: oklch(1 0 0 / 0.8) !important;
+	backdrop-filter: blur(40px) !important;
+	-webkit-backdrop-filter: blur(40px) !important;
+	border-radius: 32px 32px 0 0;
+	padding: 24px 20px 90px 20px;
 	box-sizing: border-box;
-	box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.2);
-	transition: bottom 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+	border-top: 1px solid var(--card-border);
+	box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.05);
+	transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 	z-index: 1500;
 	display: flex;
 	flex-direction: column;
@@ -50,13 +51,14 @@
 }
 
 .sheet-close {
-	background: #e5e5ea;
+	background: var(--section-bg);
 	border: none;
-	padding: 5px 15px;
-	border-radius: 15px;
-	font-weight: bold;
+	padding: 10px 20px;
+	min-height: 44px;
+	border-radius: 22px;
+	font-weight: 700;
 	color: var(--primary);
-	font-size: 14px;
+	font-size: 15px;
 	cursor: pointer;
 }
 
@@ -470,11 +472,11 @@
 }
 
 body.dark-mode .sheet-modal {
-	background: rgba(28, 28, 30, 0.85) !important;
-	backdrop-filter: blur(25px) !important;
-	-webkit-backdrop-filter: blur(25px) !important;
-	border-top: 1px solid #333;
-	box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.6);
+	background: oklch(0.2 0.01 260 / 0.85) !important;
+	backdrop-filter: blur(40px) !important;
+	-webkit-backdrop-filter: blur(40px) !important;
+	border-top: 1px solid var(--card-border);
+	box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.4);
 }
 
 body.dark-mode .sheet-close {

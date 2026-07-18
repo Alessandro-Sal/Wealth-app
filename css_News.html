@@ -86,24 +86,23 @@ body.dark-mode .news-cat-btn.active {
 	background: var(--white);
 	border-radius: 20px;
 	padding: 20px;
-	box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
-	border: 1px solid var(--row-border);
+	box-shadow: none;
+	border: 1px solid var(--card-border);
 	display: flex;
 	flex-direction: column;
 	justify-content: space-between;
-	transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+	transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.3s;
 	text-decoration: none;
-	/* Since the whole card will be clickable */
 }
 
 body.dark-mode .news-card {
-	background: #1c1c1e;
-	border: 1px solid rgba(255, 255, 255, 0.05);
-	box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+	background: var(--white);
+	border: 1px solid var(--card-border);
+	box-shadow: none;
 }
 
 .news-card:active {
-	transform: scale(0.97);
+	transform: scale(0.96);
 }
 
 @media (min-width: 768px) {

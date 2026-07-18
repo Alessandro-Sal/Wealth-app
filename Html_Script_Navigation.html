@@ -21,7 +21,12 @@
      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
      
      const page = document.getElementById('p-' + tab);
-     if(page) page.classList.add('active-page');
+     if(page) {
+         page.classList.add('active-page');
+         if (typeof gsap !== 'undefined') {
+             gsap.fromTo(page, { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out", onComplete: () => gsap.set(page, {clearProps: "all"}) });
+         }
+     }
      
      const btn = document.getElementById('btn-' + tab);
      if(btn) btn.classList.add('active');
@@ -64,9 +69,23 @@
      // FIX (2.2): chiude QUALSIASI bottom-sheet aperto (tutti usano la classe .sheet-modal),
      // non piu' una lista hardcoded di 7 id. Prima 3 modali (portfolio-news-sheet,
      // portfolio-alerts-sheet, ticker-notes-sheet) non venivano chiusi -> UI bloccata.
-     document.querySelectorAll('.sheet-modal.active').forEach(el => el.classList.remove('active'));
-     const backdrop = document.getElementById('common-backdrop');
-     if (backdrop) backdrop.classList.remove('active');
+     const sheets = document.querySelectorAll('.sheet-modal.active');
+     if (typeof gsap !== 'undefined' && sheets.length > 0) {
+         gsap.to(sheets, { bottom: "-100%", duration: 0.3, ease: "power3.in", onComplete: () => {
+             sheets.forEach(el => {
+                 gsap.set(el, { clearProps: "bottom" });
+                 el.classList.remove('active');
+             });
+         }});
+         const backdrop = document.getElementById('common-backdrop');
+         if (backdrop) {
+             gsap.to(backdrop, { opacity: 0, duration: 0.3, onComplete: () => backdrop.classList.remove('active') });
+         }
+     } else {
+         sheets.forEach(el => el.classList.remove('active'));
+         const backdrop = document.getElementById('common-backdrop');
+         if (backdrop) backdrop.classList.remove('active');
+     }
    }
    
    // --- PIN Management (Main App Lock) ---

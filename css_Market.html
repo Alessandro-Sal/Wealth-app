@@ -18,13 +18,18 @@
 .ticker-card {
 	min-width: 160px;
 	background: var(--white);
-	border-radius: 12px;
-	padding: 10px;
-	border: 1px solid var(--row-border);
-	box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+	border-radius: 16px;
+	padding: 16px;
+	border: 1px solid var(--card-border);
+	box-shadow: none;
 	display: flex;
 	flex-direction: column;
 	justify-content: space-between;
+	transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.3s;
+}
+
+.ticker-card:active {
+	transform: scale(0.96);
 }
 
 .tc-top {
@@ -121,13 +126,18 @@
 
 /* --- WATCHLIST STYLES --- */
 .wl-stat-box {
-	background: var(--white, #ffffff);
-	padding: 12px;
-	border-radius: 12px;
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	background: var(--white);
+	padding: 16px;
+	border-radius: 16px;
+	border: 1px solid var(--card-border);
 	display: flex;
 	flex-direction: column;
-	box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+	box-shadow: none;
+	transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.wl-stat-box:active {
+	transform: scale(0.96);
 }
 
 .wl-stat-box span {

@@ -1589,7 +1589,15 @@ function openSubs() {
              const cont = document.getElementById(containerId); 
              if (!cont) return;
              if (!list || list.length === 0) { 
-                 cont.innerHTML = '<div style="font-size:10px; color:#ddd; font-style:italic;">No data</div>'; 
+                 cont.innerHTML = `
+                 <div class="empty-state" style="padding: 20px;">
+                     <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px; margin-bottom: 8px;">
+                         <circle cx="12" cy="12" r="10"></circle>
+                         <line x1="12" y1="8" x2="12" y2="12"></line>
+                         <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                     </svg>
+                     <div class="empty-title" style="font-size: 12px;">No data</div>
+                 </div>`;
                  return; 
              }
              const topList = list.slice(0, 5); 
