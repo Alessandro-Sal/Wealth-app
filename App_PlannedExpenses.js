@@ -152,7 +152,11 @@ function payPlannedExpense(id, actualAmount, bankCol) {
     sheet.insertRowAfter(sheet.getMaxRows());
   }
   sheet.getRange(newRow, 1, 1, maxCols).setValues([rowData]);
-  return "Spesa '" + exp.note + "' registrata come pagata!";
+  
+  // Rimuovi la spesa programmata dal foglio dopo averla pagata
+  deletePlannedExpense(id);
+  
+  return "Spesa '" + exp.note + "' registrata come pagata ed eliminata dal modulo!";
 }
 
 function deletePlannedExpense(id) {
@@ -165,4 +169,24 @@ function deletePlannedExpense(id) {
     }
   }
   throw new Error("Spesa non trovata.");
+}
+
+function editPlannedExpense(id, data) {
+  const sheet = ensurePlannedExpensesSheet();
+  const values = sheet.getDataRange().getValues();
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][0]) === String(id)) {
+      sheet.getRange(i + 1, 2, 1, 7).setValues([[
+        data.cat,
+        data.note,
+        data.amount,
+        data.expectedMonth,
+        data.expectedYear,
+        data.bankCol || "",
+        data.expectedDay || ""
+      ]]);
+      return "Spesa programmata modificata.";
+    }
+  }
+  throw new Error("Spesa programmata non trovata.");
 }

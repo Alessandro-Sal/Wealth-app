@@ -826,6 +826,268 @@
        });
    }
 
+   // --- GESTIONE SPESE PROGRAMMATE ---
+   function addPlannedExpenseUI() {
+       closeAllSheets();
+       const isDark = document.body.classList.contains('dark-mode');
+       
+       let catOptions = '<option value="">-- Seleziona Categoria --</option>';
+       if (typeof GLOBAL_APP_CONFIG !== 'undefined' && GLOBAL_APP_CONFIG.categories && GLOBAL_APP_CONFIG.categories['Expense']) {
+           GLOBAL_APP_CONFIG.categories['Expense'].forEach(c => {
+               catOptions += `<option value="${c}">${c}</option>`;
+           });
+       }
+
+       const bankOptions = `
+           <option value="5">Intesa San Paolo</option>
+           <option value="6">N26</option>
+           <option value="7">On the go Wallet</option>
+           <option value="8">BuddyBank</option>
+           <option value="9">Revolut</option>
+           <option value="10">Food stamps</option>
+       `;
+
+       Swal.fire({
+           title: 'Nuova Spesa Programmata',
+           html: `
+               <input id="swal-note" class="swal2-input" placeholder="Nome (es. Regalo, Tasse)" style="width: 80%;">
+               <select id="swal-cat" class="swal2-input" style="width: 80%;">${catOptions}</select>
+               <input id="swal-amt" type="number" class="swal2-input" placeholder="Importo Previsto (€)" step="0.01" style="width: 80%; margin-top: 15px;">
+               
+               <div style="display:flex; justify-content:space-between; width:80%; margin: 15px auto 0;">
+                   <div style="width:48%; text-align:left;">
+                       <label style="font-size:11px; color:var(--gray); margin-left:5px;">Mese Previsto (1-12)</label>
+                       <input id="swal-month" type="number" class="swal2-input" min="1" max="12" style="width:100%; margin:0; padding: 0 10px;" value="${new Date().getMonth() + 1}">
+                   </div>
+                   <div style="width:48%; text-align:left;">
+                       <label style="font-size:11px; color:var(--gray); margin-left:5px;">Anno Previsto</label>
+                       <input id="swal-year" type="number" class="swal2-input" style="width:100%; margin:0; padding: 0 10px;" value="${new Date().getFullYear()}">
+                   </div>
+               </div>
+               
+               <input id="swal-day" type="number" class="swal2-input" placeholder="Giorno previsto (Opzionale)" min="1" max="31" style="width: 80%; margin-top: 15px;">
+               
+               <select id="swal-col" class="swal2-input" style="width: 80%; margin-top: 15px;">
+                   <option value="">-- Conto Previsto (Opzionale) --</option>
+                   ${bankOptions}
+               </select>
+           `,
+           showCancelButton: true,
+           confirmButtonText: 'Salva',
+           cancelButtonText: 'Annulla',
+           background: isDark ? '#1c1c1e' : '#fff',
+           color: isDark ? '#fff' : '#000',
+           preConfirm: () => {
+               const note = document.getElementById('swal-note').value.trim();
+               const cat = document.getElementById('swal-cat').value;
+               const amount = document.getElementById('swal-amt').value;
+               const month = document.getElementById('swal-month').value;
+               const year = document.getElementById('swal-year').value;
+               const day = document.getElementById('swal-day').value;
+               const bankCol = document.getElementById('swal-col').value;
+
+               if (!note || !cat || !amount || !month || !year) {
+                   Swal.showValidationMessage('Compila Nome, Categoria, Importo, Mese e Anno!');
+                   return false;
+               }
+
+               return {
+                   note: note,
+                   cat: cat,
+                   amount: parseFloat(amount),
+                   expectedMonth: parseInt(month),
+                   expectedYear: parseInt(year),
+                   expectedDay: day ? parseInt(day) : null,
+                   bankCol: bankCol
+               };
+           }
+       }).then((result) => {
+           if (result.isConfirmed) {
+               Swal.fire({ title: 'Salvataggio in corso...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() }, background: isDark ? '#1c1c1e' : '#fff' });
+               
+               google.script.run.withSuccessHandler(res => {
+                   Swal.fire({ icon: 'success', title: 'Aggiunta!', text: res, showConfirmButton: false, timer: 1500, background: isDark ? '#1c1c1e' : '#fff' });
+               }).withFailureHandler(err => {
+                   Swal.fire({ icon: 'error', title: 'Errore', text: err.message, background: isDark ? '#1c1c1e' : '#fff' });
+               }).addPlannedExpense(result.value);
+           }
+       });
+   }
+
+   function editPlannedExpenseUI() {
+       closeAllSheets();
+       const isDark = document.body.classList.contains('dark-mode');
+
+       Swal.fire({ title: 'Caricamento...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() }, background: isDark ? '#1c1c1e' : '#fff' });
+
+       google.script.run.withSuccessHandler(expenses => {
+           if (!expenses || expenses.length === 0) {
+               Swal.fire({ icon: 'info', title: 'Nessuna spesa', text: 'Non hai spese programmate.', background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000' });
+               return;
+           }
+
+           let optionsHtml = '<option value="">-- Seleziona spesa programmata --</option>';
+           expenses.forEach(exp => {
+               optionsHtml += `<option value="${exp.id}">${exp.note} (${exp.amount}€) - ${exp.expectedMonth}/${exp.expectedYear}</option>`;
+           });
+
+           Swal.fire({
+               title: 'Modifica Spesa Programmata',
+               html: `<select id="swal-edit-pexpense" class="swal2-input" style="width: 80%;">${optionsHtml}</select>`,
+               showCancelButton: true,
+               confirmButtonText: 'Modifica',
+               cancelButtonText: 'Annulla',
+               background: isDark ? '#1c1c1e' : '#fff',
+               color: isDark ? '#fff' : '#000',
+               preConfirm: () => {
+                   const val = document.getElementById('swal-edit-pexpense').value;
+                   if (!val) {
+                       Swal.showValidationMessage('Devi selezionare una spesa!');
+                       return false;
+                   }
+                   return expenses.find(e => String(e.id) === String(val));
+               }
+           }).then((result) => {
+               if (result.isConfirmed) {
+                   const exp = result.value;
+                   
+                   let catOptions = '<option value="">-- Seleziona Categoria --</option>';
+                   if (typeof GLOBAL_APP_CONFIG !== 'undefined' && GLOBAL_APP_CONFIG.categories && GLOBAL_APP_CONFIG.categories['Expense']) {
+                       GLOBAL_APP_CONFIG.categories['Expense'].forEach(c => {
+                           catOptions += `<option value="${c}" ${c === exp.cat ? 'selected' : ''}>${c}</option>`;
+                       });
+                   }
+
+                   const bankOptions = `
+                       <option value="5" ${exp.bankCol == 5 ? 'selected' : ''}>Intesa San Paolo</option>
+                       <option value="6" ${exp.bankCol == 6 ? 'selected' : ''}>N26</option>
+                       <option value="7" ${exp.bankCol == 7 ? 'selected' : ''}>On the go Wallet</option>
+                       <option value="8" ${exp.bankCol == 8 ? 'selected' : ''}>BuddyBank</option>
+                       <option value="9" ${exp.bankCol == 9 ? 'selected' : ''}>Revolut</option>
+                       <option value="10" ${exp.bankCol == 10 ? 'selected' : ''}>Food stamps</option>
+                   `;
+
+                   Swal.fire({
+                       title: 'Modifica Dati',
+                       html: `
+                           <input id="swal-mod-note" class="swal2-input" value="${exp.note}" placeholder="Nome" style="width: 80%;">
+                           <select id="swal-mod-cat" class="swal2-input" style="width: 80%;">${catOptions}</select>
+                           <input id="swal-mod-amt" type="number" class="swal2-input" value="${exp.amount}" step="0.01" style="width: 80%; margin-top: 15px;">
+                           
+                           <div style="display:flex; justify-content:space-between; width:80%; margin: 15px auto 0;">
+                               <div style="width:48%; text-align:left;">
+                                   <label style="font-size:11px; color:var(--gray); margin-left:5px;">Mese Previsto</label>
+                                   <input id="swal-mod-month" type="number" class="swal2-input" min="1" max="12" value="${exp.expectedMonth}" style="width:100%; margin:0; padding: 0 10px;">
+                               </div>
+                               <div style="width:48%; text-align:left;">
+                                   <label style="font-size:11px; color:var(--gray); margin-left:5px;">Anno Previsto</label>
+                                   <input id="swal-mod-year" type="number" class="swal2-input" value="${exp.expectedYear}" style="width:100%; margin:0; padding: 0 10px;">
+                               </div>
+                           </div>
+                           
+                           <input id="swal-mod-day" type="number" class="swal2-input" value="${exp.expectedDay || ''}" placeholder="Giorno previsto" min="1" max="31" style="width: 80%; margin-top: 15px;">
+                           
+                           <select id="swal-mod-col" class="swal2-input" style="width: 80%; margin-top: 15px;">
+                               <option value="">-- Conto Previsto --</option>
+                               ${bankOptions}
+                           </select>
+                       `,
+                       showCancelButton: true,
+                       confirmButtonText: 'Salva',
+                       cancelButtonText: 'Annulla',
+                       background: isDark ? '#1c1c1e' : '#fff',
+                       color: isDark ? '#fff' : '#000',
+                       preConfirm: () => {
+                           const note = document.getElementById('swal-mod-note').value.trim();
+                           const cat = document.getElementById('swal-mod-cat').value;
+                           const amount = document.getElementById('swal-mod-amt').value;
+                           const month = document.getElementById('swal-mod-month').value;
+                           const year = document.getElementById('swal-mod-year').value;
+                           const day = document.getElementById('swal-mod-day').value;
+                           const bankCol = document.getElementById('swal-mod-col').value;
+
+                           if (!note || !cat || !amount || !month || !year) {
+                               Swal.showValidationMessage('Compila Nome, Categoria, Importo, Mese e Anno!');
+                               return false;
+                           }
+
+                           return {
+                               note: note,
+                               cat: cat,
+                               amount: parseFloat(amount),
+                               expectedMonth: parseInt(month),
+                               expectedYear: parseInt(year),
+                               expectedDay: day ? parseInt(day) : null,
+                               bankCol: bankCol
+                           };
+                       }
+                   }).then((res2) => {
+                       if (res2.isConfirmed) {
+                           Swal.fire({ title: 'Salvataggio in corso...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() }, background: isDark ? '#1c1c1e' : '#fff' });
+                           google.script.run.withSuccessHandler(msg => {
+                               Swal.fire({ icon: 'success', title: 'Modificata!', text: msg, showConfirmButton: false, timer: 1500, background: isDark ? '#1c1c1e' : '#fff' });
+                           }).withFailureHandler(err => {
+                               Swal.fire({ icon: 'error', title: 'Errore', text: err.message, background: isDark ? '#1c1c1e' : '#fff' });
+                           }).editPlannedExpense(exp.id, res2.value);
+                       }
+                   });
+               }
+           });
+       }).withFailureHandler(err => {
+           Swal.fire({ icon: 'error', title: 'Errore', text: err.message, background: isDark ? '#1c1c1e' : '#fff' });
+       }).getPlannedExpensesStatus();
+   }
+
+   function deletePlannedExpenseManagerUI() {
+       closeAllSheets();
+       const isDark = document.body.classList.contains('dark-mode');
+
+       Swal.fire({ title: 'Caricamento...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() }, background: isDark ? '#1c1c1e' : '#fff' });
+
+       google.script.run.withSuccessHandler(expenses => {
+           if (!expenses || expenses.length === 0) {
+               Swal.fire({ icon: 'info', title: 'Nessuna spesa', text: 'Non hai spese programmate.', background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000' });
+               return;
+           }
+
+           let optionsHtml = '<option value="">-- Seleziona spesa da eliminare --</option>';
+           expenses.forEach(exp => {
+               optionsHtml += `<option value="${exp.id}">${exp.note} (${exp.amount}€) - ${exp.expectedMonth}/${exp.expectedYear}</option>`;
+           });
+
+           Swal.fire({
+               title: 'Elimina Spesa Programmata',
+               html: `<select id="swal-del-pexpense" class="swal2-input" style="width: 80%;">${optionsHtml}</select>`,
+               showCancelButton: true,
+               confirmButtonText: 'Elimina',
+               confirmButtonColor: '#ff3b30',
+               cancelButtonText: 'Annulla',
+               background: isDark ? '#1c1c1e' : '#fff',
+               color: isDark ? '#fff' : '#000',
+               preConfirm: () => {
+                   const val = document.getElementById('swal-del-pexpense').value;
+                   if (!val) {
+                       Swal.showValidationMessage('Devi selezionare una spesa!');
+                       return false;
+                   }
+                   return val;
+               }
+           }).then((result) => {
+               if (result.isConfirmed) {
+                   Swal.fire({ title: 'Eliminazione...', didOpen: () => { Swal.showLoading() }, background: isDark ? '#1c1c1e' : '#fff' });
+                   
+                   google.script.run.withSuccessHandler(res => {
+                       Swal.fire({ icon: 'success', title: 'Eliminata!', text: res, showConfirmButton: false, timer: 1500, background: isDark ? '#1c1c1e' : '#fff' });
+                   }).withFailureHandler(err => {
+                       Swal.fire({ icon: 'error', title: 'Errore', text: err.message, background: isDark ? '#1c1c1e' : '#fff' });
+                   }).deletePlannedExpense(result.value);
+               }
+           });
+       }).withFailureHandler(err => {
+           Swal.fire({ icon: 'error', title: 'Errore', text: err.message, background: isDark ? '#1c1c1e' : '#fff' });
+       }).getPlannedExpensesStatus();
+   }
+
    // --- ELIMINA CATEGORIA ---
    function deleteCategoryUI() {
        closeAllSheets();
