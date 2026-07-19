@@ -108,8 +108,16 @@ function invalidateWatchlistCache() {
  * Invalida le cache principali generate da loadFastStart e loadHeavyContent
  * Da chiamare ogni volta che si aggiunge, modifica o elimina una transazione.
  */
-function invalidateAllDataCache(year) {
-  const currentYear = year || new Date().getFullYear().toString();
-  invalidateCacheKey('FAST_START_' + currentYear);
-  invalidateCacheKey('HEAVY_CONTENT_' + currentYear);
+function invalidateAllDataCache(year, clearAllYears = false) {
+  if (clearAllYears) {
+    const current = new Date().getFullYear();
+    for (let y = current - 5; y <= current + 2; y++) {
+      invalidateCacheKey('FAST_START_' + y);
+      invalidateCacheKey('HEAVY_CONTENT_' + y);
+    }
+  } else {
+    const currentYear = year || new Date().getFullYear().toString();
+    invalidateCacheKey('FAST_START_' + currentYear);
+    invalidateCacheKey('HEAVY_CONTENT_' + currentYear);
+  }
 }

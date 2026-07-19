@@ -287,7 +287,7 @@
                <div style="text-align:center; color:var(--gray); font-size:12px; padding:10px;">Loading Budgets...</div>
             </div>
          </div>
-         <div class="dash-widget span-2 span-pc-2" id="active-credits-widget">
+         <div class="dash-widget span-col-12 span-md-6" id="active-credits-widget">
             <div class="widget-title" style="display:flex; justify-content:space-between; align-items:center;">
                <div style="display:flex; align-items:center; gap:8px;">
                   <div class="badge-icon bg-blue" style="display:flex;align-items:center;justify-content:center;"><i data-lucide="handshake" style="width:16px; height:16px;"></i></div> To Collect
@@ -298,7 +298,7 @@
                <div style="font-size:12px; color:var(--gray); text-align:center; padding: 20px 0;">Loading credits...</div>
             </div>
          </div>
-         <div class="dash-widget span-2 span-pc-2" id="subs-status-widget">
+         <div class="dash-widget span-col-12 span-md-6" id="subs-status-widget">
             <div class="widget-title" style="display:flex; align-items:center;">
                <div class="badge-icon bg-purple" style="display:flex;align-items:center;justify-content:center;"><i data-lucide="refresh-ccw" style="width:16px; height:16px;"></i></div>
                <div style="display:flex; flex-direction:column; line-height: 1.2; margin-left: 8px;">
@@ -311,7 +311,7 @@
                <div style="font-size:12px; color:var(--gray); text-align:center; padding: 20px 0;">Loading subscriptions...</div>
             </div>
          </div>
-         <div class="dash-widget span-2 span-pc-2" id="planned-expenses-widget">
+         <div class="dash-widget span-col-12 span-md-6" id="planned-expenses-widget">
             <div class="widget-title" style="display:flex; align-items:center;">
                <div class="badge-icon" style="background:#ff9500; color:#fff; display:flex;align-items:center;justify-content:center;"><i data-lucide="calendar" style="width:16px; height:16px;"></i></div>
                <div style="display:flex; flex-direction:column; line-height: 1.2; margin-left: 8px;">
@@ -575,7 +575,7 @@
          <div class="master-menu-placeholder"></div>
       </div>
       
-      <div class="market-sub-nav" style="margin-top: 5px !important; margin-bottom: 0 !important; padding-bottom: 0 !important;">
+      <div class="market-sub-nav">
          <button class="m-sub-btn active" onclick="switchMarketTab('assets', this)">💼 My Assets</button>
          <button class="m-sub-btn" onclick="switchMarketTab('insights', this)">🌍 Insights</button>
          <button class="m-sub-btn" onclick="switchMarketTab('tools', this)">⚔️ Tools</button>
@@ -1179,9 +1179,9 @@
          <div class="recap-header-container">
             <div class="floating-year-selector" style="position:static; box-shadow:none; padding:0; background:transparent; border:none; animation:none;">
                <select id="trendYear" onchange="renderFinancialChart(this.value); fetchTrips(this.value);fetchCategoryBreakdown(this.value);fetchProjection(this.value);fetchFireProgress(this.value);fetchRunway(this.value);
-               fetchYearlyTotals(this.value);fetchHistoricalNW(this.value);fetchHistoricalPortfolioEvo(this.value);fetchPortfolioCashflow(this.value);" style="font-size: 24px; font-weight: 900; letter-spacing: -1px; background:var(--section-bg); padding: 8px 16px; border-radius: 14px;">
+               fetchYearlyTotals(this.value);fetchHistoricalNW(this.value);fetchHistoricalPortfolioEvo(this.value);fetchPortfolioCashflow(this.value);" style="font-size: 36px; font-weight: 900; letter-spacing: -1.5px; color: var(--text-main); background: transparent; padding: 0; border: none; cursor: pointer; outline: none; margin-left: -2px;">
                   <option value="2026" selected>2026</option>
-               </select>
+                     </select>
             </div>
             <div class="master-menu-placeholder"></div>         </div>
          <div class="market-sub-nav">
@@ -1192,22 +1192,36 @@
          </div>
          <div id="rtab-overview" class="m-tab-content active">
             <div class="dash-hero">
-               <div style="position: relative; z-index: 10;">
-                  <div style="font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.9;">💎 Total Net Worth</div>
-                  <div class="sensitive" style="display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; margin-top: 5px;">
-                     <span id="tot-eur" aria-live="polite" style="font-size: 46px; font-weight: 900; letter-spacing: -2px; text-shadow: 0 4px 20px rgba(0,0,0,0.15);">€ --</span>
-                     <span id="liq-usd" aria-live="polite" style="font-size: 18px; font-weight: 700; opacity: 0.9; background: rgba(0,0,0,0.15); padding: 4px 10px; border-radius: 10px;">$ --</span>
-                  </div>
-                  <div style="height: 1px; background: rgba(255,255,255,0.25); margin: 25px 0 20px 0; box-shadow: 0 1px 2px rgba(0,0,0,0.05);"></div>
-                  <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.9;">💧 Liquid Net Worth</div>
-                  <div class="sensitive" style="display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; margin-top: 5px;">
-                     <span id="liq-eur" aria-live="polite" style="font-size: 28px; font-weight: 800; letter-spacing: -1px; text-shadow: 0 2px 10px rgba(0,0,0,0.1);">€ --</span>
-                     <span id="tot-usd" aria-live="polite" style="font-size: 14px; font-weight: 700; opacity: 0.85; background: rgba(0,0,0,0.15); padding: 2px 8px; border-radius: 8px;">$ --</span>
-                  </div>
-               </div>
-            </div>
+                 <div class="hero-split">
+                    <!-- Left: Total Net Worth -->
+                    <div class="hero-primary">
+                       <div class="hero-label">
+                          <div class="status-dot green-glow"></div>
+                          TOTAL NET WORTH
+                       </div>
+                       <div class="sensitive" style="display: flex; flex-direction: column; gap: 8px;">
+                          <span id="tot-eur" aria-live="polite" class="hero-value-main">€ --</span>
+                          <span id="liq-usd" aria-live="polite" class="hero-badge">$ --</span>
+                       </div>
+                    </div>
+                    
+                    <div class="hero-divider"></div>
+                    
+                    <!-- Right: Liquidity -->
+                    <div class="hero-secondary">
+                       <div class="hero-label">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--blue)"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                          LIQUIDITY
+                       </div>
+                       <div class="sensitive" style="display: flex; flex-direction: column; gap: 6px;">
+                          <span id="liq-eur" aria-live="polite" class="hero-value-sub">€ --</span>
+                          <span id="tot-usd" aria-live="polite" style="font-size: 14px; font-weight: 600; color: var(--gray);">($ --)</span>
+                       </div>
+                    </div>
+                 </div>
+              </div>
             <div class="dash-grid">
-               <div class="dash-widget span-pc-2">
+               <div class="dash-widget span-col-6 span-md-6">
                   <div class="widget-title" style="display: flex; align-items: center; width: 100%;">
                      <div class="badge-icon bg-blue">🚀</div>
                      <span style="font-size: 11px; font-weight: 700; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; margin-left: 8px;">
@@ -1228,7 +1242,7 @@
                      </div>
                   </div>
                </div>
-               <div class="dash-widget span-pc-1">
+               <div class="dash-widget span-col-6 span-md-3">
                   <div class="widget-title" style="display: flex; align-items: center; width: 100%;">
                      <div class="badge-icon bg-purple">🔮</div>
                      <span style="font-size: 11px; font-weight: 700; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; margin-left: 8px;">
@@ -1244,7 +1258,7 @@
                      <div class="widget-sub sensitive" style="margin-top:10px;">YTD: <span id="proj-curr" style="font-weight:700; color:var(--text-main);">€ --</span></div>
                   </div>
                </div>
-               <div class="dash-widget span-2 span-pc-1" style="border-left: 4px solid var(--warning); display: flex; flex-direction: column; gap: 12px;">
+               <div class="dash-widget span-col-12 span-md-3" style="border-left: 4px solid var(--warning); display: flex; flex-direction: column; gap: 12px;">
                   <div class="widget-title" style="display: flex; align-items: center; width: 100%;">
                      <div class="badge-icon bg-yellow">📉</div>
                      <span style="font-size: 11px; font-weight: 700; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; margin-left: 8px;">
@@ -1269,7 +1283,7 @@
                      </div>
                   </div>
                </div>
-               <div class="dash-widget span-2 span-pc-4" id="risk-card" style="flex-direction: row; align-items: center;">
+               <div class="dash-widget span-col-12 span-md-12" id="risk-card" style="flex-direction: row; align-items: center;">
                   <div style="flex:1;">
                      <div class="widget-title">
                         <div class="badge-icon bg-dark">🤖</div>
@@ -1288,7 +1302,7 @@
          </div>
          <div id="rtab-analytics" class="m-tab-content">
             <div class="dash-grid" style="grid-template-columns: 1fr;">
-               <div class="dash-widget span-pc-4" style="padding: 24px;">
+               <div class="dash-widget span-col-12 span-md-12" style="padding: 24px;">
                   <div class="widget-title">
                      <div class="badge-icon bg-green">💼</div>
                      Asset Allocation & Breakdown
@@ -1511,7 +1525,7 @@
                </div>
                
             </div>
-            <div class="dash-widget span-2 span-pc-4" style="margin-bottom: 30px;">
+            <div class="dash-widget span-col-12 span-md-12" style="margin-bottom: 30px;">
                <div class="widget-title">📈 Net Worth & Asset Growth</div>
                <div id="nw-loading-indicator" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--gray); font-size: 15px; font-weight: 700; z-index: 5;">
                   Loading historical data...
@@ -1520,7 +1534,7 @@
                   <div id="nwTrendChart" style="width: 100%; height: 100%;"></div>
                </div>
             </div>
-            <div class="dash-widget span-2 span-pc-4" style="margin-top: 20px; margin-bottom: 30px; overflow: hidden;">
+            <div class="dash-widget span-col-12 span-md-12" style="margin-top: 20px; margin-bottom: 30px; overflow: hidden;">
                <div class="widget-title">
                   <div class="badge-icon bg-purple">📜</div>
                   Portfolio Evolution (Final Year)
@@ -1551,7 +1565,7 @@
                   </table>
                </div>
             </div>
-            <div class="dash-widget span-2 span-pc-4" style="margin-top: 20px; margin-bottom: 30px; padding: 0; overflow: hidden; border-radius: 20px;">
+            <div class="dash-widget span-col-12 span-md-12" style="margin-top: 20px; margin-bottom: 30px; padding: 0; overflow: hidden; border-radius: 20px;">
     
     <div style="border-bottom: 1px solid var(--row-border); background: var(--section-bg);">
         <div style="padding: 20px 20px 10px 20px;">
@@ -1595,7 +1609,7 @@
          </div>
          <div id="rtab-cashflow" class="m-tab-content">
             <div class="dash-grid">
-               <div class="dash-widget span-2 span-pc-4" id="year-recap-card" style="border-top: 5px solid var(--primary);">
+               <div class="dash-widget span-col-12 span-md-12" id="year-recap-card" style="border-top: 5px solid var(--primary);">
                   <div style="font-size:13px; color:var(--text-main); font-weight:800; text-transform:uppercase; margin-bottom:25px; text-align:center; letter-spacing: 1px;">
                      Yearly Overview <span id="yr-label"></span>
                   </div>
@@ -1632,32 +1646,32 @@
                      </div>
                   </div>
                </div>
-               <div class="dash-widget span-2 span-pc-4">
+               <div class="dash-widget span-col-12 span-md-12">
                   <div class="widget-title">Sankey Diagram</div>
                   <div style="position: relative; height:550px; width:100%">
                      <div id="sankeyChart" style="width:100%; height:100%;"></div>
                   </div>
                </div>
-               <div class="dash-widget span-2 span-pc-4">
+               <div class="dash-widget span-col-12 span-md-12">
                   <div class="widget-title">Monthly Trend</div>
                   <div style="position: relative; height:350px; width:100%">
                      <div id="expensesChart" style="width: 100%; height: 100%;"></div>
                   </div>
                </div>
-               <div class="dash-widget span-2">
+               <div class="dash-widget span-col-12 span-md-12">
                   <div class="widget-title"><span style="color:var(--danger);">🔴</span> Monthly Expenditures</div>
                   <div style="position: relative; height:280px; width:100%">
                      <div id="expenseStackChart" style="width: 100%; height: 100%;"></div>
                   </div>
                </div>
-               <div class="dash-widget span-2">
+               <div class="dash-widget span-col-12 span-md-12">
                   <div class="widget-title"><span style="color:var(--success);">🟢</span> Monthly Revenue</div>
                   <div style="position: relative; height:280px; width:100%">
                      <div id="incomeStackChart" style="width: 100%; height: 100%;"></div>
                   </div>
                </div>
             </div>
-            <div class="dash-widget span-2 span-pc-4" style="margin-top: 20px; margin-bottom: 30px; overflow: hidden;">
+            <div class="dash-widget span-col-12 span-md-12" style="margin-top: 20px; margin-bottom: 30px; overflow: hidden;">
     <div class="widget-title">
         <div class="badge-icon bg-blue">🏛️<i class="fas fa-water"></i></div>
         Cashflow & Performance
@@ -1688,7 +1702,7 @@
 </div>
             <div class="dash-grid">
                <!-- Tax Alert Banner -->
-               <div id="tax-alert-banner" class="span-2 span-pc-4" style="display:none; background:rgba(255,59,48,0.1); border-left:4px solid var(--danger); padding:15px; border-radius:8px; margin-bottom:15px;">
+               <div id="tax-alert-banner" class="span-col-12 span-md-12" style="display:none; background:rgba(255,59,48,0.1); border-left:4px solid var(--danger); padding:15px; border-radius:8px; margin-bottom:15px;">
                    <div style="font-weight:bold; color:var(--danger); display:flex; align-items:center; gap:8px;">
                       ⚠️ ATTENZIONE: Minusvalenze in Scadenza!
                    </div>
@@ -1697,7 +1711,7 @@
                    </div>
                </div>
 
-               <div class="dash-widget span-2 span-pc-2" style="margin-top: 20px; margin-bottom: 30px; overflow: hidden;">
+               <div class="dash-widget span-col-12 span-md-6" style="margin-top: 20px; margin-bottom: 30px; overflow: hidden;">
                   <div class="widget-title">
                      <div class="badge-icon bg-blue">🏛️</div>
                      Tax Bill Simulator
@@ -1706,7 +1720,7 @@
                      <div style="text-align:center; color:var(--gray); padding: 20px;">Loading tax data...</div>
                   </div>
                </div>
-               <div class="dash-widget span-2 span-pc-2" style="margin-top: 20px; margin-bottom: 30px; overflow: hidden;">
+               <div class="dash-widget span-col-12 span-md-6" style="margin-top: 20px; margin-bottom: 30px; overflow: hidden;">
                   <div class="widget-title">
                      <div class="badge-icon bg-green">✂️</div>
                      Tax Loss Harvesting
@@ -1721,7 +1735,7 @@
                </div>
 
                <!-- What-If Simulator -->
-               <div class="dash-widget span-2 span-pc-4" style="margin-bottom: 30px; overflow: hidden;">
+               <div class="dash-widget span-col-12 span-md-12" style="margin-bottom: 30px; overflow: hidden;">
                   <div class="widget-title">
                      <div class="badge-icon bg-purple">🔮</div>
                      What-If Simulator
@@ -1750,13 +1764,13 @@
          </div>
          <div id="rtab-planning" class="m-tab-content">
             <div class="dash-grid">
-               <div class="dash-widget span-2 span-pc-2">
+               <div class="dash-widget span-col-12 span-md-6">
                   <div class="widget-title">✈️ Travels Cost</div>
                   <div style="position: relative; height:280px; width:100%; min-width:0;">
                      <div id="tripChart" style="width: 100%; height: 100%;"></div>
                   </div>
                </div>
-               <div class="dash-widget span-2 span-pc-2" style="padding:0; overflow:hidden;">
+               <div class="dash-widget span-col-12 span-md-6" style="padding:0; overflow:hidden;">
                   <div style="background:var(--text-main); color:var(--bg); padding: 18px 24px; font-weight:800; font-size:15px; display:flex; justify-content:space-between; align-items:center;">
                      <span>Travel Map 🌍</span>
                   </div>
@@ -1764,14 +1778,14 @@
                      <div id="map" style="height: 280px; width: 100%;"></div>
                   </div>
                </div>
-               <div class="span-2 span-pc-4">
+               <div class="span-col-12 span-md-12">
                   <div class="widget-title" style="margin-left:5px;">List of Trips</div>
                   <div id="trip-list-container">
                      <div style="text-align:center; color:var(--gray); font-size:14px; font-weight:600; background:transparent; border:none; box-shadow:none;">Loading Trips...</div>
                   </div>
                </div>
             </div>
-            <div class="dash-widget span-2 span-pc-4" style="margin-top:20px; margin-bottom: 50px; background: linear-gradient(180deg, var(--white) 0%, var(--section-bg) 100%);">
+            <div class="dash-widget span-col-12 span-md-12" style="margin-top:20px; margin-bottom: 50px; background: linear-gradient(180deg, var(--white) 0%, var(--section-bg) 100%);">
                <div class="widget-title" style="font-size:14px; color:var(--text-main);">
                   <div class="badge-icon bg-dark">🐢</div>
                   Pension Fund
@@ -2302,3 +2316,4 @@
    </div>
 </div>
 </body>
+

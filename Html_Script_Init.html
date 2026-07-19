@@ -590,15 +590,25 @@ function updateDashboardDOM(d) {
    }
    
    function hardResetApp() {
-     if(!confirm("Force reload all data from server?")) return;
-     const btn = event.target;
-     btn.innerText = "🧹 Cleaning...";
-     localStorage.clear();
-     google.script.run.withSuccessHandler(() => {
-         console.log("System Reset Complete.");
-         window.location.reload(); 
-     }).clearServerCache();
-   }
+  if(!confirm("Force reload all data from server?")) return;
+  
+  if (typeof Swal !== 'undefined') {
+    Swal.fire({
+      title: '🧹 Cleaning...',
+      text: 'Resetting cache and reloading...',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+  } else if (window.event && window.event.currentTarget) {
+    window.event.currentTarget.innerText = "🧹 Cleaning...";
+  }
+
+  localStorage.clear();
+  google.script.run.withSuccessHandler(() => {
+      console.log("System Reset Complete.");
+      window.location.reload(); 
+  }).clearServerCache();
+}
    
    function setP(id, val) {
      const el = document.getElementById(id);

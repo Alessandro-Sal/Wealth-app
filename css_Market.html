@@ -983,13 +983,26 @@ body.dark-mode .term-subtotal {
 /* --- MARKET SUB-NAVIGATION TABS --- */
 .market-sub-nav {
 	display: flex;
-	gap: 10px;
-	margin-bottom: 20px;
+	width: max-content;
+	max-width: 100%;
+	margin: 0 auto 10px auto;
+	gap: 4px;
+	padding: 5px;
+	border-radius: 40px;
+	background: rgba(0, 0, 0, 0.04); /* Subtle track */
+	backdrop-filter: blur(16px);
+	-webkit-backdrop-filter: blur(16px);
+	border: 1px solid rgba(0, 0, 0, 0.03);
+	box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.02); /* Inner depth */
 	overflow-x: auto;
-	padding-bottom: 5px;
 	-webkit-overflow-scrolling: touch;
 	scrollbar-width: none;
-	/* Firefox */
+}
+
+body.dark-mode .market-sub-nav {
+	background: rgba(0, 0, 0, 0.25);
+	border: 1px solid rgba(255, 255, 255, 0.04);
+	box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.2);
 }
 
 .market-sub-nav::-webkit-scrollbar {
@@ -998,31 +1011,42 @@ body.dark-mode .term-subtotal {
 }
 
 .m-sub-btn {
-	flex: 1;
-	min-width: 110px;
-	padding: 12px 15px;
-	border-radius: 14px;
+	padding: 8px 20px;
+	border-radius: 30px;
 	font-size: 13px;
-	font-weight: 800;
-	border: none;
-	background: var(--section-bg);
+	font-weight: 600;
+	border: 1px solid transparent;
+	background: transparent;
 	color: var(--gray);
 	cursor: pointer;
-	transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+	transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); /* Elegant spring */
 	white-space: nowrap;
 	text-align: center;
-	box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.02);
+	position: relative;
 }
 
-body.dark-mode .m-sub-btn {
-	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+.m-sub-btn:hover {
+	color: var(--text-main);
+	background: rgba(0, 0, 0, 0.02);
+}
+
+body.dark-mode .m-sub-btn:hover {
+	background: rgba(255, 255, 255, 0.03);
 }
 
 .m-sub-btn.active {
-	background: var(--text-main);
-	color: var(--bg);
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-	transform: translateY(-2px);
+	background: var(--bg); /* Lifts up from track */
+	color: var(--text-main);
+	font-weight: 700;
+	border: 1px solid rgba(0, 0, 0, 0.06);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04); /* Physical elevation */
+	transform: translateY(-1px); /* Subliminal lift */
+}
+
+body.dark-mode .m-sub-btn.active {
+	background: rgba(255, 255, 255, 0.1);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .m-tab-content {
@@ -1130,43 +1154,11 @@ body.dark-mode .m-sub-btn {
 }
 
 /* Force full width for the Market page wrapper */
-#p-market .pc-wrapper {
-	max-width: 100%;
-	width: 100%;
-	padding-left: 15px;
-	padding-right: 15px;
-	box-sizing: border-box;
-}
+/* Removed #p-market .pc-wrapper overrides to respect the master canvas */
 
-/* Adjust header margins to match the new full-width container */
-#p-market .market-header-container {
-	margin-left: -15px;
-	margin-right: -15px;
-}
-
-/* 2. Header FISSATO IN ALTO (Sticky) con bottoni */
-.market-header-container {
-	position: -webkit-sticky;
-	position: sticky;
-	top: 0;
-	z-index: 1000;
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding: 15px 20px;
-	margin: -15px -15px 25px -15px;
-	/* Compensa i padding della pagina */
-	background: rgba(242, 242, 247, 0.85);
-	backdrop-filter: blur(20px);
-	-webkit-backdrop-filter: blur(20px);
-	border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-body.dark-mode .market-header-container {
-	background: rgba(28, 28, 30, 0.85);
-	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
+/* Adjust header margins to match the new full-width container /* market-header-container styles have been unified into css_Main.html 
+   to perfectly fit the master canvas padded layout. */
+   
 .market-page-title {
 	font-size: 24px;
 	font-weight: 900;

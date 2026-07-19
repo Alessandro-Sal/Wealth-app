@@ -70,17 +70,31 @@ function clearServerCache() {
   cache.removeAll([
     'GEMINI_RISK_ANALYSIS_PCT_V2', 
     'GEMINI_RISK_DEEP_V1', 
-    'CRYPTO_FNG'
+    'CRYPTO_FNG',
+    'SMART_SUGGESTIONS'
   ]); 
   
-  // Invalidate main app caches
-  if (typeof invalidateAllDataCache === 'function') invalidateAllDataCache();
+  // Invalidate main app caches (true flags to clear all years)
+  if (typeof invalidateAllDataCache === 'function') invalidateAllDataCache(null, true);
   if (typeof invalidateConfigCache === 'function') invalidateConfigCache();
   if (typeof invalidatePortfolioCache === 'function') invalidatePortfolioCache();
   if (typeof invalidateWatchlistCache === 'function') invalidateWatchlistCache();
   
   // Delete the permanent persistent property for Dividends
   props.deleteProperty('DIVIDEND_ESTIMATES_PERSISTENT_V1');
+  
+  // Delete News Backup Caches and Properties
+  const allProps = props.getProperties();
+  const newsKeysToRemove = [];
+  for (const key in allProps) {
+    if (key.startsWith('NEWS_BACKUP_')) {
+      props.deleteProperty(key);
+      newsKeysToRemove.push(key);
+    }
+  }
+  if (newsKeysToRemove.length > 0) {
+    cache.removeAll(newsKeysToRemove);
+  }
 
   return "Server Cache & Properties Cleared";
 }

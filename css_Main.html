@@ -81,7 +81,7 @@ body.dark-mode::after {
 }
 
 body {
-	font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 	background-color: #f2f2f7;
 	color: var(--text-main);
 	margin: 0;
@@ -327,54 +327,63 @@ body.dark-mode select option {
       ULTRA-PREMIUM DASHBOARD UI (RESPONSIVE)
       ========================================= */
 /* 1. Glass Header */
-.recap-header-container {
+.recap-header-container, 
+.market-header-container {
 	position: sticky;
-	top: 0;
-	z-index: 100;
+	top: -30px; /* Counteracts the top padding of pc-wrapper */
+	z-index: 1000;
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	padding: 15px 20px;
-	margin: -15px -15px 20px -15px;
-	background: rgba(242, 242, 247, 0.75);
+	padding: 20px 30px;
+	margin: -30px -30px 25px -30px;
+	background: rgba(255, 255, 255, 0.85); /* Matches master canvas */
 	backdrop-filter: blur(20px);
 	-webkit-backdrop-filter: blur(20px);
-	border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+	border-bottom: 1px solid var(--card-border);
+	border-top-left-radius: 36px;
+	border-top-right-radius: 36px;
 }
 
-body.dark-mode .recap-header-container {
-	background: rgba(28, 28, 30, 0.75);
-	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+body.dark-mode .recap-header-container, 
+body.dark-mode .market-header-container {
+	background: rgba(30, 30, 30, 0.85);
+	border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* 2. Hero Card with Animated Gradient */
+@media (max-width: 768px) {
+    .recap-header-container, 
+    .market-header-container {
+        top: -20px;
+        margin: -20px -15px 20px -15px;
+        padding: 15px 15px;
+        border-top-left-radius: 24px;
+        border-top-right-radius: 24px;
+    }
+}
+
+/* 2. Hero Card Split Layout */
+/* 2. Hero Card Pro Max: Aurora & Glassmorphism */
 .dash-hero {
-	background: linear-gradient(-45deg, #007aff, #5856d6, #5ac8fa, #007aff);
-	background-size: 400% 400%;
-	animation: gradientBG 15s ease infinite;
-	border-radius: 28px;
-	padding: 30px 20px;
-	color: white;
-	box-shadow: 0 12px 35px rgba(0, 122, 255, 0.3);
-	margin-bottom: 25px;
+	padding: 60px 50px;
+	margin-bottom: 32px;
 	position: relative;
+	background: rgba(255, 255, 255, 0.4);
+	backdrop-filter: blur(40px);
+	-webkit-backdrop-filter: blur(40px);
+	border: 1px solid rgba(255, 255, 255, 0.6);
+	border-radius: 40px;
 	overflow: hidden;
+	box-shadow: 0 30px 60px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 1);
 }
 
-@keyframes gradientBG {
-	0% {
-		background-position: 0% 50%;
-	}
-
-	50% {
-		background-position: 100% 50%;
-	}
-
-	100% {
-		background-position: 0% 50%;
-	}
+body.dark-mode .dash-hero {
+	background: rgba(20, 20, 25, 0.6);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
+/* Spell: Aurora Background */
 .dash-hero::before {
 	content: '';
 	position: absolute;
@@ -382,21 +391,175 @@ body.dark-mode .recap-header-container {
 	left: -50%;
 	width: 200%;
 	height: 200%;
-	background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 60%);
+	background: radial-gradient(circle at 50% 50%, rgba(52, 199, 89, 0.08), transparent 40%),
+				radial-gradient(circle at 80% 20%, rgba(0, 122, 255, 0.08), transparent 40%);
+	z-index: 0;
+	animation: auroraSpin 20s linear infinite;
 	pointer-events: none;
+}
+@keyframes auroraSpin {
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(360deg); }
+}
+
+.hero-split {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	width: 100%;
+	gap: 40px;
+	position: relative;
+	z-index: 2;
+}
+.hero-primary {
+	flex: 2;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+}
+.hero-secondary {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+}
+.hero-divider {
+	width: 1px;
+	height: 120px;
+	background: linear-gradient(to bottom, transparent, var(--border-color) 20%, var(--border-color) 80%, transparent);
+}
+.hero-label {
+	font-size: 13px;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 2px;
+	color: var(--gray);
+	margin-bottom: 12px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+/* Spell: Radar Pulse */
+.status-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	position: relative;
+}
+.green-glow {
+	background: #34c759;
+}
+.green-glow::after {
+	content: '';
+	position: absolute;
+	top: -4px;
+	left: -4px;
+	right: -4px;
+	bottom: -4px;
+	border-radius: 50%;
+	background: rgba(52, 199, 89, 0.4);
+	animation: radarPulse 2s infinite cubic-bezier(0.25, 1, 0.5, 1);
+}
+@keyframes radarPulse {
+	0% { transform: scale(0.5); opacity: 1; }
+	100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* Spell: Cinematic Text Shimmer */
+.hero-value-main {
+	font-size: clamp(3.5rem, 8vw, 7.5rem);
+	font-weight: 900;
+	letter-spacing: -4px;
+	color: var(--text-main);
+	line-height: 1;
+	position: relative;
+	background: linear-gradient(110deg, var(--text-main) 30%, rgba(150,150,150,0.5) 50%, var(--text-main) 70%);
+	background-size: 200% auto;
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	animation: textShimmer 4s linear infinite;
+}
+@keyframes textShimmer {
+	to { background-position: 200% center; }
+}
+body.dark-mode .hero-value-main {
+	background: linear-gradient(110deg, var(--text-main) 30%, rgba(255,255,255,0.8) 50%, var(--text-main) 70%);
+	background-size: 200% auto;
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+
+.hero-value-sub {
+	font-size: clamp(2.5rem, 5vw, 4rem);
+	font-weight: 800;
+	letter-spacing: -2px;
+	color: var(--text-main);
+	line-height: 1;
+}
+
+/* Elite Glass Pill */
+.hero-badge {
+	font-size: 15px;
+	font-weight: 700;
+	color: var(--text-main);
+	background: rgba(120, 120, 120, 0.15);
+	padding: 8px 18px;
+	border-radius: 24px;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	backdrop-filter: blur(10px);
+	border: 1px solid rgba(255, 255, 255, 0.3);
+	transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+	cursor: default;
+}
+.hero-badge:hover {
+	transform: translateY(-2px);
+	background: rgba(120, 120, 120, 0.25);
+	box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+body.dark-mode .hero-badge {
+	border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 768px) {
+	.dash-hero {
+		padding: 40px 24px;
+	}
+	.hero-split {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 32px;
+	}
+	.hero-divider {
+		width: 100%;
+		height: 1px;
+		margin: 10px 0;
+		background: linear-gradient(to right, transparent, var(--border-color) 20%, var(--border-color) 80%, transparent);
+	}
 }
 
 /* 3. Modern Responsive Grid (Bento) */
 .dash-grid {
 	display: grid;
-	grid-template-columns: repeat(2, 1fr);
-	gap: 12px;
-	margin-bottom: 24px;
+	grid-template-columns: repeat(12, 1fr);
+	grid-auto-flow: dense;
+	gap: 16px;
+	margin-bottom: 32px;
 }
 
 #p-recap .dash-widget {
 	margin-bottom: 0 !important;
 }
+
+/* MOBILE SPANS (Default 12 col grid) */
+.span-col-12 { grid-column: span 12; }
+.span-col-8 { grid-column: span 8; }
+.span-col-6 { grid-column: span 6; }
+.span-col-4 { grid-column: span 4; }
+.span-col-3 { grid-column: span 3; }
 
 /* Empty States */
 .empty-state {
@@ -455,11 +618,6 @@ body.dark-mode .empty-state {
 	transform: scale(0.96);
 }
 
-/* MOBILE SPANS */
-.span-2 {
-	grid-column: span 2;
-}
-
 body.dark-mode .dash-widget {
 	background: var(--white);
 	border: 1px solid var(--card-border);
@@ -468,25 +626,21 @@ body.dark-mode .dash-widget {
 
 /* Desktop & Tablet Optimizations */
 @media (min-width: 768px) {
+	/* PC GRID / SPANS */
 	.dash-grid {
-		grid-template-columns: repeat(4, 1fr);
+		/* Grid stays 12 cols, maybe adjust gap */
+		gap: 20px;
 	}
 
 	.dash-widget {
 		padding: 24px;
 	}
 
-	.span-pc-1 {
-		grid-column: span 1;
-	}
-
-	.span-pc-2 {
-		grid-column: span 2;
-	}
-
-	.span-pc-4 {
-		grid-column: span 4;
-	}
+	.span-md-12 { grid-column: span 12; }
+	.span-md-8 { grid-column: span 8; }
+	.span-md-6 { grid-column: span 6; }
+	.span-md-4 { grid-column: span 4; }
+	.span-md-3 { grid-column: span 3; }
 
 	.dash-list-wrapper {
 		display: grid;
@@ -700,8 +854,29 @@ body.dark-mode #trip-list-container>div {
 
 .pc-wrapper {
 	max-width: 1200px;
-	margin: 0 auto;
-	width: 100%;
+	margin: 20px auto 40px auto;
+	width: calc(100% - 30px);
+	background: var(--white); /* Master Canvas */
+	border-radius: 36px;
+	padding: 30px;
+	box-sizing: border-box;
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+body.dark-mode .pc-wrapper {
+	background: rgba(30, 30, 30, 0.6);
+	border: 1px solid rgba(255, 255, 255, 0.05);
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 768px) {
+	.pc-wrapper {
+		margin: 10px auto 20px auto;
+		width: calc(100% - 20px);
+		padding: 20px 15px;
+		border-radius: 24px;
+	}
 }
 
 .sensitive,
@@ -780,19 +955,10 @@ body.privacy-mode #runway-val.sensitive {
 	padding: 0 10px !important;
 }
 
-/* Force full width for the Recap page wrapper */
-#p-recap .pc-wrapper {
-	max-width: 100%;
-	width: 100%;
-	padding-left: 15px;
-	padding-right: 15px;
-	box-sizing: border-box;
-}
-
-/* Adjust header margins to match the new full-width container in Recap */
+/* Master Canvas replaces the need for #p-recap wrapper overrides */
+/* The recap header now sits beautifully inside the padded canvas */
 #p-recap .recap-header-container {
-	margin-left: -15px;
-	margin-right: -15px;
+	/* Removed negative margins */
 }
   /* Header layout to push the menu to the right */
   .tab-header {
