@@ -1164,33 +1164,33 @@ function updateAnalyticsChart() {
      const asiaState = getMarketState('JP'); // Rappresentante per l'Asia (Tokyo)
      
      const badge = (flag, name, state) => { 
-         const isOpen = (state === 'OPEN' || state === 'CLOSING_SOON');
-         const isPre = (state === 'PRE_MARKET');
-         
-         let color = '#8e8e93'; // Grigio per CLOSED
-         let opacity = '0.5';
-         let statusIcon = '💤';
-         
-         if (isOpen) {
-             color = state === 'CLOSING_SOON' ? '#ff9500' : '#34c759'; // Arancione o Verde
-             opacity = '1';
-             statusIcon = '';
-         } else if (isPre) {
-             color = '#007aff'; // Blu per PRE-MARKET
-             opacity = '0.9';
-             statusIcon = '🕒';
-         }
-   
-         return `<span style="margin-right:8px; opacity:${opacity}; font-weight:700; color:${color}; border:1px solid ${color}; padding:2px 6px; border-radius:6px; font-size:10px; margin-bottom:4px; display:inline-block;">${flag} ${name} ${statusIcon}</span>`; 
-     };
-     
-     statusDiv.innerHTML = `
-       <div style="display:flex; margin-top:4px; flex-wrap:wrap;">
-           ${badge('🇺🇸', 'USA', usState)}
-           ${badge('🇪🇺', 'EU', euState)}
-           ${badge('🇬🇧', 'UK', ukState)}
-           ${badge('🇯🇵', 'ASIA', asiaState)}
-       </div>`;
+          const isOpen = (state === 'OPEN' || state === 'CLOSING_SOON');
+          const isPre = (state === 'PRE_MARKET');
+          
+          let color = '#8e8e93'; // Grigio per CLOSED
+          let opacity = '0.5';
+          let statusIcon = '💤';
+          
+          if (isOpen) {
+              color = state === 'CLOSING_SOON' ? '#ff9500' : '#34c759'; // Arancione o Verde
+              opacity = '1';
+              statusIcon = '';
+          } else if (isPre) {
+              color = '#007aff'; // Blu per PRE-MARKET
+              opacity = '0.9';
+              statusIcon = '🕒';
+          }
+    
+          return `<span style="opacity:${opacity}; font-weight:700; color:${color}; border:1px solid ${color}; padding:3px 6px; border-radius:6px; font-size:10px; display:flex; align-items:center; line-height:1; white-space:nowrap;">${flag} <span style="margin-left:4px;">${name} ${statusIcon}</span></span>`; 
+      };
+      
+      statusDiv.innerHTML = `
+        <div style="display:flex; margin-top:4px; flex-wrap:wrap; gap:6px 8px;">
+            ${badge('🇺🇸', 'USA', usState)}
+            ${badge('🇪🇺', 'EU', euState)}
+            ${badge('🇬🇧', 'UK', ukState)}
+            ${badge('🇯🇵', 'ASIA', asiaState)}
+        </div>`;
    }
    
    function getMarketState(exchangeCode) {
