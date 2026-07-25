@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Wealth-App Runtime Architecture",
+    "subtitle": "Google Apps Script SPA, Portfolio Engine, Italian Tax FIFO, Gemini AI, and Sheets DB",
+    "output": "wealth_app_architecture.html",
+    "visual_preset": "blueprint",
+    "animation": "trace",
+    "quality_profile": "standard",
+    "views": [
+      {
+        "id": "user-request-flow",
+        "label": "User Request to Core Backend",
+        "focus": ["user_client", "gas_frontend", "gas_core", "gas_data"],
+        "note": "Trace how user actions in the SPA travel through google.script.run to the Apps Script core and Sheets DB."
+      },
+      {
+        "id": "financial-and-tax",
+        "label": "Portfolio Engine & Italian Tax FIFO",
+        "focus": ["gas_core", "portfolio_engine", "tax_engine", "gas_data"],
+        "note": "See how transactions trigger live pricing updates, FIFO tax calculations, and zainetto fiscale tracking."
+      },
+      {
+        "id": "ai-and-services",
+        "label": "Gemini AI & Automated Mail Reports",
+        "focus": ["gas_core", "ai_layer", "google_services", "ext_apis"],
+        "note": "Explore AI receipt OCR, market insight generation, nightly backups, and automated Gmail briefings."
+      }
+    ]
+  },
+  "components": [
+    { "id": "user_client", "type": "external", "label": "User Client", "sublabel": "Mobile / Desktop Web SPA", "pos": [40, 300], "size": [140, 60], "tag": "Client" },
+    { "id": "gas_frontend", "type": "backend", "label": "GAS Frontend SPA", "sublabel": "Html_Index & SPA Router", "pos": [260, 300], "size": [150, 60], "tag": "UI Layer" },
+    { "id": "gas_core", "type": "backend", "label": "App Core Backend", "sublabel": "App.js & Router Dispatch", "pos": [520, 300], "size": [150, 60], "tag": "Core" },
+    { "id": "portfolio_engine", "type": "backend", "label": "Portfolio Engine", "sublabel": "Live Prices & Sniper Alerts", "pos": [780, 160], "size": [160, 60], "tag": "Finance" },
+    { "id": "ai_layer", "type": "backend", "label": "Gemini AI Layer", "sublabel": "App_AI.js / OCR / Chat", "pos": [780, 300], "size": [150, 60], "tag": "AI" },
+    { "id": "tax_engine", "type": "backend", "label": "Italian Tax Engine", "sublabel": "26% Tax FIFO & Zainetto", "pos": [780, 440], "size": [160, 60], "tag": "Tax" },
+    { "id": "gas_data", "type": "database", "label": "Google Sheets DB", "sublabel": "Transactions & Portfolios", "pos": [1060, 300], "size": [150, 60], "tag": "Storage" },
+    { "id": "google_services", "type": "cloud", "label": "Drive & Gmail Infra", "sublabel": "Nightly Snapshot & Reports", "pos": [1310, 170], "size": [160, 60], "tag": "Services" },
+    { "id": "ext_apis", "type": "external", "label": "External APIs", "sublabel": "Gemini 1.5 & Market Feeds", "pos": [1310, 430], "size": [160, 60], "tag": "APIs" }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Google Apps Script Cloud Environment", "wraps": ["gas_frontend", "gas_core", "portfolio_engine", "ai_layer", "tax_engine"] },
+    { "kind": "security-group", "label": "Google Workspace Infrastructure", "wraps": ["gas_data", "google_services"] },
+    { "kind": "security-group", "label": "External Service Integrations", "wraps": ["ext_apis"] }
+  ],
+  "connections": [
+    { "from": "user_client", "to": "gas_frontend", "label": "HTTPS GET", "variant": "emphasis", "labelAt": [200, 280] },
+    { "from": "gas_frontend", "to": "gas_core", "label": "script.run", "variant": "emphasis", "labelAt": [465, 280] },
+    { "from": "gas_core", "to": "portfolio_engine", "label": "calc live", "route": "orthogonal-h", "labelAt": [725, 215] },
+    { "from": "gas_core", "to": "ai_layer", "label": "query AI", "route": "straight", "labelAt": [725, 280] },
+    { "from": "gas_core", "to": "tax_engine", "label": "eval trades", "route": "orthogonal-h", "labelAt": [725, 385] },
+    { "from": "portfolio_engine", "to": "gas_data", "label": "read/write", "route": "orthogonal-h", "labelAt": [1000, 215] },
+    { "from": "ai_layer", "to": "gas_data", "label": "sync data", "route": "straight", "labelAt": [995, 280] },
+    { "from": "tax_engine", "to": "gas_data", "label": "store gains", "route": "orthogonal-h", "labelAt": [1000, 385] },
+    { "from": "gas_core", "to": "google_services", "label": "cron jobs", "variant": "dashed", "fromSide": "top", "toSide": "top", "via": [[595, 90], [1390, 90]], "labelAt": [990, 75] },
+    { "from": "ai_layer", "to": "ext_apis", "label": "REST API", "variant": "security", "fromSide": "right", "toSide": "bottom", "via": [[1000, 330], [1000, 530], [1390, 530]], "labelAt": [1190, 545] }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Frontend & Execution", "items": ["Modular Single Page App rendered inside Google Apps Script iframe", "Asynchronous RPC via google.script.run to GAS backend functions", "Dynamic charts powered by Chart.js and interactive modals"] },
+    { "dot": "rose", "title": "Portfolio & Tax Engine", "items": ["Real-time asset valuation with automatic price cache refresh", "FIFO Italian tax calculation for capital gains (26% tax rate)", "4-year tax-loss recovery tracking (Zainetto Fiscale)"] },
+    { "dot": "emerald", "title": "AI & Workspace Automation", "items": ["Gemini 1.5 Flash integration for voice commands and receipt OCR", "Nightly automated Google Drive database backups at 3:00 AM", "Scheduled Gmail reports for dividends and market alerts"] }
+  ]
+}
